@@ -1,0 +1,11 @@
+.KhachHang .container .form button {
+  position: absolute;
+  right: 150px;
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+}
+
+.KhachHang .container button {
+  margin-top: 10px;
+}

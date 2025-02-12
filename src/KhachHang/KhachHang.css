@@ -1,0 +1,101 @@
+.table {
+  width: 100%;
+}
+
+.KhachHang .header {
+  background-color: rgb(91, 91, 91);
+  box-shadow: 2px 2px 3px rgb(228, 228, 228);
+}
+
+.KhachHang .container {
+  border: 1px solid rgb(224, 224, 224);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 2px 2px 2px rgb(228, 228, 228);
+}
+
+.KhachHang .header .title {
+  color: #fff;
+  font-family: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif;
+  font-size: 20px;
+}
+
+.KhachHang .container .title {
+  font-size: 20px;
+  font-weight: 500;
+  margin-bottom: 30px;
+}
+
+.table .table-light th {
+  white-space: nowrap;
+  align-items: center;
+  text-align: center;
+}
+.table .tbody td {
+  white-space: nowrap;
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  vertical-align: middle;
+  padding: 10px;
+}
+
+.KhachHang .container .search {
+  display: flex;
+}
+
+.KhachHang .container .search button {
+  position: absolute;
+  right: 150px;
+  top: 150px;
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+}
+.KhachHang .container .d-flex .excel{
+  position: absolute;
+  right: 260px;
+}
+.KhachHang .container .search .icon {
+  margin-right: 10px;
+}
+
+.KhachHang .container .search .input {
+  margin-bottom: 30px;
+  width: 300px;
+  outline: none;
+}
+
+.pagination-container {
+  margin-top: 20px;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #000;
+}
+
+.pagination .page-link {
+  color: #007bff;
+}
+
+.pagination .page-link:hover {
+  background-color: #e9ecef;
+}
+
+.KhachHang .container .d-flex button {
+  position: absolute;
+  right: 85px;
+  top: 145px;
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  background-color: rgb(235, 235, 235);
+}
+
+.KhachHang .container .pagination button {
+  position: relative;
+  top: 0;
+  right: -500px;
+}

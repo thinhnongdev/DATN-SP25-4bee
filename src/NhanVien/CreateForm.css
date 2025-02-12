@@ -1,0 +1,11 @@
+.NhanVien .container .form button {
+  position: absolute;
+  right: 150px;
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+}
+
+.NhanVien .container button {
+  margin-top: 10px;
+}
