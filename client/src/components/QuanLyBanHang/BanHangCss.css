@@ -1,0 +1,19 @@
+.custom-input-number {
+    border: none !important; /* Xóa viền của InputNumber */
+    box-shadow: none !important; /* Xóa hiệu ứng khi focus */
+    background-color: transparent !important; /* Làm trong suốt */
+    width: 150px; /* Giữ kích thước phù hợp */
+  }
+  
+  .custom-input-number input {
+    color: red !important; /* Màu chữ đỏ */
+    text-align: right !important; /* Căn phải */
+    border: none !important; /* Xóa viền của input */
+    border-bottom: 2px solid rgb(0, 0, 0) !important; /* Giữ lại chỉ viền dưới */
+    border-radius: 0 !important; /* Loại bỏ bo góc */
+    outline: none !important; /* Loại bỏ viền khi focus */
+    box-shadow: none !important; /* Loại bỏ hiệu ứng khi nhập */
+    /* padding: 4px; Tạo khoảng cách phù hợp */
+    background-color: transparent !important; /* Nền trong suốt */
+  }
+  
