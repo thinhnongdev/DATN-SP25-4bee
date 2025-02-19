@@ -57,6 +57,9 @@ public class NhanVien {
     @Column(name = "nguoi_sua")
     private String nguoiSua;
 
+    @Column(name = "anh")
+    private String anh;
+
     public NhanVien(String id) {
         this.id = id;
     }

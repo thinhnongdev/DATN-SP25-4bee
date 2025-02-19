@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { getNhanVienById } from "./NhanVienApi";
-import "./DetailForm.css";
-import "./NhanVien.css";
 
 const DetailForm = ({ selectedNhanVien, handleClose }) => {
   const [nhanVien, setNhanVien] = useState(null);
@@ -32,17 +30,7 @@ const DetailForm = ({ selectedNhanVien, handleClose }) => {
         <div className="detail-form-content">
           {/* Thông tin nhân viên bên trái */}
           <div className="form-left">
-            <div className="avatar">
-              <img
-                src={
-                  nhanVien.anh_dai_dien ||
-                  "https://i.pinimg.com/736x/64/7d/ff/647dff4ee0ec7e59c4aa85ed0aba0ac9.jpg"
-                }
-                alt="Avatar"
-                width="100"
-                height="100"
-              />
-            </div>
+            
             <div className="form-group">
               <label htmlFor="ma">Mã nhân viên</label>
               <input

@@ -169,7 +169,7 @@ const DanhMuc = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>danh mục</Breadcrumb.Item>
+        <Breadcrumb.Item>Danh mục</Breadcrumb.Item>
       </Breadcrumb>
       <Container
         style={{

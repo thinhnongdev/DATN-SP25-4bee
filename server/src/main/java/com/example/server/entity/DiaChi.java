@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -14,11 +15,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class DiaChi {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private String id;
-
-    @ManyToOne
-    @JoinColumn(name = "id_khach_hang")
-    private KhachHang khachHang;
 
     @Column(name = "xa")
     private String xa;
@@ -33,8 +32,9 @@ public class DiaChi {
     private String moTa;
 
     @Column(name = "trang_thai")
-    private Integer trangThai;
+    private int trangThai;
 
+    @CreationTimestamp
     @Column(name = "ngay_tao")
     private LocalDateTime ngayTao;
 
@@ -46,4 +46,8 @@ public class DiaChi {
 
     @Column(name = "nguoi_sua")
     private String nguoiSua;
+
+    @ManyToOne
+    @JoinColumn(name = "id_khach_hang", referencedColumnName = "id")
+    private KhachHang khachHang;
 }

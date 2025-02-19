@@ -13,7 +13,11 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 @Service
@@ -29,17 +33,14 @@ public class NhanVienService {
     public NhanVien createNhanVien(NhanVien nhanVien) {
 
         NhanVien nv = new NhanVien();
-        nv.setMaNhanVien(nhanVien.getMaNhanVien());
+        nv.setMaNhanVien(generateMaNhanVien(nhanVien));
         nv.setTenNhanVien(nhanVien.getTenNhanVien());
         nv.setNgaySinh(nhanVien.getNgaySinh());
-        nv.setMoTa(nhanVien.getMoTa());
-        nv.setTrangThai(nhanVien.getTrangThai());
+        nv.setTrangThai(true);
         nv.setGioiTinh(nhanVien.getGioiTinh());
         nv.setSoDienThoai(nhanVien.getSoDienThoai());
         nv.setEmail(nhanVien.getEmail());
-        nv.setNgaySua(nhanVien.getNgaySua());
-        nv.setNguoiTao(nhanVien.getNguoiTao());
-        nv.setNguoiSua(nhanVien.getNguoiSua());
+        nv.setAnh(nhanVien.getAnh());
 
         NhanVien savedNhanVien = nhanVienRepository.save(nv);
 
@@ -49,6 +50,43 @@ public class NhanVienService {
 
         return savedNhanVien;
     }
+
+    private String generateMaNhanVien(NhanVien nhanVien) {
+        String tenNhanVien = nhanVien.getTenNhanVien();
+        LocalDate ngaySinh = nhanVien.getNgaySinh(); // Lấy ngày sinh từ entity
+
+        if (tenNhanVien == null || tenNhanVien.isEmpty() || ngaySinh == null) {
+            return "NV" + System.currentTimeMillis();
+        }
+
+        String tenKhongDau = removeVietnameseAccents(tenNhanVien.trim().toLowerCase());
+
+        // Chuyển tên thành chữ thường và tách thành các từ
+        String[] parts = tenKhongDau.split("\\s+");
+        if (parts.length == 0) {
+            return "NV" + System.currentTimeMillis();
+        }
+
+        // Lấy từ cuối cùng trước
+        StringBuilder vietTat = new StringBuilder(parts[parts.length - 1]);
+
+        // Ghép chữ cái đầu của các từ còn lại
+        for (int i = 0; i < parts.length - 1; i++) {
+            vietTat.append(parts[i].charAt(0));
+        }
+
+        // Định dạng ngày sinh thành ddMMyyyy
+        String ngaySinhStr = ngaySinh.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+
+        // Tạo mã nhân viên
+        return vietTat + ngaySinhStr;
+    }
+
+    private String removeVietnameseAccents(String str) {
+        String normalized = Normalizer.normalize(str, Normalizer.Form.NFD);
+        return Pattern.compile("\\p{InCombiningDiacriticalMarks}+").matcher(normalized).replaceAll("");
+    }
+
 
     private void sendEmail(NhanVien nhanVien) {
         try {
@@ -88,7 +126,7 @@ public class NhanVienService {
     }
 
     public List<NhanVien> getAllNhanVien() {
-        return nhanVienRepository.findAll();
+        return nhanVienRepository.findAllNhanVienSortedByNgayTao();
     }
 
     public NhanVien getNhanVienById(String id) {
@@ -114,8 +152,13 @@ public class NhanVienService {
     }
 
     public void deleteNhanVien(String id) {
-        nhanVienRepository.deleteById(id);
+        NhanVien nhanVien = nhanVienRepository.findById(id).orElse(null);
+        if (nhanVien != null) {
+            nhanVien.setTrangThai(false);
+            nhanVienRepository.save(nhanVien);
+        } else {
+            throw new IllegalArgumentException("Không tìm thấy nhân viên");
+        }
     }
-
 
 }

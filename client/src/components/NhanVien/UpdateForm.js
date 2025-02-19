@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { VscSave } from "react-icons/vsc";
-import "./UpdateForm.css"
-import "./NhanVien.css"
 import { Radio } from 'antd';
 import { Input } from 'antd';
 import { getPutApi } from "./NhanVienApi";

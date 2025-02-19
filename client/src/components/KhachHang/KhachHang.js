@@ -1,21 +1,16 @@
 import { useEffect, useState } from "react";
-import { Table, Button, Input, Select, Pagination } from "antd";
-import {
-  PlusOutlined,
-  FileExcelOutlined,
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons";
+import { Table, Button, Input, Select, Pagination, Tag, Tooltip } from "antd";
+import { PlusOutlined, FileExcelOutlined } from "@ant-design/icons";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { getAllApi } from "./KhachHangApi";
+import { TbEyeEdit } from "react-icons/tb";
 
 const { Option } = Select;
 
-const KhachHang = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
+const KhachHang = ({ onAddClick, onViewClick }) => {
   const [khachhang, setKhachHang] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
@@ -23,20 +18,20 @@ const KhachHang = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
+  function getAllKhachHang() {
+    getAllApi()
+      .then((response) => {
+        setKhachHang(response.data);
+      })
+      .catch((error) => {
+        console.error("Lỗi khi lấy dữ liệu:", error);
+        toast.error("Không lấy được dữ liệu!");
+      });
+  }
+
   useEffect(() => {
     getAllKhachHang();
   }, []);
-
-  const getAllKhachHang = async () => {
-    try {
-      const response = await getAllApi();
-      const data = Array.isArray(response.data) ? response.data : [];
-      setKhachHang(data);
-    } catch (error) {
-      toast.error("Lỗi khi lấy dữ liệu!");
-      setKhachHang([]);
-    }
-  };
 
   const filteredKhachHang = khachhang.filter((item) => {
     return (
@@ -87,58 +82,56 @@ const KhachHang = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
   const columns = [
     {
       title: "STT",
-      dataIndex: "stt",
-      key: "stt",
+      dataIndex: "index",
       render: (_, __, index) => (currentPage - 1) * pageSize + index + 1,
     },
-    {
-      title: "Ảnh",
-      dataIndex: "anh",
-      key: "anh",
-      render: () => (
-        <img
-          src="https://i.pinimg.com/736x/64/7d/ff/647dff4ee0ec7e59c4aa85ed0aba0ac9.jpg"
-          width={90}
-          alt="Avatar"
-        />
-      ),
-    },
-    { title: "Mã khách hàng", dataIndex: "maKhachHang", key: "maKhachHang" },
-    { title: "Tên khách hàng", dataIndex: "tenKhachHang", key: "tenKhachHang" },
-    { title: "Email", dataIndex: "email", key: "email" },
-    { title: "Số điện thoại", dataIndex: "soDienThoai", key: "soDienThoai" },
+    { title: "Mã khách hàng", dataIndex: "maKhachHang" },
+    { title: "Tên khách hàng", dataIndex: "tenKhachHang" },
+    { title: "Email", dataIndex: "email" },
+    { title: "Số điện thoại", dataIndex: "soDienThoai" },
     {
       title: "Ngày sinh",
       dataIndex: "ngaySinh",
-      key: "ngaySinh",
-      render: (text) => (text ? format(new Date(text), "dd/MM/yyyy") : "N/A"),
+      render: (date) => (date ? format(new Date(date), "dd/MM/yyyy") : "N/A"),
     },
     {
       title: "Giới tính",
       dataIndex: "gioiTinh",
-      key: "gioiTinh",
-      render: (text) => (text ? "Nam" : "Nữ"),
+      render: (gioiTinh) => (gioiTinh ? "Nam" : "Nữ"),
     },
     {
       title: "Trạng thái",
       dataIndex: "trangThai",
       key: "trangThai",
-      render: (text) => (text ? "Hoạt động" : "Ngưng hoạt động"),
+      render: (text, record) =>
+        record.trangThai ? (
+          <Tag
+            color="green"
+            style={{ fontSize: 14, padding: "4px 12px", borderRadius: "15px" }}
+          >
+            Hoạt động
+          </Tag>
+        ) : (
+          <Tag
+            color="red"
+            style={{ fontSize: 14, padding: "4px 12px", borderRadius: "15px" }}
+          >
+            Ngừng hoạt động
+          </Tag>
+        ),
     },
     {
       title: "Thao tác",
-      key: "action",
       render: (_, record) => (
         <>
-          <Button
-            icon={<EyeOutlined />}
-            onClick={() => onViewClick(record.id)}
-          />
-          <Button icon={<EditOutlined />} onClick={() => onEditClick(record)} />
-          <Button
-            icon={<DeleteOutlined />}
-            onClick={() => onDeleteClick(record.id)}
-          />
+          {
+            <Tooltip title="Chỉnh sửa">
+              <Button
+                icon={<TbEyeEdit />}
+                onClick={() => onViewClick(record.id)}
+              />
+            </Tooltip>
+          }
         </>
       ),
     },
@@ -150,7 +143,7 @@ const KhachHang = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
 
       <div
         style={{
-          background: "#f9f9f9",
+          background: "#fff",
           padding: "15px",
           borderRadius: "8px",
           marginBottom: "20px",
@@ -212,18 +205,17 @@ const KhachHang = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
           rowKey="id"
           pagination={false}
         />
-          {/* Phân trang */}
-          <div style={{ marginTop: "20px", display: "flex", justifyContent: "end" }}>
+        {/* Phân trang */}
+        <div
+          style={{ marginTop: "20px", display: "flex", justifyContent: "end" }}
+        >
           <Pagination
-          current={currentPage}
-          pageSize={pageSize}
-          total={filteredKhachHang.length}
-          onChange={setCurrentPage}
-
-          
-        />
+            current={currentPage}
+            pageSize={pageSize}
+            total={filteredKhachHang.length}
+            onChange={setCurrentPage}
+          />
         </div>
-        
       </div>
     </div>
   );
