@@ -162,6 +162,7 @@ const HoaTiet = () => {
 
   return (
     <>
+    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -171,7 +172,7 @@ const HoaTiet = () => {
       >
         <Breadcrumb.Item>Họa tiết</Breadcrumb.Item>
       </Breadcrumb>
-      <Container
+      <div
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -212,8 +213,8 @@ const HoaTiet = () => {
       onChange={handleTableChange}
       rowKey="id"
         />
-      </Container>
-
+      </div>
+      </div>
       <Modal
         title={isEditing ? 'Chỉnh sửa họa tiết' : 'Thêm họa tiết'}
         open={isModalVisible}

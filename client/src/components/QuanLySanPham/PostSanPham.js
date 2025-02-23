@@ -14,6 +14,7 @@ import {
   InputNumber,
   Image,
   Checkbox,
+  message,
 } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import axios from 'axios';
@@ -519,6 +520,7 @@ const DemoForm = () => {
     setIsModalVisibleSizes(false);
   };
   const showModalEditSoLuongVaGia = (color) => {
+    formEditSLGia.resetFields();
     setSelectedColorColorForEdit(color); // Lưu màu sắc đang chỉnh sửa
   // const selectedVariant = danhSachBienThe.find((item) => item.mauSac.name === color);
 
@@ -526,25 +528,45 @@ const DemoForm = () => {
   //   soLuong: selectedVariant?.soLuong || 0,
   //   gia: selectedVariant?.gia || 0,
   // });
-
   setIsModalEditSanPhamVisible(true);
   };
   
   const handleSaveSoLuongVaGia = () => {
-    console.log('danh sách biến thể slgia:',danhSachBienThe)
-    formEditSLGia.validateFields().then((values) => {
-      setDanhSachBienThe((prev) =>
-        prev.map((danhSachBienThe) =>
-          danhSachBienThe.mauSac.name === selectedColorForEdit
-            ? { ...danhSachBienThe, soLuong: values.soLuong, gia: values.gia }
-            : danhSachBienThe
-        ) 
-      );
-      console.log('danh sách biến thể so luong:',values.soLuong)
-      setIsModalEditSanPhamVisible(false);
-    });
-    console.log('danh sách biến thể slgia2:',danhSachBienThe)
+    formEditSLGia
+      .validateFields()
+      .then((values) => {
+        // Kiểm tra dữ liệu nhập
+        if (values.soLuong < 0 || !Number.isInteger(values.soLuong)) {
+          message.error('Số lượng phải là số nguyên không âm');
+          return;
+        }
+        if (values.gia < 0) {
+          message.error('Giá phải là số không âm');
+          return;
+        }
+  
+        // Nếu dữ liệu hợp lệ, cập nhật danhSachBienThe
+        setDanhSachBienThe((prev) =>
+          prev.map((bienThe) =>
+            bienThe.mauSac.name === selectedColorForEdit
+              ? { ...bienThe, soLuong: values.soLuong, gia: values.gia }
+              : bienThe
+          )
+        );
+  
+        setIsModalEditSanPhamVisible(false);
+      })
+      .catch((error) => {
+        console.error('Validation failed:', error);
+      });
   };
+  
+  
+  // Kiểm tra danhSachBienThe sau khi cập nhật
+  useEffect(() => {
+    console.log('🔄 danhSachBienThe đã cập nhật:', danhSachBienThe);
+  }, [danhSachBienThe]);
+  
  
   
   
@@ -597,7 +619,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addsanpham', values);
-        setSanPham((prev) => [...prev, response.data]);
+        setSanPham((prev) => [ response.data, ...prev]);
       }
 
       handleModalSanPhamClose(); // Đóng modal sau khi lưu
@@ -650,7 +672,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addchatlieu', values);
-        setChatLieu((prev) => [...prev, response.data]);
+        setChatLieu((prev) => [response.data, ...prev]);
         toast.success('Thêm chất liệu thành công');
       }
 
@@ -704,7 +726,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addkieudang', values);
-        setKieuDang((prev) => [...prev, response.data]);
+        setKieuDang((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu dáng thành công');
       }
 
@@ -758,7 +780,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addthuonghieu', values);
-        setThuongHieu((prev) => [...prev, response.data]);
+        setThuongHieu((prev) => [response.data, ...prev]);
         toast.success('Thêm thương hiệu thành công');
       }
 
@@ -812,7 +834,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addkieucuc', values);
-        setKieuCuc((prev) => [...prev, response.data]);
+        setKieuCuc((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu cúc thành công');
       }
 
@@ -866,7 +888,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addkieucoao', values);
-        setKieuCoAo((prev) => [...prev, response.data]);
+        setKieuCoAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu cổ áo thành công');
       }
 
@@ -922,7 +944,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addkieucotayao', values);
-        setKieuCoTayAo((prev) => [...prev, response.data]);
+        setKieuCoTayAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu cổ tay áo thành công');
       }
 
@@ -975,7 +997,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addkieutuiao', values);
-        setKieuTuiAo((prev) => [...prev, response.data]);
+        setKieuTuiAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu túi áo thành công');
       }
 
@@ -1026,7 +1048,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addkieutayao', values);
-        setKieuTayAo((prev) => [...prev, response.data]);
+        setKieuTayAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu tay áo thành công');
       }
 
@@ -1078,7 +1100,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addhoatiet', values);
-        setHoaTiet((prev) => [...prev, response.data]);
+        setHoaTiet((prev) => [response.data, ...prev]);
         toast.success('Thêm họa tiết thành công');
       }
 
@@ -1129,7 +1151,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc', values);
-        setDanhMuc((prev) => [...prev, response.data]);
+        setDanhMuc((prev) => [response.data, ...prev]);
         toast.success('Thêm danh mục thành công');
       }
 
@@ -1258,7 +1280,7 @@ const DemoForm = () => {
       key: 'soLuong',
       render: (text, record) => (
         <InputNumber
-          defaultValue={text}
+          value={record.soLuong} // Controlled: lấy từ state
           min={0} // Chỉ cho phép số >= 0
           step={1} // Chỉ tăng/giảm từng đơn vị
           parser={(value) => value.replace(/[^0-9]/g, '')} // Xóa ký tự không phải số
@@ -1276,7 +1298,7 @@ const DemoForm = () => {
       key: 'gia',
       render: (text, record) => (
         <InputNumber
-        defaultValue={200000}
+        value={record.gia} // Controlled: lấy từ state
         min={0}
         max={999999999999999}
         formatter={(value) =>
@@ -1324,6 +1346,22 @@ const DemoForm = () => {
     setDanhSachBienThe(updatedList);
   };
   console.log(danhSachBienThe);
+
+  const [filteredData, setFilteredData] = useState({}); 
+
+  useEffect(() => {
+    const newFilteredData = selectedColors.reduce((acc, color) => {
+      const filteredItems = danhSachBienThe
+        .filter((bienThe) => bienThe.mauSac.name === color.name)
+        .filter((bienThe) => bienThe.tenSanPham);
+  
+      return { ...acc, [color.name]: filteredItems };
+    }, {});
+  
+    setFilteredData(newFilteredData);
+  }, [danhSachBienThe, selectedColors]); // Cập nhật khi danh sách biến thể hoặc màu sắc thay đổi
+  
+
 
   const showConfirm = () => {
     Modal.confirm({
@@ -1811,11 +1849,7 @@ const DemoForm = () => {
       <Space direction="vertical">
         {selectedColors.map((color) => {
           // Lọc biến thể theo màu sắc
-          const dataSource = danhSachBienThe
-            .filter((bienThe) => bienThe.mauSac.name === color.name)
-            .filter((bienThe) => bienThe.tenSanPham); // Kiểm tra tenSanPham có tồn tại (không undefined/null/rỗng)
-          console.log('danh sách biến thể spct:' + dataSource);
-          console.log('Danh sách ảnh spct:', JSON.stringify(selectedImages, null, 2));
+          const dataSource = filteredData[color.name] || [];
 
           return dataSource.length > 0 ? (
             <Card
@@ -1824,9 +1858,9 @@ const DemoForm = () => {
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
                   <span>{`Danh sách các sản phẩm màu: ${color.name}`}</span>
-                  {/* <Button type="primary" icon={<EditOutlined />} onClick={() =>showModalEditSoLuongVaGia(color.name)}>
+                  <Button type="primary" icon={<EditOutlined />} onClick={() =>showModalEditSoLuongVaGia(color.name)}>
                     Chỉnh sửa tất cả
-                  </Button> */}
+                  </Button> 
                 </div>
               }
               key={color.name}

@@ -162,6 +162,7 @@ const KieuCoTayAo = () => {
 
   return (
     <>
+    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -171,7 +172,7 @@ const KieuCoTayAo = () => {
       >
         <Breadcrumb.Item>Kiểu cổ tay áo</Breadcrumb.Item>
       </Breadcrumb>
-      <Container
+      <div
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -212,7 +213,8 @@ const KieuCoTayAo = () => {
           onChange={handleTableChange}
           rowKey="id"
         />
-      </Container>
+      </div>
+      </div>
       <Modal
         title={isEditing ? 'Chỉnh sửa kiểu cổ tay áo' : 'Thêm kiểu cổ tay áo'}
         open={isModalVisible}

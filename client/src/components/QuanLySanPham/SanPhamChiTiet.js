@@ -18,6 +18,7 @@ import {
   Image,
   InputNumber,
   Tag,
+  Spin,
 } from 'antd';
 import { toast } from 'react-toastify';
 import { TbEyeEdit } from 'react-icons/tb';
@@ -441,60 +442,68 @@ const SanPhamChiTiet = () => {
     }
   };
 
-  const filteredData = sanPhamChiTiet.filter((item) => {
-    const searchLower = searchText.toLowerCase();
+  const filteredData = sanPhamChiTiet
+    .filter((item) => {
+      const searchLower = searchText.toLowerCase();
+      const matchesSearch = item.maSanPhamChiTiet?.toLowerCase().includes(searchLower) ?? false;
+      const matchesPrice = item.gia >= priceRange[0] && item.gia <= priceRange[1];
 
-    // Tìm kiếm theo mã sản phẩm hoặc tên sản phẩm
-    const matchesSearch = item.maSanPhamChiTiet.toLowerCase().includes(searchLower);
+      const matchesChatLieu = selectedChatLieu
+        ? (item.chatLieu?.tenChatLieu ?? '') === selectedChatLieu
+        : true;
+      const matchesKieuDang = selectedKieuDang
+        ? (item.kieuDang?.tenKieuDang ?? '') === selectedKieuDang
+        : true;
+      const matchesThuongHieu = selectedThuongHieu
+        ? (item.thuongHieu?.tenThuongHieu ?? '') === selectedThuongHieu
+        : true;
+      const matchesKieuCuc = selectedKieuCuc
+        ? (item.kieuCuc?.tenKieuCuc ?? '') === selectedKieuCuc
+        : true;
+      const matchesKieuCoAo = selectedKieuCoAo
+        ? (item.kieuCoAo?.tenKieuCoAo ?? '') === selectedKieuCoAo
+        : true;
+      const matchesKieuCoTayAo = selectedKieuCoTayAo
+        ? (item.kieuCoTayAo?.tenKieuCoTayAo ?? '') === selectedKieuCoTayAo
+        : true;
+      const matchesKieuTayAo = selectedKieuTayAo
+        ? (item.kieuTayAo?.tenKieuTayAo ?? '') === selectedKieuTayAo
+        : true;
+      const matchesKieuTuiAo = selectedKieuTuiAo
+        ? (item.kieuTuiAo?.tenKieuTuiAo ?? '') === selectedKieuTuiAo
+        : true;
+      const matchesHoaTiet = selectedHoaTiet
+        ? (item.hoaTiet?.tenHoaTiet ?? '') === selectedHoaTiet
+        : true;
+      const matchesDanhMuc = selectedDanhMuc
+        ? (item.danhMuc?.tenDanhMuc ?? '') === selectedDanhMuc
+        : true;
+      const matchesColor = selectedColor ? (item.mauSac?.tenMau ?? '') === selectedColor : true;
+      const matchesSize = selectedSize
+        ? (item.kichThuoc?.tenKichThuoc ?? '') === selectedSize
+        : true;
 
-    // Lọc theo giá
-    const matchesPrice = item.gia >= priceRange[0] && item.gia <= priceRange[1];
-
-    // Lọc theo các bộ lọc khác (nếu người dùng chọn)
-    const matchesChatLieu = selectedChatLieu
-      ? item.chatLieu.tenChatLieu === selectedChatLieu
-      : true;
-    const matchesKieuDang = selectedKieuDang
-      ? item.kieuDang.tenKieuDang === selectedKieuDang
-      : true;
-    const matchesThuongHieu = selectedThuongHieu
-      ? item.thuongHieu.tenThuongHieu === selectedThuongHieu
-      : true;
-    const matchesKieuCuc = selectedKieuCuc ? item.kieuCuc.tenKieuCuc === selectedKieuCuc : true;
-    const matchesKieuCoAo = selectedKieuCoAo
-      ? item.kieuCoAo.tenKieuCoAo === selectedKieuCoAo
-      : true;
-    const matchesKieuCoTayAo = selectedKieuCoTayAo
-      ? item.kieuCoTayAo.tenKieuCoTayAo === selectedKieuCoTayAo
-      : true;
-    const matchesKieuTayAo = selectedKieuTayAo
-      ? item.kieuTayAo.tenKieuTayAo === selectedKieuTayAo
-      : true;
-    const matchesKieuTuiAo = selectedKieuTuiAo
-      ? item.kieuTuiAo.tenKieuTuiAo === selectedKieuTuiAo
-      : true;
-    const matchesHoaTiet = selectedHoaTiet ? item.hoaTiet.tenHoaTiet === selectedHoaTiet : true;
-    const matchesDanhMuc = selectedDanhMuc ? item.danhMuc.tenDanhMuc === selectedDanhMuc : true;
-    const matchesColor = selectedColor ? item.mauSac.tenMau === selectedColor : true;
-    const matchesSize = selectedSize ? item.kichThuoc.tenKichThuoc === selectedSize : true;
-
-    return (
-      matchesSearch &&
-      matchesPrice &&
-      matchesChatLieu &&
-      matchesKieuDang &&
-      matchesThuongHieu &&
-      matchesKieuCuc &&
-      matchesKieuCoAo &&
-      matchesKieuCoTayAo &&
-      matchesKieuTayAo &&
-      matchesKieuTuiAo &&
-      matchesColor &&
-      matchesHoaTiet &&
-      matchesDanhMuc &&
-      matchesSize
-    );
-  });
+      return (
+        matchesSearch &&
+        matchesPrice &&
+        matchesChatLieu &&
+        matchesKieuDang &&
+        matchesThuongHieu &&
+        matchesKieuCuc &&
+        matchesKieuCoAo &&
+        matchesKieuCoTayAo &&
+        matchesKieuTayAo &&
+        matchesKieuTuiAo &&
+        matchesColor &&
+        matchesHoaTiet &&
+        matchesDanhMuc &&
+        matchesSize
+      );
+    })
+    .map((item) => ({
+      ...item,
+      key: item.id || item.maSanPhamChiTiet, // Đảm bảo có key
+    }));
 
   // Hàm chọn/bỏ chọn tất cả
   const handleSelectAll = (e) => {
@@ -505,9 +514,19 @@ const SanPhamChiTiet = () => {
       setSelectedRowKeys([]);
     }
   };
+  const isRowSelected = (record) => {
+    return selectedRowKeys.includes(record.key);
+  };
 
   // Hàm chọn/bỏ chọn từng ô
   const handleCheckboxChange = (e, record) => {
+    console.log('Record: ', record); // Kiểm tra dữ liệu của từng hàng
+
+    if (!record || record.key === undefined) {
+      console.error('Lỗi: record không có key hợp lệ!', record);
+      return;
+    }
+
     const isChecked = e.target.checked;
     setSelectedRowKeys((prevSelectedRowKeys) => {
       if (isChecked) {
@@ -517,15 +536,6 @@ const SanPhamChiTiet = () => {
       }
     });
   };
-  const isRowSelected = (record) => {
-    return selectedRowKeys.includes(record.key);
-  };
-  // Cập nhật selectedRowKeys khi filteredData thay đổi
-  // useEffect(() => {
-  //   setSelectedRowKeys((prevSelectedRowKeys) =>
-  //     prevSelectedRowKeys.filter((key) => filteredData.some((item) => item.key === key)),
-  //   );
-  // }, [filteredData]);
   useEffect(() => {
     setSelectedRowKeys((prevSelectedRowKeys) => {
       const newSelectedKeys = prevSelectedRowKeys.filter((key) =>
@@ -540,6 +550,9 @@ const SanPhamChiTiet = () => {
       return prevSelectedRowKeys;
     });
   }, [filteredData]);
+  useEffect(() => {
+    console.log('Selected Rows:', selectedRowKeys);
+  }, [selectedRowKeys]);
 
   // Hàm tải mã QR xuống file ZIP
   const handleDownloadQR = async () => {
@@ -587,6 +600,75 @@ const SanPhamChiTiet = () => {
         console.error('Lỗi khi tạo tệp ZIP:', error);
       });
   };
+  //hàm lấy toàn bộ sản phẩm
+  const handleGetAllProduct = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham`);
+      const data = await response.json();
+      setSanPhamChiTiet(data);
+      setTenSanPham('Tất cả sản phẩm');
+      if (data.length > 0) {
+        const maxGia = Math.max(...data.map((p) => p.gia));
+        setMaxPrice(maxGia); // Cập nhật maxPrice
+        setPriceRange([0, maxGia]); // Cập nhật khoảng giá mặc định
+      }
+      if (data.length === 0) {
+        setMaxPrice(0); // Cập nhật maxPrice
+        setPriceRange([0, 0]); // Cập nhật khoảng giá mặc định
+      }
+      console.log('Dữ liệu spct', data);
+    } catch (error) {
+      console.log('Lỗi get sản phẩm chi tiết', error.message);
+    }
+  };
+  // Component lấy và hiển thị ảnh sản phẩm dựa vào id
+// Component hiển thị ảnh sản phẩm dựa vào id sản phẩm chi tiết
+const ProductImage = ({ sanPhamChiTietId }) => {
+  const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Hàm lấy danh sách ảnh dựa vào API
+  const fetchProductImages = async (sanPhamChiTietId) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`
+      );
+      // Chỉ lấy danh sách các anhUrl
+      console.log("ẢNh spct",response)
+      const imageUrls = response.data.map((item) => item.anhUrl);
+      return imageUrls;
+    } catch (error) {
+      console.error('Lỗi khi lấy ảnh sản phẩm:', error);
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    const loadImage = async () => {
+      const images = await fetchProductImages(sanPhamChiTietId);
+      // Nếu có ảnh, lấy ra ảnh đầu tiên
+      if (images.length > 0) {
+        setImage(images[0]);
+      }
+      setLoading(false);
+    };
+    loadImage();
+  }, [sanPhamChiTietId]);
+
+  if (loading) {
+    return <Spin size="small" />;
+  }
+
+  return image ? (
+    <img
+      src={image}
+      alt={`Ảnh sản phẩm ${sanPhamChiTietId}`}
+      style={{ width: '80px', height: '80px', objectFit: 'cover',borderRadius:"5px" }}
+    />
+  ) : (
+    <span>Không có ảnh</span>
+  );
+};
 
   const fetchProductImages = async (sanPhamChiTietId) => {
     try {
@@ -643,11 +725,20 @@ const SanPhamChiTiet = () => {
         return pagination.pageSize * (pagination.current - 1) + index + 1;
       },
     },
+    // {
+    //   title: 'Mã',
+    //   dataIndex: 'maSanPhamChiTiet',
+    //   key: 'maSanPhamChiTiet',
+    // },
     {
-      title: 'Mã',
-      dataIndex: 'maSanPhamChiTiet',
-      key: 'maSanPhamChiTiet',
+      title: 'Ảnh sản phẩm',
+      dataIndex: 'id',
+      key: 'id',
+      render: (id) => (
+        <ProductImage sanPhamChiTietId={id} />
+      ),
     },
+    
     {
       title: 'Thương hiệu',
       dataIndex: 'thuongHieu',
@@ -723,7 +814,7 @@ const SanPhamChiTiet = () => {
       dataIndex: 'gia',
       key: 'gia',
       render: (value) => {
-        return `${value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')} đ`;
+        return `${value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}đ`;
       },
     },
 
@@ -742,6 +833,7 @@ const SanPhamChiTiet = () => {
           </Tag>
         ),
     },
+   
     {
       title: 'Chức năng',
       render: (text, record) => (
@@ -754,7 +846,7 @@ const SanPhamChiTiet = () => {
 
   return (
     <>
-      <Container>
+      <div>
         <Breadcrumb style={{ marginBottom: '10px', fontSize: '15px', fontWeight: 'bold' }}>
           <Breadcrumb.Item>
             <Link to="/sanpham">Sản phẩm</Link>
@@ -1119,6 +1211,13 @@ const SanPhamChiTiet = () => {
         >
           <Row style={{ justifyContent: 'end' }}>
             <Button
+              style={{ marginBottom: '10px', marginRight: '10px' }}
+              type="primary"
+              onClick={handleGetAllProduct}
+            >
+              Tất cả sản phẩm
+            </Button>
+            <Button
               style={{ marginBottom: '10px' }}
               type="primary"
               onClick={handleDownloadQR}
@@ -1136,7 +1235,7 @@ const SanPhamChiTiet = () => {
             rowKey="id"
           />
         </div>
-      </Container>
+      </div>
 
       {/* Modal hiển thị và chỉnh sửa chi tiết sản phẩm */}
       <Modal

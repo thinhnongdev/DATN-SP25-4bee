@@ -160,6 +160,7 @@ const KieuCuc = () => {
 
   return (
     <>
+    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -169,7 +170,7 @@ const KieuCuc = () => {
       >
         <Breadcrumb.Item>Kiểu cúc</Breadcrumb.Item>
       </Breadcrumb>
-      <Container
+      <div
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -210,8 +211,8 @@ const KieuCuc = () => {
           onChange={handleTableChange}
           rowKey="id"
         />
-      </Container>
-
+      </div>
+      </div>
       <Modal
         title={isEditing ? 'Chỉnh sửa kiểu cúc' : 'Thêm kiểu cúc'}
         open={isModalVisible}

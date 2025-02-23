@@ -34,12 +34,19 @@ public class SanPhamServiceImpl implements SanPhamService {
             sanPhamResponse.setTenSanPham(listSanPham.get(i).getTenSanPham());
             sanPhamResponse.setTrangThai(listSanPham.get(i).getTrangThai());
             sanPhamResponse.setNgayTao(listSanPham.get(i).getNgayTao());
-            if(sanPhamChiTietService.findSoLuongbyIdSanPham(listSanPham.get(i).getId())==null){
+            if(sanPhamChiTietService.findSoLuongbyIdSanPham(listSanPham.get(i).getId())==null||sanPhamChiTietService.findSoLuongbyIdSanPham(listSanPham.get(i).getId())==0){
                 sanPhamResponse.setSoLuong(0);
-            }else {
+                SanPham sanPham=listSanPham.get(i);
+                sanPham.setTrangThai(false);
+                sanPhamRepository.save(sanPham);
+            }else { 
                 sanPhamResponse.setSoLuong(sanPhamChiTietService.findSoLuongbyIdSanPham(listSanPham.get(i).getId()));
+                SanPham sanPham=listSanPham.get(i);
+                sanPham.setTrangThai(true);
+                sanPhamRepository.save(sanPham);
             }
             listSanPhamRes.add(sanPhamResponse);
+
         }
         return listSanPhamRes;
     }
@@ -49,9 +56,10 @@ public class SanPhamServiceImpl implements SanPhamService {
         SanPham sanPham = new SanPham();
         sanPham.setMaSanPham("SP" + System.currentTimeMillis());
         sanPham.setTenSanPham(request.getTenSanPham());
-        sanPham.setTrangThai(true);//khi tạo trạng thái mặc định là hoạt động
+        sanPham.setTrangThai(false);//khi tạo trạng thái mặc định là ngừng bán
         sanPham.setMoTa(request.getMoTa());
         sanPham.setNguoiTao(request.getNguoiTao());
+        sanPham.setNgayTao(LocalDateTime.now());
         return sanPhamRepository.save(sanPham);
     }
 
