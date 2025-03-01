@@ -106,7 +106,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
             hoaDonChiTiets.add(newChiTiet);
         }
-        hoaDon.setHoaDonChiTiets(hoaDonChiTiets); //  Gán danh sách vào hóa đơn
+     //   hoaDon.setHoaDonChiTiets(hoaDonChiTiets); //  Gán danh sách vào hóa đơn
 
         // Liên kết lại các `HoaDonChiTiet` với `HoaDon`
         for (HoaDonChiTiet chiTiet : hoaDonChiTiets) {
@@ -118,7 +118,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
         log.info("Hóa đơn được tạo thành công với ID: {}", hoaDon.getId());
 
         // 7. Kiểm tra sản phẩm sau khi lưu
-        log.info("HoaDonChiTiets after save: {}", hoaDon.getHoaDonChiTiets());
+        //log.info("HoaDonChiTiets after save: {}", hoaDon.getHoaDonChiTiets());
 
         // 8. Xử lý phương thức thanh toán
         if (request.getPhuongThucThanhToans() == null || request.getPhuongThucThanhToans().isEmpty()) {
@@ -129,7 +129,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
                 .map(phuongThuc -> hoaDonMapper.mapPhuongThucThanhToan(phuongThuc, finalHoaDon))
                 .toList();
         thanhToanHoaDonRepository.saveAll(thanhToanList);
-        hoaDon.getThanhToanHoaDons().addAll(thanhToanList);
+      //  hoaDon.getThanhToanHoaDons().addAll(thanhToanList);
         hoaDonRepository.save(hoaDon);
 
         return hoaDonMapper.entityToResponse(hoaDon);

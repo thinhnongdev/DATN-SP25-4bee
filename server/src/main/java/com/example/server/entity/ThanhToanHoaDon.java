@@ -7,6 +7,8 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.math.BigDecimal;
+
 @Entity
 @Data
 @AllArgsConstructor
@@ -17,6 +19,7 @@ public class ThanhToanHoaDon extends BaseEntity{
 
     @Id
     @Column(name = "id", nullable = false, unique = true)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String id; // Ensure this field is unique and matches the database
 
     @ManyToOne
@@ -26,7 +29,8 @@ public class ThanhToanHoaDon extends BaseEntity{
     @ManyToOne
     @JoinColumn(name="id_phuong_thuc_thanh_toan")
     private PhuongThucThanhToan phuongThucThanhToan;
-
+    @Column(name="so_tien")
+    private BigDecimal soTien;
     @Column(name = "mo_ta")
     private String moTa;
 

@@ -15,6 +15,8 @@ import {
   InputNumber,
   Modal,
   Select,
+  Spin,
+  message,
 } from 'antd';
 import { PlusOutlined, CloseOutlined, SelectOutlined, SearchOutlined } from '@ant-design/icons';
 import { IoIosAddCircle, IoIosAddCircleOutline } from 'react-icons/io';
@@ -27,7 +29,9 @@ const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 
 const BanHang = () => {
-  const [isModalVisibleListSPCT, setIsModalVisibleListSPCT] = useState(false); // Trạng thái hiển thị Modal
+  const [isModalVisibleListSPCT, setIsModalVisibleListSPCT] = useState(false); // Trạng thái hiển thị Modal danh sách sản phẩm
+  const [isModalVisibleListKhachHang, setIsModalVisibleListKhachHang] = useState(false); // Trạng thái hiển thị Modal danh sách sản phẩm
+  const [isModalVisibleSoLuongNhap, setIsModalVisibleSoLuongNhap] = useState(false); // Trạng thái hiển thị Modal danh sách sản phẩm
   const [sanPhamChiTiet, setSanPhamChiTiet] = useState([]);
   const [tabs, setTabs] = useState([]); // Bắt đầu không có tab
   const [activeTab, setActiveTab] = useState(null);
@@ -60,19 +64,41 @@ const BanHang = () => {
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
   const [activeKey, setActiveKey] = useState(null); // Giữ tab đang mở
-
+  const [customers, setCustomers] = useState([]);
+  const [selectedProductId, setSelectedProductId] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  const [hoaDonChiTiet, setHoaDonChiTiet] = useState([]);
+  
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/api/admin/sanpham/chitietsanpham');
+      let products = response.data;
+  
+      // Lấy ảnh cho từng sản phẩm
+      const productsWithImages = await Promise.all(
+        products.map(async (product) => {
+          try {
+            const imgResponse = await axios.get(`http://localhost:8080/api/admin/sanphamchitiet/${product.id}/hinhanh`);
+            const imageUrls = imgResponse.data.map((item) => item.anhUrl);
+            return { ...product, image: imageUrls.length > 0 ? imageUrls[0] : null };
+          } catch (error) {
+            console.error(`Lỗi khi lấy ảnh cho sản phẩm ${product.id}:`, error);
+            return { ...product, image: null };
+          }
+        })
+      );
+  
+      setSanPhamChiTiet(productsWithImages);
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách sản phẩm:', error);
+    }
+  };
+  
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await axios.get('http://localhost:8080/api/admin/sanpham/chitietsanpham');
-        setSanPhamChiTiet(response.data);
-      } catch (error) {
-        console.error('Lỗi khi lấy danh sách sản phẩm:', error);
-      } finally {
-      }
-    };
     fetchUsers();
+   fetchHoaDonChiTiet(activeKey);
   }, []);
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -294,6 +320,58 @@ const BanHang = () => {
       matchesSize
     );
   });
+  const handleSelectProduct = (id) => {
+    console.log("Sản phẩm được chọn có ID:", id);
+ 
+      setSelectedProductId(id);  // Lưu ID sản phẩm
+      setQuantity(1);  // Reset số lượng khi mở modal
+      setIsModalVisibleSoLuongNhap(true);  // Hiển thị modal
+    
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedProductId || quantity < 1) {
+      message.error("Vui lòng nhập số lượng hợp lệ!");
+      return;
+    }
+  
+    // Dữ liệu gửi về server
+    const payload = {
+      hoaDonId: activeKey,
+      sanPhamChiTietId: selectedProductId,
+      soLuong: quantity,
+    };
+  console.log(payload)
+    try {
+      const response = await fetch("http://localhost:8080/api/admin/addHoaDonChiTiet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      if (response.ok) {
+        message.success("Đã gửi thành công!");
+        setIsModalVisibleSoLuongNhap(false);
+
+      // 🔄 Cập nhật dữ liệu trực tiếp trong state, không gọi lại API
+      setSanPhamChiTiet((prevData) =>
+        prevData.map((item) =>
+          item.id === selectedProductId
+            ? { ...item, soLuong: item.soLuong - quantity } // Giảm số lượng sản phẩm
+            : item
+        )
+      );
+      } else {
+        message.error("Có lỗi xảy ra, vui lòng thử lại!");
+      }
+    } catch (error) {
+      console.error("Lỗi khi gửi dữ liệu:", error);
+      message.error("Không thể gửi dữ liệu!");
+    }
+  };
+  
   // Cấu hình cột cho bảng
   const columns = [
     {
@@ -305,6 +383,21 @@ const BanHang = () => {
         return pagination.pageSize * (pagination.current - 1) + index + 1;
       },
     },
+     {
+    title: 'Ảnh sản phẩm',
+    dataIndex: 'image',
+    key: 'image',
+    render: (image) =>
+      image ? (
+        <img
+          src={image}
+          alt="Ảnh sản phẩm"
+          style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '5px' }}
+        />
+      ) : (
+        <span>Không có ảnh</span>
+      ),
+  },
     {
       title: 'Mã',
       dataIndex: 'maSanPhamChiTiet',
@@ -328,13 +421,6 @@ const BanHang = () => {
       dataIndex: 'chatLieu',
       key: 'chatLieu',
       render: (text) => text?.tenChatLieu || 'Không có dữ liệu',
-    },
-
-    {
-      title: 'Kiểu dáng',
-      dataIndex: 'kieuDang',
-      key: 'kieuDang',
-      render: (text) => text?.tenKieuDang || 'Không có dữ liệu',
     },
     {
       title: 'Màu sắc',
@@ -361,10 +447,45 @@ const BanHang = () => {
         return `${value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')} đ`;
       },
     },
-
     {
       title: 'Chức năng',
-      render: (text, record) => <Button type="submit">Chọn</Button>,
+      render: (text, record) => (
+        <Button type="submit" onClick={() => handleSelectProduct(record.id)}>Chọn</Button>
+      ),
+    },
+    
+  ];
+  const columnKhachHang = [
+    {
+      title: 'STT',
+      dataIndex: 'index',
+      key: 'index',
+      render: (text, record, index) => {
+        // Tính toán lại index khi chuyển trang
+        return pagination.pageSize * (pagination.current - 1) + index + 1;
+      },
+    },
+    {
+      title: 'Tên khách',
+      dataIndex: 'tenKhachHang',
+      key: 'tenKhachHang',
+      render: (text) => text || 'Không có dữ liệu',
+    },
+    {
+      title: 'Số điện thoại',
+      dataIndex: 'soDienThoai',
+      key: 'soDienThoai',
+      render: (text) => text || 'Không có dữ liệu',
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      render: (text) => text || 'Không có dữ liệu',
+    },
+    {
+      title: 'Chức năng',
+      render: (text, record) => <Button type="submit" >Chọn</Button>,
     },
   ];
   const handleTableChange = (pagination) => {
@@ -374,492 +495,351 @@ const BanHang = () => {
   const handleCancelListSanPhamChiTiet = () => {
     setIsModalVisibleListSPCT(false);
   };
-  // 🟢 1️⃣ Khi tải trang, lấy danh sách hóa đơn chờ
-useEffect(() => {
-  const fetchPendingOrders = async () => {
+  const handleCancelListKhachHang = () => {
+    setIsModalVisibleListKhachHang(false);
+  };
+  const handleCancelSoLuongNhap = () => {
+    setIsModalVisibleSoLuongNhap(false);
+  };
+  // Khi tải trang, lấy danh sách hóa đơn chờ
+  useEffect(() => {
+    const fetchPendingOrders = async () => {
+      try {
+        // Gọi API để lấy danh sách hóa đơn chờ từ database
+        const response = await fetch('http://localhost:8080/api/admin/hoadoncho');
+ 
+        if (!response.ok) throw new Error('Không thể lấy danh sách hóa đơn!');
+
+        const orders = await response.json(); // Danh sách hóa đơn chờ từ database
+        console.log('Danh sách hóa đơn chờ từ database:', orders);
+
+        if (orders.length > 0) {
+          fetchHoaDonChiTiet(orders[0].id.toString());
+          setTabs(
+            orders.map((order, index) => ({
+              key: order.id.toString(),
+              title: `Đơn hàng ${index + 1}`,
+              content: renderOrderContent(order),
+            })),
+          );
+          
+          console.log(orders[0].id.toString())
+          setActiveKey(orders[0].id.toString()); // Mở tab đầu tiên
+        }
+      } catch (error) {
+        console.error(error.message);
+      }
+    };
+    
+    fetchPendingOrders(); // Gọi API khi component mount
+  }, []);
+
+  //lấy danh sách khách hàng
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/api/khach_hang");
+        const data = await response.json();
+        console.log("danh sách khách hàng:",data)
+        setCustomers(data);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+      }
+    };
+    
+    fetchCustomers();
+  }, []);
+
+  //lấy danh sách sản phẩm chờ thanh toán
+  const fetchHoaDonChiTiet = async (id) => {
     try {
-      const response = await fetch('http://localhost:8080/api/admin/hoadoncho');
+      const response = await axios.get(`http://localhost:8080/api/admin/hoadonchitiet/${id}`);
+  console.log("dữ liệu hóa đơn chi tiết",response.data)
+      // Kiểm tra nếu API trả về 404 hoặc không có dữ liệu
+      if (response.status === 404 || !response.data || response.data.length === 0) {
+        message.warning("Không có sản phẩm nào!");
+        setHoaDonChiTiet([]); // Đặt dữ liệu thành mảng rỗng để tránh lỗi
+        return;
+      }
+  
+      setHoaDonChiTiet(response.data); // Cập nhật danh sách hóa đơn chi tiết
+    } catch (error) {
+      
+      console.error("Lỗi khi lấy danh sách hóa đơn chi tiết:", error);
+      // Xử lý lỗi dựa vào status code
+      if (error.response) {
+        if (error.response.status === 404) {
+          message.warning("Hóa đơn không tồn tại!");
+        } else {
+          message.error("Lỗi server! Không thể lấy hóa đơn chi tiết.");
+        }
+      } else {
+        message.error("Lỗi kết nối đến server!");
+      }
+  
+      setHoaDonChiTiet([]); // Đảm bảo không bị lỗi khi hiển thị UI
+    }
+  };
+  // Gọi API khi `activeInvoiceId` thay đổi
+  useEffect(() => {
+    if (activeKey) {
+      console.log("Fetching invoice details for ID:", activeKey);
+      fetchHoaDonChiTiet(activeKey);
+    }
+  }, [activeKey]);
+  // Hàm tạo hóa đơn mới
+  const addTab = async () => {
+    const newSTT = `${tabs.length + 1}`;
+    let newKey = ``;
+    try {
+      const newOrder = { emailNhanVien: 'tienthinhkk@gmail.com' };
+
+      const response = await fetch('http://localhost:8080/api/admin/createhoadon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newOrder),
+      });
+
       if (!response.ok) {
-        throw new Error('Không thể lấy danh sách hóa đơn!');
+        throw new Error('Lưu hóa đơn thất bại!');
       }
 
-      const orders = await response.json(); // Danh sách hóa đơn chờ
-      console.log('Danh sách hóa đơn chờ:', orders);
+      const savedOrder = await response.json();
+      console.log('Dữ liệu trả về:', savedOrder);
 
-      if (orders.length > 0) {
-        setTabs(
-          orders.map((order, index) => ({
-            key: order.maHoaDon.toString(),
-            title: `Đơn hàng ${index + 1} - ${order.maHoaDon}`,
-            content: renderOrderContent(order),
-          }))
-        );
-        setActiveKey(orders[0].maHoaDon.toString()); // Mở tab đầu tiên
-      }
+      newKey = savedOrder.id.toString();
+
+      setTabs((prevTabs) => [
+        ...prevTabs,
+        {
+          key: newKey,
+          title: `Đơn hàng ${newSTT}`,
+          content: renderOrderContent(savedOrder),
+        },
+      ]);
+
+      setActiveKey(newKey); // Chuyển sang tab mới
     } catch (error) {
       console.error(error.message);
     }
   };
+  // 🟢 3️⃣ Hàm render nội dung hóa đơn
+  const renderOrderContent = (order) => (
+    <Row gutter={16}>
+      {/* Bên trái: Chiếm 17 phần */}
+      <Col span={17} style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '16px' }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button>
+              <BiQrScan />
+              Quét mã QR
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => setIsModalVisibleListSPCT(true)}
+              style={{ marginLeft: 8 }}
+            >
+              <IoIosAddCircle />
+              Thêm sản phẩm
+            </Button>
+          </div>
 
-  fetchPendingOrders();
-}, []);
-// 🟢 2️⃣ Hàm tạo hóa đơn mới
-const addTab = async () => {
-  const newSTT = `${tabs.length + 1}`;
-  let newKey = ``;
-  try {
-    const newOrder = { emailNhanVien: 'tienthinhkk@gmail.com' };
-    
-    const response = await fetch('http://localhost:8080/api/admin/createhoadon', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newOrder),
-    });
+          <div
+            style={{
+              borderTop: '1px solid #ccc',
+              marginTop: '16px',
+            }}
+          >
+            <Table
+              columns={[
+                {
+                  title: 'STT',
+                  dataIndex: 'index',
+                  key: 'index',
+                  render: (text, record, index) => {
+                    // Tính toán lại index khi chuyển trang
+                    return pagination.pageSize * (pagination.current - 1) + index + 1;
+                  },
+                },
+                {
+                  title: "Sản phẩm",
+                  dataIndex: "sanPhamChiTiet",
+                  key: "sanPhamChiTiet.sanPham",
+                  render: (sanPhamChiTiet) => sanPhamChiTiet?.sanPham?.tenSanPham || "N/A",
+                },
+                {
+                  title: "Số lượng",
+                  dataIndex: "soLuong",
+                  key: "soLuong",
+                  render: (soLuong) =>soLuong|| "N/A",
+                },
+                {
+                  title: "Giá hiện tại",
+                  dataIndex: "sanPhamChiTiet",
+                  key: "sanPhamChiTiet.gia",
+                  render: (sanPhamChiTiet) => sanPhamChiTiet?.gia || "N/A",
+                },
+                {
+                  title: "Giá được tính",
+                  dataIndex: "sanPhamChiTiet",
+                  key: "sanPhamChiTiet.gia",
+                  render: (sanPhamChiTiet) => sanPhamChiTiet?.gia || "N/A",
+                },
+                {
+                  title: "Thành tiền",
+                  dataIndex: "sanPhamChiTiet",
+                  key: "sanPhamChiTiet.gia",
+                  render: (sanPhamChiTiet,soLuong) => sanPhamChiTiet?.gia*soLuong || "N/A",
+                }
+                // { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
+                // { title: 'Giá hiện tại', dataIndex: 'price', key: 'price' },
+                // { title: 'Giá được tính', dataIndex: 'price', key: 'price' },
+                // { title: 'Thành tiền', dataIndex: 'total', key: 'total' },
+              ]}
+              dataSource={hoaDonChiTiet}
+              pagination={pagination}
+              onChange={handleTableChange}
+            />
+          </div>
+        </Space>
+      </Col>
 
-    if (!response.ok) {
-      throw new Error('Lưu hóa đơn thất bại!');
-    }
-
-    const savedOrder = await response.json();
-    console.log('Dữ liệu trả về:', savedOrder);
-
-    newKey = savedOrder.maHoaDon.toString();
-
-    setTabs((prevTabs) => [
-      ...prevTabs,
-      {
-        key: newKey,
-        title: `Đơn hàng ${newSTT} - ${newKey}`,
-        content: renderOrderContent(savedOrder),
-      },
-    ]);
-
-    setActiveKey(newKey); // Chuyển sang tab mới
-  } catch (error) {
-    console.error(error.message);
-  }
-};
-// 🟢 3️⃣ Hàm render nội dung hóa đơn
-const renderOrderContent = (order) => (
-  <Row gutter={16}>
-  {/* Bên trái: Chiếm 17 phần */}
-  <Col
-    span={17}
-    style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '16px' }}
-  >
-    <Space direction="vertical" style={{ width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button>
-          <BiQrScan />
-          Quét mã QR
-        </Button>
-        <Button
-          type="primary"
-          onClick={() => setIsModalVisibleListSPCT(true)}
-          style={{ marginLeft: 8 }}
-        >
-          <IoIosAddCircle />
-          Thêm sản phẩm
-        </Button>
-      </div>
-
-      <div
-        style={{
-          borderTop: '1px solid #ccc',
-          marginTop: '16px',
-        }}
-      >
-        <Table
-          columns={[
-            { title: 'Sản phẩm', dataIndex: 'name', key: 'name' },
-            { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
-            { title: 'Giá hiện tại', dataIndex: 'price', key: 'price' },
-            { title: 'Giá được tính', dataIndex: 'price', key: 'price' },
-            { title: 'Thành tiền', dataIndex: 'total', key: 'total' },
-          ]}
-          dataSource={products}
-          pagination={false}
-        />
-      </div>
-    </Space>
-  </Col>
-
-  {/* Bên phải: Chiếm 7 phần và có khoảng cách từ bên trái */}
-  <Col span={7}>
-    <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
-      <Space direction="vertical" style={{ width: '100%' }}>
-        <Text strong>Thông tin khách hàng</Text>
+      {/* Bên phải: Chiếm 7 phần và có khoảng cách từ bên trái */}
+      <Col span={7}>
         <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
-          <Row>
-            <Col span={10}>
-              <Text>Khách hàng</Text>
-            </Col>
-            <Col span={14}>
-              <Row style={{display:'flex',justifyContent:'flex-end'}}>
-                <div >
-                  <Button
-                    onClick={addTab}
-                    size="small" // Giảm kích thước nút
-                    style={{
-                      zIndex: 1, // Đảm bảo nút ở trên cùng
-                    }}
-                  >
-                    <AiOutlineSelect />
-                    Chọn
-                  </Button>
-                  <Button
-                    onClick={addTab}
-                    type="primary"
-                    size="small" // Giảm kích thước nút
-                    style={{
-                      zIndex: 1, // Đảm bảo nút ở trên cùng
-                      marginLeft: 8, // Khoảng cách giữa 2 nút
-                    }}
-                  >
-                    <IoIosAddCircle />
-                    Thêm mới
-                  </Button>
-                </div>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Text strong>Thông tin khách hàng</Text>
+            <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
+              <Row>
+                <Col span={10}>
+                  <Text>Khách hàng</Text>
+                </Col>
+                <Col span={14}>
+                  <Row style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div>
+                      <Button
+                        onClick={() => setIsModalVisibleListKhachHang(true)}
+                        size="small" // Giảm kích thước nút
+                        style={{
+                          zIndex: 1, // Đảm bảo nút ở trên cùng
+                        }}
+                      >
+                        <AiOutlineSelect />
+                        Chọn
+                      </Button>
+                      <Button
+                        type="primary"
+                        size="small" // Giảm kích thước nút
+                        style={{
+                          zIndex: 1, // Đảm bảo nút ở trên cùng
+                          marginLeft: 8, // Khoảng cách giữa 2 nút
+                        }}
+                      >
+                        <IoIosAddCircle />
+                        Thêm mới
+                      </Button>
+                    </div>
+                  </Row>
+                </Col>
               </Row>
-            </Col>
-          </Row>
-          <Row style={{ marginTop: 8 }}>
-            <Col span={12} style={{ display: 'flex', alignItems: 'center' }}>
-              {/* Ảnh đại diện khách hàng */}
-              <Avatar
-                src="https://res.cloudinary.com/dl1ahr7s5/image/upload/v1739412310/Screenshot_2025-02-12_234250_ie04wm.png"
-                size={40} // Kích thước ảnh nhỏ
-                style={{ marginRight: 8 }} // Khoảng cách giữa ảnh và tên
-              />
-              {/* Tên khách hàng */}
-              <Text>Nguyễn Văn A</Text>
-            </Col>
-          </Row>
-          {/* Dòng kẻ ngăn cách */}
-          <div style={{ margin: '16px 0', borderBottom: '1px solid #ccc' }}></div>
+              <Row style={{ marginTop: 8 }}>
+                <Col span={12} style={{ display: 'flex', alignItems: 'center' }}>
+                  {/* Ảnh đại diện khách hàng */}
+                  <Avatar
+                    src="https://res.cloudinary.com/dl1ahr7s5/image/upload/v1739412310/Screenshot_2025-02-12_234250_ie04wm.png"
+                    size={40} // Kích thước ảnh nhỏ
+                    style={{ marginRight: 8 }} // Khoảng cách giữa ảnh và tên
+                  />
+                  {/* Tên khách hàng */}
+                  <Text>{order.khachHang.tenKhachHang}</Text>
+                </Col>
+              </Row>
+              {/* Dòng kẻ ngăn cách */}
+              <div style={{ margin: '16px 0', borderBottom: '1px solid #ccc' }}></div>
 
-          {/* Dòng 2: Hình thức nhận hàng */}
-          <Row style={{ marginTop: 8 }}>
-            <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-              <Text>Hình thức nhận hàng</Text>
-            </Col>
-            <Col span={14}>
-              <Radio.Group value={'taiQuay'}>
-                <Radio value="taiQuay">Tại quầy</Radio>
-                <Radio value="giaoHang">Giao hàng</Radio>
-              </Radio.Group>
-            </Col>
-          </Row>
+              {/* Dòng 2: Hình thức nhận hàng */}
+              <Row style={{ marginTop: 8 }}>
+                <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Text>Hình thức nhận hàng</Text>
+                </Col>
+                <Col span={14}>
+                  <Radio.Group value={order.loaiHoaDon}>
+                    <Radio value={2} name='loaiHoaDon'>Tại quầy</Radio>
+                    <Radio value={1} name='loaiHoaDon'>Giao hàng</Radio>
+                  </Radio.Group>
+                </Col>
+              </Row>
+            </div>
+            <Text strong>Thông tin thanh toán</Text>
+            <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
+              <Row style={{ marginTop: 8 }}>
+                <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Text>Hình thức thanh toán</Text>
+                </Col>
+                <Col span={14}>
+                  <Radio.Group value={'tienMat'}>
+                    <Radio value="chuyenKhoan">Chuyển khoản</Radio>
+                    <Radio value="tienMat">Tiền mặt</Radio>
+                  </Radio.Group>
+                </Col>
+              </Row>
+              <Row style={{ marginTop: 8 }}>
+                <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Text>Tổng tiền</Text>
+                </Col>
+                <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Text style={{ color: 'red', paddingRight: '10px' }}>{order.tongTien} đ</Text>
+                </Col>
+              </Row>
+              <Row style={{ marginTop: 8 }}>
+                <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Text>Phí vận chuyển</Text>
+                </Col>
+                <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <InputNumber
+                   value={0}
+                    min={0}
+                    max={999999999999999}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' đ'}
+                    parser={(value) => value.replace(/\D/g, '')} // Loại bỏ tất cả ký tự không phải số
+                    className="custom-input-number"
+                  />
+                </Col>
+              </Row>
+              <Row style={{ marginTop: 8 }}>
+                <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Text>Giảm giá</Text>
+                </Col>
+                <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <InputNumber
+                    value={0}
+                    min={0}
+                    max={999999999999999}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' đ'}
+                    parser={(value) => value.replace(/\D/g, '')} // Loại bỏ tất cả ký tự không phải số
+                    className="custom-input-number"
+                  />
+                </Col>
+              </Row>
+              <Row style={{ marginTop: 8 }}>
+                <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Text>Tổng thanh toán</Text>
+                </Col>
+                <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Text style={{ color: 'red', paddingRight: '10px' }}>{order.tongTien} đ</Text>
+                </Col>
+              </Row>
+            </div>
+            <div>
+              <Button type="primary" style={{ width: '100%' }}>
+                Xác nhận đơn hàng
+              </Button>
+            </div>
+          </Space>
         </div>
-        <Text strong>Thông tin thanh toán</Text>
-        <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
-          <Row style={{ marginTop: 8 }}>
-            <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-              <Text>Hình thức thanh toán</Text>
-            </Col>
-            <Col span={14}>
-              <Radio.Group value={'tienMat'}>
-                <Radio value="chuyenKhoan">Chuyển khoản</Radio>
-                <Radio value="tienMat">Tiền mặt</Radio>
-              </Radio.Group>
-            </Col>
-          </Row>
-          <Row style={{ marginTop: 8 }}>
-            <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-              <Text>Tổng tiền</Text>
-            </Col>
-            <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Text style={{ color: 'red', paddingRight: '10px' }}>900,000đ</Text>
-            </Col>
-          </Row>
-          <Row style={{ marginTop: 8 }}>
-            <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-              <Text>Phí vận chuyển</Text>
-            </Col>
-            <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <InputNumber
-                defaultValue={200000}
-                min={0}
-                max={999999999999999}
-                formatter={(value) =>
-                  `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' đ'
-                }
-                parser={(value) => value.replace(/\D/g, '')} // Loại bỏ tất cả ký tự không phải số
-                className="custom-input-number"
-              />
-            </Col>
-          </Row>
-          <Row style={{ marginTop: 8 }}>
-            <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-              <Text>Giảm giá</Text>
-            </Col>
-            <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <InputNumber
-                defaultValue={200000}
-                min={0}
-                max={999999999999999}
-                formatter={(value) =>
-                  `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' đ'
-                }
-                parser={(value) => value.replace(/\D/g, '')} // Loại bỏ tất cả ký tự không phải số
-                className="custom-input-number"
-              />
-            </Col>
-          </Row>
-          <Row style={{ marginTop: 8 }}>
-            <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-              <Text>Tổng thanh toán</Text>
-            </Col>
-            <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Text style={{ color: 'red', paddingRight: '10px' }}>900,000đ</Text>
-            </Col>
-          </Row>
-        </div>
-        <div>
-          <Button type="primary" style={{ width: '100%' }}>
-            Xác nhận đơn hàng
-          </Button>
-        </div>
-      </Space>
-    </div>
-  </Col>
-</Row>
-);
-  // Hàm thêm tab khi tạo hóa đơn
-  // const addTab = async () => {
-  //   const newSTT = `${tabs.length + 1}`;
-  //   let newKey = ``;
-  //   try {
-  //     // Dữ liệu hóa đơn mới
-  //     const newOrder = {
-  //       emailNhanVien: 'tienthinhkk@gmail.com', // Mặc định chưa có khách hàng
-  //     };
-  
-  //     // Gửi request lưu hóa đơn vào database
-  //     const response = await fetch('http://localhost:8080/api/admin/createHoaDon', {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json'},
-  //       body: JSON.stringify(newOrder),
-  //     });
-  
-  //     // Kiểm tra phản hồi từ server
-  //     if (!response.ok) {
-  //       throw new Error('Lưu hóa đơn thất bại!');
-  //     }
-  
-  //     const savedOrder = await response.json(); // Nhận dữ liệu hóa đơn đã lưu
-  //     console.log("dữ liệu trả về",savedOrder)
-  //     // Cập nhật tab mới với ID từ database
-  //     newKey = savedOrder.maHoaDon.toString();
-     
-  //   setTabs([
-  //     ...tabs,
-  //     {
-  //       key: newKey,
-  //       title: `Đơn hàng ${newSTT}-${newKey}`,
-  //       content: (
-  //         <Row gutter={16}>
-  //           {/* Bên trái: Chiếm 17 phần */}
-  //           <Col
-  //             span={17}
-  //             style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '16px' }}
-  //           >
-  //             <Space direction="vertical" style={{ width: '100%' }}>
-  //               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-  //                 <Button>
-  //                   <BiQrScan />
-  //                   Quét mã QR
-  //                 </Button>
-  //                 <Button
-  //                   type="primary"
-  //                   onClick={() => setIsModalVisibleListSPCT(true)}
-  //                   style={{ marginLeft: 8 }}
-  //                 >
-  //                   <IoIosAddCircle />
-  //                   Thêm sản phẩm
-  //                 </Button>
-  //               </div>
-
-  //               <div
-  //                 style={{
-  //                   borderTop: '1px solid #ccc',
-  //                   marginTop: '16px',
-  //                 }}
-  //               >
-  //                 <Table
-  //                   columns={[
-  //                     { title: 'Sản phẩm', dataIndex: 'name', key: 'name' },
-  //                     { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
-  //                     { title: 'Giá hiện tại', dataIndex: 'price', key: 'price' },
-  //                     { title: 'Giá được tính', dataIndex: 'price', key: 'price' },
-  //                     { title: 'Thành tiền', dataIndex: 'total', key: 'total' },
-  //                   ]}
-  //                   dataSource={products}
-  //                   pagination={false}
-  //                 />
-  //               </div>
-  //             </Space>
-  //           </Col>
-
-  //           {/* Bên phải: Chiếm 7 phần và có khoảng cách từ bên trái */}
-  //           <Col span={7}>
-  //             <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
-  //               <Space direction="vertical" style={{ width: '100%' }}>
-  //                 <Text strong>Thông tin khách hàng</Text>
-  //                 <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
-  //                   <Row>
-  //                     <Col span={10}>
-  //                       <Text>Khách hàng</Text>
-  //                     </Col>
-  //                     <Col span={14}>
-  //                       <Row style={{display:'flex',justifyContent:'flex-end'}}>
-  //                         <div >
-  //                           <Button
-  //                             onClick={addTab}
-  //                             size="small" // Giảm kích thước nút
-  //                             style={{
-  //                               zIndex: 1, // Đảm bảo nút ở trên cùng
-  //                             }}
-  //                           >
-  //                             <AiOutlineSelect />
-  //                             Chọn
-  //                           </Button>
-  //                           <Button
-  //                             onClick={addTab}
-  //                             type="primary"
-  //                             size="small" // Giảm kích thước nút
-  //                             style={{
-  //                               zIndex: 1, // Đảm bảo nút ở trên cùng
-  //                               marginLeft: 8, // Khoảng cách giữa 2 nút
-  //                             }}
-  //                           >
-  //                             <IoIosAddCircle />
-  //                             Thêm mới
-  //                           </Button>
-  //                         </div>
-  //                       </Row>
-  //                     </Col>
-  //                   </Row>
-  //                   <Row style={{ marginTop: 8 }}>
-  //                     <Col span={12} style={{ display: 'flex', alignItems: 'center' }}>
-  //                       {/* Ảnh đại diện khách hàng */}
-  //                       <Avatar
-  //                         src="https://res.cloudinary.com/dl1ahr7s5/image/upload/v1739412310/Screenshot_2025-02-12_234250_ie04wm.png"
-  //                         size={40} // Kích thước ảnh nhỏ
-  //                         style={{ marginRight: 8 }} // Khoảng cách giữa ảnh và tên
-  //                       />
-  //                       {/* Tên khách hàng */}
-  //                       <Text>Nguyễn Văn A</Text>
-  //                     </Col>
-  //                   </Row>
-  //                   {/* Dòng kẻ ngăn cách */}
-  //                   <div style={{ margin: '16px 0', borderBottom: '1px solid #ccc' }}></div>
-
-  //                   {/* Dòng 2: Hình thức nhận hàng */}
-  //                   <Row style={{ marginTop: 8 }}>
-  //                     <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-  //                       <Text>Hình thức nhận hàng</Text>
-  //                     </Col>
-  //                     <Col span={14}>
-  //                       <Radio.Group value={'taiQuay'}>
-  //                         <Radio value="taiQuay">Tại quầy</Radio>
-  //                         <Radio value="giaoHang">Giao hàng</Radio>
-  //                       </Radio.Group>
-  //                     </Col>
-  //                   </Row>
-  //                 </div>
-  //                 <Text strong>Thông tin thanh toán</Text>
-  //                 <div style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }}>
-  //                   <Row style={{ marginTop: 8 }}>
-  //                     <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-  //                       <Text>Hình thức thanh toán</Text>
-  //                     </Col>
-  //                     <Col span={14}>
-  //                       <Radio.Group value={'tienMat'}>
-  //                         <Radio value="chuyenKhoan">Chuyển khoản</Radio>
-  //                         <Radio value="tienMat">Tiền mặt</Radio>
-  //                       </Radio.Group>
-  //                     </Col>
-  //                   </Row>
-  //                   <Row style={{ marginTop: 8 }}>
-  //                     <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-  //                       <Text>Tổng tiền</Text>
-  //                     </Col>
-  //                     <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-  //                       <Text style={{ color: 'red', paddingRight: '10px' }}>900,000đ</Text>
-  //                     </Col>
-  //                   </Row>
-  //                   <Row style={{ marginTop: 8 }}>
-  //                     <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-  //                       <Text>Phí vận chuyển</Text>
-  //                     </Col>
-  //                     <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-  //                       <InputNumber
-  //                         defaultValue={200000}
-  //                         min={0}
-  //                         max={999999999999999}
-  //                         formatter={(value) =>
-  //                           `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' đ'
-  //                         }
-  //                         parser={(value) => value.replace(/\D/g, '')} // Loại bỏ tất cả ký tự không phải số
-  //                         className="custom-input-number"
-  //                       />
-  //                     </Col>
-  //                   </Row>
-  //                   <Row style={{ marginTop: 8 }}>
-  //                     <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-  //                       <Text>Giảm giá</Text>
-  //                     </Col>
-  //                     <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-  //                       <InputNumber
-  //                         defaultValue={200000}
-  //                         min={0}
-  //                         max={999999999999999}
-  //                         formatter={(value) =>
-  //                           `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' đ'
-  //                         }
-  //                         parser={(value) => value.replace(/\D/g, '')} // Loại bỏ tất cả ký tự không phải số
-  //                         className="custom-input-number"
-  //                       />
-  //                     </Col>
-  //                   </Row>
-  //                   <Row style={{ marginTop: 8 }}>
-  //                     <Col span={10} style={{ display: 'flex', alignItems: 'center' }}>
-  //                       <Text>Tổng thanh toán</Text>
-  //                     </Col>
-  //                     <Col span={14} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-  //                       <Text style={{ color: 'red', paddingRight: '10px' }}>900,000đ</Text>
-  //                     </Col>
-  //                   </Row>
-  //                 </div>
-  //                 <div>
-  //                   <Button type="primary" style={{ width: '100%' }}>
-  //                     Xác nhận đơn hàng
-  //                   </Button>
-  //                 </div>
-  //               </Space>
-  //             </div>
-  //           </Col>
-  //         </Row>
-  //       ),
-  //     },
-  //   ])
-  // } catch (error) {
-  //   console.error('Lỗi khi tạo hóa đơn:', error);
-  // };
-  //   setActiveTab(newKey);
-  // };
-
-  // Hàm thêm sản phẩm vào danh sách sản phẩm trong tab
-  const handleAddProduct = (tabKey) => {
-    const product = {
-      name: productName || 'Sản phẩm mới', // Tên sản phẩm (hoặc mặc định là "Sản phẩm mới")
-      quantity: 1,
-      price: '100.000đ',
-      total: '100.000đ',
-    };
-    setProducts((prevProducts) => [...prevProducts, product]);
-  };
+      </Col>
+    </Row>
+  );
 
   // Hàm đóng tab khi nhấn vào nút "X"
   const removeTab = (targetKey) => {
@@ -911,7 +891,8 @@ const renderOrderContent = (order) => (
           </Row>
         ) : (
           <Tabs
-          activeKey={activeKey} onChange={setActiveKey}
+            activeKey={activeKey}
+            onChange={setActiveKey}
             tabPosition="top"
             style={{ height: '100%' }} // Đảm bảo Tabs chiếm toàn bộ chiều cao của Sider
             type="line" // Sử dụng kiểu tab mặc định để không hiển thị dấu "+"
@@ -1300,6 +1281,54 @@ const renderOrderContent = (order) => (
           />
         </div>
       </Modal>
+     <Modal
+  title="Nhập số lượng"
+  open={isModalVisibleSoLuongNhap}
+  onCancel={() => setIsModalVisibleSoLuongNhap(false)}
+  footer={[
+    <Button key="cancel" onClick={() => setIsModalVisibleSoLuongNhap(false)}>
+      Hủy
+    </Button>,
+    <Button key="submit" type="primary" onClick={handleConfirm}>
+      Xác nhận
+    </Button>
+  ]}
+>
+  <Input
+    type="number"
+    value={quantity}
+    onChange={(e) => setQuantity(Number(e.target.value))}
+    min={1}
+  />
+</Modal>
+
+    <Modal
+    width={900}
+      title="Danh sách khách hàng"
+      open={isModalVisibleListKhachHang}
+      onCancel={handleCancelListKhachHang}
+      footer={[
+        <Button key="cancel" type="primary" onClick={handleCancelListKhachHang}>
+          Đóng
+        </Button>
+      ]}
+    >
+      <Row>
+      <Input
+        type="text"
+        placeholder='Nhập số điện thoại...'
+       // onChange={(e) => setQuantity(Number(e.target.value))}
+      />
+      </Row>
+      <Table
+            dataSource={customers}
+            columns={columnKhachHang}
+            pagination={pagination}
+            onChange={handleTableChange}
+            rowKey="id"
+          />
+
+    </Modal>
     </Layout>
   );
 };

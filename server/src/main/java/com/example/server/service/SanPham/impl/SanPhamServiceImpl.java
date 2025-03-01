@@ -46,7 +46,6 @@ public class SanPhamServiceImpl implements SanPhamService {
                 sanPhamRepository.save(sanPham);
             }
             listSanPhamRes.add(sanPhamResponse);
-
         }
         return listSanPhamRes;
     }

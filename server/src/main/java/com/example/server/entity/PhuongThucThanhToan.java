@@ -16,6 +16,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class PhuongThucThanhToan extends BaseEntity {
     @Id
+    @Column(name = "id", nullable = false, unique = true)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     @Column(name="ma_phuong_thuc_thanh_toan")
@@ -23,9 +25,6 @@ public class PhuongThucThanhToan extends BaseEntity {
 
     @Column(name="ten_phuong_thuc_thanh_toan")
     private String tenPhuongThucThanhToan;
-
-    @Column(name="tong_tien")
-    private BigDecimal tongTien;
 
     @Column(name="mo_ta")
     private String moTa;

@@ -71,7 +71,7 @@ public class PDFGenerator {
             addInvoiceDetails(document, hoaDon);
 
                 addCustomerInfo(document, hoaDon);
-            addProductsTable(document, hoaDon.getHoaDonChiTiets());
+//            addProductsTable(document, hoaDon.getHoaDonChiTiets());
             addPaymentSummary(document, hoaDon, amounts);
 
             document.close();
@@ -253,46 +253,47 @@ private void addQRCode(Document document, String maHoaDon) {
 
     private InvoiceAmounts calculateInvoiceAmounts(HoaDon hoaDon) {
         // Tính tổng tiền hàng
-        BigDecimal tongTienHang = hoaDon.getHoaDonChiTiets().stream()
-                .map(ct -> ct.getSanPhamChiTiet().getGia()
-                        .multiply(new BigDecimal(ct.getSoLuong())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//        BigDecimal tongTienHang = hoaDon.getHoaDonChiTiets().stream()
+//                .map(ct -> ct.getSanPhamChiTiet().getGia()
+//                        .multiply(new BigDecimal(ct.getSoLuong())))
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Tính tiền giảm giá
-        BigDecimal tienGiamGia = BigDecimal.ZERO;
-        if (hoaDon.getPhieuGiamGia() != null) {
-            PhieuGiamGia phieuGiamGia = hoaDon.getPhieuGiamGia();
-
-            if (phieuGiamGia.getGiaTriGiam() != null &&
-                    phieuGiamGia.getGiaTriGiam().compareTo(BigDecimal.ZERO) > 0 &&
-                    tongTienHang.compareTo(phieuGiamGia.getGiaTriToiThieu()) >= 0) {
-
-                if (phieuGiamGia.getLoaiPhieuGiamGia() == 1) {
-                    // Giảm theo phần trăm
-                    tienGiamGia = tongTienHang.multiply(phieuGiamGia.getGiaTriGiam())
-                            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-
-                    // Giới hạn số tiền giảm tối đa
-                    if (phieuGiamGia.getSoTienGiamToiDa() != null &&
-                            tienGiamGia.compareTo(phieuGiamGia.getSoTienGiamToiDa()) > 0) {
-                        tienGiamGia = phieuGiamGia.getSoTienGiamToiDa();
-                    }
-                } else {
-                    // Giảm theo số tiền cố định
-                    tienGiamGia = phieuGiamGia.getGiaTriGiam();
-
-                    // Đảm bảo không giảm vượt quá tổng tiền hàng
-                    if (tienGiamGia.compareTo(tongTienHang) > 0) {
-                        tienGiamGia = tongTienHang;
-                    }
-                }
-            }
-        }
-
-        // Tính tổng thanh toán
-        BigDecimal tongThanhToan = tongTienHang.subtract(tienGiamGia).max(BigDecimal.ZERO);
-
-        return new InvoiceAmounts(tongTienHang, tienGiamGia, tongThanhToan);
+//        BigDecimal tienGiamGia = BigDecimal.ZERO;
+//        if (hoaDon.getPhieuGiamGia() != null) {
+//            PhieuGiamGia phieuGiamGia = hoaDon.getPhieuGiamGia();
+//
+//            if (phieuGiamGia.getGiaTriGiam() != null &&
+//                    phieuGiamGia.getGiaTriGiam().compareTo(BigDecimal.ZERO) > 0 &&
+//                    tongTienHang.compareTo(phieuGiamGia.getGiaTriToiThieu()) >= 0) {
+//
+//                if (phieuGiamGia.getLoaiPhieuGiamGia() == 1) {
+//                    // Giảm theo phần trăm
+//                    tienGiamGia = tongTienHang.multiply(phieuGiamGia.getGiaTriGiam())
+//                            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+//
+//                    // Giới hạn số tiền giảm tối đa
+//                    if (phieuGiamGia.getSoTienGiamToiDa() != null &&
+//                            tienGiamGia.compareTo(phieuGiamGia.getSoTienGiamToiDa()) > 0) {
+//                        tienGiamGia = phieuGiamGia.getSoTienGiamToiDa();
+//                    }
+//                } else {
+//                    // Giảm theo số tiền cố định
+//                    tienGiamGia = phieuGiamGia.getGiaTriGiam();
+//
+//                    // Đảm bảo không giảm vượt quá tổng tiền hàng
+//                    if (tienGiamGia.compareTo(tongTienHang) > 0) {
+//                        tienGiamGia = tongTienHang;
+//                    }
+//                }
+//            }
+//        }
+//
+//        // Tính tổng thanh toán
+//        BigDecimal tongThanhToan = tongTienHang.subtract(tienGiamGia).max(BigDecimal.ZERO);
+//
+//        return new InvoiceAmounts(tongTienHang, tienGiamGia, tongThanhToan);
+        return new InvoiceAmounts(null,null,null);
     }
 
     private void validateInvoiceData(HoaDon hoaDon) {
@@ -300,20 +301,20 @@ private void addQRCode(Document document, String maHoaDon) {
             throw new IllegalArgumentException("Hóa đơn không thể null");
         }
 
-        if (hoaDon.getHoaDonChiTiets() == null || hoaDon.getHoaDonChiTiets().isEmpty()) {
-            throw new IllegalArgumentException("Hóa đơn phải có ít nhất một sản phẩm");
-        }
+//        if (hoaDon.getHoaDonChiTiets() == null || hoaDon.getHoaDonChiTiets().isEmpty()) {
+//            throw new IllegalArgumentException("Hóa đơn phải có ít nhất một sản phẩm");
+//        }
 
-        for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
-            if (chiTiet.getSoLuong() == null || chiTiet.getSoLuong() <= 0) {
-                throw new IllegalArgumentException("Số lượng sản phẩm không hợp lệ");
-            }
-            if (chiTiet.getSanPhamChiTiet() == null ||
-                    chiTiet.getSanPhamChiTiet().getGia() == null ||
-                    chiTiet.getSanPhamChiTiet().getGia().compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalArgumentException("Thông tin giá sản phẩm không hợp lệ");
-            }
-        }
+//        for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
+//            if (chiTiet.getSoLuong() == null || chiTiet.getSoLuong() <= 0) {
+//                throw new IllegalArgumentException("Số lượng sản phẩm không hợp lệ");
+//            }
+//            if (chiTiet.getSanPhamChiTiet() == null ||
+//                    chiTiet.getSanPhamChiTiet().getGia() == null ||
+//                    chiTiet.getSanPhamChiTiet().getGia().compareTo(BigDecimal.ZERO) < 0) {
+//                throw new IllegalArgumentException("Thông tin giá sản phẩm không hợp lệ");
+//            }
+//        }
     }
 
     private Cell createHeaderCell(String content) {

@@ -16,6 +16,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import NhanVienRoute from "./routes/NhanVien";
 import KhachHangRoute from "./routes/KhachHang";
+import AuthRoutes from "./routes/Auth";
 
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -157,6 +158,7 @@ const App = () => {
             {SanPhamRoutes()}
             {NhanVienRoute()}
             {KhachHangRoute()}
+            
             {/* Thêm các Routes khác ở đâyyyyyyy */}
           </Routes>
           <ToastContainer position="top-right" autoClose={3000} />

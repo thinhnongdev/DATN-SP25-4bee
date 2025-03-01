@@ -233,7 +233,7 @@ public class HoaDonMapper implements IHoaDonMapper {
             List<HoaDonChiTiet> chiTietList = request.getHoaDonChiTiets().stream()
                     .map(this::mapRequestToHoaDonChiTiet)
                     .collect(Collectors.toList());
-            hoaDon.setHoaDonChiTiets(chiTietList);
+           // hoaDon.setHoaDonChiTiets(chiTietList);
         }
 
         // Ánh xạ phương thức thanh toán
@@ -242,7 +242,7 @@ public class HoaDonMapper implements IHoaDonMapper {
                     .map(phuongThuc -> mapPhuongThucThanhToan(phuongThuc, hoaDon))
                     .collect(Collectors.toList());
             thanhToans.forEach(thanhToan -> thanhToan.setHoaDon(hoaDon));
-            hoaDon.setThanhToanHoaDons(thanhToans);
+          //  hoaDon.setThanhToanHoaDons(thanhToans);
         }
         return hoaDon;
     }
@@ -304,7 +304,7 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .nhanVien(mapNhanVienToResponse(hoaDon.getNhanVien()))
                 .khachHang(mapKhachHangToResponse(hoaDon.getKhachHang()))
                 .phieuGiamGia(mapPhieuGiamGiaToResponse(hoaDon.getPhieuGiamGia()))
-                .hoaDonChiTiets(mapHoaDonChiTietToResponse(hoaDon.getHoaDonChiTiets()))
+               // .hoaDonChiTiets(mapHoaDonChiTietToResponse(hoaDon.getHoaDonChiTiets()))
                 .build();
     }
 
@@ -396,7 +396,7 @@ public class HoaDonMapper implements IHoaDonMapper {
                     .map(phuongThuc -> mapPhuongThucThanhToan(phuongThuc, hoaDon)) // Sử dụng lambda để truyền `hoaDon`
                     .collect(Collectors.toList());
             thanhToans.forEach(thanhToan -> thanhToan.setHoaDon(hoaDon));
-            hoaDon.setThanhToanHoaDons(thanhToans);
+          //  hoaDon.setThanhToanHoaDons(thanhToans);
         }
     }
 

@@ -55,23 +55,24 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
         HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại"));
 
-        return hoaDon.getHoaDonChiTiets().stream()
-                .filter(chiTiet -> chiTiet.getTrangThai() == 1) // Chỉ lấy các sản phẩm đang hoạt động
-                .map(chiTiet -> {
-                    SanPhamChiTiet spct = chiTiet.getSanPhamChiTiet();
-                    SanPham sanPham = spct.getSanPham();
-                    return HoaDonChiTietResponse.builder()
-                            .id(chiTiet.getId())
-                            .sanPhamChiTietId(spct.getId())
-                            .maSanPham(sanPham.getMaSanPham())
-                            .tenSanPham(sanPham.getTenSanPham())
-                            .soLuong(chiTiet.getSoLuong())
-                            .gia(spct.getGia())
-                            .thanhTien(spct.getGia().multiply(new BigDecimal(chiTiet.getSoLuong())))
-                            .trangThai(chiTiet.getTrangThai())
-                            .build();
-                })
-                .collect(Collectors.toList());
+//        return hoaDon.getHoaDonChiTiets().stream()
+//                .filter(chiTiet -> chiTiet.getTrangThai() == 1) // Chỉ lấy các sản phẩm đang hoạt động
+//                .map(chiTiet -> {
+//                    SanPhamChiTiet spct = chiTiet.getSanPhamChiTiet();
+//                    SanPham sanPham = spct.getSanPham();
+//                    return HoaDonChiTietResponse.builder()
+//                            .id(chiTiet.getId())
+//                            .sanPhamChiTietId(spct.getId())
+//                            .maSanPham(sanPham.getMaSanPham())
+//                            .tenSanPham(sanPham.getTenSanPham())
+//                            .soLuong(chiTiet.getSoLuong())
+//                            .gia(spct.getGia())
+//                            .thanhTien(spct.getGia().multiply(new BigDecimal(chiTiet.getSoLuong())))
+//                            .trangThai(chiTiet.getTrangThai())
+//                            .build();
+//                })
+//                .collect(Collectors.toList());
+        return null;
     }
 
     // 2. Thêm sản phẩm vào hóa đơn
@@ -153,23 +154,23 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
                 sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
 
         // 5️⃣ Thêm vào hóa đơn
-        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
-                .filter(ct -> ct.getTrangThai() == 1 && ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
-                .findFirst()
-                .orElse(null);
-
-        if (chiTiet != null) {
-            chiTiet.setSoLuong(chiTiet.getSoLuong() + request.getSoLuong());
-        } else {
-            chiTiet = HoaDonChiTiet.builder()
-                    .id(UUID.randomUUID().toString())
-                    .hoaDon(hoaDon)
-                    .sanPhamChiTiet(sanPhamChiTiet)
-                    .soLuong(request.getSoLuong())
-                    .trangThai(1)
-                    .build();
-            hoaDon.getHoaDonChiTiets().add(chiTiet);
-        }
+//        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
+//                .filter(ct -> ct.getTrangThai() == 1 && ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
+//                .findFirst()
+//                .orElse(null);
+//
+//        if (chiTiet != null) {
+//            chiTiet.setSoLuong(chiTiet.getSoLuong() + request.getSoLuong());
+//        } else {
+//            chiTiet = HoaDonChiTiet.builder()
+//                    .id(UUID.randomUUID().toString())
+//                    .hoaDon(hoaDon)
+//                    .sanPhamChiTiet(sanPhamChiTiet)
+//                    .soLuong(request.getSoLuong())
+//                    .trangThai(1)
+//                    .build();
+//            hoaDon.getHoaDonChiTiets().add(chiTiet);
+//        }
 
         recalculateTotal(hoaDon);
         return mapper.entityToResponse(hoaDonRepository.save(hoaDon));
@@ -249,32 +250,32 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
         }
 
         HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
-        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
-                .filter(ct -> ct.getTrangThai() == 1)
-                .filter(ct -> ct.getId().equals(hoaDonChiTietId))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại trong hóa đơn"));
-
-        SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
-        int currentQuantity = chiTiet.getSoLuong();
-        int quantityChange = request.getSoLuong() - currentQuantity;
-
-        if (quantityChange > 0) {
-            // Tăng số lượng -> Giảm tồn kho
-            if (sanPhamChiTiet.getSoLuong() < quantityChange) {
-                throw new ValidationException("Không đủ số lượng trong kho");
-            }
-            sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - quantityChange);
-        } else if (quantityChange < 0) {
-            // Giảm số lượng -> Hoàn lại vào kho
-            sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - quantityChange);
-        }
-
-        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
-        log.info("Updated stock for product {}: new quantity={}", sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
-
-        chiTiet.setSoLuong(request.getSoLuong());
-        recalculateTotal(hoaDon);
+//        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
+//                .filter(ct -> ct.getTrangThai() == 1)
+//                .filter(ct -> ct.getId().equals(hoaDonChiTietId))
+//                .findFirst()
+//                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại trong hóa đơn"));
+//
+//        SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
+//        int currentQuantity = chiTiet.getSoLuong();
+//        int quantityChange = request.getSoLuong() - currentQuantity;
+//
+//        if (quantityChange > 0) {
+//            // Tăng số lượng -> Giảm tồn kho
+//            if (sanPhamChiTiet.getSoLuong() < quantityChange) {
+//                throw new ValidationException("Không đủ số lượng trong kho");
+//            }
+//            sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - quantityChange);
+//        } else if (quantityChange < 0) {
+//            // Giảm số lượng -> Hoàn lại vào kho
+//            sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - quantityChange);
+//        }
+//
+//        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
+//        log.info("Updated stock for product {}: new quantity={}", sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
+//
+//        chiTiet.setSoLuong(request.getSoLuong());
+//        recalculateTotal(hoaDon);
         return mapper.entityToResponse(hoaDonRepository.save(hoaDon));
     }
 
@@ -320,20 +321,20 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
     public HoaDonResponse removeProduct(String hoaDonId, String hoaDonChiTietId) {
         log.info("Removing product detail {} from invoice {}", hoaDonChiTietId, hoaDonId);
 
-        HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
-        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
-                .filter(ct -> ct.getId().equals(hoaDonChiTietId))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại trong hóa đơn"));
-
-        // Hoàn lại số lượng vào kho
-        SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
-        sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() + chiTiet.getSoLuong());
-        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
-        log.info("Restored stock for product {}: new quantity={}", sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
-
-        hoaDon.getHoaDonChiTiets().remove(chiTiet);
-        hoaDonChiTietRepository.delete(chiTiet);
+       HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
+//        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
+//                .filter(ct -> ct.getId().equals(hoaDonChiTietId))
+//                .findFirst()
+//                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại trong hóa đơn"));
+//
+//        // Hoàn lại số lượng vào kho
+//        SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
+//        sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() + chiTiet.getSoLuong());
+//        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
+//        log.info("Restored stock for product {}: new quantity={}", sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
+//
+//        hoaDon.getHoaDonChiTiets().remove(chiTiet);
+//        hoaDonChiTietRepository.delete(chiTiet);
 
         recalculateTotal(hoaDon);
         return mapper.entityToResponse(hoaDonRepository.save(hoaDon));
@@ -341,21 +342,24 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
 
     // Các phương thức hỗ trợ
     private HoaDonChiTiet findChiTietBySanPhamId(HoaDon hoaDon, String sanPhamId) {
-        log.info("Finding product {} in invoice {}", sanPhamId, hoaDon.getId());
-
-        return hoaDon.getHoaDonChiTiets().stream()
-                .filter(ct -> ct.getTrangThai() == 1)
-                .filter(ct -> ct.getSanPhamChiTiet().getId().equals(sanPhamId))
-                .findFirst()
-                .orElse(null);
+//        log.info("Finding product {} in invoice {}", sanPhamId, hoaDon.getId());
+//
+//        return hoaDon.getHoaDonChiTiets().stream()
+//                .filter(ct -> ct.getTrangThai() == 1)
+//                .filter(ct -> ct.getSanPhamChiTiet().getId().equals(sanPhamId))
+//                .findFirst()
+//                .orElse(null);
+        return new HoaDonChiTiet();
     }
 
     private BigDecimal calculateSubtotal(HoaDon hoaDon) {
-        return hoaDon.getHoaDonChiTiets().stream()
-                .filter(ct -> ct.getTrangThai() == 1) // Chỉ tính các sản phẩm active
-                .map(ct -> ct.getSanPhamChiTiet().getGia()
-                        .multiply(BigDecimal.valueOf(ct.getSoLuong())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//        return hoaDon.getHoaDonChiTiets()
+//        .stream()
+//                .filter(ct -> ct.getTrangThai() == 1) // Chỉ tính các sản phẩm active
+//                .map(ct -> ct.getSanPhamChiTiet().getGia()
+//                        .multiply(BigDecimal.valueOf(ct.getSoLuong())))
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return null;
     }
 
     private HoaDonChiTiet createHoaDonChiTiet(HoaDon hoaDon, SanPham sanPham, int soLuong) {
