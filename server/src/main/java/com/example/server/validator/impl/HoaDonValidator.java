@@ -54,7 +54,7 @@ public class HoaDonValidator implements IHoaDonValidator {
             throw new ResourceNotFoundException("Hóa đơn không tồn tại");
         }
 
-        if (hoaDon.getTrangThai() == HoaDonConstant.TRANG_THAI_DA_GIAO) {
+        if (hoaDon.getTrangThai() == HoaDonConstant.TRANG_THAI_HOAN_THANH) {
             throw new ValidationException("Không thể cập nhật hóa đơn đã giao");
         }
 
@@ -89,14 +89,15 @@ public class HoaDonValidator implements IHoaDonValidator {
         if (!Arrays.asList(
                 HoaDonConstant.TRANG_THAI_CHO_XAC_NHAN,
                 HoaDonConstant.TRANG_THAI_DA_XAC_NHAN,
+                HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG,
                 HoaDonConstant.TRANG_THAI_DANG_GIAO,
-                HoaDonConstant.TRANG_THAI_DA_GIAO,
+                HoaDonConstant.TRANG_THAI_HOAN_THANH,
                 HoaDonConstant.TRANG_THAI_DA_HUY
         ).contains(trangThai)) {
             throw new ValidationException("Trạng thái không hợp lệ");
         }
 
-        if (hoaDon.getTrangThai() == HoaDonConstant.TRANG_THAI_DA_GIAO) {
+        if (hoaDon.getTrangThai() == HoaDonConstant.TRANG_THAI_HOAN_THANH) {
             throw new ValidationException("Không thể thay đổi trạng thái của hóa đơn đã giao");
         }
     }

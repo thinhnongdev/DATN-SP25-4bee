@@ -4,6 +4,7 @@ import com.example.server.dto.HoaDon.request.AddProductRequest;
 import com.example.server.dto.HoaDon.request.UpdateProductQuantityRequest;
 import com.example.server.dto.HoaDon.response.HoaDonChiTietResponse;
 import com.example.server.dto.HoaDon.response.HoaDonResponse;
+import com.example.server.dto.HoaDon.response.SanPhamChiTietHoaDonResponse;
 
 import java.util.List;
 
@@ -12,7 +13,7 @@ public interface IHoaDonSanPhamService {
     HoaDonResponse addProduct(String hoaDonId, AddProductRequest request);  // Thêm sản phẩm vào hóa đơn (giảm tồn kho)
     HoaDonResponse updateProductQuantity(String hoaDonId, String hoaDonChiTietId, UpdateProductQuantityRequest request); // Cập nhật số lượng (đồng bộ tồn kho)
     HoaDonResponse removeProduct(String hoaDonId, String hoaDonChiTietId); // Xóa sản phẩm khỏi hóa đơn (hoàn lại tồn kho)
-    List<HoaDonChiTietResponse> getProductsInInvoice(String hoaDonId);  // Lấy danh sách sản phẩm trong hóa đơn
+    List<SanPhamChiTietHoaDonResponse> getProductsInInvoice(String hoaDonId);  // Lấy danh sách sản phẩm trong hóa đơn
 
     // Quản lý voucher trong hóa đơn
     HoaDonResponse applyVoucher(String hoaDonId, String voucherId);  // Áp dụng voucher

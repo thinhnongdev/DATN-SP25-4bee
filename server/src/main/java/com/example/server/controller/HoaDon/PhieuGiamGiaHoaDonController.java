@@ -15,6 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/phieu-giam-gia")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class PhieuGiamGiaHoaDonController {
     private final IPhieuGiamGiaService phieuGiamGiaService;
 

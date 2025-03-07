@@ -1,19 +1,200 @@
+/* Thiết kế chung */
+.ban-hang-container {
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Tabs */
+.ban-hang-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+  background-color: #fff;
+  border-radius: 8px 8px 0 0;
+  padding: 0 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.ban-hang-tabs .ant-tabs-tab {
+  padding: 12px 16px;
+  transition: all 0.3s;
+}
+
+.ban-hang-tabs .ant-tabs-tab:hover {
+  color: #1890ff;
+}
+
+.ban-hang-tabs .ant-tabs-tab-active {
+  background-color: #e6f7ff;
+  border-radius: 8px 8px 0 0;
+}
+
+/* Sản phẩm */
+.product-list {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.product-item {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s;
+}
+
+.product-item:hover {
+  background-color: #f9f9f9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Thông tin thanh toán */
+.payment-info {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.payment-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed #f0f0f0;
+}
+
+.payment-row:last-child {
+  border-bottom: none;
+}
+
+.payment-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.payment-value {
+  font-weight: 600;
+  text-align: right;
+}
+
+.payment-total {
+  font-size: 18px;
+  color: #1890ff;
+  font-weight: 700;
+}
+
+/* Nút thanh toán */
+.payment-button {
+  width: 100%;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 16px;
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  transition: all 0.3s;
+}
+
+.payment-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+}
+
+/* Gợi ý voucher */
+.voucher-suggestions {
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s;
+}
+
+.voucher-suggestions:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.voucher-card {
+  background-color: #fff;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s;
+}
+
+.voucher-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.voucher-header {
+  background-color: #e6f7ff;
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.voucher-content {
+  padding: 16px;
+}
+
+.voucher-discount {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f5222d;
+}
+
+.voucher-condition {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Input số lượng */
 .custom-input-number {
-    border: none !important; /* Xóa viền của InputNumber */
-    box-shadow: none !important; /* Xóa hiệu ứng khi focus */
-    background-color: transparent !important; /* Làm trong suốt */
-    width: 150px; /* Giữ kích thước phù hợp */
-  }
-  
-  .custom-input-number input {
-    color: red !important; /* Màu chữ đỏ */
-    text-align: right !important; /* Căn phải */
-    border: none !important; /* Xóa viền của input */
-    border-bottom: 2px solid rgb(0, 0, 0) !important; /* Giữ lại chỉ viền dưới */
-    border-radius: 0 !important; /* Loại bỏ bo góc */
-    outline: none !important; /* Loại bỏ viền khi focus */
-    box-shadow: none !important; /* Loại bỏ hiệu ứng khi nhập */
-    /* padding: 4px; Tạo khoảng cách phù hợp */
-    background-color: transparent !important; /* Nền trong suốt */
-  }
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+  width: 150px;
+}
+
+.custom-input-number input {
+  color: #f5222d !important;
+  text-align: right !important;
+  border: none !important;
+  border-bottom: 2px solid #1890ff !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+  transition: all 0.3s;
+}
+
+.custom-input-number input:focus {
+  border-bottom: 2px solid #40a9ff !important;
+}
+
+/* Bảng sản phẩm */
+.product-table .ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.product-table .ant-table-thead > tr > th {
+  background-color: #f5f7fa;
+  color: #333;
+  font-weight: 600;
+}
+
+.product-table .ant-table-tbody > tr:hover > td {
+  background-color: #e6f7ff;
+}
   

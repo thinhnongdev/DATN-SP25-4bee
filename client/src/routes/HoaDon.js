@@ -1,13 +1,13 @@
 import { Routes, Route } from "react-router-dom";
 import InvoiceList from "../pages/InvoiceList";
 import InvoiceDetail from "../pages/InvoiceDetail";
-// import InvoiceCreate from "../pages/InvoiceCreate";
+import BanHang from "../components/QuanLyBanHang/BanHang";
 
 const PhieuGiamGiaRoutes = () => {
   return (
     <>
       <Route path="/hoa-don" element={<InvoiceList />} />
-      {/* <Route path="/hoa-don/create" element={<InvoiceCreate />} /> */}
+      <Route path="/ban-hang" element={<BanHang />} />
       <Route path="/hoa-don/detail/:id" element={<InvoiceDetail />} />    
       </>
   );

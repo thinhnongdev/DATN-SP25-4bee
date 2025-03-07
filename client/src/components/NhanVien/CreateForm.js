@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { Radio } from "antd";
+import { Button, Radio } from "antd";
 import { Input } from "antd";
-import { getPostApi } from "./NhanVienApi";
+import { getPostApi, scanQRCode } from "./NhanVienApi";
 import axios from "axios";
+import QrScanner from "react-qr-scanner";
 function CreateForm({ handleClose, getAllNhanVien }) {
+  const [scanning, setScanning] = useState(false);
   const [formData, setFormData] = useState({
-    maNhanVien: "",
     tenNhanVien: "",
     email: "",
     soDienThoai: "",
@@ -14,7 +15,34 @@ function CreateForm({ handleClose, getAllNhanVien }) {
     gioiTinh: "",
     trangThai: true,
     anh: "",
+    canCuocCongDan: "",
   });
+
+  const handleScan = async (data) => {
+    if (data) {
+      try {
+        const nhanVien = await scanQRCode(data.text);
+        setFormData({
+          tenNhanVien: nhanVien.tenNhanVien,
+          email: nhanVien.email,
+          soDienThoai: nhanVien.soDienThoai,
+          ngaySinh: nhanVien.ngaySinh,
+          gioiTinh: nhanVien.gioiTinh ? "Nam" : "Nữ",
+          trangThai: nhanVien.trangThai,
+          anh: nhanVien.anh || "",
+        });
+        toast.success("Đã tìm thấy nhân viên từ mã QR!");
+        setScanning(false); // Dừng camera sau khi quét thành công
+      } catch (error) {
+        toast.error("Không tìm thấy nhân viên từ QR!");
+      }
+    }
+  };
+
+  const handleError = (err) => {
+    console.error("Lỗi khi quét QR:", err);
+    toast.error("Lỗi khi quét mã QR!");
+  };
 
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
@@ -68,6 +96,15 @@ function CreateForm({ handleClose, getAllNhanVien }) {
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChangeCCCD = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prevState) => ({
+      ...prevState,
+      [name]: name === "canCuocCongDan" ? value.replace(/\D/g, "") : value, // Chỉ cho phép số
+    }));
   };
 
   const handleChange = (e) => {
@@ -173,51 +210,52 @@ function CreateForm({ handleClose, getAllNhanVien }) {
 
   //Submit
   const handleSubmit = async (e) => {
-      e.preventDefault();
+    e.preventDefault();
 
-      if (!validateForm()) {
-        toast.error("Vui lòng nhập đầy đủ thông tin!");
-        return;
+    if (!validateForm()) {
+      toast.error("Vui lòng nhập đầy đủ thông tin!");
+      return;
+    }
+
+    if (!formData.anh) {
+      toast.error("Vui lòng tải lên ảnh nhân viên!");
+      return;
+    }
+
+    const isUnique = await checkDuplicateFields();
+    if (!isUnique) {
+      toast.error("Thông tin nhập vào đã tồn tại, vui lòng kiểm tra lại!");
+      return;
+    }
+
+    const newNhanVien = {
+      tenNhanVien: formData.tenNhanVien,
+      email: formData.email,
+      soDienThoai: formData.soDienThoai,
+      ngaySinh: formData.ngaySinh,
+      gioiTinh: formData.gioiTinh === "Nam" ? true : false,
+      trangThai: formData.trangThai,
+      anh: String(formData.anh),
+      canCuocCongDan: formData.canCuocCongDan,
+    };
+
+    try {
+      const response = await getPostApi(newNhanVien);
+      if (response && response.data) {
+        toast.success("Nhân viên mới đã được tạo!");
+        console.log("Nhân viên mới:", response.data);
+        getAllNhanVien();
+        handleClose();
       }
-
-      if (!formData.anh) {
-        toast.error("Vui lòng tải lên ảnh nhân viên!");
-        return;
+    } catch (error) {
+      toast.error("Có lỗi khi tạo nhân viên!");
+      console.error("ERROR", error);
+      if (error.response) {
+        console.error("Lỗi từ Cloudinary:", error.response.data);
+        toast.error(`Lỗi tải ảnh: ${error.response.data.error.message}`);
+      } else {
+        toast.error("Không thể tải ảnh lên, vui lòng thử lại.");
       }
-
-      const isUnique = await checkDuplicateFields();
-      if (!isUnique) {
-        toast.error("Thông tin nhập vào đã tồn tại, vui lòng kiểm tra lại!");
-        return;
-      }
-
-      const newNhanVien = {
-        maNhanVien: formData.maNhanVien,
-        tenNhanVien: formData.tenNhanVien,
-        email: formData.email,
-        soDienThoai: formData.soDienThoai,
-        ngaySinh: formData.ngaySinh,
-        gioiTinh: formData.gioiTinh === "Nam" ? true : false,
-        anh: String(formData.anh),
-      };
-
-      try {
-        const response = await getPostApi(newNhanVien);
-        if (response && response.data) {
-          toast.success("Nhân viên mới đã được tạo!");
-          console.log("Nhân viên mới:", response.data);
-          getAllNhanVien();
-          handleClose();
-        }
-      } catch (error) {
-        toast.error("Có lỗi khi tạo nhân viên!");
-        console.error("ERROR", error);
-        if (error.response) {
-          console.error("Lỗi từ Cloudinary:", error.response.data);
-          toast.error(`Lỗi tải ảnh: ${error.response.data.error.message}`);
-        } else {
-          toast.error("Không thể tải ảnh lên, vui lòng thử lại.");
-        }
     }
   };
 
@@ -264,6 +302,21 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                   <p style={{ fontSize: "12px", color: "#555" }}>
                     Nhấp vào ảnh để chọn
                   </p>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Quét mã QR CCCD</label>
+                  <Button onClick={() => setScanning(!scanning)}>
+                    {scanning ? "Tắt Camera" : "Mở Camera"}
+                  </Button>
+                  {scanning && (
+                    <QrScanner
+                      delay={300}
+                      onError={handleError}
+                      onScan={handleScan}
+                      style={{ width: "100%", maxWidth: 400, marginTop: 10 }}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -361,13 +414,29 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                   )}
                 </div>
 
+                <div className="mb-4">
+                  <label className="form-label">
+                    Căn cước công dân <span style={{ color: "red" }}>*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    name="canCuocCongDan"
+                    value={formData.canCuocCongDan}
+                    onChange={handleChangeCCCD}
+                  />
+                  {errors.soDienThoai && (
+                    <p className="text-danger">{errors.canCuocCongDan}</p>
+                  )}
+                </div>
+
+
                 {/* Nút lưu nhân viên */}
                 <div className="" style={{ marginLeft: 610 }}>
                   <button
                     className="btn btn-primary"
                     style={{ color: "#fff", width: "150px" }}
                   >
-                    Lưu nhân viên
+                    Thêm nhân viên
                   </button>
                 </div>
               </div>

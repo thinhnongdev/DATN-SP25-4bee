@@ -160,59 +160,58 @@ const KieuTayAo = () => {
 
   return (
     <>
-      <div>
-        <Breadcrumb
-          style={{
-            marginBottom: '10px',
-            fontSize: '15px',
-            fontWeight: 'bold',
-          }}
-        >
-          <Breadcrumb.Item>Kiểu tay áo</Breadcrumb.Item>
-        </Breadcrumb>
-        <div
-          style={{
-            boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
-            borderRadius: '8px',
-            padding: '20px',
-            backgroundColor: 'white',
-            height: 'auto',
-          }}
-        >
-          <Row gutter={16} style={{ marginBottom: '30px' }}>
-            {/* Ô tìm kiếm */}
-            <Col span={10}>
-              <Input
-                placeholder="Tìm kiếm..."
-                prefix={<SearchOutlined />}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-              />
-            </Col>
+      <Breadcrumb
+        style={{
+          marginBottom: '10px',
+          fontSize: '15px',
+          fontWeight: 'bold',
+        }}
+      >
+        <Breadcrumb.Item>Kiểu tay áo</Breadcrumb.Item>
+      </Breadcrumb>
+      <Container
+        style={{
+          boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
+          borderRadius: '8px',
+          padding: '20px',
+          backgroundColor: 'white',
+          height: 'auto',
+        }}
+      >
+        <Row gutter={16} style={{ marginBottom: '30px' }}>
+          {/* Ô tìm kiếm */}
+          <Col span={10}>
+            <Input
+              placeholder="Tìm kiếm..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+          </Col>
 
-            {/* Nút xuất Excel */}
-            <Col span={7} style={{ paddingLeft: '180px' }}>
-              <Button type="default" icon={<FileExcelOutlined />} onClick={handleExportExcel}>
-                Xuất Excel
-              </Button>
-            </Col>
+          {/* Nút xuất Excel */}
+          <Col span={7} style={{ paddingLeft: '180px' }}>
+            <Button type="default" icon={<FileExcelOutlined />} onClick={handleExportExcel}>
+              Xuất Excel
+            </Button>
+          </Col>
 
-            {/* Nút thêm mới */}
-            <Col span={7} style={{ paddingLeft: '240px' }}>
-              <Button type="primary" onClick={showAddModal}>
-                +Thêm mới
-              </Button>
-            </Col>
-          </Row>
-          <Table
-            dataSource={filteredData.map((item) => ({ ...item, key: item.id }))}
-            columns={columns}
-            pagination={pagination}
-            onChange={handleTableChange}
-            rowKey="id"
-          />
-        </div>
-      </div>
+          {/* Nút thêm mới */}
+          <Col span={7} style={{ paddingLeft: '240px' }}>
+            <Button type="primary" onClick={showAddModal}>
+              +Thêm mới
+            </Button>
+          </Col>
+        </Row>
+        <Table
+          dataSource={filteredData.map((item) => ({ ...item, key: item.id }))}
+          columns={columns}
+          pagination={pagination}
+          onChange={handleTableChange}
+          rowKey="id"
+        />
+      </Container>
+
       <Modal
         title={isEditing ? 'Chỉnh sửa kiểu tay áo' : 'Thêm kiểu tay áo'}
         open={isModalVisible}

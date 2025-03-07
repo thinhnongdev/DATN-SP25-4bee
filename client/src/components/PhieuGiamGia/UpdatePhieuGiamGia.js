@@ -1,238 +1,265 @@
 import { useEffect, useState } from "react";
-import { getPhieuGiamGiaById, updatePhieuGiamGia } from "../Service/api";
-import { Modal, Form, Input, Button, message, DatePicker, InputNumber, Select, Row, Col, notification } from "antd";
-import moment from "moment";
+import { Form, Input, Button, DatePicker, Select, notification, Row, Col, Table } from "antd";
+import axios from "axios";
+import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
-import "antd/dist/reset.css";
-import { toast } from "react-toastify";
-
-const { TextArea } = Input;
+import { CheckCircleTwoTone } from "@ant-design/icons";
 const { Option } = Select;
 
-const UpdatePhieuGiamGia = ({ show, handleClose, id, onSaveSuccess }) => {
+const PhieuGiamGiaUpdate = () => {
   const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
   const [discountType, setDiscountType] = useState(1);
+  const [customers, setCustomers] = useState([]);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const [searchValue, setSearchValue] = useState("");
+  const navigate = useNavigate();
+  const { id } = useParams();
 
-  // Fetch data when the component mounts or when the `id` changes
   useEffect(() => {
-    if (id) {
-      fetchPhieuGiamGiaData();
-    }
+    axios
+      .get("http://localhost:8080/api/phieu-giam-gia/khach_hang")
+      .then((res) => {
+        setCustomers(res.data || []);
+        setFilteredCustomers(res.data || []);
+      })
+      .catch(() =>
+        notification.error({ message: "Lỗi", description: "Không thể tải danh sách khách hàng." })
+      );
+  }, []);
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:8080/api/phieu-giam-gia/khach_hang")
+      .then((res) => {
+        setCustomers(res.data || []);
+        setFilteredCustomers(res.data || []);
+      })
+      .catch(() =>
+        notification.error({ message: "Lỗi", description: "Không thể tải danh sách khách hàng." })
+      );
+  }, []);
+  useEffect(() => {
+    if (!id) return;
+
+    axios.get(`http://localhost:8080/api/phieu-giam-gia/${id}`)
+      .then((res) => {
+        const data = res.data;
+        if (!data) {
+          notification.error({ message: "Không tìm thấy dữ liệu!" });
+          return;
+        }
+
+        form.setFieldsValue({
+          ...data,
+          ngayBatDau: data.ngayBatDau ? dayjs(data.ngayBatDau) : null,
+          ngayKetThuc: data.ngayKetThuc ? dayjs(data.ngayKetThuc) : null,
+        });
+
+        setDiscountType(data.kieuGiamGia || 1);
+
+        // Lấy danh sách khách hàng sử dụng phiếu
+        axios.get(`http://localhost:8080/api/phieu-giam-gia/${id}/khach-hang`)
+          .then((res) => {
+            const appliedCustomers = res.data || [];
+
+            // Lọc những khách hàng có trạng thái "đang hoạt động"
+            const activeCustomers = appliedCustomers
+              .filter(c => c.trangThai === false) // Hoặc c.trangThai === true nếu API trả về boolean
+              .map(c => c.id);
+
+            setSelectedCustomers(activeCustomers);
+          })
+          .catch(() => notification.error({ message: "Lỗi tải danh sách khách hàng áp dụng!" }));
+      })
+      .catch(() => notification.error({ message: "Lỗi khi tải dữ liệu!" }));
   }, [id]);
 
-  const fetchPhieuGiamGiaData = async () => {
-    try {
-      const response = await getPhieuGiamGiaById(id);
-      const data = response.data;
-      form.setFieldsValue({
-        ...data,
-        ngayBatDau: data.ngayBatDau ? moment(data.ngayBatDau) : null,
-        ngayKetThuc: data.ngayKetThuc ? moment(data.ngayKetThuc) : null,
+
+
+
+  const handleDiscountTypeChange = (value) => {
+    setDiscountType(value);
+    setSelectedCustomers([]);
+    form.setFieldsValue({ soLuong: value === 2 ? selectedCustomers.length : null });
+  };
+
+  const handleCustomerSelect = (selectedRowKeys, selectedRows) => {
+    setSelectedCustomers(selectedRowKeys);
+
+    // Tìm khách hàng mới chưa có trong danh sách
+    const newCustomers = selectedRowKeys.filter(id => !selectedCustomers.includes(id));
+
+    if (newCustomers.length > 0) {
+      axios.put(`http://localhost:8080/api/phieu-giam-gia/${id}/add-customers`, newCustomers)
+        .then(() => {
+          notification.success({ message: "Đã thêm khách hàng vào phiếu!" });
+        })
+        .catch(() => {
+          notification.error({ message: "Lỗi khi thêm khách hàng!" });
+        });
+    }
+
+    // Tìm khách hàng đã bỏ tích (bị loại khỏi danh sách)
+    const removedCustomers = selectedCustomers.filter(id => !selectedRowKeys.includes(id));
+
+    if (removedCustomers.length > 0) {
+      removedCustomers.forEach((customerId) => {
+        // Gửi yêu cầu PATCH đến API để loại bỏ khách hàng khỏi phiếu giảm giá
+        axios.patch(`http://localhost:8080/api/phieu-giam-gia/${id}/remove-customer/${customerId}`)
+          .then(() => {
+            notification.success({ message: "Đã bỏ khách hàng khỏi phiếu giảm giá!" });
+          })
+          .catch(() => {
+            notification.error({ message: "Lỗi khi bỏ khách hàng!" });
+          });
       });
-      setDiscountType(data.kieuGiamGia);
-    } catch (error) {
-      message.error("Lỗi khi tải dữ liệu!");
     }
   };
 
-  const handleSave = async () => {
-    try {
-      const values = await form.validateFields();
-      const { ngayBatDau, ngayKetThuc, giaTriGiam, loaiGiaTriGiam } = values;
 
-      // Validate discount value
-      if (giaTriGiam <= 0 || (loaiGiaTriGiam === 1 && giaTriGiam > 100)) {
-        notification.error({ description: "Giá trị giảm không hợp lệ." });
-        return;
-      }
-
-      // Prepare payload for API request
-      const payload = {
-        ...values,
-        ngayBatDau: ngayBatDau ? ngayBatDau.toISOString() : null,
-        ngayKetThuc: ngayKetThuc ? ngayKetThuc.toISOString() : null,
-      };
-
-      // Call API to update the discount
-      const response = await updatePhieuGiamGia(id, payload);
-      if (response.status === 200) {
-        toast.success("Cập nhật thành công!");
-        handleClose();
-        onSaveSuccess && onSaveSuccess(response.data);
-      } else {
-        message.error("Cập nhật thất bại!");
-      }
-    } catch (error) {
-      message.error("Lỗi: Không thể cập nhật phiếu giảm giá!");
-    }
+  const handleSearch = (value) => {
+    setSearchValue(value);
+    setFilteredCustomers(
+      customers.filter(
+        (customer) =>
+          customer.tenKhachHang.toLowerCase().includes(value.toLowerCase()) ||
+          customer.soDienThoai.includes(value)
+      )
+    );
   };
+
+
+
+  const onFinish = (values) => {
+    const formatDate = (date) => date ? dayjs(date).format("YYYY-MM-DDTHH:mm:ss") : null;
+    const requestData = {
+      tenPhieuGiamGia: values.tenPhieuGiamGia || undefined,
+      giaTriGiam: values.giaTriGiam || undefined,
+      soTienGiamToiDa: values.soTienGiamToiDa || undefined,
+      giaTriToiThieu: values.giaTriToiThieu || undefined,
+      ngayBatDau: formatDate(values.ngayBatDau),
+      ngayKetThuc: formatDate(values.ngayKetThuc),
+      soLuong: values.soLuong || undefined,
+      trangThai: values.trangThai || undefined,
+      moTa: values.moTa || undefined,
+      kieuGiamGia: values.kieuGiamGia,
+
+      khachHangsToAdd: selectedCustomers, // Danh sách khách hàng mới
+      khachHangsToCancel: [], // Nếu cần hủy khách hàng, xử lý tại đây
+    };
+
+    axios.put(`http://localhost:8080/api/phieu-giam-gia/${id}`, requestData)
+      .then(() => {
+        notification.success({ message: "Cập nhật thành công!" });
+        navigate("/phieu-giam-gia");
+      })
+      .catch((error) => {
+        console.error("❌ Lỗi từ API:", error.response?.data);
+        notification.error({ message: "Lỗi khi cập nhật!" });
+      });
+  };
+
+
 
   return (
-    <Modal
-      title="Cập nhật Phiếu Giảm Giá"
-      visible={show}
-      onCancel={handleClose}
-      footer={[
-        <Button key="cancel" onClick={handleClose}>Đóng</Button>,
-        <Button key="submit" type="primary" onClick={handleSave}>Lưu Thay Đổi</Button>
-      ]}
-    >
-      <Form form={form} layout="vertical">
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item name="tenPhieuGiamGia" label="Tên Phiếu Giảm Giá" rules={[{ required: true }]}>
-              <Input placeholder="Nhập tên phiếu giảm giá" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item name="trangThai" label="Trạng thái" initialValue={1}>
-              <Select>
-                <Option value={1}>Đang hoạt động</Option>
-                <Option value={2}>Ngừng hoạt động</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="giaTriGiam"
-              label="Giá trị giảm"
-              rules={[
-                { required: true, message: "Vui lòng nhập giá trị giảm" },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || parseFloat(value) <= 0) {
-                      return Promise.reject(new Error("Giá trị giảm phải lớn hơn 0."));
-                    }
-                    if (getFieldValue("loaiGiaTriGiam") === 1 && parseFloat(value) > 100) {
-                      return Promise.reject(new Error("Giá trị giảm phần trăm không được vượt quá 100%."));
-                    }
-                    return Promise.resolve();
-                  },
-                }),
-              ]}
-            >
-              <InputNumber min={0} style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item name="loaiGiaTriGiam" label="Loại giảm giá" initialValue={1}>
-              <Select>
-                <Option value={1}>%</Option>
-                <Option value={2}>VND</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="giaTriToiThieu"
-              label="Giá trị tối thiểu"
-              rules={[
-                { required: true, message: "Vui lòng nhập giá trị tối thiểu" },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || parseFloat(value) > 0) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error("Giá trị tối thiểu phải lớn hơn 0."));
-                  },
-                }),
-              ]}
-            >
-              <InputNumber min={0} style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="soTienGiamToiDa"
-              label="Số tiền giảm tối đa"
-              rules={[
-                { required: true, message: "Vui lòng nhập số tiền giảm tối đa" },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || parseFloat(value) > 0) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error("Số tiền giảm tối đa phải lớn hơn 0."));
-                  },
-                }),
-              ]}
-            >
-              <InputNumber min={0} style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              name="soLuong"
-              label="Số lượng phiếu"
-              rules={[
-                { required: true, message: "Vui lòng nhập số lượng phiếu" },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    const kieuGiamGia = getFieldValue("kieuGiamGia");
-                    if (!kieuGiamGia) {
-                      return Promise.reject(new Error("Vui lòng chọn kiểu giảm giá trước khi nhập số lượng phiếu."));
-                    }
+    <div style={{ display: "flex", gap: "20px" }}>
+      {/* Form cập nhật phiếu giảm giá */}
+      <div style={{ flex: "0 0 40%", padding: "20px", background: "#f9f9f9", borderRadius: "8px" }}>
+        <h5 style={{ textAlign: "center" }}>Cập Nhật Phiếu Giảm Giá</h5>
+        <Form form={form} onFinish={onFinish} layout="vertical">
+          <Form.Item name="tenPhieuGiamGia" label="Tên phiếu giảm giá" rules={[{ required: true, message: "Vui lòng nhập tên phiếu giảm giá" }]}>
+            <Input placeholder="Nhập tên phiếu giảm giá" />
+          </Form.Item>
 
-                    if (!value || parseInt(value) > 0) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error("Số lượng phiếu phải lớn hơn 0."));
-                  },
-                }),
-              ]}
-            >
-              <InputNumber min={1} style={{ width: "100%" }} disabled={discountType === 2} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item name="kieuGiamGia" label="Kiểu giảm giá" initialValue={1}>
-              <Select onChange={setDiscountType}>
-                <Option value={1}>Công khai</Option>
-                <Option value={2}>Cá nhân</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item name="ngayBatDau" label="Ngày bắt đầu" rules={[{ required: true }]}>
-              <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              name="ngayKetThuc"
-              label="Ngày kết thúc"
-              rules={[
-                { required: true, message: "Vui lòng chọn ngày kết thúc" },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    const startDate = getFieldValue("ngayBatDau");
-                    if (!value) return Promise.reject(new Error("Ngày kết thúc không được để trống."));
-                    if (startDate && dayjs(value).isBefore(dayjs(startDate))) {
-                      return Promise.reject(new Error("Ngày kết thúc phải sau ngày bắt đầu."));
-                    }
-                    return Promise.resolve();
-                  },
-                }),
-              ]}
-            >
-              <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: "100%" }} />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Form.Item name="moTa" label="Mô tả">
-          <TextArea rows={3} placeholder="Nhập mô tả phiếu giảm giá" />
-        </Form.Item>
-      </Form>
-    </Modal>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="giaTriGiam" label="Giá trị giảm" rules={[{ required: true, message: "Vui lòng nhập giá trị giảm" }]}>
+                <Input type="number" placeholder="Nhập giá trị" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="soTienGiamToiDa" label="Số tiền giảm tối đa">
+                <Input type="number" placeholder="Nhập số tiền giảm tối đa" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item name="soLuong" label="Số lượng phiếu">
+            <Input type="number" placeholder="Nhập số lượng phiếu" disabled={discountType === 2} />
+          </Form.Item>
+
+          <Form.Item name="kieuGiamGia" label="Kiểu giảm giá">
+            <Select onChange={handleDiscountTypeChange}>
+              <Option value={1}>Công khai</Option>
+              <Option value={2}>Cá nhân</Option>
+            </Select>
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="ngayBatDau" label="Ngày bắt đầu" rules={[{ required: true }]}>
+                <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" value={form.getFieldValue("ngayBatDau") || null} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="ngayKetThuc" label="Ngày kết thúc" rules={[{ required: true }]}>
+                <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" value={form.getFieldValue("ngayKetThuc") || null} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" loading={loading} style={{ width: "100%" }}>
+              Cập Nhật
+            </Button>
+          </Form.Item>
+        </Form>
+      </div>
+
+      {/* Danh sách khách hàng (chỉ hiển thị khi giảm giá cá nhân) */}
+      {discountType === 2 && (
+        <div style={{ flex: 3 }}>
+          <h5>Danh sách khách hàng</h5>
+          <Input.Search
+            placeholder="Tìm kiếm khách hàng"
+            value={searchValue}
+            onChange={(e) => handleSearch(e.target.value)}
+            style={{ marginBottom: "10px", width: "50%" }}
+          />
+          {/* Định nghĩa mảng columns bên ngoài */}
+          <Table
+            columns={[
+              { title: "Tên khách hàng", dataIndex: "tenKhachHang", key: "tenKhachHang" },
+              { title: "Số điện thoại", dataIndex: "soDienThoai", key: "soDienThoai" },
+              { title: "Email", dataIndex: "email", key: "email" },
+              {
+                title: "Trạng thái",
+                key: "trangThai",
+                render: (_, record) =>
+                  selectedCustomers.includes(record.id) ? (
+                    <CheckCircleTwoTone twoToneColor="#52c41a" />
+                  ) : null
+              }
+            ]}
+            dataSource={filteredCustomers} // Hiển thị tất cả khách hàng
+            rowKey="id"
+            rowSelection={{
+              selectedRowKeys: selectedCustomers,
+              onChange: handleCustomerSelect
+            }}
+            pagination={{ pageSize: 5 }}
+          />
+
+
+
+        </div>
+
+
+      )}
+    </div>
   );
 };
 
-export default UpdatePhieuGiamGia;
+export default PhieuGiamGiaUpdate;

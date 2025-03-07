@@ -20,4 +20,5 @@ public class HoaDonChiTietResponse {
     private BigDecimal gia;
     private BigDecimal thanhTien;
     private Integer trangThai;
+    private String hinhAnh;
 }

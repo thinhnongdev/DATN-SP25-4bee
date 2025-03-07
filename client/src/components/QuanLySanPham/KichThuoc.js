@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Container from 'react-bootstrap/Container';
 import axios from 'axios';
 import { Button, Table, Row, Modal, Input, Form, Col, Breadcrumb } from 'antd';
 import { toast } from 'react-toastify';
@@ -16,10 +17,15 @@ const KichThuoc = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const token = localStorage.getItem("token");
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kichthuoc');
+      const response = await axios.get('http://localhost:8080/api/admin/kichthuoc',{
+        headers: {
+          Authorization: `Bearer ${token}` // Thêm token vào header
+        }
+      });
       setKichThuoc(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -76,14 +82,20 @@ const KichThuoc = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kichthuoc/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/kichthuoc/${editingRecord.id}`, values,{
+          headers: {
+            Authorization: `Bearer ${token}` // Thêm token vào header
+          }
+        });
         setKichThuoc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa kích thước thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkichthuoc', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkichthuoc', values,{
+    
+        });
         setKichThuoc((prev) => [response.data, ...prev]);
         toast.success('Thêm kích thước thành công');
       }
@@ -159,7 +171,6 @@ const KichThuoc = () => {
 
   return (
     <>
-    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -169,7 +180,7 @@ const KichThuoc = () => {
       >
         <Breadcrumb.Item>Kích thước</Breadcrumb.Item>
       </Breadcrumb>
-      <div
+      <Container
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -210,8 +221,8 @@ const KichThuoc = () => {
           onChange={handleTableChange}
           rowKey="id"
         />
-      </div>
-      </div>
+      </Container>
+
       <Modal
         title={isEditing ? 'Chỉnh sửa kích thước' : 'Thêm kích thước'}
         open={isModalVisible}

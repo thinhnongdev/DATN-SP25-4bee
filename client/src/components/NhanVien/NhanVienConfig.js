@@ -5,7 +5,6 @@ import { getAllApi, getDeleteApi } from "./NhanVienApi";
 import NhanVien from "./NhanVien";
 import CreateForm from "./CreateForm";
 import UpdateForm from "./UpdateForm";
-import DetailForm from "./DetailForm";
 
 function NhanVienConfig() {
   const [nhanvien, setNhanVien] = useState([]);
@@ -126,12 +125,7 @@ function NhanVienConfig() {
         />
       )}
 
-      {appState.View && (
-        <DetailForm
-          selectedNhanVien={appState.selectedNhanVien}
-          handleClose={handleCloseForm}
-        />
-      )}
+      
     </div>
   );
 }

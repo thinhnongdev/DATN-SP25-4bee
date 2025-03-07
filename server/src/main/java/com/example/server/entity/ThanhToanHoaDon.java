@@ -1,25 +1,20 @@
 package com.example.server.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
-
-import java.math.BigDecimal;
 
 @Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 @EqualsAndHashCode(callSuper = false) // Thêm dòng này để giải quyết cảnh báo
 @Table(name ="thanh_toan_hoa_don")
 public class ThanhToanHoaDon extends BaseEntity{
 
     @Id
     @Column(name = "id", nullable = false, unique = true)
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id; // Ensure this field is unique and matches the database
 
     @ManyToOne
@@ -29,8 +24,7 @@ public class ThanhToanHoaDon extends BaseEntity{
     @ManyToOne
     @JoinColumn(name="id_phuong_thuc_thanh_toan")
     private PhuongThucThanhToan phuongThucThanhToan;
-    @Column(name="so_tien")
-    private BigDecimal soTien;
+
     @Column(name = "mo_ta")
     private String moTa;
 

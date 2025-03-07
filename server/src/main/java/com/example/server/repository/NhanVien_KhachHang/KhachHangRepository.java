@@ -15,8 +15,6 @@ import java.util.Optional;
 @Repository
 public interface KhachHangRepository extends JpaRepository<KhachHang, String>,
         JpaSpecificationExecutor<KhachHang> {
-    @Query("SELECT kh FROM KhachHang kh where kh.tenKhachHang!='Khách lẻ' ORDER BY kh.ngayTao DESC")
-    List<KhachHang> findAllKhachHangSortedByNgayTao();
 
     Optional<KhachHang> findByMaKhachHang(String maKhachHang);
 
@@ -44,4 +42,6 @@ public interface KhachHangRepository extends JpaRepository<KhachHang, String>,
     //    Nam
     List<KhachHang> findByIdIn(List<String> ids);
 
+    @Query("SELECT kh FROM KhachHang kh ORDER BY kh.ngayTao DESC")
+    List<KhachHang> findAllKhachHangSortedByNgayTao();
 }

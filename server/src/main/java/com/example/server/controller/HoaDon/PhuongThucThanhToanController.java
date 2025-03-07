@@ -4,6 +4,7 @@ import com.example.server.dto.HoaDon.response.PhuongThucThanhToanResponse;
 import com.example.server.entity.PhuongThucThanhToan;
 import com.example.server.repository.HoaDon.PhuongThucThanhToanRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/phuong-thuc-thanh-toan")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class PhuongThucThanhToanController {
 
     private final PhuongThucThanhToanRepository phuongThucThanhToanRepository;

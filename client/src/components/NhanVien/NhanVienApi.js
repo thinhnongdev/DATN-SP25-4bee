@@ -2,7 +2,6 @@ import axios from "axios";
 
 const API_URL = "http://localhost:8080/api/nhan_vien";
 
-// export const getAllApi = () => axios.get(`${API_URL}`);
 export async function getAllApi() {
   try {
     const response = await axios.get(`${API_URL}`);
@@ -13,7 +12,6 @@ export async function getAllApi() {
     return null;
   }
 }
-// export const getPostApi = (newNhanVien) => axios.post(`${API_URL}`, newNhanVien);
 export const getPostApi = (newNhanVien) =>
   axios.post(`${API_URL}`, newNhanVien, {
     headers: { "Content-Type": "application/json" },
@@ -42,3 +40,18 @@ export async function getDeleteApi(id) {
 }
 
 export const getNhanVienById = (id) => axios.get(`${API_URL}/${id}`);
+
+export const scanQRCode = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const response = await axios.post(`${API_URL}/scan-qr`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data; // Trả về dữ liệu nhân viên từ backend
+  } catch (error) {
+    console.error("Lỗi khi quét QR:", error);
+    throw error;
+  }
+};

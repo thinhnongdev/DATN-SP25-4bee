@@ -1,54 +1,63 @@
-import { Form, Input, Button, Card, Typography, message } from "antd";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
-
-const { Title } = Typography;
+import React from "react";
+import { Form, Input, Button, Card, DatePicker } from "antd";
+import { UserOutlined, LockOutlined, MailOutlined, HomeOutlined } from "@ant-design/icons";
+import { Link } from "react-router-dom";
+import dayjs from "dayjs";
 
 const Register = () => {
-  const navigate = useNavigate();
-
-  const onFinish = async (values) => {
-    try {
-      await axios.post("http://localhost:8080/api/auth/register", values);
-      message.success("Đăng ký thành công!");
-      navigate("/login");
-    } catch (error) {
-      message.error("Đăng ký thất bại!");
-    }
+  const onFinish = (values) => {
+    values.dob = values.dob ? dayjs(values.dob).format("YYYY-MM-DD") : "";
+    console.log("Register:", values);
   };
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-      <Card style={{ width: 400 }}>
-        <Title level={2} style={{ textAlign: "center" }}>Đăng Ký</Title>
+      <Card style={{ width: 500 ,backgroundColor:"#001529"}}>
+        <h2 style={{ textAlign: "center" ,color:"white"}}>Đăng ký tài khoản</h2>
+             <Link to="/" style={{display:"flex",justifyContent:"center",marginBottom:"40px"}}>
+                    <img src="/logo/Asset 6@4x.png" alt="Logo" style={{ maxHeight: "180px", maxWidth: "180px"}} />
+                  </Link>
         <Form name="register" onFinish={onFinish} layout="vertical">
-          <Form.Item label="Tên đăng nhập" name="username" rules={[{ required: true, message: "Vui lòng nhập tên đăng nhập!" }]}>
-            <Input />
+          
+          {/* Tên khách hàng */}
+          <Form.Item name="fullName" rules={[{ required: true, message: "Vui lòng nhập tên khách hàng!" }]}>
+            <Input prefix={<UserOutlined />} placeholder="Tên khách hàng" />
           </Form.Item>
-          <Form.Item label="Mật khẩu" name="password" rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}>
-            <Input.Password />
+
+          {/* Địa chỉ */}
+          <Form.Item name="address" rules={[{ required: true, message: "Vui lòng nhập địa chỉ!" }]}>
+            <Input prefix={<HomeOutlined />} placeholder="Địa chỉ" />
           </Form.Item>
-          <Form.Item label="Xác nhận mật khẩu" name="confirmPassword"
-            dependencies={["password"]}
-            rules={[
-              { required: true, message: "Vui lòng xác nhận mật khẩu!" },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  return !value || getFieldValue("password") === value
-                    ? Promise.resolve()
-                    : Promise.reject("Mật khẩu không khớp!");
-                },
-              }),
-            ]}
-          >
-            <Input.Password />
+
+          {/* Tài khoản (Email) */}
+          <Form.Item name="email" rules={[
+            { required: true, message: "Vui lòng nhập email!" },
+            { type: "email", message: "Email không hợp lệ!" }
+          ]}>
+            <Input prefix={<MailOutlined />} placeholder="Email" />
           </Form.Item>
+
+          {/* Ngày sinh */}
+          <Form.Item name="dob" rules={[{ required: true, message: "Vui lòng chọn ngày sinh!" }]}>
+            <DatePicker style={{ width: "100%" }} placeholder="Chọn ngày sinh" />
+          </Form.Item>
+
+          {/* Mật khẩu */}
+          <Form.Item name="password" rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}>
+            <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
+          </Form.Item>
+
+          {/* Nút đăng ký */}
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>Đăng Ký</Button>
+            <Button type="primary" htmlType="submit" block>
+              Đăng ký
+            </Button>
           </Form.Item>
-          <Form.Item>
-            <Button type="link" onClick={() => navigate("/login")}>Đã có tài khoản? Đăng nhập ngay</Button>
-          </Form.Item>
+
+          {/* Chuyển hướng đến đăng nhập */}
+          <div style={{ textAlign: "center" }}>
+            <Link to="/login" style={{color:"white"}}>Đã có tài khoản? Đăng nhập</Link>
+          </div>
         </Form>
       </Card>
     </div>

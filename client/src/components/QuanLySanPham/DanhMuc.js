@@ -17,10 +17,15 @@ const DanhMuc = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const token = localStorage.getItem("token");
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/danhmuc');
+      const response = await axios.get('http://localhost:8080/api/admin/danhmuc',{
+        headers: {
+          Authorization: `Bearer ${token}` // Thêm token vào header
+        }
+      });
       setDanhMuc(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,14 +84,22 @@ const DanhMuc = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`, values,{
+          headers: {
+            Authorization: `Bearer ${token}` // Thêm token vào header
+          }
+        });
         setDanhMuc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa danh mục thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc', values);
+        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc', values,{
+          headers: {
+            Authorization: `Bearer ${token}` // Thêm token vào header
+          }
+        });
         setDanhMuc((prev) => [response.data, ...prev]);
         toast.success('Thêm danh mục thành công');
       }
@@ -162,7 +175,6 @@ const DanhMuc = () => {
 
   return (
     <>
-    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -170,9 +182,9 @@ const DanhMuc = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Danh mục</Breadcrumb.Item>
+        <Breadcrumb.Item>danh mục</Breadcrumb.Item>
       </Breadcrumb>
-      <div
+      <Container
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -213,8 +225,8 @@ const DanhMuc = () => {
           onChange={handleTableChange}
           rowKey="id"
         />
-      </div>
-      </div>
+      </Container>
+
       <Modal
         title={isEditing ? 'Chỉnh sửa danh mục' : 'Thêm danh mục'}
         open={isModalVisible}

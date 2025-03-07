@@ -1,7 +1,7 @@
 package com.example.server.dto.PhieuGiamGia;
-
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.Date;
 
 @Data
@@ -9,9 +9,31 @@ public class KhachHangDTO {
     private String id;
     private String maKhachHang;
     private String tenKhachHang;
-    private Date ngaySinh;
+
     private String soDienThoai;
     private String email;
+    private Boolean trangThai; // Thêm biến này để lưu trạng thái áp dụng phiếu
+
+    public KhachHangDTO() {
+    }
+
+    public KhachHangDTO(String id, String maKhachHang, String tenKhachHang, String soDienThoai, String email, Boolean trangThai) {
+        this.id = id;
+        this.maKhachHang = maKhachHang;
+        this.tenKhachHang = tenKhachHang;
+        this.soDienThoai = soDienThoai;
+        this.email = email;
+        this.trangThai = trangThai;
+    }
+
+    // Thêm getter và setter nếu cần
+    public Boolean getTrangThai() {
+        return trangThai;
+    }
+
+    public void setTrangThai(Boolean trangThai) {
+        this.trangThai = trangThai;
+    }
 
     public String getId() {
         return id;
@@ -37,13 +59,7 @@ public class KhachHangDTO {
         this.tenKhachHang = tenKhachHang;
     }
 
-    public Date getNgaySinh() {
-        return ngaySinh;
-    }
 
-    public void setNgaySinh(Date ngaySinh) {
-        this.ngaySinh = ngaySinh;
-    }
 
     public String getSoDienThoai() {
         return soDienThoai;

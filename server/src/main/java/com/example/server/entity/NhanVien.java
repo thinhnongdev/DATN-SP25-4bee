@@ -60,6 +60,9 @@ public class NhanVien {
     @Column(name = "anh")
     private String anh;
 
+    @Column(name = "can_cuoc_cong_dan")
+    private String canCuocCongDan;
+
     public NhanVien(String id) {
         this.id = id;
     }

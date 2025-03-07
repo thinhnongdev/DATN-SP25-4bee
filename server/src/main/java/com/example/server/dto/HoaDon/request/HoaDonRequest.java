@@ -22,23 +22,28 @@ public class HoaDonRequest {
     @Email(message = "Email không hợp lệ")
     private String emailNguoiNhan;
 
-    @NotBlank(message = "Địa chỉ không được để trống")
-    private String diaChi;
-
     private String idKhachHang;
 
     private String idPhieuGiamGia;
 
-    private Integer loaiHoaDon;
-//    @NotNull(message = "Tổng tiền không được để trống")
-//    @Min(value = 0, message = "Tổng tiền phải lớn hơn hoặc bằng 0")
-//    private BigDecimal tongTien;
+    @NotNull(message = "Loại hóa đơn không được để trống")
+    private Integer loaiHoaDon; // 1: Online, 2: Tại quầy, 3: Giao hàng
 
     private String ghiChu;
 
     private List<SanPhamChiTietHoaDonResponse> sanPhams; // Danh sách sản phẩm trong hóa đơn
 
-    private List<PhuongThucThanhToan> phuongThucThanhToans;
+    private List<String> phuongThucThanhToans;
 
     private List<HoaDonChiTietResponse> hoaDonChiTiets;
+
+    //Chỉ yêu cầu địa chỉ khi là giao hàng (loaiHoaDon = 3)
+    @NotBlank(message = "Địa chỉ không được để trống", groups = GiaoHang.class)
+    private String diaChi;
+
+    // Nếu khách hàng có tài khoản, cho phép chọn địa chỉ đã lưu
+    private String diaChiId;
+
+    // Nhóm validation cho từng loại hóa đơn
+    public interface GiaoHang {} // Dùng để kiểm tra chỉ khi giao hàng
 }

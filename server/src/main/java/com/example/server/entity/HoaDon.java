@@ -17,7 +17,7 @@ import java.util.List;
 @AllArgsConstructor
 public class HoaDon {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+//    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     @Column(name = "ma_hoa_don", unique = true)
@@ -80,10 +80,10 @@ public class HoaDon {
     @Column(name = "nguoi_sua")
     private String nguoiSua;
 
-//    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-//    private List<HoaDonChiTiet> hoaDonChiTiets = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private List<ThanhToanHoaDon> thanhToanHoaDons = new ArrayList<>();
+    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<HoaDonChiTiet> hoaDonChiTiets = new ArrayList<>();
+
+    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ThanhToanHoaDon> thanhToanHoaDons = new ArrayList<>();
 
 }

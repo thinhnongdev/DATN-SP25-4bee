@@ -10,13 +10,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")  // Apply to all API endpoints
-                .allowedOrigins("http://localhost:3000")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH")
+        registry.addMapping("/**") // Cho phép tất cả API & WebSocket
+                .allowedOrigins("http://localhost:3000") // Xác định nguồn cụ thể
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(true)
-                .maxAge(3600); // 1 hour cache
+                .exposedHeaders("*")
+                .allowCredentials(true) // Bật credentials (cookies, auth)
+                .maxAge(3600);
     }
+
 
     @Bean
     public WebMvcConfigurer corsConfigurer() {

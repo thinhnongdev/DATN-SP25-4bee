@@ -139,7 +139,7 @@ const SanPham = () => {
   };
   return (
     <>
-      <div >
+      <Container className="mt-5 relative">
         <Breadcrumb
           style={{
             marginBottom: '10px',
@@ -202,7 +202,7 @@ const SanPham = () => {
             rowKey="id"
           />
         </div>
-      </div>
+      </Container>
     </>
   );
 };

@@ -1,19 +1,21 @@
 package com.example.server.repository.NhanVien_KhachHang;
 
 import com.example.server.entity.DiaChi;
-import com.example.server.entity.KhachHang;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DiaChiRepository extends JpaRepository<DiaChi, String> {
-    List<DiaChi> findByKhachHang(KhachHang khachHang);
+    //    Lấy địa chỉ mới nhất của khách hàng
+    @Query("SELECT d FROM DiaChi d WHERE d.khachHang.id = :khachHangId ORDER BY d.ngayTao DESC")
+    Optional<DiaChi> findLatestByKhachHangId(@Param("khachHangId") String khachHangId);
 
     @Query(value = "select * from dia_chi where id_khach_hang = :idKhachHang", nativeQuery = true)
     List<DiaChi> findDiaChiByIdKhachHang(@Param("idKhachHang") String idKhachHang);
-
 }

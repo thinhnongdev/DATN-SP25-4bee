@@ -6,7 +6,6 @@ import {
 } from "../Service/api";
 import moment from "moment";
 import { toast } from "react-toastify";
-import UpdatePhieuGiamGia from "./UpdatePhieuGiamGia";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -20,7 +19,6 @@ import {
 } from "antd";
 import "antd/dist/reset.css";
 import "react-toastify/dist/ReactToastify.css";
-import { formatDate, formatCurrency } from "../../utils/format";
 
 import { Card, Row, Col } from "antd";
 import {
@@ -56,55 +54,19 @@ const PhieuGiamGiaList = () => {
     applyFilters();
   }, [filters, data]);
 
-  // const fetchData = () => {
-  //   setLoading(true);
-  //   fetchPhieuGiamGia({ pageNo: pageNo - 1, pageSize: 5 })
-  //     .then((res) => {
-  //       const sanitizedData = res.data.content.map(item => ({
-  //         ...item,
-  //         giaTriGiam: item.giaTriGiam != null ? item.giaTriGiam : 0, // Giá trị mặc định nếu null
-  //       }));
-  //       setData(sanitizedData);
-  //       setTotalPages(res.data.totalPages);
-  //       setFilteredData(sanitizedData);
-  //     })
-  //     .catch(() => toast.error("Lỗi khi tải dữ liệu!"))
-  //     .finally(() => setLoading(false));
-  // };
-
 
   const fetchData = () => {
     setLoading(true);
     fetchPhieuGiamGia({ pageNo: pageNo - 1, pageSize: 5 })
       .then((res) => {
-        const currentDate = new Date();
-        const sanitizedData = res.data.content.map(item => {
-          // Kiểm tra trạng thái từ dữ liệu (nếu có)
-          let trangThai = item.trangThai; // Lấy trạng thái từ backend
-
-          if (trangThai === 0 || trangThai === null || trangThai === undefined) {
-            // Nếu trạng thái chưa được thiết lập, tính lại từ ngày bắt đầu và kết thúc
-            const ngayBatDau = new Date(item.ngayBatDau);
-            const ngayKetThuc = new Date(item.ngayKetThuc);
-
-            if (currentDate < ngayBatDau) {
-              trangThai = 3; // Sắp diễn ra
-            } else if (currentDate >= ngayBatDau && currentDate <= ngayKetThuc) {
-              trangThai = 1; // Đang hoạt động
-            } else {
-              trangThai = 2; // Ngừng hoạt động
-            }
-          }
-
-          return { ...item, trangThai };
-        });
-        setData(sanitizedData);
+        setData(res.data.content);
         setTotalPages(res.data.totalPages);
-        setFilteredData(sanitizedData);
+        setFilteredData(res.data.content);
       })
       .catch(() => toast.error("Lỗi khi tải dữ liệu!"))
       .finally(() => setLoading(false));
   };
+  
 
 
   const applyFilters = () => {
@@ -147,60 +109,33 @@ const PhieuGiamGiaList = () => {
     setFilteredData(tempData);
   };
 
-  // const handleDelete = (id) => {
-  //   deletePhieuGiamGia(id)
-  //     .then(() => {
-  //       toast.success("Xóa thành công!");
-  //       fetchData();
-  //     })
-  //     .catch(() => toast.error("Xóa thất bại!"));
-  // };
 
   const handleAdd = () => {
     navigate("/add-p");
   };
 
   const handleUpdate = (id) => {
-    setCurrentId(id);
-    setShowModal(true);
+    navigate(`/update-phieu-giam-gia/${id}`); // Điều hướng đến trang cập nhật
   };
-
   const handleCloseModal = () => {
     setShowModal(false);
     setCurrentId(null);
   };
 
   const renderStatusTag = (trangThai) => {
-    const tagStyle = {
-      display: "inline-flex", // Flex giúp nội dung không bị méo
-      alignItems: "center", // Căn giữa nội dung theo chiều dọc
-      justifyContent: "center", // Căn giữa theo chiều ngang
-      padding: "3px 8px", // Giảm padding để nhỏ gọn hơn
-      borderRadius: "4px", // Bo góc nhẹ
-      fontWeight: "500",
-      fontSize: "12px", // Cỡ chữ nhỏ hơn
-      color: "white",
-      whiteSpace: "nowrap", // Tránh bị xuống dòng khi co giãn
-      minWidth: "80px", // Đặt kích thước tối thiểu để tránh bị méo
-      maxWidth: "fit-content", // Không ép kích thước cố định
+    const statusMap = {
+      1: { color: "green", text: "Đang hoạt động" },
+      2: { color: "gray", text: "Ngừng hoạt động" },
+      3: { color: "blue", text: "Sắp diễn ra" },
+      4: { color: "orange", text: "Chờ xác nhận" },
     };
-
-    const statusStyles = {
-      1: { backgroundColor: "#66bb6a" }, // Màu xanh lá nhạt hơn
-      2: { backgroundColor: "#b0b0b0" }, // Màu xám nhạt hơn
-      3: { backgroundColor: "#64b5f6" }, // Màu xanh dương nhạt hơn
-      4: { backgroundColor: "#ffcc80", color: "#704214" }, // Cam nhạt hơn, chữ nâu đậm hơn cho dễ đọc
-      default: { backgroundColor: "#ffb74d" }, // Màu cam trung tính
-    };
-
+  
+    const { color, text } = statusMap[trangThai] || { color: "red", text: "Không xác định" };
+  
     return (
-      <span style={{ ...tagStyle, ...(statusStyles[trangThai] || statusStyles.default) }}>
-        {trangThai === 1 && "Đang hoạt động"}
-        {trangThai === 2 && "Ngừng hoạt động"}
-        {trangThai === 3 && "Sắp diễn ra"}
-        {trangThai === 4 && "Chờ xác nhận"}
-        {!statusStyles[trangThai] && "Không xác định"}
-      </span>
+      <Tag color={color} style={{ fontSize: 14, padding: "4px 12px", borderRadius: "15px" }}>
+        {text}
+      </Tag>
     );
   };
 
@@ -269,10 +204,7 @@ const PhieuGiamGiaList = () => {
       key: "actions",
       render: (_, record) => (
         <Space>
-          <Button
-            onClick={() => handleUpdate(record.id)}
-            icon={<EditOutlined />}
-          ></Button>
+          <Button onClick={() => handleUpdate(record.id)} icon={<EditOutlined />} />
           {/* <Button
             onClick={() => handleDelete(record.id)}
             icon={<DeleteOutlined />}
@@ -299,6 +231,8 @@ const PhieuGiamGiaList = () => {
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               />
             </Col>
+
+            
             <Col xs={24} sm={12} md={8}>
               <RangePicker
                 onChange={(dates) =>
@@ -381,14 +315,7 @@ const PhieuGiamGiaList = () => {
         </div>
 
         {/* Modal chỉnh sửa */}
-        {showModal && (
-          <UpdatePhieuGiamGia
-            show={showModal}
-            handleClose={handleCloseModal}
-            id={currentId}
-            onSaveSuccess={fetchData}
-          />
-        )}
+      
       </Card>
     </div>
   );

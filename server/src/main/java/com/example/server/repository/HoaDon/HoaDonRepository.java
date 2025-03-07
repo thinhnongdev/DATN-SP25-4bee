@@ -1,9 +1,12 @@
 package com.example.server.repository.HoaDon;
 
+import com.example.server.dto.HoaDon.response.HoaDonResponse;
 import com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO;
 import com.example.server.entity.HoaDon;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,9 +18,7 @@ import java.util.Optional;
 @Repository
 public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
         JpaSpecificationExecutor<HoaDon> {
-
     Optional<HoaDon> findByMaHoaDon(String maHoaDon);
-
     @Query("SELECT new com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO(" +
             "h.trangThai, COUNT(h), SUM(h.tongTien), " +
             "CASE " +
@@ -38,4 +39,10 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
 
     @Query(value = "SELECT *  from hoa_don where trang_thai=1", nativeQuery = true)
     List<HoaDon> getHoaDonCho();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT h FROM HoaDon h WHERE h.id = :hoaDonId")
+    HoaDon findHoaDonForUpdate(@Param("hoaDonId") String hoaDonId);
+
+
 }

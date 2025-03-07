@@ -1,19 +1,15 @@
-package com.example.server.dto.KhachHangCreationRequest;
+package com.example.server.dto.NhanVien_KhachHang;
 
 import com.example.server.entity.DiaChi;
-import jakarta.persistence.Column;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
 @Setter
 public class KhachHangCreationRequest {
-
     private String tenKhachHang;
 
     private LocalDate ngaySinh;
@@ -25,5 +21,4 @@ public class KhachHangCreationRequest {
     private String email;
 
     private List<DiaChi> diaChi;
-
 }

@@ -1,17 +1,12 @@
 import React, { useEffect, useState } from "react";
-import {
-  Form,
-  Input,
-  Button,
-  Select,
-  DatePicker,
-  Radio,
-  Space,
-  Col,
-} from "antd";
+import { Form, Input, Button, Select, DatePicker, Radio, Col } from "antd";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { getDiaChiByIdKhachHang, getKhachHangById, getPutApi } from "./KhachHangApi";
+import {
+  getDiaChiByIdKhachHang,
+  getKhachHangById,
+  getPutApi,
+} from "./KhachHangApi";
 import axios from "axios";
 import { toast } from "react-toastify";
 
@@ -21,85 +16,64 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
   const [form] = Form.useForm();
   const [tinhThanhList, setTinhThanhList] = useState([]);
   const [quanHuyenList, setQuanHuyenList] = useState([]);
-  const [xaPhuongList, setXaPhuongList] = useState([]);
-
   const [selectedTinh, setSelectedTinh] = useState(null);
   const [selectedHuyen, setSelectedHuyen] = useState(null);
   const [selectedXa, setSelectedXa] = useState(null);
-  const [errors, setErrors] = useState({});
   const [khachHang, setKhachHang] = useState(null);
 
   // Add new state for addresses
   const [addresses, setAddresses] = useState([]);
 
   // Add state to store district and ward lists for each address
-  const [addressLists, setAddressLists] = useState({});
+  const [addressLists, setAddressLists] = useState([]);
 
   useEffect(() => {
-    if (typeof getAllKhachHang !== 'function') {
-      console.error('getAllKhachHang prop is not a function:', getAllKhachHang);
+    if (typeof getAllKhachHang !== "function") {
+      console.error("getAllKhachHang prop is not a function:", getAllKhachHang);
     }
   }, [getAllKhachHang]);
 
   useEffect(() => {
     if (selectedKhachHang) {
-      // First get basic customer info
+      // Get customer info
       getKhachHangById(selectedKhachHang)
         .then((response) => {
           setKhachHang(response.data);
+
+          form.setFieldsValue({
+            maKhachHang: response.data.maKhachHang || "",
+            tenKhachHang: response.data.tenKhachHang || "",
+            email: response.data.email || "",
+            soDienThoai: response.data.soDienThoai || "",
+            ngaySinh: response.data.ngaySinh
+              ? dayjs(response.data.ngaySinh)
+              : null,
+            gioiTinh: response.data.gioiTinh ? "true" : "false",
+          });
         })
         .catch((error) => {
           console.error("Lỗi khi lấy thông tin khách hàng:", error);
           toast.error("Lỗi khi lấy thông tin khách hàng!");
         });
 
-      // Then get address info
+      // Get address info separately
       getDiaChiByIdKhachHang(selectedKhachHang)
-        .then(async (response) => {
+        .then((response) => {
           if (response.data && Array.isArray(response.data)) {
             setAddresses(response.data);
-            
-            try {
-              // Load province data
-              const provinceResponse = await axios.get("http://localhost:5000/data");
-              const provinces = provinceResponse.data || [];
-              setTinhThanhList(provinces);
 
-              // Initialize lists for each address
-              const lists = {};
-              
-              // Load district and ward data for each address
-              response.data.forEach((address, index) => {
-                if (address.tinh) {
-                  const selectedTinh = provinces.find(p => p.name === address.tinh);
-                  if (selectedTinh) {
-                    lists[index] = {
-                      districts: selectedTinh.data2 || [],
-                      wards: []
-                    };
-
-                    if (address.huyen) {
-                      const selectedHuyen = selectedTinh.data2.find(d => d.name === address.huyen);
-                      if (selectedHuyen) {
-                        lists[index].wards = selectedHuyen.data3 || [];
-                      }
-                    }
-                  }
-                }
-
-                // Set form values for this address
-                form.setFieldsValue({
-                  [`addresses[${index}].tinh`]: address.tinh,
-                  [`addresses[${index}].huyen`]: address.huyen,
-                  [`addresses[${index}].xa`]: address.xa,
-                });
+            // Set form values for addresses
+            response.data.forEach((address, index) => {
+              form.setFieldsValue({
+                [`addresses[${index}].tinh`]: address.tinh,
+                [`addresses[${index}].huyen`]: address.huyen,
+                [`addresses[${index}].xa`]: address.xa,
               });
 
-              setAddressLists(lists);
-            } catch (error) {
-              console.error("Lỗi khi tải dữ liệu địa chỉ:", error);
-              toast.error("Lỗi khi tải dữ liệu địa chỉ!");
-            }
+              // Load district and ward data if needed
+              if (address.tinh) handleTinhChange(address.tinh, index);
+              if (address.huyen) handleHuyenChange(address.huyen, index);
+            });
           }
         })
         .catch((error) => {
@@ -107,21 +81,7 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
           toast.error("Lỗi khi lấy thông tin địa chỉ!");
         });
     }
-  }, [selectedKhachHang]);
-
-  useEffect(() => {
-    if (khachHang) {
-      // Set basic customer information
-      form.setFieldsValue({
-        maKhachHang: khachHang.maKhachHang || "",
-        tenKhachHang: khachHang.tenKhachHang || "",
-        email: khachHang.email || "",
-        soDienThoai: khachHang.soDienThoai || "",
-        ngaySinh: khachHang.ngaySinh ? dayjs(khachHang.ngaySinh) : null,
-        gioiTinh: khachHang.gioiTinh ? "true" : "false",
-      });
-    }
-  }, [khachHang, form]);
+  }, [selectedKhachHang, form]);
 
   //   Xử lý thêm địa chỉ mới
   useEffect(() => {
@@ -132,6 +92,7 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
 
         // Kiểm tra response.data có phải là mảng không
         setTinhThanhList(Array.isArray(response.data) ? response.data : []);
+        console.log("Tinh", setTinhThanhList);
       } catch (error) {
         console.error("Lỗi khi lấy danh sách tỉnh/thành:", error);
         setTinhThanhList([]); // Nếu lỗi, đặt giá trị mặc định là []
@@ -145,72 +106,62 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
     console.log("Danh sách tỉnh/thành đã cập nhật:", tinhThanhList);
   }, [tinhThanhList]);
 
-  const handleTinhChange = async (tinhName, addressIndex) => {
-    try {
-      const response = await axios.get("http://localhost:5000/data");
-      const selectedTinh = response.data.find((tinh) => tinh.name === tinhName);
-      
-      if (selectedTinh) {
-        // Update lists for this address
-        setAddressLists(prev => ({
-          ...prev,
-          [addressIndex]: {
-            districts: selectedTinh.data2 || [],
-            wards: []
-          }
-        }));
-        
-        // Update address data
-        const newAddresses = [...addresses];
-        newAddresses[addressIndex] = {
-          ...newAddresses[addressIndex],
-          tinh: tinhName,
-          huyen: null,
-          xa: null
-        };
-        setAddresses(newAddresses);
+  const handleTinhChange = (tinhName, addressIndex) => {
+    const selectedTinh = tinhThanhList.find((tinh) => tinh.name === tinhName);
+    if (selectedTinh) {
+      setAddressLists((prev) => ({
+        ...prev,
+        [addressIndex]: {
+          districts: selectedTinh.data2 || [],
+          wards: [],
+        },
+      }));
 
-        // Clear dependent fields
-        form.setFieldsValue({
-          [`addresses[${addressIndex}].huyen`]: undefined,
-          [`addresses[${addressIndex}].xa`]: undefined,
-        });
-      }
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách quận/huyện:", error);
+      // Cập nhật dữ liệu địa chỉ
+      const newAddresses = [...addresses];
+      newAddresses[addressIndex] = {
+        ...newAddresses[addressIndex],
+        tinh: tinhName,
+        huyen: null,
+        xa: null,
+      };
+      setAddresses(newAddresses);
+
+      // Xóa giá trị quận/huyện, xã/phường
+      form.setFieldsValue({
+        [`addresses[${addressIndex}].huyen`]: undefined,
+        [`addresses[${addressIndex}].xa`]: undefined,
+      });
     }
   };
 
-  const handleHuyenChange = async (huyenName, addressIndex) => {
+  const handleHuyenChange = (huyenName, addressIndex) => {
     const selectedTinh = tinhThanhList.find(
-      tinh => tinh.name === addresses[addressIndex].tinh
+      (tinh) => tinh.name === addresses[addressIndex]?.tinh
     );
-    
     if (selectedTinh) {
       const selectedHuyen = selectedTinh.data2.find(
-        huyen => huyen.name === huyenName
+        (huyen) => huyen.name === huyenName
       );
-
       if (selectedHuyen) {
-        // Update lists for this address
-        setAddressLists(prev => ({
+        setAddressLists((prev) => ({
           ...prev,
           [addressIndex]: {
             ...prev[addressIndex],
-            wards: selectedHuyen.data3 || []
-          }
+            wards: selectedHuyen.data3 || [],
+          },
         }));
 
-        // Update address data
+        // Cập nhật dữ liệu địa chỉ
         const newAddresses = [...addresses];
         newAddresses[addressIndex] = {
           ...newAddresses[addressIndex],
           huyen: huyenName,
-          xa: null
+          xa: null,
         };
         setAddresses(newAddresses);
 
-        // Clear dependent field
+        // Xóa giá trị xã/phường
         form.setFieldsValue({
           [`addresses[${addressIndex}].xa`]: undefined,
         });
@@ -231,65 +182,62 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
   }, [quanHuyenList]);
 
   const handleAddAddress = () => {
-    setAddresses([...addresses, { tinh: null, huyen: null, xa: null }]);
+    const newAddress = {
+      maKhachHang: selectedKhachHang,
+      tinh: null,
+      huyen: null,
+      xa: null,
+    };
+    setAddresses(newAddress);
   };
 
   const handleRemoveAddress = (index) => {
-    const newAddresses = addresses.filter((_, idx) => idx !== index);
-    setAddresses(newAddresses);
+    setAddresses((prev) => prev.filter((_, idx) => idx !== index));
+    form.setFieldsValue({
+      [`addresses[${index}].tinh`]: undefined,
+      [`addresses[${index}].huyen`]: undefined,
+      [`addresses[${index}].xa`]: undefined,
+    });
   };
 
   const handleSubmit = async (values) => {
-    try {
-      // Prepare the customer data
-      const updateKhachHang = {
+    // Validate addresses
+    const validAddresses = addresses.filter(
+      (address) => address.tinh && address.huyen && address.xa
+    );
+
+    if (validAddresses.length === 0) {
+      toast.error("Vui lòng nhập ít nhất một địa chỉ đầy đủ!");
+      return;
+    }
+
+    // Prepare update data
+    const updatedData = {
+      tenKhachHang: values.tenKhachHang,
+      email: values.email,
+      soDienThoai: values.soDienThoai,
+      ngaySinh: dayjs(values.ngaySinh).format("YYYY-MM-DD"),
+      gioiTinh: values.gioiTinh,
+      diaChi: validAddresses.map((address) => ({
         maKhachHang: values.maKhachHang,
-        tenKhachHang: values.tenKhachHang,
-        email: values.email,
-        soDienThoai: values.soDienThoai,
-        ngaySinh: dayjs(values.ngaySinh).format('YYYY-MM-DD'),
-        gioiTinh: values.gioiTinh === 'true',
-        diaChi: addresses
-          .filter(address => address.tinh && address.huyen && address.xa)
-          .map(address => ({
-            maKhachHang: values.maKhachHang,
-            tinh: address.tinh,
-            huyen: address.huyen,
-            xa: address.xa
-          }))
-      };
+        tinh: address.tinh,
+        huyen: address.huyen,
+        xa: address.xa,
+      })),
+    };
 
-      console.log('Data being sent:', updateKhachHang);
-
-      // Send update request
-      const response = await getPutApi(values.maKhachHang, updateKhachHang);
-
-      if (response && response.status === 200) {
-        toast.success("Cập nhật khách hàng thành công!");
-        
-        // Add safety check for getAllKhachHang
-        if (typeof getAllKhachHang !== 'function') {
-          console.error('getAllKhachHang is not a function:', getAllKhachHang);
-          toast.error("Lỗi cập nhật danh sách!");
-          return;
-        }
-
-        try {
-          await getAllKhachHang();
-          console.log("Successfully refreshed customer list");
-        } catch (refreshError) {
-          console.error("Error refreshing customer list:", refreshError);
-          toast.error("Cập nhật thành công nhưng không thể làm mới danh sách!");
-        }
-
+    // Send update request
+    try {
+      const response = await getPutApi(selectedKhachHang.id, updatedData);
+      if (response && response.data) {
+        toast.success("Khách hàng mới đã được tạo!");
+        console.log("Khách hàng mới:", response.data);
+        getAllKhachHang();
         handleClose();
-      } else {
-        throw new Error('Update failed');
       }
     } catch (error) {
-      console.error("Error updating customer:", error);
-      console.error("Error details:", error.response?.data);
-      toast.error(error.response?.data?.message || "Có lỗi khi sửa khách hàng!");
+      toast.error("Có lỗi khi tạo hhách hàng!");
+      console.error("ERROR", error);
     }
   };
 
@@ -307,9 +255,6 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
       }}
     >
       {/* Thông tin khách hàng */}
-      <Form.Item label="Mã khách hàng" name="maKhachHang">
-        <Input placeholder="" />
-      </Form.Item>
       <Form.Item label="Tên khách hàng" name="tenKhachHang">
         <Input placeholder="" />
       </Form.Item>
@@ -330,15 +275,16 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
       </Form.Item>
       Danh sách địa chỉ
       <h3>Danh sách địa chỉ</h3>
-      
       {addresses.map((address, index) => (
         <div key={index} style={{ marginBottom: "20px", position: "relative" }}>
           <h4>Địa chỉ {index + 1}</h4>
           <Col md={12} xs={24}>
-            <Form.Item 
-              label="Tỉnh/Thành phố" 
+            <Form.Item
+              label="Tỉnh/Thành phố"
               name={`addresses[${index}].tinh`}
-              rules={[{ required: true, message: 'Vui lòng chọn tỉnh/thành phố' }]}
+              rules={[
+                { required: true, message: "Vui lòng chọn tỉnh/thành phố" },
+              ]}
             >
               <Select
                 value={address.tinh}
@@ -353,10 +299,10 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
               </Select>
             </Form.Item>
 
-            <Form.Item 
-              label="Quận/Huyện" 
+            <Form.Item
+              label="Quận/Huyện"
               name={`addresses[${index}].huyen`}
-              rules={[{ required: true, message: 'Vui lòng chọn quận/huyện' }]}
+              rules={[{ required: true, message: "Vui lòng chọn quận/huyện" }]}
             >
               <Select
                 value={address.huyen}
@@ -372,10 +318,10 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
               </Select>
             </Form.Item>
 
-            <Form.Item 
-              label="Xã/Phường" 
+            <Form.Item
+              label="Xã/Phường"
               name={`addresses[${index}].xa`}
-              rules={[{ required: true, message: 'Vui lòng chọn xã/phường' }]}
+              rules={[{ required: true, message: "Vui lòng chọn xã/phường" }]}
             >
               <Select
                 value={address.xa}
@@ -383,7 +329,7 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
                   const newAddresses = [...addresses];
                   newAddresses[index] = {
                     ...newAddresses[index],
-                    xa: value
+                    xa: value,
                   };
                   setAddresses(newAddresses);
                 }}
@@ -398,7 +344,7 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
               </Select>
             </Form.Item>
           </Col>
-          
+
           {addresses.length > 1 && (
             <Button
               type="link"
@@ -412,17 +358,15 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
           )}
         </div>
       ))}
-
-      <Button 
-        type="dashed" 
-        onClick={handleAddAddress} 
-        block 
+      <Button
+        type="dashed"
+        onClick={handleAddAddress}
+        block
         icon={<PlusOutlined />}
         style={{ marginBottom: "20px" }}
       >
         Thêm địa chỉ mới
       </Button>
-
       <Form.Item>
         <Button type="primary" htmlType="submit">
           Cập nhật khách hàng

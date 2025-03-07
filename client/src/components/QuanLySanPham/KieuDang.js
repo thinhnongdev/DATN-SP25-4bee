@@ -159,7 +159,6 @@ const KieuDang = () => {
 
   return (
     <>
-    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -169,7 +168,7 @@ const KieuDang = () => {
       >
         <Breadcrumb.Item>Kiểu dáng</Breadcrumb.Item>
       </Breadcrumb>
-      <div
+      <Container
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -210,8 +209,8 @@ const KieuDang = () => {
       onChange={handleTableChange}
       rowKey="id"
         />
-      </div>
-      </div>
+      </Container>
+
       <Modal
         title={isEditing ? 'Chỉnh sửa kiểu dáng' : 'Thêm kiểu dáng'}
         open={isModalVisible}

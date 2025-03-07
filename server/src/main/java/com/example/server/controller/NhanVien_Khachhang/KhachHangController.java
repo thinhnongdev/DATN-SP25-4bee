@@ -1,6 +1,6 @@
 package com.example.server.controller.NhanVien_Khachhang;
 
-import com.example.server.dto.KhachHangCreationRequest.KhachHangCreationRequest;
+import com.example.server.dto.NhanVien_KhachHang.KhachHangCreationRequest;
 import com.example.server.entity.DiaChi;
 import com.example.server.entity.KhachHang;
 import com.example.server.service.NhanVien_KhachHang.KhachHangService;
@@ -44,7 +44,7 @@ public class KhachHangController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteKhachHang(@PathVariable String id) {
-        khachHangService.deleteNhanVien(id);
+        khachHangService.deleteKhachHang(id);
         return ResponseEntity.ok("Delete success");
     }
 }

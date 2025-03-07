@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class SanPhamChiTiet {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+   @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     private String id;
 
@@ -84,6 +84,7 @@ public class SanPhamChiTiet {
     @ManyToOne
     @JoinColumn(name = "id_tui_ao")
     private KieuTuiAo tuiAo;
+
     @Column(name = "ngay_tao")
     private LocalDateTime ngayTao;
 

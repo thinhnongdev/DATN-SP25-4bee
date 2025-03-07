@@ -17,6 +17,7 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 
@@ -36,11 +37,12 @@ public class NhanVienService {
         nv.setMaNhanVien(generateMaNhanVien(nhanVien));
         nv.setTenNhanVien(nhanVien.getTenNhanVien());
         nv.setNgaySinh(nhanVien.getNgaySinh());
-        nv.setTrangThai(true);
+        nv.setTrangThai(nhanVien.getTrangThai());
         nv.setGioiTinh(nhanVien.getGioiTinh());
         nv.setSoDienThoai(nhanVien.getSoDienThoai());
         nv.setEmail(nhanVien.getEmail());
         nv.setAnh(nhanVien.getAnh());
+        nv.setCanCuocCongDan(nhanVien.getCanCuocCongDan());
 
         NhanVien savedNhanVien = nhanVienRepository.save(nv);
 
@@ -76,7 +78,7 @@ public class NhanVienService {
         }
 
         // Định dạng ngày sinh thành ddMMyyyy
-        String ngaySinhStr = ngaySinh.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+        String ngaySinhStr = ngaySinh.format(DateTimeFormatter.ofPattern("ddMM"));
 
         // Tạo mã nhân viên
         return vietTat + ngaySinhStr;
@@ -138,14 +140,11 @@ public class NhanVienService {
         if (existingNhanVien != null) {
             existingNhanVien.setTenNhanVien(updatedNhanVien.getTenNhanVien());
             existingNhanVien.setNgaySinh(updatedNhanVien.getNgaySinh());
-            existingNhanVien.setMoTa(updatedNhanVien.getMoTa());
             existingNhanVien.setTrangThai(updatedNhanVien.getTrangThai());
             existingNhanVien.setGioiTinh(updatedNhanVien.getGioiTinh());
             existingNhanVien.setEmail(updatedNhanVien.getEmail());
             existingNhanVien.setSoDienThoai(updatedNhanVien.getSoDienThoai());
-            existingNhanVien.setNgaySua(updatedNhanVien.getNgaySua());
-            existingNhanVien.setNguoiTao(updatedNhanVien.getNguoiTao());
-            existingNhanVien.setNguoiSua(updatedNhanVien.getNguoiSua());
+            existingNhanVien.setCanCuocCongDan(updatedNhanVien.getCanCuocCongDan());
             return nhanVienRepository.save(existingNhanVien);
         }
         return null;
@@ -160,5 +159,27 @@ public class NhanVienService {
             throw new IllegalArgumentException("Không tìm thấy nhân viên");
         }
     }
+
+    public NhanVien getNhanVienByQRCode(String qrData) {
+        if (qrData == null || qrData.isEmpty()) {
+            throw new IllegalArgumentException("Dữ liệu QR không hợp lệ!");
+        }
+
+        // Tách số CCCD từ chuỗi QR
+        String canCuocCongDan = extractCCCD(qrData);
+
+        // Tìm nhân viên theo số CCCD
+        Optional<NhanVien> nhanVien = nhanVienRepository.findBySoCCCD(canCuocCongDan);
+        return nhanVien.orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên với CCCD: " + canCuocCongDan));
+    }
+
+    private String extractCCCD(String qrData) {
+        String[] parts = qrData.split("\\|");
+        if (parts.length < 5) {
+            throw new IllegalArgumentException("Dữ liệu QR không đúng định dạng!");
+        }
+        return parts[4]; // Lấy số CCCD từ chuỗi QR
+    }
+
 
 }

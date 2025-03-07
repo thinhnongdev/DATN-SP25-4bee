@@ -9,6 +9,7 @@ import com.example.server.entity.PhieuGiamGiaKhachHang;
 import com.example.server.repository.HoaDon.PhieuGiamGiaKhachHangRepository;
 import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
+import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -30,10 +32,9 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -151,39 +152,44 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     @Transactional
     public PhieuGiamGiaDTO addPhieuGiamGia(CreatePhieuGiamGiaRequest request) {
         ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
-        Clock clock = Clock.system(zoneId);  // Sử dụng Clock với ZoneId
-        LocalDateTime now = LocalDateTime.now(clock);  // Lấy thời gian hiện tại
-        LocalDateTime ngayBatDau = request.getNgayBatDau();
-        LocalDateTime ngayKetThuc = request.getNgayKetThuc();
+        Clock clock = Clock.system(zoneId);
+        LocalDateTime now = LocalDateTime.now(clock);
 
+        LocalDateTime ngayBatDauRaw = request.getNgayBatDau();
+        LocalDateTime ngayKetThucRaw = request.getNgayKetThuc();
+
+// Chuyển đổi sang ZonedDateTime theo múi giờ Asia/Ho_Chi_Minh
+        ZonedDateTime ngayBatDau = ngayBatDauRaw.atZone(ZoneId.of("UTC")).withZoneSameInstant(zoneId);
+        ZonedDateTime ngayKetThuc = ngayKetThucRaw.atZone(ZoneId.of("UTC")).withZoneSameInstant(zoneId);
+        ZonedDateTime nowZoned = now.atZone(zoneId);
 
         // Kiểm tra logic thời gian
-//        if (request.getNgayBatDau().isAfter(request.getNgayKetThuc())) {
-//            throw new IllegalArgumentException("Thời gian bắt đầu không thể sau thời gian kết thúc.");
+        if (request.getNgayBatDau().isAfter(request.getNgayKetThuc())) {
+            throw new IllegalArgumentException("Thời gian bắt đầu không thể sau thời gian kết thúc.");
+        }
+//        if (request.getNgayBatDau().isBefore(now)) {
+//            throw new IllegalArgumentException("Ngày bắt đầu không được là ngày trong quá khứ.");
 //        }
-////        if (request.getNgayBatDau().isBefore(now)) {
-////            throw new IllegalArgumentException("Ngày bắt đầu không được là ngày trong quá khứ.");
-////        }
-//
-//        // Kiểm tra giá trị giảm
-//        if (request.getGiaTriGiam().compareTo(BigDecimal.ZERO) <= 0) {
-//            throw new IllegalArgumentException("Giá trị giảm phải lớn hơn 0.");
-//        }
-//        if (request.getLoaiPhieuGiamGia() == 1 && request.getGiaTriGiam().compareTo(BigDecimal.valueOf(100)) > 0) {
-//            throw new IllegalArgumentException("Giá trị giảm phần trăm không được vượt quá 100%.");
-//        }
-//
-//        // Kiểm tra các giá trị khác
-//        if (request.getSoTienGiamToiDa().compareTo(BigDecimal.ZERO) <= 0 ||
-//                request.getGiaTriToiThieu().compareTo(BigDecimal.ZERO) <= 0 ||
-//                request.getSoLuong() <= 0) {
-//            throw new IllegalArgumentException("Giá trị nhập vào phải lớn hơn 0.");
-//        }
-//
-//        // Kiểm tra danh sách khách hàng nếu là phiếu cá nhân
-//        if (request.getKieuGiamGia() == 2 && (request.getIdKhachHang() == null || request.getIdKhachHang().isEmpty())) {
-//            throw new IllegalArgumentException("Danh sách khách hàng không được để trống cho phiếu giảm giá cá nhân.");
-//        }
+
+        // Kiểm tra giá trị giảm
+        if (request.getGiaTriGiam().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Giá trị giảm phải lớn hơn 0.");
+        }
+        if (request.getLoaiPhieuGiamGia() == 1 && request.getGiaTriGiam().compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new IllegalArgumentException("Giá trị giảm phần trăm không được vượt quá 100%.");
+        }
+
+        // Kiểm tra các giá trị khác
+        if (request.getSoTienGiamToiDa().compareTo(BigDecimal.ZERO) <= 0 ||
+                request.getGiaTriToiThieu().compareTo(BigDecimal.ZERO) <= 0 ||
+                request.getSoLuong() <= 0) {
+            throw new IllegalArgumentException("Giá trị nhập vào phải lớn hơn 0.");
+        }
+
+        // Kiểm tra danh sách khách hàng nếu là phiếu cá nhân
+        if (request.getKieuGiamGia() == 2 && (request.getIdKhachHang() == null || request.getIdKhachHang().isEmpty())) {
+            throw new IllegalArgumentException("Danh sách khách hàng không được để trống cho phiếu giảm giá cá nhân.");
+        }
 
         // Tạo phiếu giảm giá
         PhieuGiamGia phieuGiamGia = new PhieuGiamGia();
@@ -213,16 +219,25 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         phieuGiamGia.setSoTienGiamToiDa(request.getSoTienGiamToiDa());
         phieuGiamGia.setLoaiPhieuGiamGia(request.getLoaiPhieuGiamGia());
         phieuGiamGia.setSoLuong(request.getSoLuong());
-        phieuGiamGia.setNgayBatDau(request.getNgayBatDau());
-        phieuGiamGia.setNgayKetThuc(request.getNgayKetThuc());
         phieuGiamGia.setMoTa(request.getMoTa());
-//        phieuGiamGia.setNgayTao(System.out.);
+
+
+        phieuGiamGia.setNgayBatDau(ngayBatDau.toLocalDateTime());
+        phieuGiamGia.setNgayKetThuc(ngayKetThuc.toLocalDateTime());
         // Cập nhật trạng thái
-        int trangThai = now.isBefore(request.getNgayBatDau()) ? 3 : (now.isAfter(request.getNgayKetThuc()) ? 2 : 1);
-        phieuGiamGia.setTrangThai(trangThai); // Mặc định trạng thái kích hoạt
+        // Kiểm tra trạng thái đúng múi giờ
+        int trangThai;
+        if (nowZoned.isBefore(ngayBatDau)) {
+            trangThai = 3; // Chưa bắt đầu
+        } else if (nowZoned.isAfter(ngayKetThuc)) {
+            trangThai = 2; // Đã kết thúc
+        } else {
+            trangThai = 1; // Đang diễn ra
+        }
 
-
-        phieuGiamGia = repository.save(phieuGiamGia);
+        phieuGiamGia.setTrangThai(trangThai);
+        // Lưu vào database
+//        phieuGiamGia = repository.save(phieuGiamGia);
 
         // Nếu là phiếu cá nhân, lưu thông tin khách hàng và gửi email
         if (request.getKieuGiamGia() == 2) {
@@ -263,36 +278,52 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             // Định dạng ngày đúng múi giờ
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
                     .withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
-            String ngayKetThucFormatted = phieuGiamGia.getNgayKetThuc().atZone(ZoneId.systemDefault()).format(formatter);
+            String ngayKetThucFormatted = phieuGiamGia.getNgayKetThuc().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).format(formatter);
 
             String htmlContent = """
-                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                        <h2 style="color: #007bff;">Chào {{tenKhachHang}},</h2>
-                        <p>Bạn đã nhận được một <b>phiếu giảm giá</b> đặc biệt!</p>
-                        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                            <tr style="background-color: #f8f9fa;">
-                                <th style="text-align: left; padding: 10px;">Tên phiếu</th>
-                                <td style="padding: 10px;">{{tenPhieuGiamGia}}</td>
-                            </tr>
-                            <tr style="background-color: #ffffff;">
-                                <th style="text-align: left; padding: 10px;">Mã</th>
-                                <td style="padding: 10px;">{{maPhieuGiamGia}}</td>
-                            </tr>
-                            <tr style="background-color: #f8f9fa;">
-                                <th style="text-align: left; padding: 10px;">Hạn sử dụng</th>
-                                <td style="padding: 10px;">{{ngayKetThuc}}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    """.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #007bff; color: #fff; padding: 20px; text-align: center;">
+                <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
+                <p style="font-size: 18px;">Chúng tôi vui mừng thông báo rằng bạn vừa nhận được phiếu giảm giá!</p>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 20px;">
+                <p style="font-size: 16px;">Dưới đây là chi tiết phiếu giảm giá của bạn:</p>
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <tr>
+                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu giảm giá</th>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
+                    </tr>
+                    <tr>
+                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu giảm giá</th>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
+                    </tr>
+                    <tr>
+                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
+                    </tr>
+                </table>
+                <p style="font-size: 16px;">Hãy sử dụng phiếu giảm giá này trước ngày <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi đặc biệt này.</p>
+                <p style="font-size: 16px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
+            </div>
+            <div style="background-color: #f1f1f1; padding: 10px; text-align: center;">
+                <p style="font-size: 14px; color: #6c757d;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+            </div>
+        </div>
+        """;
+
+            htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
                     .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia())
                     .replace("{{maPhieuGiamGia}}", phieuGiamGia.getMaPhieuGiamGia())
                     .replace("{{ngayKetThuc}}", ngayKetThucFormatted);
 
             helper.setText(htmlContent, true);
             mailSender.send(mimeMessage);
+
+        } catch (MessagingException | MailSendException e) {
+            logger.error("Lỗi gửi email cho khách hàng: {}, mã phiếu giảm giá: {}. Chi tiết lỗi: {}",
+                    khachHang.getEmail(), phieuGiamGia.getMaPhieuGiamGia(), e.getMessage());
         } catch (Exception e) {
-            logger.error("Lỗi gửi email: {}", e.getMessage());
+            logger.error("Lỗi không xác định khi gửi email: {}", e.getMessage());
         }
     }
 
@@ -308,6 +339,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         // Xoá khách hàng khỏi phiếu giảm giá bằng mã phiếu giảm giá và mã khách hàng
         phieuGiamGiaKhachHangRepository.deleteByMaPhieuGiamGiaAndKhachHangId(maPhieuGiamGia, maKhachHang);
     }
+
 
 
     @Transactional
@@ -329,35 +361,248 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         // Cập nhật thông tin phiếu giảm giá
         updatePhieuGiamGia(existingEntity, request);
 
-        // Kiểm tra thay đổi và gửi email
-        if (hasChanges(oldEntity, existingEntity)) {
+        // Kiểm tra thay đổi và gửi email nếu cần
+        boolean hasUpdates = hasChanges(oldEntity, existingEntity);
+
+        if (hasUpdates) {
             List<KhachHang> allCustomers = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(existingEntity.getId())
                     .stream().map(PhieuGiamGiaKhachHang::getKhachHang)
                     .collect(Collectors.toList());
 
-            // Gửi thông báo cho tất cả khách hàng
             allCustomers.forEach(khachHang -> sendEmailUpdateAsync(khachHang, existingEntity, oldEntity));
-
-            // Cập nhật số lượng phiếu và hủy khách hàng nếu cần
-            if (request.getKhachHangsToCancel() != null && !request.getKhachHangsToCancel().isEmpty()) {
-                handleCustomerCancellation(existingEntity, request.getKhachHangsToCancel());
-
-                // Gửi thông báo riêng cho khách hàng bị hủy
-                request.getKhachHangsToCancel().forEach(khachHangId -> {
-                    // Lấy khách hàng cần hủy từ repository bằng ID từ danh sách KhachHangsToCancel
-                    KhachHang customerToCancel = khachHangRepository.findByIdIn(List.of(khachHangId))
-                            .stream().findFirst()  // Chỉ lấy một khách hàng vì ID là duy nhất
-                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khách hàng không tồn tại"));
-
-                    // Gửi email hủy cho khách hàng
-                    sendEmailCancellationAsync(customerToCancel, existingEntity);
-                });
-            }
-
         }
 
+        // Danh sách khách hàng hiện có trong phiếu
+        Set<String> existingCustomerIds = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(existingEntity.getId())
+                .stream().map(kh -> kh.getKhachHang().getId()).collect(Collectors.toSet());
+
+        // Danh sách khách hàng được chọn mới từ request
+        Set<String> newCustomerIds = request.getKhachHangsToAdd() != null ? new HashSet<>(request.getKhachHangsToAdd()) : new HashSet<>();
+
+        // **Thêm khách hàng mới vào phiếu**
+        List<PhieuGiamGiaKhachHang> newEntries = newCustomerIds.stream()
+                .filter(idKH -> !existingCustomerIds.contains(idKH))
+                .map(idKH -> {
+                    PhieuGiamGiaKhachHang newEntry = new PhieuGiamGiaKhachHang();
+                    newEntry.setId(UUID.randomUUID().toString());
+                    newEntry.setPhieuGiamGia(existingEntity);
+                    newEntry.setKhachHang(khachHangRepository.findById(idKH)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khách hàng không tồn tại")));
+                    newEntry.setTrangThai(false);
+                    newEntry.setNgayTao(now);
+                    newEntry.setNguoiTao("admin");
+                    return newEntry;
+                })
+                .collect(Collectors.toList());
+
+        phieuGiamGiaKhachHangRepository.saveAll(newEntries);
+
+        // **Xử lý khách hàng bị hủy nếu có**
+        if (request.getKhachHangsToCancel() != null && !request.getKhachHangsToCancel().isEmpty()) {
+            handleCustomerCancellation(existingEntity, request.getKhachHangsToCancel());
+
+            // Gửi email thông báo hủy với `findByIdIn()`
+            List<KhachHang> customersToCancel = khachHangRepository.findByIdIn(request.getKhachHangsToCancel());
+            customersToCancel.forEach(customer -> sendEmailCancellationAsync(customer, existingEntity));
+        }
+
+        // **Cập nhật lại số lượng phiếu**
+        if (existingEntity.getKieuGiamGia() == 2) {
+            existingEntity.setSoLuong((int) phieuGiamGiaKhachHangRepository.countByPhieuGiamGiaId(existingEntity.getId()));
+        }
+
+        repository.save(existingEntity);
         return convertToDTO(existingEntity);
     }
+
+    @Transactional
+    public void addCustomerToPhieuGiamGia(String phieuGiamGiaId, List<String> khachHangIds) {
+        PhieuGiamGia phieuGiamGia = repository.findById(phieuGiamGiaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Phiếu giảm giá không tồn tại"));
+
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+
+        for (String customerId : khachHangIds) {
+            Optional<PhieuGiamGiaKhachHang> existingEntry = phieuGiamGiaKhachHangRepository
+                    .findByPhieuGiamGiaIdAndKhachHangId(phieuGiamGiaId, customerId);
+
+            KhachHang khachHang = khachHangRepository.findById(customerId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khách hàng không tồn tại"));
+
+            if (existingEntry.isPresent()) {
+                PhieuGiamGiaKhachHang entry = existingEntry.get();
+                entry.setTrangThai(false);
+                entry.setNgaySua(now);
+                entry.setNguoiSua("admin");
+                phieuGiamGiaKhachHangRepository.save(entry);
+            } else {
+                PhieuGiamGiaKhachHang newEntry = new PhieuGiamGiaKhachHang();
+                newEntry.setId(UUID.randomUUID().toString());
+                newEntry.setPhieuGiamGia(phieuGiamGia);
+                newEntry.setKhachHang(khachHang);
+                newEntry.setTrangThai(false);
+                newEntry.setNgayTao(now);
+                newEntry.setNguoiTao("admin");
+
+                phieuGiamGiaKhachHangRepository.save(newEntry);
+            }
+
+            // Gửi email sau khi thêm khách hàng
+            sendEmailToCustomer(khachHang, phieuGiamGia);
+        }
+
+        // Cập nhật số lượng nếu phiếu giảm giá kiểu số lượng
+        if (phieuGiamGia.getKieuGiamGia() == 2) {
+            long totalCustomers = phieuGiamGiaKhachHangRepository.countByPhieuGiamGiaId(phieuGiamGiaId);
+            phieuGiamGia.setSoLuong((int) totalCustomers);
+            repository.save(phieuGiamGia);
+        }
+    }
+
+
+
+    @Async("emailTaskExecutor")
+    public void sendEmailToCustomer(KhachHang khachHang, PhieuGiamGia phieuGiamGia) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setTo(khachHang.getEmail());
+            helper.setSubject("Bạn nhận được một phiếu giảm giá mới!");
+
+            String htmlContent = """
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #007bff; color: #fff; padding: 30px; text-align: center;">
+                <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
+                <p style="font-size: 18px;">Chúng tôi vui mừng thông báo rằng bạn vừa nhận được một phiếu giảm giá đặc biệt!</p>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                <p style="font-size: 16px; margin-bottom: 20px;">Dưới đây là chi tiết phiếu giảm giá của bạn:</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu giảm giá</th>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
+                    </tr>
+                    <tr>
+                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu giảm giá</th>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
+                    </tr>
+                    <tr>
+                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
+                    </tr>
+                </table>
+                <p style="font-size: 16px; margin-top: 20px;">Hãy sử dụng phiếu giảm giá này trước ngày <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi đặc biệt này.</p>
+                <p style="font-size: 16px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
+            </div>
+            <div style="text-align: center; margin-top: 30px; font-size: 14px; color: #6c757d;">
+                <p>Trân trọng,<br>Đội ngũ hỗ trợ</p>
+            </div>
+        </div>
+        """;
+
+            // Thay thế các placeholder bằng dữ liệu thực tế
+            htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
+                    .replace("{{maPhieuGiamGia}}", phieuGiamGia.getMaPhieuGiamGia())
+                    .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia())
+                    .replace("{{ngayKetThuc}}", phieuGiamGia.getNgayKetThuc().toString());
+
+            helper.setText(htmlContent, true);
+
+            // Gửi email
+            mailSender.send(mimeMessage);
+
+            logger.info("Đã gửi email phiếu giảm giá đến khách hàng [{}] - [{}]",
+                    khachHang.getId(), khachHang.getEmail());
+
+        } catch (Exception e) {
+            logger.error("Lỗi khi gửi email phiếu giảm giá: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
+    public void removeCustomerFromPhieuGiamGia(String phieuGiamGiaId, String khachHangId) {
+        PhieuGiamGia phieuGiamGia = repository.findById(phieuGiamGiaId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Phiếu giảm giá không tồn tại"));
+
+        PhieuGiamGiaKhachHang phieuGiamGiaKhachHang = phieuGiamGiaKhachHangRepository
+                .findByPhieuGiamGiaIdAndKhachHangId(phieuGiamGiaId, khachHangId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khách hàng không có trong phiếu"));
+        // Lấy thông tin khách hàng trước khi cập nhật trạng thái
+        KhachHang khachHang = phieuGiamGiaKhachHang.getKhachHang();
+        // Xóa hoàn toàn thay vì đánh dấu trạng thái
+        phieuGiamGiaKhachHangRepository.delete(phieuGiamGiaKhachHang);
+
+        // Giảm số lượng phiếu nếu là giảm giá cá nhân
+        if (phieuGiamGia.getKieuGiamGia() == 2 && phieuGiamGia.getSoLuong() > 0) {
+            phieuGiamGia.setSoLuong(phieuGiamGia.getSoLuong() - 1);
+            repository.save(phieuGiamGia);
+        }
+        sendEmailRemovelationAsync(khachHang, phieuGiamGia);
+    }
+
+    @Async("emailTaskExecutor")
+    public void sendEmailRemovelationAsync(KhachHang khachHang, PhieuGiamGia phieuGiamGia) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setTo(khachHang.getEmail());
+            helper.setSubject("Thông báo: Mã giảm giá của bạn đã bị hủy");
+
+            String htmlContent = """
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <h2 style="color: #ff0000;">Xin chào {{tenKhachHang}},</h2>
+                <p>Chúng tôi xin thông báo rằng mã giảm giá của bạn đã bị hủy:</p>
+                <p><strong>Mã giảm giá:</strong> {{tenPhieuGiamGia}}</p>
+                <p>Nếu bạn có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi.</p>
+                <p style="color: #6c757d; font-size: 0.9em;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+            </div>
+        """;
+
+            // Thay thế placeholder bằng thông tin thực tế
+            htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
+                    .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia());
+
+            helper.setText(htmlContent, true);
+            mailSender.send(mimeMessage);
+
+            logger.info("Đã gửi email thông báo hủy mã giảm giá [{}] tới khách hàng [{}] - [{}]",
+                    phieuGiamGia.getMaPhieuGiamGia(), khachHang.getId(), khachHang.getEmail());
+
+        } catch (Exception e) {
+            logger.error("Lỗi gửi email hủy mã giảm giá: {}", e.getMessage());
+        }
+    }
+
+
+
+
+
+    private void updatePhieuGiamGia(PhieuGiamGia ph, UpdatePhieuGiamGiaRequest request) {
+        ph.setTenPhieuGiamGia(Objects.requireNonNullElse(request.getTenPhieuGiamGia(), ph.getTenPhieuGiamGia()));
+        ph.setGiaTriGiam(Objects.requireNonNullElse(request.getGiaTriGiam(), ph.getGiaTriGiam()));
+        ph.setNgayBatDau(Objects.requireNonNullElse(request.getNgayBatDau(), ph.getNgayBatDau()));
+        ph.setNgayKetThuc(Objects.requireNonNullElse(request.getNgayKetThuc(), ph.getNgayKetThuc()));
+        ph.setSoLuong(Objects.requireNonNullElse(request.getSoLuong(), ph.getSoLuong()));
+        ph.setTrangThai(Objects.requireNonNullElse(request.getTrangThai(), ph.getTrangThai()));
+        ph.setMoTa(Objects.requireNonNullElse(request.getMoTa(), ph.getMoTa()));
+
+        // Lấy danh sách khách hàng của phiếu giảm giá này
+        List<PhieuGiamGiaKhachHang> dsKhachHang = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(ph.getId());
+
+        // In ra trạng thái của từng khách hàng (hoặc xử lý theo yêu cầu của bạn)
+        dsKhachHang.forEach(kh -> {
+            System.out.println("Khách hàng ID: " + kh.getId() + " - Trạng thái: " + kh.getTrangThai());
+        });
+
+        repository.save(ph);
+    }
+
+
+
+
+
 
     private void validateRequest(UpdatePhieuGiamGiaRequest request) {
         if (Objects.nonNull(request.getNgayBatDau()) && Objects.nonNull(request.getNgayKetThuc())
@@ -387,16 +632,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         }
     }
 
-    private void updatePhieuGiamGia(PhieuGiamGia existingEntity, UpdatePhieuGiamGiaRequest request) {
-        existingEntity.setTenPhieuGiamGia(Objects.requireNonNullElse(request.getTenPhieuGiamGia(), existingEntity.getTenPhieuGiamGia()));
-        existingEntity.setGiaTriGiam(Objects.requireNonNullElse(request.getGiaTriGiam(), existingEntity.getGiaTriGiam()));
-        existingEntity.setNgayBatDau(Objects.requireNonNullElse(request.getNgayBatDau(), existingEntity.getNgayBatDau()));
-        existingEntity.setNgayKetThuc(Objects.requireNonNullElse(request.getNgayKetThuc(), existingEntity.getNgayKetThuc()));        existingEntity.setSoLuong(Objects.requireNonNullElse(request.getSoLuong(), existingEntity.getSoLuong()));
-        existingEntity.setTrangThai(Objects.requireNonNullElse(request.getTrangThai(), existingEntity.getTrangThai()));
-        existingEntity.setMoTa(Objects.requireNonNullElse(request.getMoTa(), existingEntity.getMoTa()));
 
-        repository.save(existingEntity);
-    }
 
     private boolean hasChanges(PhieuGiamGia oldEntity, PhieuGiamGia newEntity) {
         return !Objects.equals(oldEntity.getTenPhieuGiamGia(), newEntity.getTenPhieuGiamGia())
@@ -526,6 +762,12 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     }
 
 
+
+
+
+
+
+
     @Override
     public Page<PhieuGiamGiaDTO> getAllWithPagination(Pageable pageable) {
         return repository.findAll(pageable)
@@ -542,13 +784,17 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     }
 
 
+
+
     // Phương thức tự động kiểm tra và đóng phiếu giảm giá hết hạn
     @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
     @Transactional
     public void checkAndUpdateExpiredCoupons() {
         logger.info("Bắt đầu kiểm tra và cập nhật trạng thái phiếu giảm giá...");
 
-        LocalDateTime now = LocalDateTime.now();
+
+        ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime now = LocalDateTime.now(Clock.system(zoneId));
 
         // Cập nhật phiếu giảm giá sắp diễn ra
         List<PhieuGiamGia> upcomingCoupons = repository.findAllByNgayKetThucBeforeAndTrangThai(now, 1);
@@ -562,6 +808,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
         logger.info("Đã cập nhật trạng thái của {} phiếu giảm giá.", (upcomingCoupons.size() + expiredCoupons.size()));
     }
+
 
 
 }

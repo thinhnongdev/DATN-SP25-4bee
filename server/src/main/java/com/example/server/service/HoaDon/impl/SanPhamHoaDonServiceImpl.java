@@ -2,8 +2,8 @@ package com.example.server.service.HoaDon.impl;
 
 import com.example.server.dto.HoaDon.response.SanPhamChiTietHoaDonResponse;
 import com.example.server.entity.SanPham;
+import com.example.server.entity.SanPhamChiTiet;
 import com.example.server.exception.ResourceNotFoundException;
-
 import com.example.server.exception.ValidationException;
 import com.example.server.repository.HoaDon.SanPhamChiTietHoaDonRepository;
 import com.example.server.repository.HoaDon.SanPhamHoaDonRepository;
@@ -14,11 +14,9 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.example.server.entity.SanPhamChiTiet;
-
 @Service
 @RequiredArgsConstructor
-public class SanPhamHoaDonHoaDonServiceImpl implements ISanPhamHoaDonService {
+public class SanPhamHoaDonServiceImpl implements ISanPhamHoaDonService {
     private final SanPhamHoaDonRepository sanPhamHoaDonRepository;
     private final SanPhamChiTietHoaDonRepository sanPhamChiTietHoaDonRepository;
 
@@ -41,7 +39,7 @@ public class SanPhamHoaDonHoaDonServiceImpl implements ISanPhamHoaDonService {
         }
 
         // Kiểm tra sản phẩm chi tiết có tồn tại không
-        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository.findBySanPhamIdAndTrangThai(id, 1)
+        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository.findBySanPhamIdAndTrangThai(id, true)
                 .orElseThrow(() -> new ValidationException("Sản phẩm chi tiết không hợp lệ hoặc không đủ hàng"));
 
         //Kiểm tra số lượng tồn kho
@@ -72,7 +70,7 @@ public class SanPhamHoaDonHoaDonServiceImpl implements ISanPhamHoaDonService {
                 .kieuTayAo(spct.getKieuTayAo() != null ? spct.getKieuTayAo().getTenKieuTayAo() : "Không xác định")
                 .kieuCoTayAo(spct.getKieuCoTayAo() != null ? spct.getKieuCoTayAo().getTenKieuCoTayAo() : "Không xác định")
                 .hoaTiet(spct.getHoaTiet() != null ? spct.getHoaTiet().getTenHoaTiet() : "Không xác định")
-                .tuiAo(spct.getTuiAo() != null ? spct.getTuiAo().getTenKieuTuiAo() : "Không xác định")
+                .kieuTuiAo(spct.getTuiAo() != null ? spct.getTuiAo().getTenKieuTuiAo() : "Không xác định")
 
                 .build();
     }

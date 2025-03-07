@@ -24,7 +24,9 @@ public interface PhieuGiamGiaService {
     // Thêm phương thức lấy danh sách khách hàng theo mã phiếu giảm giá
     List<KhachHang> getKhachHangByMaPhieuGiamGia(String maPhieuGiamGia);
 
+
     // Thêm phương thức huỷ phiếu giảm giá cho khách hàng
     void cancelPhieuGiamGiaForCustomer(String maPhieuGiamGia, String maKhachHang);
-
+    void addCustomerToPhieuGiamGia(String phieuGiamGiaId, List<String> khachHangIds);
+    void removeCustomerFromPhieuGiamGia(String phieuGiamGiaId, String khachHangId);
 }

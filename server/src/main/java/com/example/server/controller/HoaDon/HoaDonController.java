@@ -8,6 +8,8 @@ import com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO;
 import com.example.server.entity.HoaDon;
 import com.example.server.exception.ResourceNotFoundException;
 import com.example.server.exception.ValidationException;
+import com.example.server.service.BanHang.BanHangService;
+import com.example.server.service.BanHang.impl.BanHangServiceImpl;
 import com.example.server.service.WebSocketService;
 import com.example.server.service.HoaDon.impl.HoaDonSanPhamServiceImpl;
 import com.example.server.service.HoaDon.interfaces.IHoaDonService;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -33,14 +36,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Quản lý hóa đơn", description = "API quản lý hóa đơn")
 @Slf4j
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class HoaDonController {
     private final IHoaDonService hoaDonService;
     private final HoaDonSanPhamServiceImpl hoaDonSanPhamServiceImpl;
     private final WebSocketService webSocketService; // Inject WebSocket Service
+    @Autowired
+    BanHangService banHangService;
 
     @PostMapping
-//    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo mới hóa đơn")
     public ResponseEntity<HoaDonResponse> createHoaDon(
             @Valid @RequestBody HoaDonRequest request) {
@@ -48,7 +52,7 @@ public class HoaDonController {
     }
 
     @GetMapping("/{id}")
-    //    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Lấy thông tin hóa đơn theo ID")
     public ResponseEntity<HoaDonResponse> getHoaDonById(@PathVariable String id) {
         try {
@@ -64,16 +68,15 @@ public class HoaDonController {
     }
 
     @GetMapping
-//    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Lấy danh sách hóa đơn có phân trang")
     public ResponseEntity<Page<HoaDonResponse>> getAllHoaDon(
-            @PageableDefault(size = 10, sort = "ngayTao", direction = Sort.Direction.DESC)
-            Pageable pageable) {
+            @PageableDefault(size = 10, sort = "ngayTao", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(hoaDonService.getAllHoaDon(pageable));
     }
 
     @PutMapping("/{id}")
-//    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Cập nhật thông tin hóa đơn")
     public ResponseEntity<HoaDonResponse> updateHoaDon(
             @PathVariable String id,
@@ -84,16 +87,15 @@ public class HoaDonController {
     }
 
     @DeleteMapping("/{id}")
-//    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Xóa hóa đơn")
-    public ResponseEntity<Void> deleteHoaDon(@PathVariable String id) {
-        hoaDonService.deleteHoaDon(id);
-        return ResponseEntity.ok().build();
+    @Operation(summary = "Hủy hóa đơn và hoàn lại sản phẩm")
+    public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id) {
+        HoaDonResponse response = hoaDonService.deleteHoaDon(id);
+        return ResponseEntity.ok(response);
     }
 
 
     @PatchMapping("/{id}/status")
-//    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Cập nhật trạng thái hóa đơn")
     public ResponseEntity<HoaDonResponse> updateTrangThai(
             @PathVariable String id,
@@ -120,18 +122,25 @@ public class HoaDonController {
         return ResponseEntity.ok(hoaDonService.updateHoaDonAddress(id, diaChi, tinh, huyen, xa, moTa));
     }
 
-
     @GetMapping("/search")
-//    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tìm kiếm hóa đơn theo nhiều tiêu chí")
     public ResponseEntity<Page<HoaDonResponse>> searchHoaDon(
             @ModelAttribute HoaDonSearchCriteria criteria,
-            @PageableDefault(size = 10, sort = "ngayTao", direction = Sort.Direction.DESC)
-            Pageable pageable) {
+            @PageableDefault(size = 10, sort = "ngayTao", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(hoaDonService.searchHoaDon(criteria, pageable));
     }
 
-    //Print hóa đơn
+    //    Lấy số lượng
+    @GetMapping("/counts")
+    @Operation(summary = "Lấy số lượng hóa đơn theo trạng thái")
+    public ResponseEntity<Map<String, Long>> getInvoiceCounts(
+            @ModelAttribute HoaDonSearchCriteria criteria) {
+        Map<String, Long> counts = hoaDonService.getInvoiceCounts(criteria);
+        return ResponseEntity.ok(counts);
+    }
+
+    // Print hóa đơn
     @GetMapping("/{id}/print")
     public ResponseEntity<?> printHoaDon(@PathVariable String id) {
         try {
@@ -179,12 +188,10 @@ public class HoaDonController {
         }
     }
 
-
     @PostMapping("/{id}/voucher")
     public ResponseEntity<HoaDonResponse> applyVoucher(
             @PathVariable("id") String hoaDonId,
-            @RequestBody PhieuGiamGiaRequest request
-    ) {
+            @RequestBody PhieuGiamGiaRequest request) {
         log.info("Applying voucher. HoaDonId: {}, VoucherId: {}", hoaDonId, request.getVoucherId());
 
         if (hoaDonId == null || request.getVoucherId() == null) {
@@ -200,11 +207,12 @@ public class HoaDonController {
     }
 
     @GetMapping("/statistics")
-//    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Thống kê hóa đơn theo khoảng thời gian")
     public ResponseEntity<List<HoaDonStatisticsDTO>> getStatistics(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDate) {
         return ResponseEntity.ok(hoaDonService.getStatistics(fromDate, toDate));
     }
+
 }

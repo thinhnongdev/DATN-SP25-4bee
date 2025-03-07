@@ -41,11 +41,11 @@ public class HoaDonSanPhamController {
     // Endpoint để lấy sản phẩm trong một hóa đơn cụ thể
     @GetMapping("/{hoaDonId}/san-pham")
     @Operation(summary = "Lấy danh sách sản phẩm trong hóa đơn")
-    public ResponseEntity<List<HoaDonChiTietResponse>> getProductsInInvoice(
+    public ResponseEntity<List<SanPhamChiTietHoaDonResponse>> getProductsInInvoice(
             @PathVariable String hoaDonId
     ) {
         try {
-            List<HoaDonChiTietResponse> products = hoaDonSanPhamService.getProductsInInvoice(hoaDonId);
+            List<SanPhamChiTietHoaDonResponse> products = hoaDonSanPhamService.getProductsInInvoice(hoaDonId);
             return ResponseEntity.ok(products);
         } catch (Exception e) {
             log.error("Error fetching products for invoice {}: ", hoaDonId, e);
@@ -59,7 +59,7 @@ public class HoaDonSanPhamController {
             @PathVariable String hoaDonId,
             @RequestBody AddProductRequest request
     ) {
-        log.info("📥 Nhận request: hoaDonId={}, sanPhamChiTietId={}, số lượng={}",
+        log.info("Nhận request: hoaDonId={}, sanPhamChiTietId={}, số lượng={}",
                 hoaDonId, request.getSanPhamChiTietId(), request.getSoLuong());
 
         try {

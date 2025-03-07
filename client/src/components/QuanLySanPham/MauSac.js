@@ -215,7 +215,6 @@ const MauSac = () => {
 
   return (
     <>
-    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -225,7 +224,7 @@ const MauSac = () => {
       >
         <Breadcrumb.Item>Màu sắc</Breadcrumb.Item>
       </Breadcrumb>
-      <div
+      <Container
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -266,8 +265,8 @@ const MauSac = () => {
       onChange={handleTableChange}
       rowKey="id"
         />
-      </div>
-      </div>
+      </Container>
+
       <Modal
         title={isEditing ? 'Chỉnh sửa màu sắc' : 'Thêm màu sắc'}
         open={isModalVisible}

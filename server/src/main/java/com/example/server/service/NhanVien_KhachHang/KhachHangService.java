@@ -2,7 +2,7 @@ package com.example.server.service.NhanVien_KhachHang;
 
 
 
-import com.example.server.dto.KhachHangCreationRequest.KhachHangCreationRequest;
+import com.example.server.dto.NhanVien_KhachHang.KhachHangCreationRequest;
 import com.example.server.entity.DiaChi;
 import com.example.server.entity.KhachHang;
 import com.example.server.repository.NhanVien_KhachHang.DiaChiRepository;
@@ -50,14 +50,6 @@ public class KhachHangService {
         kh.setEmail(khachHangRequest.getEmail());
         KhachHang savedKhachHang = khachHangRepository.save(kh);
 
-//        DiaChi dc = new DiaChi();
-//        dc.setKhachHang(kh);
-//        dc.setTinh(khachHangRequest.getDiaChi().getTinh());
-//        dc.setHuyen(khachHangRequest.getDiaChi().getHuyen());
-//        dc.setXa(khachHangRequest.getDiaChi().getXa());
-//        dc.setTrangThai(1);
-//        diaChiRepository.save(dc);
-
         List<DiaChi> dc = new ArrayList<>();
 
         for (DiaChi diaChiRequest : khachHangRequest.getDiaChi()) {
@@ -89,24 +81,19 @@ public class KhachHangService {
 
         String tenKhongDau = removeVietnameseAccents(tenKhachHang.trim().toLowerCase());
 
-        // Chuyển tên thành chữ thường và tách thành các từ
         String[] parts = tenKhongDau.split("\\s+");
         if (parts.length == 0) {
             return "KH" + System.currentTimeMillis();
         }
 
-        // Lấy từ cuối cùng trước
         StringBuilder vietTat = new StringBuilder(parts[parts.length - 1]);
 
-        // Ghép chữ cái đầu của các từ còn lại
         for (int i = 0; i < parts.length - 1; i++) {
             vietTat.append(parts[i].charAt(0));
         }
 
-        // Định dạng ngày sinh thành ddMMyyyy
-        String ngaySinhStr = ngaySinh.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+        String ngaySinhStr = ngaySinh.format(DateTimeFormatter.ofPattern("ddMM"));
 
-        // Tạo mã nhân viên
         return vietTat + ngaySinhStr;
     }
 
@@ -160,43 +147,39 @@ public class KhachHangService {
 
     public KhachHang updateKhachHang(String id, KhachHangCreationRequest updatedKhachHang) {
         KhachHang existingKhachHang = khachHangRepository.findById(id).orElse(null);
+
         if (existingKhachHang != null) {
+            // Cập nhật thông tin khách hàng
             existingKhachHang.setTenKhachHang(updatedKhachHang.getTenKhachHang());
             existingKhachHang.setNgaySinh(updatedKhachHang.getNgaySinh());
             existingKhachHang.setSoDienThoai(updatedKhachHang.getSoDienThoai());
             existingKhachHang.setEmail(updatedKhachHang.getEmail());
 
-            List<DiaChi> existingDiaChiList = diaChiRepository.findByKhachHang(existingKhachHang);
-
-            // Nếu có địa chỉ mới, thêm vào danh sách cũ
-            if (updatedKhachHang.getDiaChi() != null && !updatedKhachHang.getDiaChi().isEmpty()) {
+            List<DiaChi> diaChiList = new ArrayList<>();
+            if (updatedKhachHang.getDiaChi() != null) {
                 for (DiaChi diaChiRequest : updatedKhachHang.getDiaChi()) {
                     DiaChi diaChi = new DiaChi();
-                    diaChi.setKhachHang(existingKhachHang); // Gán khách hàng cho địa chỉ
+                    diaChi.setKhachHang(existingKhachHang);
                     diaChi.setTinh(diaChiRequest.getTinh());
                     diaChi.setHuyen(diaChiRequest.getHuyen());
                     diaChi.setXa(diaChiRequest.getXa());
                     diaChi.setTrangThai(1);
-
-                    existingDiaChiList.add(diaChi); // Thêm địa chỉ mới vào danh sách cũ
+                    diaChiList.add(diaChi);
                 }
-
-                // Lưu tất cả địa chỉ (cũ + mới)
-                diaChiRepository.saveAll(existingDiaChiList);
+                diaChiRepository.saveAll(diaChiList);
             }
-
-            return khachHangRepository.save(existingKhachHang);
+            return khachHangRepository.save(existingKhachHang); // Cập nhật khách hàng
         }
         return null;
     }
 
-    public void deleteNhanVien(String id) {
+    public void deleteKhachHang(String id) {
         KhachHang kh = khachHangRepository.findById(id).orElse(null);
         if (kh != null) {
             kh.setTrangThai(false);
             khachHangRepository.save(kh);
         } else {
-            throw new IllegalArgumentException("Không tìm thấy nhân viên");
+            throw new IllegalArgumentException("Không tìm thấy khách hàng");
         }
     }
 

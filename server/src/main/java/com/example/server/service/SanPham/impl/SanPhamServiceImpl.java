@@ -39,7 +39,7 @@ public class SanPhamServiceImpl implements SanPhamService {
                 SanPham sanPham=listSanPham.get(i);
                 sanPham.setTrangThai(false);
                 sanPhamRepository.save(sanPham);
-            }else { 
+            }else {
                 sanPhamResponse.setSoLuong(sanPhamChiTietService.findSoLuongbyIdSanPham(listSanPham.get(i).getId()));
                 SanPham sanPham=listSanPham.get(i);
                 sanPham.setTrangThai(true);

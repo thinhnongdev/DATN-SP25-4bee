@@ -41,4 +41,8 @@ public class UpdatePhieuGiamGiaRequest {
     public List<String> getKhachHangsToCancel() {
         return this.idKhachHang != null ? this.idKhachHang : List.of();  // Trả về một danh sách rỗng nếu không có khách hàng để hủy
     }
+
+
+    private List<String> khachHangsToAdd; // Danh sách khách hàng mới được chọn
+    private List<String> khachHangsToCancel;
 }

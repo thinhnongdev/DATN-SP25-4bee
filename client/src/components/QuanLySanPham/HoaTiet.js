@@ -17,10 +17,15 @@ const HoaTiet = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const token = localStorage.getItem("token");
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/hoatiet');
+      const response = await axios.get('http://localhost:8080/api/admin/hoatiet',{
+        headers: {
+          Authorization: `Bearer ${token}` // Thêm token vào header
+        }
+      });
       setHoaTiet(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,14 +84,22 @@ const HoaTiet = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`, values,{
+          headers: {
+            Authorization: `Bearer ${token}` // Thêm token vào header
+          }
+        });
         setHoaTiet((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa họa tiết thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet', values,{
+          headers: {
+            Authorization: `Bearer ${token}` // Thêm token vào header
+          }
+        });
         setHoaTiet((prev) => [response.data, ...prev]);
         toast.success('Thêm họa tiết thành công');
       }
@@ -162,7 +175,6 @@ const HoaTiet = () => {
 
   return (
     <>
-    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -172,7 +184,7 @@ const HoaTiet = () => {
       >
         <Breadcrumb.Item>Họa tiết</Breadcrumb.Item>
       </Breadcrumb>
-      <div
+      <Container
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -213,8 +225,8 @@ const HoaTiet = () => {
       onChange={handleTableChange}
       rowKey="id"
         />
-      </div>
-      </div>
+      </Container>
+
       <Modal
         title={isEditing ? 'Chỉnh sửa họa tiết' : 'Thêm họa tiết'}
         open={isModalVisible}

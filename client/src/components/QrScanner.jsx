@@ -1,62 +1,45 @@
-import React, { useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { toast } from 'react-toastify';
-
-let qrScanErrorCount = 0;
-let lastErrorMessage = "";
+import React, { useState } from "react";
+import QrReader from "react-qr-scanner";
+import { toast } from "react-toastify";
 
 const QrScanner = ({ onScanSuccess, onScanError, isActive }) => {
-  const scannerRef = useRef(null);
+  const [delay] = useState(300);
 
-  useEffect(() => {
-    if (!isActive) {
-      // Nếu modal đóng, dừng scanner
-      if (scannerRef.current) {
-        scannerRef.current.clear();
-        scannerRef.current = null;
-      }
-      return;
+  const handleScan = (data) => {
+    if (data) {
+      console.log("✅ QR Code detected:", data.text);
+      toast.success("🎉 Quét mã QR thành công!", { autoClose: 2000 });
+      onScanSuccess(data.text);
     }
+  };
 
-    // Nếu scanner chưa khởi tạo, tạo mới
-    if (!scannerRef.current) {
-      scannerRef.current = new Html5QrcodeScanner('reader', {
-        qrbox: { width: 250, height: 250 },
-        fps: 5,
-      });
-
-      scannerRef.current.render(
-        (decodedText) => {
-          scannerRef.current.clear();
-          scannerRef.current = null;
-          qrScanErrorCount = 0;
-          console.log('✅ QR Code detected:', decodedText);
-          toast.success('🎉 Quét mã QR thành công!', { autoClose: 2000 });
-          onScanSuccess(decodedText);
-        },
-        (error) => {
-          qrScanErrorCount++;
-          if (error.message !== lastErrorMessage || qrScanErrorCount % 50 === 0) {
-            console.warn(`⚠️ QR Scan Error (${qrScanErrorCount}):`, error.message);
-            lastErrorMessage = error.message;
-          }
-          if (qrScanErrorCount % 100 === 0) {
-            toast.warn('Không tìm thấy mã QR, vui lòng thử lại.');
-          }
-          onScanError(error);
-        }
-      );
+  const handleError = (error) => {
+    console.warn("⚠️ QR Scan Error:", error);
+    if (onScanError) {
+      onScanError(error);
     }
+  };
 
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear();
-        scannerRef.current = null;
-      }
-    };
-  }, [onScanSuccess, onScanError, isActive]);
+  if (!isActive) {
+    return null;
+  }
 
-  return <div id="reader"></div>;
+  return (
+    <div style={{ width: "100%", maxWidth: "500px", margin: "0 auto" }}>
+      <QrReader
+        delay={delay}
+        style={{ width: "100%" }}
+        onError={handleError}
+        onScan={handleScan}
+        constraints={{
+          video: { facingMode: "environment" },
+        }}
+      />
+      <p style={{ textAlign: "center", marginTop: "10px" }}>
+        Đặt mã QR vào vùng quét
+      </p>
+    </div>
+  );
 };
 
 export default QrScanner;

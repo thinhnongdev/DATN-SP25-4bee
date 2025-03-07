@@ -23,7 +23,6 @@ public class SanPhamChiTietController {
     private SanPhamChiTietService sanPhamChiTietService;
     @Autowired
     private AnhSanPhamService anhSanPhamService;
-
     @GetMapping("/sanphamchitiet/{id}/hinhanh")
     public ResponseEntity<List<AnhSanPham>> getHinhAnhBySanPhamChiTietId(@PathVariable String id) {
         List<AnhSanPham> hinhAnhs = anhSanPhamService.findByIdSPCT(id);
@@ -63,6 +62,7 @@ public class SanPhamChiTietController {
             return ResponseEntity.status(500).body(errorResponse);
         }
     }
+
 
 
 }

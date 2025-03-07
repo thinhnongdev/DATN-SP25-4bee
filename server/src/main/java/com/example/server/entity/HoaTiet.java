@@ -31,6 +31,7 @@ public class HoaTiet {
 
     @Column(name = "trang_thai")
     private Boolean trangThai;
+
     @CreationTimestamp
     @Column(name = "ngay_tao")
     private LocalDateTime ngayTao;

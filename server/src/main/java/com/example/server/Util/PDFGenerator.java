@@ -46,11 +46,11 @@ public class PDFGenerator {
     public byte[] generateInvoicePDF(HoaDon hoaDon) {
         validateInvoiceData(hoaDon);
 
-            try {
-                String tempFile = "invoice_" + hoaDon.getId() + ".pdf";
-                PdfWriter writer = new PdfWriter(tempFile);
-                PdfDocument pdf = new PdfDocument(writer);
-                Document document = new Document(pdf);
+        try {
+            String tempFile = "invoice_" + hoaDon.getId() + ".pdf";
+            PdfWriter writer = new PdfWriter(tempFile);
+            PdfDocument pdf = new PdfDocument(writer);
+            Document document = new Document(pdf);
 
             // Set up font
             InputStream fontStream = getClass().getResourceAsStream("/fonts/NotoSans-VariableFont_wdth,wght.ttf");
@@ -67,11 +67,11 @@ public class PDFGenerator {
             InvoiceAmounts amounts = calculateInvoiceAmounts(hoaDon);
 
             // Add content
-                 addQRCode(document, hoaDon.getMaHoaDon());
+            addQRCode(document, hoaDon.getMaHoaDon());
             addInvoiceDetails(document, hoaDon);
 
-                addCustomerInfo(document, hoaDon);
-//            addProductsTable(document, hoaDon.getHoaDonChiTiets());
+            addCustomerInfo(document, hoaDon);
+            addProductsTable(document, hoaDon.getHoaDonChiTiets());
             addPaymentSummary(document, hoaDon, amounts);
 
             document.close();
@@ -85,56 +85,36 @@ public class PDFGenerator {
         }
     }
 
-//Thêm mã QR
-private void addQRCode(Document document, String maHoaDon) {
-    Table table = new Table(new float[]{2, 1}); // Bảng 2 cột: thông tin cửa hàng | mã QR
-    table.setWidth(UnitValue.createPercentValue(100));
+    //Thêm mã QR
+    private void addQRCode(Document document, String maHoaDon) {
+        Table table = new Table(new float[]{2, 1}); // Bảng 2 cột: thông tin cửa hàng | mã QR
+        table.setWidth(UnitValue.createPercentValue(100));
 
-    // Cột 1: Thông tin cửa hàng
-    Cell shopInfoCell = new Cell()
-            .add(new Paragraph(SHOP_NAME).setFontSize(16).setBold())
-            .add(new Paragraph("Địa chỉ: " + SHOP_ADDRESS))
-            .add(new Paragraph("SĐT: " + SHOP_PHONE))
-            .add(new Paragraph("Email: " + SHOP_EMAIL))
-            .setBorder(null)
-            .setTextAlignment(TextAlignment.LEFT);
-    table.addCell(shopInfoCell);
+        // Cột 1: Thông tin cửa hàng
+        Cell shopInfoCell = new Cell()
+                .add(new Paragraph(SHOP_NAME).setFontSize(16).setBold())
+                .add(new Paragraph("Địa chỉ: " + SHOP_ADDRESS))
+                .add(new Paragraph("SĐT: " + SHOP_PHONE))
+                .add(new Paragraph("Email: " + SHOP_EMAIL))
+                .setBorder(null)
+                .setTextAlignment(TextAlignment.LEFT);
+        table.addCell(shopInfoCell);
 
-    // Cột 2: Mã QR
-    BarcodeQRCode qrCode = new BarcodeQRCode(maHoaDon);
-    PdfFormXObject qrCodeObject = qrCode.createFormXObject(document.getPdfDocument());
-    Image qrImage = new Image(qrCodeObject).setWidth(120).setHeight(120); // Kích thước lớn hơn
+        // Cột 2: Mã QR
+        BarcodeQRCode qrCode = new BarcodeQRCode(maHoaDon);
+        PdfFormXObject qrCodeObject = qrCode.createFormXObject(document.getPdfDocument());
+        Image qrImage = new Image(qrCodeObject).setWidth(120).setHeight(120); // Kích thước lớn hơn
 
-    Cell qrCell = new Cell()
-            .add(qrImage)
-            .setBorder(null)
-            .setTextAlignment(TextAlignment.RIGHT);
-    table.addCell(qrCell);
+        Cell qrCell = new Cell()
+                .add(qrImage)
+                .setBorder(null)
+                .setTextAlignment(TextAlignment.RIGHT);
+        table.addCell(qrCell);
 
-    document.add(table);
-    document.add(new Paragraph("\n")); // Thêm khoảng cách
-}
+        document.add(table);
+        document.add(new Paragraph("\n")); // Thêm khoảng cách
+    }
 
-
-//    private void addShopInfo(Document document) {
-//        Table table = new Table(new float[]{1, 2});
-//        table.setWidth(UnitValue.createPercentValue(100));
-//
-//        table.addCell(new Cell()
-//                .add(new Paragraph("4BEE SHOP")
-//                        .setFontSize(16)
-//                        .setBold())
-//                .setBorder(null));
-//        table.addCell(new Cell()
-//                .add(new Paragraph("Địa chỉ: Số 1 Trịnh Văn Bô, Nam Từ Liêm, Hà Nội\n"
-//                        + "SĐT: 0123456789\n"
-//                        + "Email: 4beeshop@gmail.com")
-//                        .setTextAlignment(TextAlignment.RIGHT))
-//                .setBorder(null));
-//
-//        document.add(table);
-//        document.add(new Paragraph("\n")); // Thêm khoảng cách
-//    }
 
     private void addInvoiceDetails(Document document, HoaDon hoaDon) {
         document.add(new Paragraph("HÓA ĐƠN BÁN HÀNG")
@@ -148,10 +128,25 @@ private void addQRCode(Document document, String maHoaDon) {
     }
 
     private void addCustomerInfo(Document document, HoaDon hoaDon) {
+        // Kiểm tra nếu người nhận là "Khách hàng lẻ" hoặc hóa đơn không có thông tin khách hàng
+        if (hoaDon.getTenNguoiNhan() == null || hoaDon.getTenNguoiNhan().isEmpty() || hoaDon.getTenNguoiNhan().equals("Khách hàng lẻ")) {
+            hoaDon.setTenNguoiNhan("Khách hàng lẻ");
+            document.add(new Paragraph("THÔNG TIN KHÁCH HÀNG")
+                    .setBold()
+                    .setFontSize(14));
+            Table table = new Table(new float[]{1, 4});
+            table.setWidth(UnitValue.createPercentValue(100));
+            table.addCell(createCell("Tên khách hàng:", true).setBorder(null).setTextAlignment(TextAlignment.LEFT).setPadding(5));
+            table.addCell(createCell(hoaDon.getTenNguoiNhan(), false).setBorder(null).setTextAlignment(TextAlignment.LEFT).setWidth(UnitValue.createPercentValue(75)));
+            document.add(table);
+            document.add(new Paragraph("\n"));
+            return;
+        }
+
         document.add(new Paragraph("THÔNG TIN KHÁCH HÀNG")
                 .setBold()
                 .setFontSize(14));
-        Table table = new Table(new float[]{1, 4}); // Giữ cột thứ hai rộng hơn
+        Table table = new Table(new float[]{1, 4});
         table.setWidth(UnitValue.createPercentValue(100));
 
         table.addCell(createCell("Tên khách hàng:", true)
@@ -162,7 +157,7 @@ private void addQRCode(Document document, String maHoaDon) {
         table.addCell(createCell(hoaDon.getTenNguoiNhan(), false)
                 .setBorder(null)
                 .setTextAlignment(TextAlignment.LEFT)
-                .setWidth(UnitValue.createPercentValue(75))); // Giới hạn độ rộng
+                .setWidth(UnitValue.createPercentValue(75)));
 
         table.addCell(createCell("Số điện thoại:", true).setBorder(null));
         table.addCell(createCell(hoaDon.getSoDienThoai(), false).setBorder(null));
@@ -172,17 +167,20 @@ private void addQRCode(Document document, String maHoaDon) {
                 .setBorder(null)
                 .setTextAlignment(TextAlignment.LEFT)
                 .setWidth(UnitValue.createPercentValue(75))
-                .setPadding(5)); // Thêm padding để dễ đọc
+                .setPadding(5));
 
         if (hoaDon.getEmailNguoiNhan() != null && !hoaDon.getEmailNguoiNhan().isEmpty()) {
             table.addCell(createCell("Email:", true).setBorder(null));
             table.addCell(createCell(hoaDon.getEmailNguoiNhan(), false).setBorder(null));
         }
-        table.addCell(createCell("Ghi chú:", true).setBorder(null));
-        table.addCell(createCell(hoaDon.getGhiChu(), false).setBorder(null));
+// Xóa hoặc bỏ qua việc thêm ghi chú
+        if (hoaDon.getGhiChu() != null && !hoaDon.getGhiChu().isEmpty()) {
+            table.addCell(createCell("Ghi chú:", true).setBorder(null));
+            table.addCell(createCell(hoaDon.getGhiChu(), false).setBorder(null));
+        }
 
         document.add(table);
-        document.add(new Paragraph("\n")); // Thêm khoảng cách
+        document.add(new Paragraph("\n"));
     }
 
 
@@ -253,47 +251,46 @@ private void addQRCode(Document document, String maHoaDon) {
 
     private InvoiceAmounts calculateInvoiceAmounts(HoaDon hoaDon) {
         // Tính tổng tiền hàng
-//        BigDecimal tongTienHang = hoaDon.getHoaDonChiTiets().stream()
-//                .map(ct -> ct.getSanPhamChiTiet().getGia()
-//                        .multiply(new BigDecimal(ct.getSoLuong())))
-//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal tongTienHang = hoaDon.getHoaDonChiTiets().stream()
+                .map(ct -> ct.getSanPhamChiTiet().getGia()
+                        .multiply(new BigDecimal(ct.getSoLuong())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Tính tiền giảm giá
-//        BigDecimal tienGiamGia = BigDecimal.ZERO;
-//        if (hoaDon.getPhieuGiamGia() != null) {
-//            PhieuGiamGia phieuGiamGia = hoaDon.getPhieuGiamGia();
-//
-//            if (phieuGiamGia.getGiaTriGiam() != null &&
-//                    phieuGiamGia.getGiaTriGiam().compareTo(BigDecimal.ZERO) > 0 &&
-//                    tongTienHang.compareTo(phieuGiamGia.getGiaTriToiThieu()) >= 0) {
-//
-//                if (phieuGiamGia.getLoaiPhieuGiamGia() == 1) {
-//                    // Giảm theo phần trăm
-//                    tienGiamGia = tongTienHang.multiply(phieuGiamGia.getGiaTriGiam())
-//                            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-//
-//                    // Giới hạn số tiền giảm tối đa
-//                    if (phieuGiamGia.getSoTienGiamToiDa() != null &&
-//                            tienGiamGia.compareTo(phieuGiamGia.getSoTienGiamToiDa()) > 0) {
-//                        tienGiamGia = phieuGiamGia.getSoTienGiamToiDa();
-//                    }
-//                } else {
-//                    // Giảm theo số tiền cố định
-//                    tienGiamGia = phieuGiamGia.getGiaTriGiam();
-//
-//                    // Đảm bảo không giảm vượt quá tổng tiền hàng
-//                    if (tienGiamGia.compareTo(tongTienHang) > 0) {
-//                        tienGiamGia = tongTienHang;
-//                    }
-//                }
-//            }
-//        }
-//
-//        // Tính tổng thanh toán
-//        BigDecimal tongThanhToan = tongTienHang.subtract(tienGiamGia).max(BigDecimal.ZERO);
-//
-//        return new InvoiceAmounts(tongTienHang, tienGiamGia, tongThanhToan);
-        return new InvoiceAmounts(null,null,null);
+        BigDecimal tienGiamGia = BigDecimal.ZERO;
+        if (hoaDon.getPhieuGiamGia() != null) {
+            PhieuGiamGia phieuGiamGia = hoaDon.getPhieuGiamGia();
+
+            if (phieuGiamGia.getGiaTriGiam() != null &&
+                    phieuGiamGia.getGiaTriGiam().compareTo(BigDecimal.ZERO) > 0 &&
+                    tongTienHang.compareTo(phieuGiamGia.getGiaTriToiThieu()) >= 0) {
+
+                if (phieuGiamGia.getLoaiPhieuGiamGia() == 1) {
+                    // Giảm theo phần trăm
+                    tienGiamGia = tongTienHang.multiply(phieuGiamGia.getGiaTriGiam())
+                            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+                    // Giới hạn số tiền giảm tối đa
+                    if (phieuGiamGia.getSoTienGiamToiDa() != null &&
+                            tienGiamGia.compareTo(phieuGiamGia.getSoTienGiamToiDa()) > 0) {
+                        tienGiamGia = phieuGiamGia.getSoTienGiamToiDa();
+                    }
+                } else {
+                    // Giảm theo số tiền cố định
+                    tienGiamGia = phieuGiamGia.getGiaTriGiam();
+
+                    // Đảm bảo không giảm vượt quá tổng tiền hàng
+                    if (tienGiamGia.compareTo(tongTienHang) > 0) {
+                        tienGiamGia = tongTienHang;
+                    }
+                }
+            }
+        }
+
+        // Tính tổng thanh toán
+        BigDecimal tongThanhToan = tongTienHang.subtract(tienGiamGia).max(BigDecimal.ZERO);
+
+        return new InvoiceAmounts(tongTienHang, tienGiamGia, tongThanhToan);
     }
 
     private void validateInvoiceData(HoaDon hoaDon) {
@@ -301,20 +298,20 @@ private void addQRCode(Document document, String maHoaDon) {
             throw new IllegalArgumentException("Hóa đơn không thể null");
         }
 
-//        if (hoaDon.getHoaDonChiTiets() == null || hoaDon.getHoaDonChiTiets().isEmpty()) {
-//            throw new IllegalArgumentException("Hóa đơn phải có ít nhất một sản phẩm");
-//        }
+        if (hoaDon.getHoaDonChiTiets() == null || hoaDon.getHoaDonChiTiets().isEmpty()) {
+            throw new IllegalArgumentException("Hóa đơn phải có ít nhất một sản phẩm");
+        }
 
-//        for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
-//            if (chiTiet.getSoLuong() == null || chiTiet.getSoLuong() <= 0) {
-//                throw new IllegalArgumentException("Số lượng sản phẩm không hợp lệ");
-//            }
-//            if (chiTiet.getSanPhamChiTiet() == null ||
-//                    chiTiet.getSanPhamChiTiet().getGia() == null ||
-//                    chiTiet.getSanPhamChiTiet().getGia().compareTo(BigDecimal.ZERO) < 0) {
-//                throw new IllegalArgumentException("Thông tin giá sản phẩm không hợp lệ");
-//            }
-//        }
+        for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
+            if (chiTiet.getSoLuong() == null || chiTiet.getSoLuong() <= 0) {
+                throw new IllegalArgumentException("Số lượng sản phẩm không hợp lệ");
+            }
+            if (chiTiet.getSanPhamChiTiet() == null ||
+                    chiTiet.getSanPhamChiTiet().getGia() == null ||
+                    chiTiet.getSanPhamChiTiet().getGia().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Thông tin giá sản phẩm không hợp lệ");
+            }
+        }
     }
 
     private Cell createHeaderCell(String content) {
@@ -335,7 +332,6 @@ private void addQRCode(Document document, String maHoaDon) {
                 .setPadding(5) // Tạo khoảng cách trong ô
                 .setTextAlignment(TextAlignment.LEFT);
     }
-
 
 
     private String formatCurrency(BigDecimal amount) {

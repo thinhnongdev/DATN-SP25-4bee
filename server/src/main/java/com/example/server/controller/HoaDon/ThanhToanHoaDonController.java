@@ -9,6 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/thanh-toan-hoa-don")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class ThanhToanHoaDonController {
     private final ThanhToanHoaDonService service;
 

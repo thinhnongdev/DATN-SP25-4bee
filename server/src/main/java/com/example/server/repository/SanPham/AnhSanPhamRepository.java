@@ -14,6 +14,7 @@ import java.util.List;
 public interface AnhSanPhamRepository extends JpaRepository<AnhSanPham,String> {
     @Query( "SELECT u FROM AnhSanPham u where u.sanPhamChiTiet.id=:id")
     List<AnhSanPham>  findByIdSPCT(String id);
+
     @Modifying
     @Transactional
     @Query("DELETE FROM AnhSanPham u WHERE u.sanPhamChiTiet.id = :id")

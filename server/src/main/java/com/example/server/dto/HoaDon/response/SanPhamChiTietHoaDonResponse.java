@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -16,14 +17,17 @@ public class SanPhamChiTietHoaDonResponse {
     private String id;
     private String maSanPham;
     private String tenSanPham;
+    private List<String> hinhAnh; // Đổi thành danh sách ảnh
     private BigDecimal gia;
     private Integer soLuong;
+    private BigDecimal thanhTien;
     private String moTa;
     private boolean trangThai;  // true: còn hàng, false: hết hàng
     private LocalDateTime ngayTao;
 
     // Thêm thông tin chi tiết từ SanPhamChiTiet
     private String mauSac;
+    private String maMauSac;
     private String chatLieu;
     private String danhMuc;
     private String kichThuoc;
@@ -34,7 +38,7 @@ public class SanPhamChiTietHoaDonResponse {
     private String kieuTayAo;
     private String kieuCoTayAo;
     private String hoaTiet;
-    private String tuiAo;
+    private String kieuTuiAo;
 
     public String getTrangThaiText() {
         return trangThai ? "Còn hàng" : "Hết hàng";

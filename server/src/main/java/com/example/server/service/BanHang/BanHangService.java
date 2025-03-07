@@ -1,19 +1,25 @@
 package com.example.server.service.BanHang;
 
-import com.example.server.dto.BanHang.request.CreateHoaDonChiTietRequest;
 import com.example.server.dto.BanHang.request.CreateHoaDonRequest;
+import com.example.server.dto.HoaDon.request.AddProductRequest;
+import com.example.server.dto.HoaDon.request.HoaDonRequest;
+import com.example.server.dto.HoaDon.response.HoaDonResponse;
+import com.example.server.dto.HoaDon.response.SanPhamChiTietHoaDonResponse;
 import com.example.server.entity.HoaDon;
-import com.example.server.entity.HoaDonChiTiet;
-import com.example.server.entity.KhachHang;
-import com.example.server.entity.ThanhToanHoaDon;
 
 import java.util.List;
 
 public interface BanHangService {
-    HoaDon createHoaDon(CreateHoaDonRequest createHoaDonRequest);
+    HoaDonResponse createHoaDon(HoaDonRequest request);
     List<HoaDon> getHoaDonCho();
-    HoaDonChiTiet addHoaDonChiTiet(CreateHoaDonChiTietRequest hoaDonChiTietRequest);
-    List<HoaDonChiTiet> getHoaDonChiTietByIdHoaDon(String id);
-    KhachHang getKhachHangByIdHoaDon(String id);
-    ThanhToanHoaDon getThanhToanHoaDonByIdHoaDon(String id);
+    HoaDonResponse addProduct(String hoaDonId, AddProductRequest request);  // Thêm sản phẩm vào hóa đơn (giảm tồn kho)
+//    HoaDonResponse addMultipleProducts(String hoaDonId, List<AddProductRequest> requests);
+
+    HoaDonResponse applyVoucher(String hoaDonId, String voucherId);  // Áp dụng voucher
+    HoaDonResponse completeOrder(String hoaDonId, HoaDonRequest request);
+//    HoaDonResponse findById(String hoaDonId);
+    HoaDonResponse applyBestVoucher (String hoaDonId);
+    HoaDonResponse selectCustomer (String hoaDonId, String customerName, String diaChiId);
+    void updateLoaiHoaDon(String hoaDonId, Integer loaiHoaDon);
+
 }

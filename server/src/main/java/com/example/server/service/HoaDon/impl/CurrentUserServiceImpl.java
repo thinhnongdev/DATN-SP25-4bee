@@ -1,8 +1,6 @@
 package com.example.server.service.HoaDon.impl;
 
 
-import com.example.server.entity.NhanVien;
-import com.example.server.exception.ResourceNotFoundException;
 import com.example.server.exception.UnauthorizedException;
 import com.example.server.repository.NhanVien_KhachHang.NhanVienRepository;
 import com.example.server.service.HoaDon.interfaces.ICurrentUserService;
@@ -25,11 +23,11 @@ public class CurrentUserServiceImpl implements ICurrentUserService {
         return auth.getName();
     }
 
-    @Override
-    public String getCurrentUserId() {
-        NhanVien nhanVien = getCurrentNhanVien();
-        return nhanVien.getId();
-    }
+//    @Override
+//    public String getCurrentUserId() {
+//        NhanVien nhanVien = getCurrentNhanVien();
+//        return nhanVien.getId();
+//    }
 
     @Override
     public boolean isAdmin() {
@@ -38,10 +36,10 @@ public class CurrentUserServiceImpl implements ICurrentUserService {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
-    @Override
-    public NhanVien getCurrentNhanVien() {
-        String username = getCurrentUsername();
-        return nhanVienRepository.findByEmail(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Nhân viên không tồn tại"));
-    }
+//    @Override
+//    public NhanVien getCurrentNhanVien() {
+//        String username = getCurrentUsername();
+//        return nhanVienRepository.findByEmail(username)
+//                .orElseThrow(() -> new ResourceNotFoundException("Nhân viên không tồn tại"));
+//    }
 }

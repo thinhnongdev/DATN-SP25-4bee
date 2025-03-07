@@ -14,6 +14,7 @@ import {
   Modal,
   Spin,
   Tabs,
+  Badge,
   Tooltip,
   Space,
   Pagination,
@@ -62,6 +63,7 @@ function InvoiceList() {
     3: 0,
     4: 0,
     5: 0,
+    6: 0,
   });
 
   const [filters, setFilters] = useState({
@@ -294,42 +296,74 @@ function InvoiceList() {
     setTabValue(key);
     setFilters((prev) => ({ ...prev, trangThai: key }));
     setPage(0);
+    // Status counts will be updated by the useEffect that depends on filters
   };
 
   const filterInvoices = (invoices, filters) => {
     return invoices.filter((invoice) => {
-      const invoiceDate = new Date(invoice.ngayTao);
+      // Check if keyword filter matches any of the text fields
+      if (filters.keyword && filters.keyword.trim() !== "") {
+        const keyword = filters.keyword.toLowerCase();
+        const maHoaDon = invoice.maHoaDon ? invoice.maHoaDon.toLowerCase() : "";
+        const tenNguoiNhan = invoice.tenNguoiNhan
+          ? invoice.tenNguoiNhan.toLowerCase()
+          : "";
+        const soDienThoai = invoice.soDienThoai
+          ? invoice.soDienThoai.toLowerCase()
+          : "";
 
-      const fromDate = filters.fromDate ? new Date(filters.fromDate) : null;
-      const toDate = filters.toDate ? new Date(filters.toDate) : null;
-      const isWithinDateRange =
-        (!fromDate || invoiceDate >= fromDate) &&
-        (!toDate || invoiceDate <= toDate);
+        if (
+          !maHoaDon.includes(keyword) &&
+          !tenNguoiNhan.includes(keyword) &&
+          !soDienThoai.includes(keyword)
+        ) {
+          return false;
+        }
+      }
 
-      const minPrice = filters.minPrice ? parseFloat(filters.minPrice) : null;
-      const maxPrice = filters.maxPrice ? parseFloat(filters.maxPrice) : null;
-      const isWithinPriceRange =
-        (!minPrice || invoice.tongTien >= minPrice) &&
-        (!maxPrice || invoice.tongTien <= maxPrice);
+      // Filter by trang thai if specified
+      if (
+        filters.trangThai &&
+        invoice.trangThai.toString() !== filters.trangThai
+      ) {
+        return false;
+      }
 
-      const keywordMatch = filters.keyword
-        ? invoice.maHoaDon.includes(filters.keyword) ||
-          invoice.tenNguoiNhan
-            .toLowerCase()
-            .includes(filters.keyword.toLowerCase()) ||
-          invoice.soDienThoai.includes(filters.keyword)
-        : true;
+      // Filter by order type if specified
+      if (
+        filters.orderType &&
+        invoice.loaiHoaDon?.toString() !== filters.orderType
+      ) {
+        return false;
+      }
 
-      const orderTypeMatch =
-        !filters.orderType ||
-        invoice.loaiHoaDon === parseInt(filters.orderType);
+      // Filter by date range
+      if (filters.fromDate && filters.toDate) {
+        const invoiceDate = dayjs(invoice.ngayTao);
+        if (
+          !invoiceDate.isValid() ||
+          invoiceDate.isBefore(filters.fromDate) ||
+          invoiceDate.isAfter(filters.toDate)
+        ) {
+          return false;
+        }
+      }
 
-      return (
-        keywordMatch &&
-        isWithinDateRange &&
-        isWithinPriceRange &&
-        orderTypeMatch
-      );
+      // Filter by price range
+      if (
+        filters.minPrice &&
+        parseFloat(invoice.tongTien) < parseFloat(filters.minPrice)
+      ) {
+        return false;
+      }
+      if (
+        filters.maxPrice &&
+        parseFloat(invoice.tongTien) > parseFloat(filters.maxPrice)
+      ) {
+        return false;
+      }
+
+      return true;
     });
   };
 
@@ -495,6 +529,7 @@ function InvoiceList() {
                 <Option value="">Tất cả</Option>
                 <Option value="1">Online</Option>
                 <Option value="2">Tại quầy</Option>
+                <Option value="3">Giao hàng</Option>
               </Select>
             </Col>
             <Col span={12}>
@@ -579,12 +614,61 @@ function InvoiceList() {
           style={{ marginTop: "24px" }}
         >
           <Tabs activeKey={tabValue} onChange={handleTabChange}>
-            <TabPane tab="Tất cả" key="" />
-            <TabPane tab={`Chờ xác nhận (${statusCounts[1]})`} key="1" />
-            <TabPane tab={`Đã xác nhận (${statusCounts[2]})`} key="2" />
-            <TabPane tab={`Đang giao (${statusCounts[3]})`} key="3" />
-            <TabPane tab={`Đã giao (${statusCounts[4]})`} key="4" />
-            <TabPane tab={`Đã hủy (${statusCounts[5]})`} key="5" />
+            <TabPane tab={<span>Tất cả</span>} key="" />
+            <TabPane
+              tab={
+                <span>
+                  Chờ xác nhận{" "}
+                  <sup style={{ color: "red" }}>{statusCounts[1]}</sup>
+                </span>
+              }
+              key="1"
+            />
+            <TabPane
+              tab={
+                <span>
+                  Đã xác nhận{" "}
+                  <sup style={{ color: "red" }}>{statusCounts[2]}</sup>
+                </span>
+              }
+              key="2"
+            />
+             <TabPane
+              tab={
+                <span>
+                  Chờ giao hàng{" "}
+                  <sup style={{ color: "red" }}>{statusCounts[3]}</sup>
+                </span>
+              }
+              key="3"
+            />
+            <TabPane
+              tab={
+                <span>
+                  Đang giao{" "}
+                  <sup style={{ color: "red" }}>{statusCounts[4]}</sup>
+                </span>
+              }
+              key="4"
+            />
+            <TabPane
+              tab={
+                <span>
+                  Hoàn thành{" "}
+                  <sup style={{ color: "red" }}>{statusCounts[5]}</sup>
+                </span>
+              }
+              key="5"
+            />
+            <TabPane
+              tab={
+                <span>
+                  Đã hủy{" "}
+                  <sup style={{ color: "red" }}>{statusCounts[6]}</sup>
+                </span>
+              }
+              key="6"
+            />
           </Tabs>
           <Table
             columns={columns}
@@ -637,6 +721,9 @@ function InvoiceList() {
             onScanSuccess={(decodedText) => {
               setIsQrModalOpen(false);
               navigate(`/hoa-don/detail/${decodedText}`);
+            }}
+            onScanError={(error) => {
+              console.error("QR scan error:", error);
             }}
           />
         </Modal>

@@ -50,9 +50,10 @@ const { Step } = Steps;
 const steps = [
   { label: "Chờ xác nhận", status: 1 },
   { label: "Đã xác nhận", status: 2 },
-  { label: "Đang giao", status: 3 },
-  { label: "Đã giao", status: 4 },
-  // { label: 'Đã hủy', status: 5 },
+  { label: "Chuẩn bị giao hàng", status: 3 },
+  { label: "Đang giao", status: 4 },
+  { label: "Hoàn thành", status: 5 },
+  // { label: 'Đã hủy', status: 6 },
 ];
 const getStatusText = (status) => {
   switch (status) {
@@ -60,11 +61,13 @@ const getStatusText = (status) => {
       return "Chờ xác nhận";
     case 2:
       return "Đã xác nhận";
-    case 3:
-      return "Đang giao hàng";
+      case 3:
+      return "Chờ giao hàng";
     case 4:
-      return "Đã giao thành công";
+      return "Đang giao hàng";
     case 5:
+      return "Hoàn thành đơn hàng";
+    case 6:
       return "Đã hủy";
     default:
       return "Không xác định";
@@ -184,11 +187,33 @@ function InvoiceDetail() {
   const fetchProducts = async () => {
     try {
       const response = await api.get("/api/admin/hoa-don/san-pham/all");
-      setProducts(response.data);
+      const productsData = response.data;
+
+      // Lấy hình ảnh từ API sản phẩm chi tiết
+      const productsWithImages = await Promise.all(
+        productsData.map(async (product) => {
+          try {
+            const imgResponse = await api.get(
+              `/api/admin/sanphamchitiet/${product.id}/hinhanh`
+            );
+            return {
+              ...product,
+              hinhAnh:
+                imgResponse.data.length > 0 ? imgResponse.data[0].anhUrl : null,
+            };
+          } catch (error) {
+            console.error("Lỗi khi lấy hình ảnh sản phẩm:", error);
+            return { ...product, hinhAnh: null };
+          }
+        })
+      );
+
+      setProducts(productsWithImages);
     } catch (error) {
       toast.error("Lỗi khi tải danh sách sản phẩm");
     }
   };
+
   const updateInvoiceTotal = async (updatedProducts) => {
     const newTotalBeforeDiscount =
       calculateTotalBeforeDiscount(updatedProducts);
@@ -244,8 +269,28 @@ function InvoiceDetail() {
   const fetchInvoiceProducts = async () => {
     try {
       const response = await api.get(`/api/admin/hoa-don/${id}/san-pham`);
-      setInvoiceProducts(response.data);
-      updateTotalBeforeDiscount(response.data);
+      const products = response.data;
+
+      // Gọi API lấy hình ảnh cho từng sản phẩm
+      const productsWithImages = await Promise.all(
+        products.map(async (product) => {
+          try {
+            const imgResponse = await api.get(
+              `/api/admin/sanphamchitiet/${product.sanPhamChiTietId}/hinhanh`
+            );
+            return {
+              ...product,
+              hinhAnh:
+                imgResponse.data.length > 0 ? imgResponse.data[0].anhUrl : null,
+            };
+          } catch (error) {
+            console.error("Lỗi khi lấy hình ảnh sản phẩm", error);
+            return { ...product, hinhAnh: null };
+          }
+        })
+      );
+      setInvoiceProducts(productsWithImages);
+      updateTotalBeforeDiscount(productsWithImages);
     } catch (error) {
       toast.error("Lỗi khi tải danh sách sản phẩm trong hóa đơn");
     }
@@ -732,7 +777,7 @@ function InvoiceDetail() {
   };
 
   const getProductStatusText = (status) => {
-    return status === 1 ? "Thành công" : "Không thành công";
+    return status === true ? "Thành công" : "Không thành công";
   };
 
   const handleUpdateQuantity = async (hoaDonChiTietId, newQuantity) => {
@@ -767,14 +812,45 @@ function InvoiceDetail() {
     }
   };
 
+  // const handleStatusChange = (newStatus) => {
+  //   if (invoice.trangThai === 5) {
+  //     showErrorDialog("Không thể thay đổi trạng thái của đơn hàng đã hủy");
+  //     return;
+  //   }
+  //   setNextStatus(newStatus);
+  //   setOpenConfirmDialog(true);
+  //   setConfirmText("");
+  // };
   const handleStatusChange = (newStatus) => {
-    if (invoice.trangThai === 5) {
+    if (invoice.trangThai === 6) {
       showErrorDialog("Không thể thay đổi trạng thái của đơn hàng đã hủy");
       return;
     }
     setNextStatus(newStatus);
-    setOpenConfirmDialog(true);
-    setConfirmText("");
+
+    if (newStatus === 6) {
+      Modal.confirm({
+        title: "Xác nhận hủy đơn hàng",
+        content:
+          "Bạn có chắc chắn muốn hủy đơn hàng này? Sản phẩm và mã giảm giá sẽ được hoàn lại.",
+        okText: "Hủy đơn",
+        cancelText: "Đóng",
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          try {
+            await api.delete(`/api/admin/hoa-don/${id}`);
+            toast.success("Đã hủy đơn hàng và hoàn lại sản phẩm, mã giảm giá.");
+            fetchInvoice(); // Cập nhật giao diện
+          } catch (error) {
+            console.error("Lỗi khi hủy đơn hàng:", error);
+            toast.error("Lỗi khi hủy đơn hàng!");
+          }
+        },
+      });
+    } else {
+      setOpenConfirmDialog(true);
+      setConfirmText("");
+    }
   };
 
   const handleConfirmStatusChange = async () => {
@@ -905,26 +981,21 @@ function InvoiceDetail() {
 
   // Add formatFullAddress helper function
   const formatFullAddress = () => {
-    const parts = new Set(); // ✅ Use Set to avoid duplicates
-
-    if (specificAddress?.trim()) {
-      parts.add(specificAddress.trim());
-    }
-    if (selectedWard?.name && !selectedWard.name.includes("Phường")) {
-      parts.add(`Phường ${selectedWard.name}`);
-    } else if (selectedWard?.name) {
-      parts.add(selectedWard.name);
-    }
-    if (selectedDistrict?.name && !selectedDistrict.name.includes("Quận")) {
-      parts.add(`Quận ${selectedDistrict.name}`);
-    } else if (selectedDistrict?.name) {
-      parts.add(selectedDistrict.name);
-    }
-    if (selectedProvince?.name) {
-      parts.add(selectedProvince.name);
+    if (!invoice || invoice.tenNguoiNhan === "Khách hàng lẻ") {
+      return "Không có địa chỉ";
     }
 
-    return Array.from(parts).join(", ");
+    const parts = [];
+
+    if (specificAddress?.trim()) parts.push(specificAddress.trim());
+    if (selectedWard?.name && selectedWard.name !== "null")
+      parts.push(selectedWard.name);
+    if (selectedDistrict?.name && selectedDistrict.name !== "null")
+      parts.push(selectedDistrict.name);
+    if (selectedProvince?.name && selectedProvince.name !== "null")
+      parts.push(selectedProvince.name);
+
+    return parts.length > 0 ? parts.join(", ") : "Không có địa chỉ";
   };
 
   // Update handleSaveAddress function
@@ -1062,7 +1133,7 @@ function InvoiceDetail() {
             gap: 16,
           }}
         >
-          {invoice.trangThai !== 4 && invoice.trangThai !== 5 && (
+          {invoice.trangThai !== 5 && invoice.trangThai !== 6 && (
             <>
               {invoice.trangThai > 1 && (
                 <Button
@@ -1079,13 +1150,15 @@ function InvoiceDetail() {
                 {invoice.trangThai === 1
                   ? "Xác nhận"
                   : invoice.trangThai === 2
-                  ? "Bắt đầu giao hàng"
+                  ? "Chuẩn bị giao hàng"
                   : invoice.trangThai === 3
-                  ? "Xác nhận đã giao"
+                  ? "Bắt đầu giao hàng"
+                  : invoice.trangThai === 4
+                  ? "Xác nhận hoàn thành"
                   : ""}
               </Button>
-              {invoice.trangThai !== 5 && (
-                <Button type="default" onClick={() => handleStatusChange(5)}>
+              {invoice.trangThai !== 6 && (
+                <Button type="default" onClick={() => handleStatusChange(6)}>
                   Hủy đơn hàng
                 </Button>
               )}
@@ -1254,7 +1327,7 @@ function InvoiceDetail() {
             open={openAddProductDialog}
             onClose={() => setOpenAddProductDialog(false)}
             onAddProduct={handleAddProduct}
-            hoaDonId={invoice.id}  // ✅ Truyền hoaDonId vào
+            hoaDonId={invoice.id} //Truyền hoaDonId vào
           />
         </div>
         <Table
@@ -1271,15 +1344,15 @@ function InvoiceDetail() {
               title: "Hình ảnh",
               dataIndex: "hinhAnh",
               key: "hinhAnh",
-              align: "center",
-              render: (text) => (
+              render: (text, record) => (
                 <img
-                  src={text}
-                  alt="product"
+                  src={record.hinhAnh}
+                  alt="Sản phẩm"
                   style={{ width: 50, height: 50 }}
                 />
               ),
             },
+
             {
               title: "Thông tin sản phẩm",
               dataIndex: "tenSanPham",
@@ -1367,12 +1440,14 @@ function InvoiceDetail() {
               <div>
                 {invoice.phieuGiamGia ? (
                   <Tag
-                  closable={invoice.trangThai === 1} // Chỉ cho phép xóa nếu trạng thái === 1
-                  onClose={invoice.trangThai === 1 ? handleRemoveVoucher : undefined}
-                  color="black"
-                >
-                  {invoice.phieuGiamGia.maPhieuGiamGia}
-                </Tag>
+                    closable={invoice.trangThai === 1} // Chỉ cho phép xóa nếu trạng thái === 1
+                    onClose={
+                      invoice.trangThai === 1 ? handleRemoveVoucher : undefined
+                    }
+                    color="black"
+                  >
+                    {invoice.phieuGiamGia.maPhieuGiamGia}
+                  </Tag>
                 ) : (
                   <Button
                     type="default"

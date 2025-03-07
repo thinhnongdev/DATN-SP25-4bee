@@ -17,10 +17,15 @@ const ChatLieu = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const token = localStorage.getItem("token");
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/chatlieu');
+      const response = await axios.get('http://localhost:8080/api/admin/chatlieu', {
+        headers: {
+          Authorization: `Bearer ${token}` // Gửi token trong header
+        }
+      });
       setChatLieu(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,14 +84,22 @@ const ChatLieu = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`, values,{
+          headers: {
+            Authorization: `Bearer ${token}` // Thêm token vào header
+          }
+        });
         setChatLieu((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa chất liệu thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu', values,{
+          headers: {
+            Authorization: `Bearer ${token}` // Thêm token vào header
+          }
+        });
         setChatLieu((prev) => [response.data, ...prev]);
         toast.success('Thêm chất liệu thành công');
       }
@@ -163,7 +176,6 @@ const ChatLieu = () => {
 
   return (
     <>
-    <div>
       <Breadcrumb
         style={{
           marginBottom: '10px',
@@ -173,7 +185,7 @@ const ChatLieu = () => {
       >
         <Breadcrumb.Item>Chất liệu</Breadcrumb.Item>
       </Breadcrumb>
-      <div
+      <Container
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -214,8 +226,8 @@ const ChatLieu = () => {
           onChange={handleTableChange}
           rowKey="id"
         />
-      </div>
-      </div>
+      </Container>
+
       <Modal
         title={isEditing ? 'Chỉnh sửa chất liệu' : 'Thêm chất liệu'}
         open={isModalVisible}

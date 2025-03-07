@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface IHoaDonService {
@@ -19,13 +20,11 @@ public interface IHoaDonService {
     HoaDonResponse updateHoaDonAddress(String id, String diaChi, String tinh, String huyen, String xa, String moTa );
     Optional<HoaDon> findById(String id);
     Page<HoaDonResponse> getAllHoaDon(Pageable pageable);
-    void deleteHoaDon(String id);
+    HoaDonResponse deleteHoaDon(String id);
     HoaDonResponse updateTrangThai(String id, Integer trangThai);
     Page<HoaDonResponse> searchHoaDon(HoaDonSearchCriteria criteria, Pageable pageable);
     List<HoaDonStatisticsDTO> getStatistics(LocalDateTime fromDate, LocalDateTime toDate);
     byte[] generateInvoicePDF(String id);
-
+    Map<String, Long> getInvoiceCounts(HoaDonSearchCriteria criteria);
     HoaDon validateAndGet(String id);
-
-
 }

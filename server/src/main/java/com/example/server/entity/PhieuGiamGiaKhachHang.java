@@ -11,8 +11,7 @@ import java.util.UUID;
 @Table(name = "phieu_giam_gia_khach_hang")
 public class PhieuGiamGiaKhachHang {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;  // ID được sinh tự động với UUID
+    private String id;
 
     @ManyToOne
     @JoinColumn(name = "id_phieu_giam_gia")
@@ -36,6 +35,8 @@ public class PhieuGiamGiaKhachHang {
 
     @Column(name = "nguoi_sua")
     private String nguoiSua;
+
+
 
     public String getId() {
         return id;
