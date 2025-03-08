@@ -1,52 +1,58 @@
-import React from "react";
-import { Form, Input, Button, Card, DatePicker } from "antd";
-import { UserOutlined, LockOutlined, MailOutlined, HomeOutlined } from "@ant-design/icons";
-import { Link } from "react-router-dom";
-import dayjs from "dayjs";
+import React from 'react';
+import { Form, Input, Button, Card, DatePicker } from 'antd';
+import { UserOutlined, LockOutlined, MailOutlined, HomeOutlined } from '@ant-design/icons';
+import { Link } from 'react-router-dom';
+import dayjs from 'dayjs';
 
 const Register = () => {
   const onFinish = (values) => {
-    values.dob = values.dob ? dayjs(values.dob).format("YYYY-MM-DD") : "";
-    console.log("Register:", values);
+    values.dob = values.dob ? dayjs(values.dob).format('YYYY-MM-DD') : '';
+    console.log('Register:', values);
   };
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-      <Card style={{ width: 500 ,backgroundColor:"#001529"}}>
-        <h2 style={{ textAlign: "center" ,color:"white"}}>Đăng ký tài khoản</h2>
-             <Link to="/" style={{display:"flex",justifyContent:"center",marginBottom:"40px"}}>
-                    <img src="/logo/Asset 6@4x.png" alt="Logo" style={{ maxHeight: "180px", maxWidth: "180px"}} />
-                  </Link>
+    <div
+      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}
+    >
+      <Card style={{ width: 500, backgroundColor: '#001529' }}>
+        <h2 style={{ textAlign: 'center', color: 'white' }}>Đăng ký tài khoản</h2>
+        <Link to="/" style={{ display: 'flex', justifyContent: 'center', marginBottom: '40px' }}>
+          <img
+            src="/logo/Asset 6@4x.png"
+            alt="Logo"
+            style={{ maxHeight: '180px', maxWidth: '180px' }}
+          />
+        </Link>
         <Form name="register" onFinish={onFinish} layout="vertical">
-          
-          {/* Tên khách hàng */}
-          <Form.Item name="fullName" rules={[{ required: true, message: "Vui lòng nhập tên khách hàng!" }]}>
-            <Input prefix={<UserOutlined />} placeholder="Tên khách hàng" />
-          </Form.Item>
-
-          {/* Địa chỉ */}
-          <Form.Item name="address" rules={[{ required: true, message: "Vui lòng nhập địa chỉ!" }]}>
-            <Input prefix={<HomeOutlined />} placeholder="Địa chỉ" />
-          </Form.Item>
-
           {/* Tài khoản (Email) */}
-          <Form.Item name="email" rules={[
-            { required: true, message: "Vui lòng nhập email!" },
-            { type: "email", message: "Email không hợp lệ!" }
-          ]}>
+          <Form.Item
+            name="email"
+            rules={[
+              { required: true, message: 'Vui lòng nhập email!' },
+              { type: 'email', message: 'Email không hợp lệ!' },
+            ]}
+          >
             <Input prefix={<MailOutlined />} placeholder="Email" />
           </Form.Item>
 
-          {/* Ngày sinh */}
-          <Form.Item name="dob" rules={[{ required: true, message: "Vui lòng chọn ngày sinh!" }]}>
-            <DatePicker style={{ width: "100%" }} placeholder="Chọn ngày sinh" />
-          </Form.Item>
-
           {/* Mật khẩu */}
-          <Form.Item name="password" rules={[{ required: true, message: "Vui lòng nhập mật khẩu!" }]}>
+          <Form.Item
+            name="password"
+            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
+          >
             <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
           </Form.Item>
-
+          {/* Tên khách hàng */}
+          <Form.Item
+            name="fullName"
+            rules={[{ required: true, message: 'Vui lòng nhập tên khách hàng!' }]}
+          >
+            <Input prefix={<UserOutlined />} placeholder="Tên khách hàng" />
+          </Form.Item>
+          {/* Ngày sinh */}
+          <Form.Item name="dob" rules={[{ required: true, message: 'Vui lòng chọn ngày sinh!' }]}>
+            <DatePicker style={{ width: '100%' }} placeholder="Chọn ngày sinh" />
+          </Form.Item>
           {/* Nút đăng ký */}
           <Form.Item>
             <Button type="primary" htmlType="submit" block>
@@ -55,8 +61,10 @@ const Register = () => {
           </Form.Item>
 
           {/* Chuyển hướng đến đăng nhập */}
-          <div style={{ textAlign: "center" }}>
-            <Link to="/login" style={{color:"white"}}>Đã có tài khoản? Đăng nhập</Link>
+          <div style={{ textAlign: 'center' }}>
+            <Link to="/login" style={{ color: 'white' }}>
+              Đã có tài khoản? Đăng nhập
+            </Link>
           </div>
         </Form>
       </Card>

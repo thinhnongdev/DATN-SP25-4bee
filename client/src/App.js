@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, theme } from 'antd';
+import { Button, Layout, Menu, Modal, theme } from 'antd';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
-import {
-  FileOutlined,
-  PieChartOutlined,
-  UserOutlined,
-  CreditCardOutlined,
-} from '@ant-design/icons';
 import 'antd/dist/reset.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
+import {
+  UserOutlined,      // Nhân viên
+  TeamOutlined,      // Khách hàng
+  LogoutOutlined,    // Đăng xuất
+  ShopOutlined,      // Sản phẩm
+  BarChartOutlined,  // Thống kê
+  ShoppingCartOutlined, // Bán hàng
+  FileTextOutlined,  // Hóa đơn
+  TagsOutlined       // Phiếu giảm giá
+} from "@ant-design/icons";
 import HoaDonRoutes from './routes/HoaDon';
 import PhieuGiamGiaRoutes from './routes/PhieuGiamGia';
 import SanPhamRoutes from './routes/SanPham';
@@ -19,6 +22,7 @@ import NhanVienRoute from './routes/NhanVien';
 import KhachHangRoute from './routes/KhachHang';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
+import axios from 'axios';
 const { Header, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
@@ -28,12 +32,12 @@ const breadcrumbMap = {
 };
 
 const menuItems = [
-  { key: '1', icon: <PieChartOutlined />, label: 'Thống kê', path: '/' },
-  { key: '2', icon: <UserOutlined />, label: 'Bán hàng', path: '/ban-hang' },
-  { key: '3', icon: <FileOutlined />, label: 'Hóa đơn', path: '/hoa-don' },
-  { key: '15', icon: <CreditCardOutlined />, label: 'Phiếu Giảm Giá', path: '/phieu-giam-gia' },
-  { key: '16', icon: <CreditCardOutlined />, label: 'Nhân Viên', path: '/nhanVien' },
-  { key: '17', icon: <CreditCardOutlined />, label: 'Khách Hàng', path: '/khachHang' },
+  { key: '1', icon: <BarChartOutlined />, label: 'Thống kê', path: '/' },
+  { key: '2', icon: <ShoppingCartOutlined />, label: 'Bán hàng', path: '/ban-hang' },
+  { key: '3', icon: <FileTextOutlined />, label: 'Hóa đơn', path: '/hoa-don' },
+  { key: '15', icon: <TagsOutlined />, label: 'Phiếu Giảm Giá', path: '/phieu-giam-gia' },
+  { key: '16', icon: <UserOutlined />, label: 'Nhân Viên', path: '/nhanVien' },
+  { key: '17', icon: <TeamOutlined />, label: 'Khách Hàng', path: '/khachHang' },
 ];
 
 const productSubMenu = [
@@ -63,6 +67,66 @@ const App = () => {
     document.title = breadcrumbMap[location.pathname] || 'Quản lý cửa hàng';
   }, [location.pathname]);
 
+  const fetchUserInfo = async (token) => {
+    try {
+      const response = await axios.post(
+        'http://localhost:8080/api/auth/getInfoUser',
+        JSON.stringify({ token: token }), // Đảm bảo gửi đúng JSON string
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || 'Failed to fetch user info');
+    }
+  };
+
+  const [userInfo, setUserInfo] = useState(null);
+  const [error, setError] = useState(null);
+  const token = localStorage.getItem('token');
+  console.log(token);
+
+  useEffect(() => {
+    if (token) {
+      fetchUserInfo(token)
+        .then((data) => setUserInfo(data))
+        .catch((err) => setError(err.message));
+    }
+  }, [token]);
+
+  const handleLogout = () => {
+    Modal.confirm({
+      title: "Xác nhận đăng xuất",
+      content: "Bạn có chắc chắn muốn đăng xuất?",
+      okText: "Đăng xuất",
+      cancelText: "Hủy",
+      onOk: async () => {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+  
+        try {
+          await axios.post(
+            "http://localhost:8080/api/auth/logout",
+            JSON.stringify({ token: token }), // Đảm bảo gửi đúng JSON string
+            {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            },
+          );
+        } catch (error) {
+          console.error("Logout failed:", error.response?.data || error.message);
+        } finally {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+        }
+      },
+    });
+  };
+
   return isAuthPage ? (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -72,32 +136,96 @@ const App = () => {
     <Layout style={{ minHeight: '100vh' }}>
       {/* Sidebar */}
       <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
-        <div style={{ height: 64, margin: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            height: 64,
+            margin: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <Link to="/">
-            <img src="/logo/Asset 6@4x.png" alt="Logo" style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
+            <img
+              src="/logo/Asset 6@4x.png"
+              alt="Logo"
+              style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+            />
           </Link>
         </div>
 
-        <Menu theme="dark" selectedKeys={[location.pathname]} mode="inline">
+        <Menu
+          theme="dark"
+          selectedKeys={[location.pathname]}
+          mode="inline"
+          style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+        >
+          {/* Danh sách Menu */}
           {menuItems.map((item) => (
             <Menu.Item key={item.key} icon={item.icon}>
-            <Link to={item.path} style={{ textDecoration: "none" }}>{item.label}</Link>
-          </Menu.Item>          
+              <Link to={item.path} style={{ textDecoration: 'none' }}>
+                {item.label}
+              </Link>
+            </Menu.Item>
           ))}
 
-          <Menu.SubMenu key="sub1" icon={<UserOutlined />} title="Quản lý sản phẩm">
+          {/* Quản lý sản phẩm */}
+          <Menu.SubMenu key="sub1" icon={<ShopOutlined />} title="Quản lý sản phẩm">
             {productSubMenu.map((item) => (
               <Menu.Item key={item.key}>
-                <Link to={item.path} style={{ textDecoration: "none" }}>{item.label}</Link>
+                <Link to={item.path} style={{ textDecoration: 'none' }}>
+                  {item.label}
+                </Link>
               </Menu.Item>
             ))}
           </Menu.SubMenu>
+
+          {/* Nút đăng xuất - Đẩy xuống trước nút thu Sidebar */}
+          <Menu.Item
+            key="logout"
+            icon={<LogoutOutlined />}
+            style={{ marginTop: 'auto' }} // Đẩy xuống phía dưới
+            onClick={handleLogout}
+          >
+            Đăng xuất
+          </Menu.Item>
         </Menu>
       </Sider>
 
       {/* Main Layout */}
       <Layout>
-        <Header style={{ padding: 0, background: colorBgContainer }} />
+        <Header
+          style={{
+            padding: 0,
+            background: colorBgContainer,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 16, // Đặt ảnh ở góc phải
+            }}
+          >
+            <span style={{ color: 'black' }}>
+              {'Xin chào, ' + userInfo?.ten + ' ' || 'Not info '}
+            </span>
+            {/* Nội dung khác trong Header */}
+            <img
+              src={userInfo?.anhUrl || 'https://www.w3schools.com/howto/img_avatar.png'}
+              alt="circle"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                marginRight: '16px',
+              }}
+            />
+          </div>
+        </Header>
         <Content style={{ margin: '16px', padding: 24, minHeight: 360 }}>
           <Routes>
             {HoaDonRoutes()}

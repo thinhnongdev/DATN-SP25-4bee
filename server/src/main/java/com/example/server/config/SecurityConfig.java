@@ -1,5 +1,6 @@
 package com.example.server.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,10 +27,10 @@ import java.util.Arrays;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-    private final String[] PUBLIC_ENDPOINTS = {"/api/auth/login", "/api/auth/introspect"};
+    private final String[] PUBLIC_ENDPOINTS = {"/api/auth/login", "/api/auth/introspect", "/api/auth/logout", "/api/auth/refreshToken", "/api/auth/getInfoUser"};
 
-    @Value("${jwt.signerKey}")
-    private String signerKey;
+    @Autowired
+    CustomJwtDecoder customJwtDecoder;
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -51,19 +52,6 @@ public class SecurityConfig {
         return source;
     }
 
-//    @Bean
-//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-//        http
-//                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-//                .csrf(csrf -> csrf.disable())
-//                .authorizeHttpRequests(auth -> auth
-//                        .requestMatchers("/api/**").permitAll()
-//                        .anyRequest().permitAll()
-//                );
-//
-//        return http.build();
-//    }
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(request ->
@@ -74,9 +62,10 @@ public class SecurityConfig {
 
         httpSecurity.csrf(AbstractHttpConfigurer::disable);// Vô hiệu hóa CSRF
         httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));// Thêm CORS vào Security
-        httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer ->
-                        jwtConfigurer.decoder(jwtDecoder())
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
+        httpSecurity.oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwtConfigurer -> jwtConfigurer
+                        .decoder(customJwtDecoder)
+                        .jwtAuthenticationConverter(jwtAuthenticationConverter())
                 )
         );
         return httpSecurity.build();
@@ -91,15 +80,5 @@ public class SecurityConfig {
         return jwtAuthenticationConverter;
     }
 
-    @Bean
-    JwtDecoder jwtDecoder() {
-        SecretKeySpec secretKeySpec = new SecretKeySpec(signerKey.getBytes(), "HS512");
-        return NimbusJwtDecoder
-                .withSecretKey(secretKeySpec)
-                .macAlgorithm(MacAlgorithm.HS512)
-                .build();
-    }
-
-    ;
 }
 

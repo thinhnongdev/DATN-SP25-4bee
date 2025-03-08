@@ -2,10 +2,19 @@ package com.example.server.service;
 
 import com.example.server.dto.Auth.request.AuthenticationRequest;
 import com.example.server.dto.Auth.request.IntrospectRequest;
+import com.example.server.dto.Auth.request.LogoutRequest;
+import com.example.server.dto.Auth.request.RefreshTokenRequest;
 import com.example.server.dto.Auth.response.AuthenticationResponse;
 import com.example.server.dto.Auth.response.IntrospectResponse;
+import com.example.server.dto.Auth.response.UserResponse;
+import com.example.server.entity.InvalidateToken;
+import com.example.server.entity.KhachHang;
+import com.example.server.entity.NhanVien;
 import com.example.server.entity.TaiKhoan;
+import com.example.server.repository.Auth.InvalidateTokenRepository;
 import com.example.server.repository.Auth.TaiKhoanRepository;
+import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
+import com.example.server.repository.NhanVien_KhachHang.NhanVienRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
@@ -25,26 +34,37 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Objects;
+import java.util.UUID;
 
 @Service
 @Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AuthenticationService {
+    @Autowired
+    private KhachHangRepository khachHangRepository;
+    @Autowired
+    private NhanVienRepository nhanVienRepository;
 
     @Autowired
     TaiKhoanRepository taiKhoanRepository;
+    @Autowired
+    InvalidateTokenRepository invalidateTokenRepository;
     @NonFinal
     @Value("${jwt.signerKey}")
     protected String SIGNER_KEY;
 
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
         var token = request.getToken();
-        JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
-        SignedJWT signedJWT = SignedJWT.parse(token);
-        Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
-        var verified = signedJWT.verify(verifier);
+        boolean isValid=true;
+        try {
+            verifyToken(token);
+        }catch (RuntimeException e){
+            isValid=false;
+        }
+
         return IntrospectResponse.builder()
-                .valid(expiryTime.after(new Date()) && verified)
+                .valid(isValid)
                 .build();
     }
 
@@ -64,6 +84,54 @@ public class AuthenticationService {
                 .build();
     }
 
+    public void logout(LogoutRequest request) throws ParseException, JOSEException {
+        var signToken=verifyToken(request.getToken());
+        String jit=signToken.getJWTClaimsSet().getJWTID();
+        Date expiryTime=signToken.getJWTClaimsSet().getExpirationTime();
+        InvalidateToken invalidateToken= InvalidateToken
+                .builder()
+                .id(jit)
+                .expiryTime(expiryTime)
+                .build();
+
+        invalidateTokenRepository.save(invalidateToken);
+    };
+
+    public AuthenticationResponse refreshToken(RefreshTokenRequest refreshTokenRequest)
+            throws ParseException, JOSEException {
+        var signJWT=verifyToken(refreshTokenRequest.getToken());
+        var jit=signJWT.getJWTClaimsSet().getJWTID();
+        var expiryTime=signJWT.getJWTClaimsSet().getExpirationTime();
+        InvalidateToken invalidateToken= InvalidateToken
+                .builder()
+                .id(jit)
+                .expiryTime(expiryTime)
+                .build();
+
+        invalidateTokenRepository.save(invalidateToken);
+        var username=signJWT.getJWTClaimsSet().getSubject();
+        var taiKhoan= taiKhoanRepository.findByUsername(username).orElseThrow(()->new RuntimeException("username không tồn tại"));
+
+        var newtoken=generateToken(taiKhoan);
+        return AuthenticationResponse.builder()
+                .token(newtoken)
+                .authenticated(true)
+                .build();
+    }
+    private SignedJWT verifyToken(String token) throws JOSEException, ParseException {
+        JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
+        SignedJWT signedJWT = SignedJWT.parse(token);
+        Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+        var verified = signedJWT.verify(verifier);
+        if (!(expiryTime.after(new Date()) && verified)) {
+            throw new RuntimeException("token khong hop le");
+        }
+        if(invalidateTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID())){
+            throw new RuntimeException("token da logout");
+        }
+        return signedJWT;
+    }
+
     private String generateToken(TaiKhoan taiKhoan) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
@@ -73,8 +141,10 @@ public class AuthenticationService {
                 .expirationTime(new Date(//thời gian hết hạn token
                         Instant.now().plus(1, ChronoUnit.HOURS).toEpochMilli()
                 ))
+                .jwtID(UUID.randomUUID().toString())//tạo id cho token
                 .claim("scope", taiKhoan.getVaiTro().getTenVaiTro())//claim bổ sung nếu cần
                 .build();
+
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
 
         JWSObject jwsObject = new JWSObject(header, payload);
@@ -86,5 +156,26 @@ public class AuthenticationService {
             throw new RuntimeException();
         }
 
+    }
+    public UserResponse findUserByToken(IntrospectRequest introspectRequest) throws ParseException, JOSEException {
+        UserResponse userResponse=new UserResponse();
+        var signJWT=verifyToken(introspectRequest.getToken());
+        var username=signJWT.getJWTClaimsSet().getSubject();
+        var roleUser=signJWT.getJWTClaimsSet().getStringClaim("scope");
+        if(roleUser.equals("ADMIN")||roleUser.equals("NHAN_VIEN")){
+            NhanVien nhanVien=nhanVienRepository.findByEmail(username).get();
+            userResponse.setMa(nhanVien.getMaNhanVien());
+            userResponse.setTen(nhanVien.getTenNhanVien());
+            userResponse.setEmail(nhanVien.getEmail());
+            userResponse.setAnhUrl(nhanVien.getAnh());
+        }
+        if(roleUser.equals("KHACH_HANG")){
+            KhachHang khachHang=khachHangRepository.findByEmail(username).get();
+            userResponse.setMa(khachHang.getMaKhachHang());
+            userResponse.setTen(khachHang.getTenKhachHang());
+            userResponse.setEmail(khachHang.getEmail());
+
+        }
+        return userResponse;
     }
 }
