@@ -37,3 +37,100 @@
     transform: rotate(360deg);
   }
 }
+
+
+:root {
+  --primary-color: #000000;
+  --secondary-color: #1F2937;
+  --accent-color: #374151;
+  --text-color: #1F2937;
+  --background-color: #FFFFFF;
+}
+
+.layout {
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Banner Styles */
+.banner {
+  height: 600px;
+  background-position: center;
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+}
+
+/* Product Card Styles */
+.product-card {
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+}
+
+/* Form Styles */
+.login-form,
+.contact-form {
+  max-width: 400px;
+  margin: 2rem auto;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Cart Styles */
+.cart-table {
+  background: white;
+  padding: 1rem;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .banner {
+    height: 400px;
+  }
+
+  .container {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Navigation Styles */
+.ant-layout-header {
+  background: var(--background-color);
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Footer Styles */
+.ant-layout-footer {
+  background: var(--secondary-color);
+  color: white;
+}
+
+/* Button Styles */
+/* .ant-btn-primary {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+} */
+
+/* .ant-btn-primary:hover {
+  background: var(--secondary-color);
+  border-color: var(--secondary-color);
+} */

@@ -6,15 +6,16 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
-  UserOutlined,      // Nhân viên
-  TeamOutlined,      // Khách hàng
-  LogoutOutlined,    // Đăng xuất
-  ShopOutlined,      // Sản phẩm
-  BarChartOutlined,  // Thống kê
+  UserOutlined, // Nhân viên
+  TeamOutlined, // Khách hàng
+  LogoutOutlined, // Đăng xuất
+  ShopOutlined, // Sản phẩm
+  BarChartOutlined, // Thống kê
   ShoppingCartOutlined, // Bán hàng
-  FileTextOutlined,  // Hóa đơn
-  TagsOutlined       // Phiếu giảm giá
-} from "@ant-design/icons";
+  FileTextOutlined, // Hóa đơn
+  TagsOutlined, // Phiếu giảm giá
+} from '@ant-design/icons';
+import './App.css';
 import HoaDonRoutes from './routes/HoaDon';
 import PhieuGiamGiaRoutes from './routes/PhieuGiamGia';
 import SanPhamRoutes from './routes/SanPham';
@@ -22,6 +23,16 @@ import NhanVienRoute from './routes/NhanVien';
 import KhachHangRoute from './routes/KhachHang';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
+import NavClient from './components/Client/components/Navbar';
+import FooterClient from './components/Client/components/Footer';
+import ProductCard from './components/Client/components/ProductCard';
+import CartClient from './components/Client/pages/Cart';
+import ContactClient from './components/Client/pages/Contact';
+import HomeClient from './components/Client/pages/Home';
+// import CartClient from './components/Client/pages/Cart';
+import ProductDetailClient from './components/Client/pages/ProductDetail';
+import ProductsClient from './components/Client/pages/Products';
+
 import axios from 'axios';
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -99,17 +110,17 @@ const App = () => {
 
   const handleLogout = () => {
     Modal.confirm({
-      title: "Xác nhận đăng xuất",
-      content: "Bạn có chắc chắn muốn đăng xuất?",
-      okText: "Đăng xuất",
-      cancelText: "Hủy",
+      title: 'Xác nhận đăng xuất',
+      content: 'Bạn có chắc chắn muốn đăng xuất?',
+      okText: 'Đăng xuất',
+      cancelText: 'Hủy',
       onOk: async () => {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem('token');
         if (!token) return;
-  
+
         try {
           await axios.post(
-            "http://localhost:8080/api/auth/logout",
+            'http://localhost:8080/api/auth/logout',
             JSON.stringify({ token: token }), // Đảm bảo gửi đúng JSON string
             {
               headers: {
@@ -118,128 +129,128 @@ const App = () => {
             },
           );
         } catch (error) {
-          console.error("Logout failed:", error.response?.data || error.message);
+          console.error('Logout failed:', error.response?.data || error.message);
         } finally {
-          localStorage.removeItem("token");
-          window.location.href = "/login";
+          localStorage.removeItem('token');
+          window.location.href = '/login';
         }
       },
     });
   };
 
-  return isAuthPage ? (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-    </Routes>
-  ) : (
-    <Layout style={{ minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
-        <div
-          style={{
-            height: 64,
-            margin: 16,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Link to="/">
-            <img
-              src="/logo/Asset 6@4x.png"
-              alt="Logo"
-              style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
-            />
-          </Link>
-        </div>
-
-        <Menu
-          theme="dark"
-          selectedKeys={[location.pathname]}
-          mode="inline"
-          style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-        >
-          {/* Danh sách Menu */}
-          {menuItems.map((item) => (
-            <Menu.Item key={item.key} icon={item.icon}>
-              <Link to={item.path} style={{ textDecoration: 'none' }}>
-                {item.label}
-              </Link>
-            </Menu.Item>
-          ))}
-
-          {/* Quản lý sản phẩm */}
-          <Menu.SubMenu key="sub1" icon={<ShopOutlined />} title="Quản lý sản phẩm">
-            {productSubMenu.map((item) => (
-              <Menu.Item key={item.key}>
-                <Link to={item.path} style={{ textDecoration: 'none' }}>
-                  {item.label}
-                </Link>
-              </Menu.Item>
-            ))}
-          </Menu.SubMenu>
-
-          {/* Nút đăng xuất - Đẩy xuống trước nút thu Sidebar */}
-          <Menu.Item
-            key="logout"
-            icon={<LogoutOutlined />}
-            style={{ marginTop: 'auto' }} // Đẩy xuống phía dưới
-            onClick={handleLogout}
-          >
-            Đăng xuất
-          </Menu.Item>
-        </Menu>
-      </Sider>
-
-      {/* Main Layout */}
-      <Layout>
-        <Header
-          style={{
-            padding: 0,
-            background: colorBgContainer,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 16, // Đặt ảnh ở góc phải
-            }}
-          >
-            <span style={{ color: 'black' }}>
-              {'Xin chào, ' + userInfo?.ten + ' ' || 'Not info '}
-            </span>
-            {/* Nội dung khác trong Header */}
-            <img
-              src={userInfo?.anhUrl || 'https://www.w3schools.com/howto/img_avatar.png'}
-              alt="circle"
+  return (
+    <>
+      {location.pathname === "/login" || location.pathname === "/register" ? (
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Routes>
+      ) : token!=null? (
+        <Layout style={{ minHeight: "100vh" }}>
+          {/* Sidebar */}
+          <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
+            <div
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                marginRight: '16px',
+                height: 64,
+                margin: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
-            />
-          </div>
-        </Header>
-        <Content style={{ margin: '16px', padding: 24, minHeight: 360 }}>
-          <Routes>
-            {HoaDonRoutes()}
-            {PhieuGiamGiaRoutes()}
-            {SanPhamRoutes()}
-            {NhanVienRoute()}
-            {KhachHangRoute()}
-          </Routes>
-          <ToastContainer position="top-right" autoClose={3000} />
-        </Content>
-        <Footer style={{ textAlign: 'center' }}>Ant Design ©{new Date().getFullYear()}</Footer>
-      </Layout>
-    </Layout>
+            >
+              <Link to="/">
+                <img
+                  src="/logo/Asset 6@4x.png"
+                  alt="Logo"
+                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                />
+              </Link>
+            </div>
+  
+            <Menu
+              theme="dark"
+              selectedKeys={[location.pathname]}
+              mode="inline"
+              style={{ flex: 1, display: "flex", flexDirection: "column" }}
+            >
+              {menuItems.map((item) => (
+                <Menu.Item key={item.key} icon={item.icon}>
+                  <Link to={item.path} style={{ textDecoration: "none" }}>
+                    {item.label}
+                  </Link>
+                </Menu.Item>
+              ))}
+  
+              {/* Quản lý sản phẩm */}
+              <Menu.SubMenu key="sub1" icon={<ShopOutlined />} title="Quản lý sản phẩm">
+                {productSubMenu.map((item) => (
+                  <Menu.Item key={item.key}>
+                    <Link to={item.path} style={{ textDecoration: "none" }}>
+                      {item.label}
+                    </Link>
+                  </Menu.Item>
+                ))}
+              </Menu.SubMenu>
+  
+              {/* Nút đăng xuất */}
+              <Menu.Item key="logout" icon={<LogoutOutlined />} style={{ marginTop: "auto" }} onClick={handleLogout}>
+                Đăng xuất
+              </Menu.Item>
+            </Menu>
+          </Sider>
+  
+          {/* Main Layout */}
+          <Layout>
+            <Header
+              style={{
+                padding: 0,
+                background: colorBgContainer,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ position: "absolute", top: 0, right: 16 }}>
+                <span style={{ color: "black" }}>
+                  {"Xin chào, " + userInfo?.ten + " " || "Not info "}
+                </span>
+                <img
+                  src={userInfo?.anhUrl || "https://www.w3schools.com/howto/img_avatar.png"}
+                  alt="circle"
+                  style={{ width: 40, height: 40, borderRadius: "50%", marginRight: "16px" }}
+                />
+              </div>
+            </Header>
+            <Content style={{ margin: "16px", padding: 24, minHeight: 360 }}>
+              <Routes>
+                {HoaDonRoutes()}
+                {PhieuGiamGiaRoutes()}
+                {SanPhamRoutes()}
+                {NhanVienRoute()}
+                {KhachHangRoute()}
+              </Routes>
+              <ToastContainer position="top-right" autoClose={3000} />
+            </Content>
+          </Layout>
+        </Layout>
+      ) : token===null ? (
+        <Layout className="layout">
+          <NavClient />
+          <Content>
+            <Routes>
+              <Route path="/" element={<HomeClient />} />
+              <Route path="/products" element={<ProductsClient />} />
+              <Route path="/product/:id" element={<ProductDetailClient />} />
+              <Route path="/cart" element={<CartClient />} />
+              <Route path="/contact" element={<ContactClient />} />
+            </Routes>
+          </Content>
+          <FooterClient />
+        </Layout>
+      ) : null}
+    </>
   );
+  
 };
 
 export default App;
