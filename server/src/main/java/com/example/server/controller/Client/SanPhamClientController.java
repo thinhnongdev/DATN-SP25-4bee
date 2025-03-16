@@ -2,14 +2,17 @@ package com.example.server.controller.Client;
 
 import com.example.server.dto.Client.response.SanPhamClientResponse;
 import com.example.server.dto.SanPham.response.SanPhamResponse;
+import com.example.server.entity.AnhSanPham;
+import com.example.server.entity.SanPhamChiTiet;
 import com.example.server.service.Client.SanPhamClientService;
+import com.example.server.service.SanPham.AnhSanPhamService;
+import com.example.server.service.SanPham.SanPhamChiTietService;
 import com.example.server.service.SanPham.SanPhamService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -19,12 +22,40 @@ import java.util.List;
 public class SanPhamClientController {
     @Autowired
     SanPhamClientService sanPhamClientService;
+    @Autowired
+    SanPhamChiTietService sanPhamChiTietService;
+    @Autowired
+    AnhSanPhamService anhSanPhamService;
+
     @GetMapping("/sanpham")
     public List<SanPhamClientResponse> getAllSanPham() {
-        for (SanPhamClientResponse sanPhamClientResponse: sanPhamClientService.getAll()){
+        for (SanPhamClientResponse sanPhamClientResponse : sanPhamClientService.getAll()) {
             System.out.println(sanPhamClientResponse.getTen());
         }
-
         return sanPhamClientService.getAll();
+    }
+
+    @GetMapping("/sanpham/chitietsanpham/{id}")
+    public List<SanPhamChiTiet> getSanPhamChiTietById(@PathVariable String id) {
+        return sanPhamChiTietService.findbyIdSanPham(id);
+    }
+
+    @GetMapping("/sanphamchitiet/{id}/hinhanh")
+    public ResponseEntity<List<AnhSanPham>> getHinhAnhBySanPhamChiTietId(@PathVariable String id) {
+        List<AnhSanPham> hinhAnhs = anhSanPhamService.findByIdSPCT(id);
+        return ResponseEntity.ok(hinhAnhs);
+    }
+
+    @GetMapping("/chitietsanpham/{id}")
+    public ResponseEntity<?> getSanPhamChiTietByIdSPCT(@PathVariable String id) {
+        try {
+            SanPhamChiTiet sanPham = sanPhamChiTietService.findbyIdSPCT(id);
+            if (sanPham == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy sản phẩm với ID: " + id);
+            }
+            return ResponseEntity.ok(sanPham);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi hệ thống: " + e.getMessage());
+        }
     }
 }

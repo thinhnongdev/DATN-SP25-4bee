@@ -53,6 +53,13 @@ public class SanPhamChiTietServiceImpl implements SanPhamChiTietService {
     }
 
     @Override
+    public SanPhamChiTiet findbyIdSPCT(String idSPCT) {
+        return sanPhamChiTietRepository.findById(idSPCT)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + idSPCT));
+    }
+
+
+    @Override
     public List<SanPhamChiTiet> getAllSanPhamChiTiet() {
         return sanPhamChiTietRepository.getAllSanPhamChiTiet();
     }

@@ -57,7 +57,8 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
     @Autowired
     private ModelMapper modelMapper;
-
+    @Autowired
+    private PhieuGiamGiaRepository phieuGiamGiaRepository;
 
     public PhieuGiamGiaDTO convertToDTO(PhieuGiamGia entity) {
         return modelMapper.map(entity, PhieuGiamGiaDTO.class);
@@ -158,7 +159,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         LocalDateTime ngayBatDauRaw = request.getNgayBatDau();
         LocalDateTime ngayKetThucRaw = request.getNgayKetThuc();
 
-// Chuyển đổi sang ZonedDateTime theo múi giờ Asia/Ho_Chi_Minh
+        // Chuyển đổi sang ZonedDateTime theo múi giờ Asia/Ho_Chi_Minh
         ZonedDateTime ngayBatDau = ngayBatDauRaw.atZone(ZoneId.of("UTC")).withZoneSameInstant(zoneId);
         ZonedDateTime ngayKetThuc = ngayKetThucRaw.atZone(ZoneId.of("UTC")).withZoneSameInstant(zoneId);
         ZonedDateTime nowZoned = now.atZone(zoneId);
@@ -167,9 +168,9 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         if (request.getNgayBatDau().isAfter(request.getNgayKetThuc())) {
             throw new IllegalArgumentException("Thời gian bắt đầu không thể sau thời gian kết thúc.");
         }
-//        if (request.getNgayBatDau().isBefore(now)) {
-//            throw new IllegalArgumentException("Ngày bắt đầu không được là ngày trong quá khứ.");
-//        }
+        // if (request.getNgayBatDau().isBefore(now)) {
+        //   throw new IllegalArgumentException("Ngày bắt đầu không được là ngày trong quá khứ.");
+        //}
 
         // Kiểm tra giá trị giảm
         if (request.getGiaTriGiam().compareTo(BigDecimal.ZERO) <= 0) {
@@ -258,7 +259,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
                 // Gửi email bất đồng bộ
                 sendEmailAsync(khachHang, phieuGiamGia);
             }
-        }else {
+        } else {
             phieuGiamGia.setSoLuong(request.getSoLuong()); // Nếu không phải phiếu cá nhân, giữ số lượng mặc định
             phieuGiamGia = repository.save(phieuGiamGia);
         }
@@ -281,35 +282,35 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             String ngayKetThucFormatted = phieuGiamGia.getNgayKetThuc().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).format(formatter);
 
             String htmlContent = """
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #007bff; color: #fff; padding: 20px; text-align: center;">
-                <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
-                <p style="font-size: 18px;">Chúng tôi vui mừng thông báo rằng bạn vừa nhận được phiếu giảm giá!</p>
-            </div>
-            <div style="background-color: #f8f9fa; padding: 20px;">
-                <p style="font-size: 16px;">Dưới đây là chi tiết phiếu giảm giá của bạn:</p>
-                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu giảm giá</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu giảm giá</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
-                    </tr>
-                </table>
-                <p style="font-size: 16px;">Hãy sử dụng phiếu giảm giá này trước ngày <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi đặc biệt này.</p>
-                <p style="font-size: 16px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
-            </div>
-            <div style="background-color: #f1f1f1; padding: 10px; text-align: center;">
-                <p style="font-size: 14px; color: #6c757d;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
-            </div>
-        </div>
-        """;
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+                        <div style="background-color: #007bff; color: #fff; padding: 20px; text-align: center;">
+                            <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
+                            <p style="font-size: 18px;">Chúng tôi vui mừng thông báo rằng bạn vừa nhận được phiếu giảm giá!</p>
+                        </div>
+                        <div style="background-color: #f8f9fa; padding: 20px;">
+                            <p style="font-size: 16px;">Dưới đây là chi tiết phiếu giảm giá của bạn:</p>
+                            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                                <tr>
+                                    <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu giảm giá</th>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
+                                </tr>
+                                <tr>
+                                    <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu giảm giá</th>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
+                                </tr>
+                                <tr>
+                                    <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
+                                </tr>
+                            </table>
+                            <p style="font-size: 16px;">Hãy sử dụng phiếu giảm giá này trước ngày <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi đặc biệt này.</p>
+                            <p style="font-size: 16px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
+                        </div>
+                        <div style="background-color: #f1f1f1; padding: 10px; text-align: center;">
+                            <p style="font-size: 14px; color: #6c757d;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+                        </div>
+                    </div>
+                    """;
 
             htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
                     .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia())
@@ -334,12 +335,16 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         return phieuGiamGiaKhachHangRepository.findKhachHangByMaPhieuGiamGia(maPhieuGiamGia);
     }
 
+    @Override
+    public List<PhieuGiamGia> getAllPhieuCongKhai() {
+        return phieuGiamGiaRepository.findAllCongKhai();
+    }
+
     // Hủy phiếu giảm giá cho một khách hàng
     public void cancelPhieuGiamGiaForCustomer(String maPhieuGiamGia, String maKhachHang) {
         // Xoá khách hàng khỏi phiếu giảm giá bằng mã phiếu giảm giá và mã khách hàng
         phieuGiamGiaKhachHangRepository.deleteByMaPhieuGiamGiaAndKhachHangId(maPhieuGiamGia, maKhachHang);
     }
-
 
 
     @Transactional
@@ -460,7 +465,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     }
 
 
-
     @Async("emailTaskExecutor")
     public void sendEmailToCustomer(KhachHang khachHang, PhieuGiamGia phieuGiamGia) {
         try {
@@ -471,35 +475,35 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             helper.setSubject("Bạn nhận được một phiếu giảm giá mới!");
 
             String htmlContent = """
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background-color: #007bff; color: #fff; padding: 30px; text-align: center;">
-                <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
-                <p style="font-size: 18px;">Chúng tôi vui mừng thông báo rằng bạn vừa nhận được một phiếu giảm giá đặc biệt!</p>
-            </div>
-            <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <p style="font-size: 16px; margin-bottom: 20px;">Dưới đây là chi tiết phiếu giảm giá của bạn:</p>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu giảm giá</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu giảm giá</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
-                    </tr>
-                </table>
-                <p style="font-size: 16px; margin-top: 20px;">Hãy sử dụng phiếu giảm giá này trước ngày <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi đặc biệt này.</p>
-                <p style="font-size: 16px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
-            </div>
-            <div style="text-align: center; margin-top: 30px; font-size: 14px; color: #6c757d;">
-                <p>Trân trọng,<br>Đội ngũ hỗ trợ</p>
-            </div>
-        </div>
-        """;
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <div style="background-color: #007bff; color: #fff; padding: 30px; text-align: center;">
+                            <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
+                            <p style="font-size: 18px;">Chúng tôi vui mừng thông báo rằng bạn vừa nhận được một phiếu giảm giá đặc biệt!</p>
+                        </div>
+                        <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                            <p style="font-size: 16px; margin-bottom: 20px;">Dưới đây là chi tiết phiếu giảm giá của bạn:</p>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu giảm giá</th>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
+                                </tr>
+                                <tr>
+                                    <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu giảm giá</th>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
+                                </tr>
+                                <tr>
+                                    <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
+                                    <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
+                                </tr>
+                            </table>
+                            <p style="font-size: 16px; margin-top: 20px;">Hãy sử dụng phiếu giảm giá này trước ngày <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi đặc biệt này.</p>
+                            <p style="font-size: 16px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
+                        </div>
+                        <div style="text-align: center; margin-top: 30px; font-size: 14px; color: #6c757d;">
+                            <p>Trân trọng,<br>Đội ngũ hỗ trợ</p>
+                        </div>
+                    </div>
+                    """;
 
             // Thay thế các placeholder bằng dữ liệu thực tế
             htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
@@ -551,14 +555,14 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             helper.setSubject("Thông báo: Mã giảm giá của bạn đã bị hủy");
 
             String htmlContent = """
-            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <h2 style="color: #ff0000;">Xin chào {{tenKhachHang}},</h2>
-                <p>Chúng tôi xin thông báo rằng mã giảm giá của bạn đã bị hủy:</p>
-                <p><strong>Mã giảm giá:</strong> {{tenPhieuGiamGia}}</p>
-                <p>Nếu bạn có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi.</p>
-                <p style="color: #6c757d; font-size: 0.9em;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
-            </div>
-        """;
+                        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                            <h2 style="color: #ff0000;">Xin chào {{tenKhachHang}},</h2>
+                            <p>Chúng tôi xin thông báo rằng mã giảm giá của bạn đã bị hủy:</p>
+                            <p><strong>Mã giảm giá:</strong> {{tenPhieuGiamGia}}</p>
+                            <p>Nếu bạn có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi.</p>
+                            <p style="color: #6c757d; font-size: 0.9em;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+                        </div>
+                    """;
 
             // Thay thế placeholder bằng thông tin thực tế
             htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
@@ -574,9 +578,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             logger.error("Lỗi gửi email hủy mã giảm giá: {}", e.getMessage());
         }
     }
-
-
-
 
 
     private void updatePhieuGiamGia(PhieuGiamGia ph, UpdatePhieuGiamGiaRequest request) {
@@ -598,10 +599,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
         repository.save(ph);
     }
-
-
-
-
 
 
     private void validateRequest(UpdatePhieuGiamGiaRequest request) {
@@ -631,7 +628,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số lượng phiếu phải lớn hơn 0.");
         }
     }
-
 
 
     private boolean hasChanges(PhieuGiamGia oldEntity, PhieuGiamGia newEntity) {
@@ -669,14 +665,14 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             String changes = getChangesDescription(oldEntity, newEntity);
 
             String htmlContent = """
-                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                    <h2 style="color: #007bff;">Chào {{tenKhachHang}},</h2>
-                    <p>Phiếu giảm giá của bạn đã được cập nhật với các thay đổi sau:</p>
-                    <p>{{changes}}</p>
-                    <p>Vui lòng kiểm tra lại thông tin.</p>
-                    <p style="color: #6c757d; font-size: 0.9em;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
-                </div>
-                """;
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <h2 style="color: #007bff;">Chào {{tenKhachHang}},</h2>
+                        <p>Phiếu giảm giá của bạn đã được cập nhật với các thay đổi sau:</p>
+                        <p>{{changes}}</p>
+                        <p>Vui lòng kiểm tra lại thông tin.</p>
+                        <p style="color: #6c757d; font-size: 0.9em;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+                    </div>
+                    """;
 
             htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
                     .replace("{{changes}}", changes);
@@ -702,13 +698,13 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             helper.setSubject("Thông báo hủy phiếu giảm giá");
 
             String htmlContent = """
-                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                    <h2 style="color: #dc3545;">Chào {{tenKhachHang}},</h2>
-                    <p>Rất tiếc phải thông báo rằng phiếu giảm giá của bạn đã bị hủy bỏ.</p>
-                    <p>Phiếu giảm giá: {{phieuGiamGia}} đã không còn hiệu lực với bạn.</p>
-                    <p style="color: #6c757d; font-size: 0.9em;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
-                </div>
-                """;
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <h2 style="color: #dc3545;">Chào {{tenKhachHang}},</h2>
+                        <p>Rất tiếc phải thông báo rằng phiếu giảm giá của bạn đã bị hủy bỏ.</p>
+                        <p>Phiếu giảm giá: {{phieuGiamGia}} đã không còn hiệu lực với bạn.</p>
+                        <p style="color: #6c757d; font-size: 0.9em;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+                    </div>
+                    """;
 
             htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
                     .replace("{{phieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia());
@@ -762,12 +758,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     }
 
 
-
-
-
-
-
-
     @Override
     public Page<PhieuGiamGiaDTO> getAllWithPagination(Pageable pageable) {
         return repository.findAll(pageable)
@@ -782,8 +772,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         entity.setTrangThai(2);
         repository.save(entity);
     }
-
-
 
 
     // Phương thức tự động kiểm tra và đóng phiếu giảm giá hết hạn
@@ -808,7 +796,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
         logger.info("Đã cập nhật trạng thái của {} phiếu giảm giá.", (upcomingCoupons.size() + expiredCoupons.size()));
     }
-
 
 
 }

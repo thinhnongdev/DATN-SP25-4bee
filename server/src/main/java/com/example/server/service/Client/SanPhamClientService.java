@@ -45,9 +45,9 @@ public class SanPhamClientService {
            } else {
                sanPhamClientResponse.setAnhUrl("defaultImageUrl.jpg"); // Ảnh mặc định
            }
-
            sanPhamClientResponseList.add(sanPhamClientResponse);
        }
        return sanPhamClientResponseList;
     }
+
 }

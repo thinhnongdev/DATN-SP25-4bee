@@ -77,6 +77,9 @@ public interface PhieuGiamGiaRepository extends JpaRepository<PhieuGiamGia, Stri
     List<PhieuGiamGia> findAllSortedByNgayTao();
 
     boolean existsByMaPhieuGiamGia(String maPhieuGiamGia);
+
+    @Query("SELECT p FROM PhieuGiamGia p WHERE p.loaiPhieuGiamGia=1 and p.trangThai=1 ORDER BY p.ngayTao DESC")
+    List<PhieuGiamGia> findAllCongKhai();
 }
 
 //@Repository

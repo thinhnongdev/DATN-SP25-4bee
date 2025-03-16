@@ -59,6 +59,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/admin/**")
                         .hasRole("ADMIN") //vai trò ADMIN
                         .requestMatchers(HttpMethod.GET,"/api/client/**").permitAll()
+                        .requestMatchers(HttpMethod.POST,"/api/client/**").permitAll()
                         .anyRequest().authenticated());
 
         httpSecurity.csrf(AbstractHttpConfigurer::disable);// Vô hiệu hóa CSRF

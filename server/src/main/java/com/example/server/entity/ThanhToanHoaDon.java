@@ -4,12 +4,12 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.math.BigDecimal;
+
 @Entity
 @Data
 @AllArgsConstructor
-@NoArgsConstructor
-@Builder
-@EqualsAndHashCode(callSuper = false) // Thêm dòng này để giải quyết cảnh báo
+@NoArgsConstructor// Thêm dòng này để giải quyết cảnh báo
 @Table(name ="thanh_toan_hoa_don")
 public class ThanhToanHoaDon extends BaseEntity{
 
@@ -24,7 +24,8 @@ public class ThanhToanHoaDon extends BaseEntity{
     @ManyToOne
     @JoinColumn(name="id_phuong_thuc_thanh_toan")
     private PhuongThucThanhToan phuongThucThanhToan;
-
+    @Column(name = "tong_tien")
+    private BigDecimal tongTien;
     @Column(name = "mo_ta")
     private String moTa;
 

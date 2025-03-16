@@ -29,7 +29,7 @@ const ProductCard = ({ id, ten, ma, anhUrl, gia }) => {
           title={ten}
           description={
             <>
-              <Text strong style={{ fontSize: '16px', color: 'var(--primary-color)' }}>
+              <Text strong style={{ fontSize: '16px', color: 'red' }}>
                 {gia} đ
               </Text>
               <div style={{ marginTop: '8px' }}>
