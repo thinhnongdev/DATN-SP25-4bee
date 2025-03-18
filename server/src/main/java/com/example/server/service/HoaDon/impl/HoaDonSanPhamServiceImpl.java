@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -54,29 +55,30 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
     private final PhieuGiamGiaRepository phieuGiamGiaRepository;
 
     // 1. Lấy danh sách sản phẩm trong hóa đơn
-//    @Override
-//    public List<HoaDonChiTietResponse> getProductsInInvoice(String hoaDonId) {
-//        HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
-//                .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại"));
-//
-//        return hoaDon.getHoaDonChiTiets().stream()
-//                .filter(chiTiet -> chiTiet.getTrangThai() == 1) // Chỉ lấy các sản phẩm đang hoạt động
-//                .map(chiTiet -> {
-//                    SanPhamChiTiet spct = chiTiet.getSanPhamChiTiet();
-//                    SanPham sanPham = spct.getSanPham();
-//                    return HoaDonChiTietResponse.builder()
-//                            .id(chiTiet.getId())
-//                            .sanPhamChiTietId(spct.getId())
-//                            .maSanPham(sanPham.getMaSanPham())
-//                            .tenSanPham(sanPham.getTenSanPham())
-//                            .soLuong(chiTiet.getSoLuong())
-//                            .gia(spct.getGia())
-//                            .thanhTien(spct.getGia().multiply(new BigDecimal(chiTiet.getSoLuong())))
-//                            .trangThai(chiTiet.getTrangThai())
-//                            .build();
-//                })
-//                .collect(Collectors.toList());
-//    }
+    // @Override
+    // public List<HoaDonChiTietResponse> getProductsInInvoice(String hoaDonId) {
+    // HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
+    // .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại"));
+    //
+    // return hoaDon.getHoaDonChiTiets().stream()
+    // .filter(chiTiet -> chiTiet.getTrangThai() == 1) // Chỉ lấy các sản phẩm đang
+    // hoạt động
+    // .map(chiTiet -> {
+    // SanPhamChiTiet spct = chiTiet.getSanPhamChiTiet();
+    // SanPham sanPham = spct.getSanPham();
+    // return HoaDonChiTietResponse.builder()
+    // .id(chiTiet.getId())
+    // .sanPhamChiTietId(spct.getId())
+    // .maSanPham(sanPham.getMaSanPham())
+    // .tenSanPham(sanPham.getTenSanPham())
+    // .soLuong(chiTiet.getSoLuong())
+    // .gia(spct.getGia())
+    // .thanhTien(spct.getGia().multiply(new BigDecimal(chiTiet.getSoLuong())))
+    // .trangThai(chiTiet.getTrangThai())
+    // .build();
+    // })
+    // .collect(Collectors.toList());
+    // }
     @Override
     public List<SanPhamChiTietHoaDonResponse> getProductsInInvoice(String hoaDonId) {
         HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
@@ -110,15 +112,22 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
                             // Thêm thông tin chi tiết từ SanPhamChiTiet (kiểm tra null tránh lỗi)
                             .mauSac(spct.getMauSac() != null ? spct.getMauSac().getTenMau() : "Không có dữ liệu")
                             .maMauSac(spct.getMauSac() != null ? spct.getMauSac().getMaMau() : "#FFFFFF")
-                            .chatLieu(spct.getChatLieu() != null ? spct.getChatLieu().getTenChatLieu() : "Không có dữ liệu")
-                            .kichThuoc(spct.getKichThuoc() != null ? spct.getKichThuoc().getTenKichThuoc() : "Không có dữ liệu")
+                            .chatLieu(spct.getChatLieu() != null ? spct.getChatLieu().getTenChatLieu()
+                                    : "Không có dữ liệu")
+                            .kichThuoc(spct.getKichThuoc() != null ? spct.getKichThuoc().getTenKichThuoc()
+                                    : "Không có dữ liệu")
                             .danhMuc(spct.getDanhMuc() != null ? spct.getDanhMuc().getTenDanhMuc() : "Không có dữ liệu")
-                            .thuongHieu(spct.getThuongHieu() != null ? spct.getThuongHieu().getTenThuongHieu() : "Không có dữ liệu")
-                            .kieuDang(spct.getKieuDang() != null ? spct.getKieuDang().getTenKieuDang() : "Không có dữ liệu")
+                            .thuongHieu(spct.getThuongHieu() != null ? spct.getThuongHieu().getTenThuongHieu()
+                                    : "Không có dữ liệu")
+                            .kieuDang(spct.getKieuDang() != null ? spct.getKieuDang().getTenKieuDang()
+                                    : "Không có dữ liệu")
                             .kieuCuc(spct.getKieuCuc() != null ? spct.getKieuCuc().getTenKieuCuc() : "Không có dữ liệu")
-                            .kieuCoAo(spct.getKieuCoAo() != null ? spct.getKieuCoAo().getTenKieuCoAo() : "Không có dữ liệu")
-                            .kieuTayAo(spct.getKieuTayAo() != null ? spct.getKieuTayAo().getTenKieuTayAo() : "Không có dữ liệu")
-                            .kieuCoTayAo(spct.getKieuCoTayAo() != null ? spct.getKieuCoTayAo().getTenKieuCoTayAo() : "Không có dữ liệu")
+                            .kieuCoAo(spct.getKieuCoAo() != null ? spct.getKieuCoAo().getTenKieuCoAo()
+                                    : "Không có dữ liệu")
+                            .kieuTayAo(spct.getKieuTayAo() != null ? spct.getKieuTayAo().getTenKieuTayAo()
+                                    : "Không có dữ liệu")
+                            .kieuCoTayAo(spct.getKieuCoTayAo() != null ? spct.getKieuCoTayAo().getTenKieuCoTayAo()
+                                    : "Không có dữ liệu")
                             .hoaTiet(spct.getHoaTiet() != null ? spct.getHoaTiet().getTenHoaTiet() : "Không có dữ liệu")
                             .kieuTuiAo(spct.getTuiAo() != null ? spct.getTuiAo().getTenKieuTuiAo() : "Không có dữ liệu")
                             .build();
@@ -129,59 +138,139 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
                 .collect(Collectors.toList());
     }
 
-
     @Override
     @Transactional
     public HoaDonResponse addProduct(String hoaDonId, AddProductRequest request) {
-        log.info("Bắt đầu xử lý thêm sản phẩm: hoaDonId={}, productDetailId={}, quantity={}",
+        log.info("Thêm sản phẩm: hoaDonId={}, productDetailId={}, quantity={}",
                 hoaDonId, request.getSanPhamChiTietId(), request.getSoLuong());
 
-        // Kiểm tra hóa đơn
+        // 🛒 Lấy hóa đơn
         HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
-        log.info("✅ Hóa đơn hợp lệ: {}", hoaDon.getId());
+        log.info(" Hóa đơn hợp lệ: {}", hoaDon.getId());
 
         // Tìm sản phẩm chi tiết
-        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository.findBySanPhamIdAndTrangThai(request.getSanPhamChiTietId(), true)
-                .orElseThrow(() -> new ValidationException("Sản phẩm chi tiết không hợp lệ hoặc không đủ hàng"));
+        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository
+                .findBySanPhamIdAndTrangThai(request.getSanPhamChiTietId(), true)
+                .orElseThrow(() -> new ValidationException("Sản phẩm không hợp lệ hoặc không đủ hàng"));
 
-        // Kiểm tra tồn kho
+        BigDecimal giaTaiThoiDiem = sanPhamChiTiet.getGia(); //  Lưu giá hiện tại khi thêm vào hóa đơn
+
+        //  Kiểm tra tồn kho
         if (sanPhamChiTiet.getSoLuong() < request.getSoLuong()) {
-            log.error("Không đủ hàng: yêu cầu={}, tồn kho={}", request.getSoLuong(), sanPhamChiTiet.getSoLuong());
+            log.error(" Không đủ hàng: Yêu cầu={}, Tồn kho={}", request.getSoLuong(), sanPhamChiTiet.getSoLuong());
             throw new ValidationException("Sản phẩm không đủ số lượng trong kho");
         }
 
         //  Cập nhật số lượng tồn kho
         sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - request.getSoLuong());
         sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
-        log.info(" Đã cập nhật tồn kho: sản phẩm={}, tồn kho mới={}",
-                sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
+        log.info("Đã cập nhật tồn kho: Sản phẩm={}, Tồn kho mới={}", sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
 
-        //  Thêm vào hóa đơn
-        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
-                .filter(ct -> ct.getTrangThai() == 1 && ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
-                .findFirst()
-                .orElse(null);
+        //  Kiểm tra sản phẩm đã có trong hóa đơn chưa
+        Optional<HoaDonChiTiet> existingChiTietOpt = hoaDon.getHoaDonChiTiets().stream()
+                .filter(ct -> ct.getTrangThai() == 1 &&
+                        ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
+                .findFirst();
 
-        if (chiTiet != null) {
-            chiTiet.setSoLuong(chiTiet.getSoLuong() + request.getSoLuong());
+        if (existingChiTietOpt.isPresent()) {
+            HoaDonChiTiet existingChiTiet = existingChiTietOpt.get();
+
+            // Nếu giá không thay đổi, cập nhật số lượng
+            if (existingChiTiet.getSanPhamChiTiet().getGia().compareTo(giaTaiThoiDiem) == 0) { // Lấy từ DB
+                existingChiTiet.setSoLuong(existingChiTiet.getSoLuong() + request.getSoLuong());
+                log.info(" Cập nhật số lượng sản phẩm trong hóa đơn.");
+                return HoaDonResponse.builder()
+                        .id(hoaDon.getId())
+                        .message("Cập nhật số lượng sản phẩm trong hóa đơn.")
+                        .build();
+            } else {
+                // Nếu giá thay đổi, thêm sản phẩm như một mục mới
+                HoaDonChiTiet newChiTiet = HoaDonChiTiet.builder()
+                        .id(UUID.randomUUID().toString())
+                        .hoaDon(hoaDon)
+                        .sanPhamChiTiet(sanPhamChiTiet)
+                        .soLuong(request.getSoLuong())
+                        .trangThai(1)
+                        .build();
+                hoaDon.getHoaDonChiTiets().add(newChiTiet);
+                log.info("🆕 Thêm sản phẩm với giá mới vào hóa đơn.");
+                return HoaDonResponse.builder()
+                        .id(hoaDon.getId())
+                        .message("Sản phẩm đã thay đổi giá, một mục mới đã được thêm vào hóa đơn.")
+                        .build();
+            }
         } else {
-            chiTiet = HoaDonChiTiet.builder()
+            // Nếu sản phẩm chưa có trong hóa đơn, thêm mới
+            HoaDonChiTiet newChiTiet = HoaDonChiTiet.builder()
                     .id(UUID.randomUUID().toString())
                     .hoaDon(hoaDon)
                     .sanPhamChiTiet(sanPhamChiTiet)
                     .soLuong(request.getSoLuong())
                     .trangThai(1)
                     .build();
-            hoaDon.getHoaDonChiTiets().add(chiTiet);
+            hoaDon.getHoaDonChiTiets().add(newChiTiet);
+            log.info("Sản phẩm mới được thêm vào hóa đơn.");
+            return HoaDonResponse.builder()
+                    .id(hoaDon.getId())
+                    .message("Sản phẩm đã được thêm vào hóa đơn.")
+                    .build();
         }
-
-        recalculateTotal(hoaDon);
-        return mapper.entityToResponse(hoaDonRepository.save(hoaDon));
     }
+
+//    @Override
+//    @Transactional
+//    public HoaDonResponse addProduct(String hoaDonId, AddProductRequest request) {
+//        log.info("Bắt đầu xử lý thêm sản phẩm: hoaDonId={}, productDetailId={}, quantity={}",
+//                hoaDonId, request.getSanPhamChiTietId(), request.getSoLuong());
+//
+//        // Kiểm tra hóa đơn
+//        HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
+//        log.info("Hóa đơn hợp lệ: {}", hoaDon.getId());
+//
+//        // Tìm sản phẩm chi tiết
+//        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository
+//                .findBySanPhamIdAndTrangThai(request.getSanPhamChiTietId(), true)
+//                .orElseThrow(() -> new ValidationException("Sản phẩm chi tiết không hợp lệ hoặc không đủ hàng"));
+//
+//        // Kiểm tra tồn kho
+//        if (sanPhamChiTiet.getSoLuong() < request.getSoLuong()) {
+//            log.error("Không đủ hàng: yêu cầu={}, tồn kho={}", request.getSoLuong(), sanPhamChiTiet.getSoLuong());
+//            throw new ValidationException("Sản phẩm không đủ số lượng trong kho");
+//        }
+//
+//        // Cập nhật số lượng tồn kho
+//        sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - request.getSoLuong());
+//        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
+//        log.info(" Đã cập nhật tồn kho: sản phẩm={}, tồn kho mới={}",
+//                sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
+//
+//        // Thêm vào hóa đơn
+//        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
+//                .filter(ct -> ct.getTrangThai() == 1 && ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
+//                .findFirst()
+//                .orElse(null);
+//
+//        if (chiTiet != null) {
+//            chiTiet.setSoLuong(chiTiet.getSoLuong() + request.getSoLuong());
+//        } else {
+//            chiTiet = HoaDonChiTiet.builder()
+//                    .id(UUID.randomUUID().toString())
+//                    .hoaDon(hoaDon)
+//                    .sanPhamChiTiet(sanPhamChiTiet)
+//                    .soLuong(request.getSoLuong())
+//                    .trangThai(1)
+//                    .build();
+//            hoaDon.getHoaDonChiTiets().add(chiTiet);
+//        }
+//
+//        recalculateTotal(hoaDon);
+//        return mapper.entityToResponse(hoaDonRepository.save(hoaDon));
+//    }
 
     @Override
     @Transactional
-    public HoaDonResponse updateProductQuantity(String hoaDonId, String hoaDonChiTietId, UpdateProductQuantityRequest request) {
+    public HoaDonResponse updateProductQuantity(String hoaDonId, String hoaDonChiTietId,
+            UpdateProductQuantityRequest request) {
         log.info("Updating quantity for product detail {} in invoice {} to {}",
                 hoaDonChiTietId, hoaDonId, request.getSoLuong());
 
@@ -297,32 +386,14 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private HoaDonChiTiet createHoaDonChiTiet(HoaDon hoaDon, SanPham sanPham, int soLuong) {
-        log.info("Creating new invoice detail for product {} with quantity {}", sanPham.getId(), soLuong);
-
-        // Lấy `SanPhamChiTiet` từ database
-        SanPhamChiTiet sanPhamChiTiet = laySanPhamChiTiet(sanPham.getId(), soLuong);
-
-        // Tạo số ngẫu nhiên cho ID
-        String randomNumbers = String.format("%06d", new Random().nextInt(1000000));
-        String newId = "HDCT" + randomNumbers;
-
-        // Tạo chi tiết hóa đơn
-        return HoaDonChiTiet.builder()
-                .id(newId)
-                .hoaDon(hoaDon)
-                .sanPhamChiTiet(sanPhamChiTiet)
-                .soLuong(soLuong)
-                .trangThai(1)
-                .build();
-    }
-
     public SanPhamChiTiet laySanPhamChiTiet(String sanPhamChiTietId, int soLuong) {
         // Lấy sản phẩm chi tiết theo ID
-        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository.findBySanPhamIdAndTrangThai(sanPhamChiTietId, true)
-                .orElseThrow(() -> new ValidationException("Không tìm thấy sản phẩm chi tiết hợp lệ cho ID: " + sanPhamChiTietId));
+        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository
+                .findBySanPhamIdAndTrangThai(sanPhamChiTietId, true)
+                .orElseThrow(() -> new ValidationException(
+                        "Không tìm thấy sản phẩm chi tiết hợp lệ cho ID: " + sanPhamChiTietId));
 
-        //  Kiểm tra số lượng tồn kho
+        // Kiểm tra số lượng tồn kho
         if (sanPhamChiTiet.getSoLuong() < soLuong) {
             throw new ValidationException("Sản phẩm không đủ số lượng trong kho");
         }
@@ -428,8 +499,7 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
             if (subtotal.compareTo(voucher.getGiaTriToiThieu()) < 0) {
                 throw new ValidationException(
                         String.format("Tổng tiền hóa đơn phải từ %s để áp dụng voucher này",
-                                formatCurrency(voucher.getGiaTriToiThieu()))
-                );
+                                formatCurrency(voucher.getGiaTriToiThieu())));
             }
 
             // Áp dụng voucher
@@ -452,14 +522,15 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
     }
 
     private String formatCurrency(BigDecimal amount) {
-        if (amount == null) return "0đ";
+        if (amount == null)
+            return "0đ";
         return String.format("%,d đ", amount.longValue());
     }
 
     public List<SanPhamChiTiet> filterProducts(String searchTerm, String chatLieu, String kieuDang,
-                                               String thuongHieu, String kieuCuc, String kieuCoAo,
-                                               String kieuCoTayAo, String kieuTayAo, String kieuTuiAo,
-                                               String danhMuc, String hoaTiet, String mauSac, String kichThuoc) {
+            String thuongHieu, String kieuCuc, String kieuCoAo,
+            String kieuCoTayAo, String kieuTayAo, String kieuTuiAo,
+            String danhMuc, String hoaTiet, String mauSac, String kichThuoc) {
         return sanPhamChiTietHoaDonRepository.filterProducts(searchTerm, chatLieu, kieuDang, thuongHieu,
                 kieuCuc, kieuCoAo, kieuCoTayAo, kieuTayAo,
                 kieuTuiAo, danhMuc, hoaTiet, mauSac, kichThuoc);

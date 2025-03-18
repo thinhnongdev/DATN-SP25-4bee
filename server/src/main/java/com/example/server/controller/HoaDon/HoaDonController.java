@@ -1,5 +1,6 @@
 package com.example.server.controller.HoaDon;
 
+import com.example.server.dto.GiaoHang.GHNTinhPhiRequest;
 import com.example.server.dto.HoaDon.request.HoaDonRequest;
 import com.example.server.dto.HoaDon.request.HoaDonSearchCriteria;
 import com.example.server.dto.HoaDon.request.PhieuGiamGiaRequest;
@@ -8,8 +9,10 @@ import com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO;
 import com.example.server.entity.HoaDon;
 import com.example.server.exception.ResourceNotFoundException;
 import com.example.server.exception.ValidationException;
+import com.example.server.mapper.impl.HoaDonMapper;
 import com.example.server.service.BanHang.BanHangService;
 import com.example.server.service.BanHang.impl.BanHangServiceImpl;
+import com.example.server.service.GiaoHang.GHNService;
 import com.example.server.service.WebSocketService;
 import com.example.server.service.HoaDon.impl.HoaDonSanPhamServiceImpl;
 import com.example.server.service.HoaDon.interfaces.IHoaDonService;
@@ -27,6 +30,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -40,9 +44,11 @@ public class HoaDonController {
     private final IHoaDonService hoaDonService;
     private final HoaDonSanPhamServiceImpl hoaDonSanPhamServiceImpl;
     private final WebSocketService webSocketService; // Inject WebSocket Service
+    private final HoaDonMapper hoaDonMapper;
     @Autowired
     BanHangService banHangService;
-
+    @Autowired
+    private GHNService ghnService;
     @PostMapping
     // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Tạo mới hóa đơn")
@@ -92,7 +98,60 @@ public class HoaDonController {
         HoaDonResponse response = hoaDonService.deleteHoaDon(id);
         return ResponseEntity.ok(response);
     }
+// GHN
+    @PostMapping("/phi-van-chuyen")
+    public int layPhiVanChuyen(@RequestBody GHNTinhPhiRequest request) {
+        return ghnService.tinhPhiVanChuyen(request);
+    }
+//    @PostMapping("/{id}/cap-nhat-phi-van-chuyen")
+//    public ResponseEntity<HoaDonResponse> capNhatPhiVanChuyen(
+//            @PathVariable String id,
+//            @RequestBody GHNTinhPhiRequest request) {
+//
+//        // Gọi GHN API để tính phí
+//        int phiVanChuyen = ghnService.tinhPhiVanChuyen(request);
+//
+//        // Cập nhật phí vào hóa đơn
+//        HoaDon hoaDon = hoaDonService.capNhatPhiVanChuyen(id, BigDecimal.valueOf(phiVanChuyen));
+//
+//        // Trả về response
+//        HoaDonResponse response = hoaDonMapper.entityToResponse(hoaDon);
+//
+//        return ResponseEntity.ok(response);
+//    }
+    @PostMapping("/{id}/cap-nhat-phi-van-chuyen")
+    public ResponseEntity<HoaDonResponse> capNhatPhiVanChuyen(
+            @PathVariable String id,
+            @RequestBody Map<String, Object> request) {
 
+        // Lấy giá trị fee từ request
+        int phiVanChuyen = 0;
+        if (request.containsKey("fee")) {
+            phiVanChuyen = ((Number) request.get("fee")).intValue();
+        }
+
+        // Cập nhật phí vào hóa đơn
+        HoaDon hoaDon = hoaDonService.capNhatPhiVanChuyen(id, BigDecimal.valueOf(phiVanChuyen));
+
+        // Trả về response
+        HoaDonResponse response = hoaDonMapper.entityToResponse(hoaDon);
+
+        return ResponseEntity.ok(response);
+    }
+    @GetMapping("/dia-chi/tinh")
+    public ResponseEntity<List<Map<String, Object>>> layDanhSachTinhThanh() {
+        return ResponseEntity.ok(ghnService.layDanhSachTinhThanh());
+    }
+
+    @GetMapping("/dia-chi/huyen")
+    public ResponseEntity<List<Map<String, Object>>> layDanhSachQuanHuyen(@RequestParam int provinceId) {
+        return ResponseEntity.ok(ghnService.layDanhSachQuanHuyen(provinceId));
+    }
+
+    @GetMapping("/dia-chi/xa")
+    public ResponseEntity<List<Map<String, Object>>> layDanhSachPhuongXa(@RequestParam int districtId) {
+        return ResponseEntity.ok(ghnService.layDanhSachPhuongXa(districtId));
+    }
 
     @PatchMapping("/{id}/status")
     // @PreAuthorize("hasRole('ADMIN')")

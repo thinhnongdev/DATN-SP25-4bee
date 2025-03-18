@@ -17,10 +17,16 @@ const KieuCoTayAo = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const token = localStorage.getItem('token');
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kieucotayao');
+      const response = await axios.get('http://localhost:8080/api/admin/kieucotayao',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
       setKieuCoTayAo(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -80,6 +86,11 @@ const KieuCoTayAo = () => {
         await axios.patch(
           `http://localhost:8080/api/admin/kieucotayao/${editingRecord.id}`,
           values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
         setKieuCoTayAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
@@ -87,7 +98,12 @@ const KieuCoTayAo = () => {
         toast.success('Sửa kiểu cổ tay áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucotayao', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkieucotayao',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCoTayAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu cổ tay áo thành công');
       }

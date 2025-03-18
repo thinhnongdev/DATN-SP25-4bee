@@ -16,7 +16,7 @@ public class ThanhToanHoaDonMapper {
                 entity.getHoaDon() != null && entity.getHoaDon().getNhanVien() != null ? entity.getHoaDon().getNhanVien().getTenNhanVien() : "N/A",
                 entity.getPhuongThucThanhToan() != null ? entity.getPhuongThucThanhToan().getId() : null,
                 entity.getPhuongThucThanhToan() != null ? entity.getPhuongThucThanhToan().getTenPhuongThucThanhToan() : "Không rõ",
-                entity.getHoaDon() != null ? entity.getHoaDon().getTongTien() : BigDecimal.ZERO,
+                entity.getSoTien(),
                 entity.getMoTa(),
                 entity.getTrangThai(),
                 entity.getNgayTao(),

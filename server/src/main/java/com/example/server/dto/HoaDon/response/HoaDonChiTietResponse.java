@@ -21,4 +21,6 @@ public class HoaDonChiTietResponse {
     private BigDecimal thanhTien;
     private Integer trangThai;
     private String hinhAnh;
+    private BigDecimal giaThoiDiem; //Giá tại thời điểm thêm vào hóa đơn
+
 }

@@ -20,19 +20,6 @@ public interface SanPhamChiTietHoaDonRepository extends JpaRepository<SanPhamChi
     @Query("SELECT s FROM SanPhamChiTiet s WHERE s.id = :sanPhamChiTietId AND s.trangThai = :trangThai")
     Optional<SanPhamChiTiet> findBySanPhamIdAndTrangThai(@Param("sanPhamChiTietId") String sanPhamChiTietId, @Param("trangThai") Boolean trangThai);
 
-    //    Fix deadlock
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT s FROM SanPhamChiTiet s WHERE s.id = :id AND s.trangThai = true")
-    Optional<SanPhamChiTiet> findBySanPhamIdAndTrangThaiForUpdate(@Param("id") String id);
-
-    @Lock(LockModeType.OPTIMISTIC_FORCE_INCREMENT)
-    @Query("SELECT h FROM HoaDon h WHERE h.id = :id")
-    Optional<HoaDon> findByIdForUpdate(@Param("id") String id);
-
-
-    @Query("SELECT h FROM HoaDon h WHERE h.id = :id")
-    Optional<HoaDon> findByIdWithoutLock(@Param("id") String id);
-
 
     @Query("SELECT sp FROM SanPhamChiTiet sp " +
             "WHERE (:searchTerm IS NULL OR LOWER(sp.sanPham.tenSanPham) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +

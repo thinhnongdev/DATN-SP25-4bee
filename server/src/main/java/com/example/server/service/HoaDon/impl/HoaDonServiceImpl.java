@@ -2,6 +2,7 @@ package com.example.server.service.HoaDon.impl;
 
 import com.example.server.Util.PDFGenerator;
 import com.example.server.constant.HoaDonConstant;
+import com.example.server.dto.HoaDon.request.AddProductRequest;
 import com.example.server.dto.HoaDon.request.HoaDonRequest;
 import com.example.server.dto.HoaDon.request.HoaDonSearchCriteria;
 import com.example.server.dto.HoaDon.response.HoaDonResponse;
@@ -55,6 +56,9 @@ public class HoaDonServiceImpl implements IHoaDonService {
     private final ICurrentUserService currentUserService;
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Autowired
+    private LichSuHoaDonService lichSuHoaDonService;
 
     @Autowired
     private PDFGenerator pdfGenerator;
@@ -160,8 +164,6 @@ public class HoaDonServiceImpl implements IHoaDonService {
             counts.put(String.valueOf(status), statusCounts.getOrDefault(status, 0L));
         }
 
-
-
         return counts;
     }
 
@@ -232,6 +234,14 @@ public class HoaDonServiceImpl implements IHoaDonService {
         return hoaDonMapper.entityToResponse(hoaDon);
     }
 
+    //    Tính lưu phí vận chuyển vào hóa đơn
+    public HoaDon capNhatPhiVanChuyen(String hoaDonId, BigDecimal phiVanChuyen) {
+        HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+
+        hoaDon.setPhiVanChuyen(phiVanChuyen);
+        return hoaDonRepository.save(hoaDon);
+    }
 
     //delete Hóa đơn
     @Override
@@ -247,7 +257,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             throw new ValidationException("Chỉ có thể hủy hóa đơn khi chưa giao hàng.");
         }
 
-        // ✅ Hoàn lại sản phẩm vào kho
+        //Hoàn lại sản phẩm vào kho
         for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
             SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
             sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() + chiTiet.getSoLuong());
@@ -255,7 +265,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             log.info("Hoàn lại sản phẩm {} vào kho: số lượng mới {}", sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
         }
 
-        // ✅ Hoàn lại mã giảm giá nếu hóa đơn có voucher
+        //Hoàn lại mã giảm giá nếu hóa đơn có voucher
         if (hoaDon.getPhieuGiamGia() != null) {
             PhieuGiamGia voucher = hoaDon.getPhieuGiamGia();
             voucher.setSoLuong(voucher.getSoLuong() + 1); // Hoàn lại số lượng voucher
@@ -265,11 +275,11 @@ public class HoaDonServiceImpl implements IHoaDonService {
             hoaDon.setPhieuGiamGia(null); // Xóa voucher khỏi hóa đơn
         }
 
-        // ✅ Cập nhật trạng thái hóa đơn thành "Đã hủy"
+        //Cập nhật trạng thái hóa đơn thành "Đã hủy"
         hoaDon.setTrangThai(HoaDonConstant.TRANG_THAI_DA_HUY);
         hoaDon.setNgaySua(LocalDateTime.now());
 
-        // ✅ Lưu lịch sử hủy hóa đơn
+        //Lưu lịch sử hủy hóa đơn
         LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
         lichSuHoaDon.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
         lichSuHoaDon.setHoaDon(hoaDon);
@@ -281,14 +291,12 @@ public class HoaDonServiceImpl implements IHoaDonService {
         lichSuHoaDonRepository.save(lichSuHoaDon);
         log.info("Lưu lịch sử hủy hóa đơn thành công.");
 
-        // ✅ Lưu thay đổi hóa đơn
+        //Lưu thay đổi hóa đơn
         hoaDon = hoaDonRepository.save(hoaDon);
         log.info("Hủy hóa đơn thành công: {}", hoaDon.getId());
 
         return hoaDonMapper.entityToResponse(hoaDon);
     }
-
-
 
 
     //Update trạng thái

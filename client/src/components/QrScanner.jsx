@@ -7,14 +7,14 @@ const QrScanner = ({ onScanSuccess, onScanError, isActive }) => {
 
   const handleScan = (data) => {
     if (data) {
-      console.log("✅ QR Code detected:", data.text);
+      console.log("QR Code detected:", data.text);
       toast.success("🎉 Quét mã QR thành công!", { autoClose: 2000 });
       onScanSuccess(data.text);
     }
   };
 
   const handleError = (error) => {
-    console.warn("⚠️ QR Scan Error:", error);
+    console.warn("QR Scan Error:", error);
     if (onScanError) {
       onScanError(error);
     }

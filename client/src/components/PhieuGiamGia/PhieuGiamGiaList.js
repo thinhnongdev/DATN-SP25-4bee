@@ -111,11 +111,11 @@ const PhieuGiamGiaList = () => {
 
 
   const handleAdd = () => {
-    navigate("/add-p");
+    navigate("/admin/add-p");
   };
 
   const handleUpdate = (id) => {
-    navigate(`/update-phieu-giam-gia/${id}`); // Điều hướng đến trang cập nhật
+    navigate(`/admin/update-phieu-giam-gia/${id}`); // Điều hướng đến trang cập nhật
   };
   const handleCloseModal = () => {
     setShowModal(false);

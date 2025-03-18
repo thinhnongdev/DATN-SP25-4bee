@@ -24,13 +24,12 @@ public class PhuongThucThanhToan extends BaseEntity {
     @Column(name="ten_phuong_thuc_thanh_toan")
     private String tenPhuongThucThanhToan;
 
-//    @Column(name="tong_tien")
-//    private BigDecimal tongTien;
+    @Column(name="tong_tien")
+    private BigDecimal tongTien;
 
     @Column(name="mo_ta")
     private String moTa;
 
     @Column(name="trang_thai")
     private Boolean trangThai;
-
 }

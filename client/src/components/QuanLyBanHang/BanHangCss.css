@@ -197,4 +197,190 @@
 .product-table .ant-table-tbody > tr:hover > td {
   background-color: #e6f7ff;
 }
-  
+/* Cập nhật CSS cho Modal chọn khách hàng với phân trang */
+/* Điều chỉnh kích thước modal */
+.customer-selection-modal .ant-modal-content {
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Container tổng thể cho nội dung */
+.customer-modal-content {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  max-height: 80vh;
+}
+
+/* Tiêu đề modal */
+.customer-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  color: #002140;
+}
+
+/* Icon */
+.customer-modal-icon {
+  width: 40px;
+  height: 40px;
+  background: #002140;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.customer-modal-icon .anticon {
+  font-size: 20px;
+  color: white;
+}
+
+/* Container tìm kiếm */
+.customer-search-container {
+  padding: 16px 24px;
+  background: white;
+  border-bottom: 1px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.customer-search-input .ant-input:focus {
+  border-color: #002140;
+  box-shadow: 0 0 0 2px rgba(0, 33, 64, 0.1);
+}
+
+/* Danh sách khách hàng */
+.customer-list {
+  flex: 1;
+  padding: 0 24px;
+  background-color: #f5f5f5;
+  overflow: auto;
+}
+
+/* Cải thiện pagination */
+.customer-list .ant-pagination {
+  margin: 16px 0;
+  padding: 10px 0;
+  background: white;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* Item khách hàng */
+.customer-list-item {
+  margin-bottom: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: white;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.customer-list-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 33, 64, 0.1);
+  border-color: #002140;
+}
+
+/* Avatar container */
+.avatar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 70px;
+}
+
+.customer-avatar {
+  background: #002140;
+  color: white;
+  border: 2px solid #fff;
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px !important;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Thông tin khách hàng */
+.customer-name-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.customer-name {
+  font-size: 16px;
+  color: #000000;
+}
+
+.customer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 500px;
+}
+
+.customer-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.customer-contact-info .anticon {
+  font-size: 14px;
+  color: #002140;
+}
+
+/* Nút chọn */
+.customer-action-btn {
+  width: 100px;
+  display: flex;
+  justify-content: center;
+}
+
+.customer-action-btn .ant-btn {
+  background: #002140;
+  border-color: #002140;
+  border-radius: 4px;
+  height: 36px;
+  padding: 0 16px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.1);
+}
+
+.customer-action-btn .ant-btn:hover {
+  background: #003a8c;
+  border-color: #003a8c;
+}
+
+/* Footer */
+.customer-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between; /* Thay đổi này đặt nút Đóng sang trái và nút Thêm khách hàng sang phải */
+  background-color: white;
+}
+
+.customer-modal-footer .ant-btn-primary {
+  background: #002140;
+  border-color: #002140;
+}
+
+.customer-modal-footer .ant-btn-primary:hover {
+  background: #003a8c;
+  border-color: #003a8c;
+}
+
+.empty-customer-list {
+  padding: 40px 0;
+  text-align: center;
+}

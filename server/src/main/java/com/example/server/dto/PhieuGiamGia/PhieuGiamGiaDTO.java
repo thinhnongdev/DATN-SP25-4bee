@@ -1,6 +1,7 @@
 package com.example.server.dto.PhieuGiamGia;
 
 
+import com.example.server.entity.PhieuGiamGia;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -22,6 +23,23 @@ public class PhieuGiamGiaDTO {
     private String moTa;
     private Integer trangThai;
     private LocalDateTime ngayTao;
+
+    public PhieuGiamGiaDTO(PhieuGiamGia entity) {
+        this.id = entity.getId();
+        this.maPhieuGiamGia = entity.getMaPhieuGiamGia();
+        this.tenPhieuGiamGia = entity.getTenPhieuGiamGia();
+        this.loaiPhieuGiamGia = entity.getLoaiPhieuGiamGia();
+        this.kieuGiamGia = entity.getKieuGiamGia();
+        this.giaTriGiam = entity.getGiaTriGiam();
+        this.giaTriToiThieu = entity.getGiaTriToiThieu();
+        this.soTienGiamToiDa = entity.getSoTienGiamToiDa();
+        this.ngayBatDau = entity.getNgayBatDau();
+        this.ngayKetThuc = entity.getNgayKetThuc();
+        this.soLuong = entity.getSoLuong();
+        this.moTa = entity.getMoTa();
+        this.trangThai = entity.getTrangThai();
+        this.ngayTao = entity.getNgayTao();
+    }
 
     public String getId() {
         return id;

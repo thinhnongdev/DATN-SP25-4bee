@@ -9,13 +9,16 @@ import java.math.BigDecimal;
 @Entity
 @Data
 @AllArgsConstructor
-@NoArgsConstructor// Thêm dòng này để giải quyết cảnh báo
+@NoArgsConstructor
+@Builder
+@EqualsAndHashCode(callSuper = false) // Thêm dòng này để giải quyết cảnh báo
 @Table(name ="thanh_toan_hoa_don")
 public class ThanhToanHoaDon extends BaseEntity{
 
     @Id
-    @Column(name = "id", nullable = false, unique = true)
-    private String id; // Ensure this field is unique and matches the database
+    @Column(name = "id", nullable = false, unique = true, updatable = false)
+    private String id;
+
 
     @ManyToOne
     @JoinColumn(name = "id_hoa_don", nullable = false)
@@ -24,11 +27,14 @@ public class ThanhToanHoaDon extends BaseEntity{
     @ManyToOne
     @JoinColumn(name="id_phuong_thuc_thanh_toan")
     private PhuongThucThanhToan phuongThucThanhToan;
-    @Column(name = "tong_tien")
-    private BigDecimal tongTien;
+
     @Column(name = "mo_ta")
     private String moTa;
 
     @Column(name = "trang_thai")
     private Integer trangThai;
+
+    @Column(name = "tong_tien", nullable = false)
+    private BigDecimal soTien; // Số tiền thanh toán theo phương thức này
+
 }

@@ -78,6 +78,7 @@ const SanPhamChiTiet = () => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [isModalVisibleImage, setIsModalVisibleImage] = useState(false);
   const fileInputRef = useRef(null); // Tạo tham chiếu đến input file
+  const token = localStorage.getItem('token');
   const handleButtonAddImageClick = () => {
     fileInputRef.current.click(); // Mở hộp thoại chọn file khi nhấn nút
   };
@@ -128,6 +129,11 @@ const SanPhamChiTiet = () => {
           const response = await axios.post(
             'https://api.cloudinary.com/v1_1/dl1ahr7s5/image/upload', // Thay thế bằng cloud_name của bạn
             formData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
           );
           return response.data.secure_url;
         }),
@@ -144,7 +150,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/imagesSanPham'); // Gọi API từ backend
+        const response = await axios.get('http://localhost:8080/api/imagesSanPham', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }); // Gọi API từ backend
         setImages(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách ảnh:', error);
@@ -154,7 +164,11 @@ const SanPhamChiTiet = () => {
   }, []);
   const fetchChiTietSanPham = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham/${id}`);
+      const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
       setSanPhamChiTiet(data);
       if (data.length > 0) {
@@ -176,7 +190,11 @@ const SanPhamChiTiet = () => {
   }, [id]);
   const fetchTenSanPham = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/sanpham/${id}`);
+      const response = await fetch(`http://localhost:8080/api/admin/sanpham/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
       setTenSanPham(data.tenSanPham);
     } catch (error) {
@@ -192,7 +210,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/chatlieu');
+        const response = await axios.get('http://localhost:8080/api/admin/chatlieu', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setChatLieu(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách chất liệu:', error);
@@ -205,7 +227,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieudang');
+        const response = await axios.get('http://localhost:8080/api/admin/kieudang', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuDang(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách kiểu dáng:', error);
@@ -219,7 +245,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu');
+        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setThuongHieu(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách thương hiệu:', error);
@@ -233,7 +263,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucuc');
+        const response = await axios.get('http://localhost:8080/api/admin/kieucuc', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCuc(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách kiểu cúc:', error);
@@ -247,7 +281,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucoao');
+        const response = await axios.get('http://localhost:8080/api/admin/kieucoao', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCoAo(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách kiểu cổ áo:', error);
@@ -261,7 +299,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao');
+        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCoTayAo(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách kiểu cổ tay áo:', error);
@@ -275,7 +317,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao');
+        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuTuiAo(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách kiểu túi áo:', error);
@@ -289,7 +335,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutayao');
+        const response = await axios.get('http://localhost:8080/api/admin/kieutayao', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuTayAo(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách kiểu tay áo:', error);
@@ -303,7 +353,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/mausac');
+        const response = await axios.get('http://localhost:8080/api/admin/mausac', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setColors(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách màu sắc:', error);
@@ -317,7 +371,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc');
+        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setSizes(response.data);
         console.log(response.data);
       } catch (error) {
@@ -332,7 +390,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/hoatiet');
+        const response = await axios.get('http://localhost:8080/api/admin/hoatiet', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setHoaTiet(response.data);
         console.log(response.data);
       } catch (error) {
@@ -347,7 +409,11 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/danhmuc');
+        const response = await axios.get('http://localhost:8080/api/admin/danhmuc', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setDanhMuc(response.data);
         console.log(response.data);
       } catch (error) {
@@ -422,6 +488,7 @@ const SanPhamChiTiet = () => {
         {
           method: 'PATCH',
           headers: {
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(requestData),
@@ -603,7 +670,11 @@ const SanPhamChiTiet = () => {
   //hàm lấy toàn bộ sản phẩm
   const handleGetAllProduct = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham`);
+      const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
       setSanPhamChiTiet(data);
       setTenSanPham('Tất cả sản phẩm');
@@ -622,58 +693,68 @@ const SanPhamChiTiet = () => {
     }
   };
   // Component lấy và hiển thị ảnh sản phẩm dựa vào id
-// Component hiển thị ảnh sản phẩm dựa vào id sản phẩm chi tiết
-const ProductImage = ({ sanPhamChiTietId }) => {
-  const [image, setImage] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Component hiển thị ảnh sản phẩm dựa vào id sản phẩm chi tiết
+  const ProductImage = ({ sanPhamChiTietId }) => {
+    const [image, setImage] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  // Hàm lấy danh sách ảnh dựa vào API
-  const fetchProductImages = async (sanPhamChiTietId) => {
-    try {
-      const response = await axios.get(
-        `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`
-      );
-      // Chỉ lấy danh sách các anhUrl
-      console.log("ẢNh spct",response)
-      const imageUrls = response.data.map((item) => item.anhUrl);
-      return imageUrls;
-    } catch (error) {
-      console.error('Lỗi khi lấy ảnh sản phẩm:', error);
-      return [];
-    }
-  };
-
-  useEffect(() => {
-    const loadImage = async () => {
-      const images = await fetchProductImages(sanPhamChiTietId);
-      // Nếu có ảnh, lấy ra ảnh đầu tiên
-      if (images.length > 0) {
-        setImage(images[0]);
+    // Hàm lấy danh sách ảnh dựa vào API
+    const fetchProductImages = async (sanPhamChiTietId) => {
+      try {
+        const response = await axios.get(
+          `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+        // Chỉ lấy danh sách các anhUrl
+        console.log('ẢNh spct', response);
+        const imageUrls = response.data.map((item) => item.anhUrl);
+        return imageUrls;
+      } catch (error) {
+        console.error('Lỗi khi lấy ảnh sản phẩm:', error);
+        return [];
       }
-      setLoading(false);
     };
-    loadImage();
-  }, [sanPhamChiTietId]);
 
-  if (loading) {
-    return <Spin size="small" />;
-  }
+    useEffect(() => {
+      const loadImage = async () => {
+        const images = await fetchProductImages(sanPhamChiTietId);
+        // Nếu có ảnh, lấy ra ảnh đầu tiên
+        if (images.length > 0) {
+          setImage(images[0]);
+        }
+        setLoading(false);
+      };
+      loadImage();
+    }, [sanPhamChiTietId]);
 
-  return image ? (
-    <img
-      src={image}
-      alt={`Ảnh sản phẩm ${sanPhamChiTietId}`}
-      style={{ width: '80px', height: '80px', objectFit: 'cover',borderRadius:"5px" }}
-    />
-  ) : (
-    <span>Không có ảnh</span>
-  );
-};
+    if (loading) {
+      return <Spin size="small" />;
+    }
+
+    return image ? (
+      <img
+        src={image}
+        alt={`Ảnh sản phẩm ${sanPhamChiTietId}`}
+        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '5px' }}
+      />
+    ) : (
+      <span>Không có ảnh</span>
+    );
+  };
 
   const fetchProductImages = async (sanPhamChiTietId) => {
     try {
       const response = await axios.get(
         `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
 
       // Chỉ lấy danh sách anhUrl
@@ -725,20 +806,29 @@ const ProductImage = ({ sanPhamChiTietId }) => {
         return pagination.pageSize * (pagination.current - 1) + index + 1;
       },
     },
-    // {
-    //   title: 'Mã',
-    //   dataIndex: 'maSanPhamChiTiet',
-    //   key: 'maSanPhamChiTiet',
-    // },
+
     {
       title: 'Ảnh sản phẩm',
       dataIndex: 'id',
       key: 'id',
-      render: (id) => (
-        <ProductImage sanPhamChiTietId={id} />
+      render: (id) => <ProductImage sanPhamChiTietId={id} />,
+    },
+    {
+      title: 'Mã',
+      dataIndex: 'maSanPhamChiTiet',
+      key: 'maSanPhamChiTiet',
+      render: (text) => (
+        <div style={{ whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: '60px' }}>
+          {text}
+        </div>
       ),
     },
-    
+    {
+      title: 'Tên sản phẩm',
+      dataIndex: 'sanPham',
+      key: 'sanPham',
+      render: (text) => text?.tenSanPham || 'Không có dữ liệu',
+    },
     {
       title: 'Thương hiệu',
       dataIndex: 'thuongHieu',
@@ -833,7 +923,7 @@ const ProductImage = ({ sanPhamChiTietId }) => {
           </Tag>
         ),
     },
-   
+
     {
       title: 'Chức năng',
       render: (text, record) => (

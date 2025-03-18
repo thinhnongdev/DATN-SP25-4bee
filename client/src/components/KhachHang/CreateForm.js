@@ -305,13 +305,14 @@ function CreateForm({ getAllKhachHang, handleClose }) {
       ],
     };
 
-    console.log("Thông tin khách hàng mới:", newKhachHang);
     try {
       const response = await getPostApi(newKhachHang);
       if (response && response.data) {
         toast.success("Khách hàng mới đã được tạo!");
-        getAllKhachHang();
-        handleClose();
+        // Truyền dữ liệu khách hàng mới về component cha khi đóng form
+        if (handleClose) {
+          handleClose(response.data); // Truyền khách hàng mới khi đóng form
+        }
       }
     } catch (error) {
       toast.error("Có lỗi khi tạo khách hàng!");

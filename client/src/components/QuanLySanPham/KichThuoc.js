@@ -17,15 +17,16 @@ const KichThuoc = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem('token');
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kichthuoc',{
-        headers: {
-          Authorization: `Bearer ${token}` // Thêm token vào header
-        }
-      });
+      const response = await axios.get('http://localhost:8080/api/admin/kichthuoc',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
       setKichThuoc(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -82,20 +83,24 @@ const KichThuoc = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kichthuoc/${editingRecord.id}`, values,{
-          headers: {
-            Authorization: `Bearer ${token}` // Thêm token vào header
-          }
-        });
+        await axios.patch(`http://localhost:8080/api/admin/kichthuoc/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKichThuoc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa kích thước thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkichthuoc', values,{
-    
-        });
+        const response = await axios.post('http://localhost:8080/api/admin/addkichthuoc',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKichThuoc((prev) => [response.data, ...prev]);
         toast.success('Thêm kích thước thành công');
       }

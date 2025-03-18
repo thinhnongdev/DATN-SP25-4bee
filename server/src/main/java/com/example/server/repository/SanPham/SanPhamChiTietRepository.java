@@ -18,5 +18,4 @@ public interface SanPhamChiTietRepository extends JpaRepository<SanPhamChiTiet,S
     List<SanPhamChiTiet> getAllSanPhamChiTiet();
     @Query(value = "select sum(so_luong) from san_pham_chi_tiet  where id_san_pham= :idSanPham",nativeQuery = true)
     Integer findSoLuongByIdSanPham(@Param("idSanPham") String id);
-
 }

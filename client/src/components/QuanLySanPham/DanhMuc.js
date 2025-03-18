@@ -17,14 +17,14 @@ const DanhMuc = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem('token');
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/danhmuc',{
+      const response = await axios.get('http://localhost:8080/api/admin/danhmuc', {
         headers: {
-          Authorization: `Bearer ${token}` // Thêm token vào header
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       setDanhMuc(response.data);
     } catch (error) {
@@ -84,22 +84,24 @@ const DanhMuc = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`, values,{
-          headers: {
-            Authorization: `Bearer ${token}` // Thêm token vào header
-          }
-        });
+        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setDanhMuc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa danh mục thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc', values,{
-          headers: {
-            Authorization: `Bearer ${token}` // Thêm token vào header
-          }
-        });
+        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setDanhMuc((prev) => [response.data, ...prev]);
         toast.success('Thêm danh mục thành công');
       }

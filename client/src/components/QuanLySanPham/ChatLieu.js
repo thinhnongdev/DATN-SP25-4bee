@@ -17,14 +17,14 @@ const ChatLieu = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem('token');
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
       const response = await axios.get('http://localhost:8080/api/admin/chatlieu', {
         headers: {
-          Authorization: `Bearer ${token}` // Gửi token trong header
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       setChatLieu(response.data);
     } catch (error) {
@@ -84,22 +84,27 @@ const ChatLieu = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`, values,{
-          headers: {
-            Authorization: `Bearer ${token}` // Thêm token vào header
+        await axios.patch(
+          `http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`,
+          values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           }
-        });
+        );
         setChatLieu((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa chất liệu thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu', values,{
-          headers: {
-            Authorization: `Bearer ${token}` // Thêm token vào header
-          }
-        });
+        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu',values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setChatLieu((prev) => [response.data, ...prev]);
         toast.success('Thêm chất liệu thành công');
       }

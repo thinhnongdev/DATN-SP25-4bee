@@ -33,21 +33,21 @@ public class SanPhamClientService {
                 .values()
                 .stream()
                 .toList();
-       for (SanPhamChiTiet sp : sanPhamChiTietDaiDienList){
-           SanPhamClientResponse sanPhamClientResponse=new SanPhamClientResponse();
-           sanPhamClientResponse.setId(sp.getSanPham().getId());
-           sanPhamClientResponse.setMa(sp.getSanPham().getMaSanPham());
-           sanPhamClientResponse.setTen(sp.getSanPham().getTenSanPham());
-           sanPhamClientResponse.setGia(sp.getGia());
-           List<AnhSanPham> anhList = anhSanPhamRepository.findByIdSPCT(sp.getId());
-           if (!anhList.isEmpty()) {
-               sanPhamClientResponse.setAnhUrl(anhList.get(0).getAnhUrl());
-           } else {
-               sanPhamClientResponse.setAnhUrl("defaultImageUrl.jpg"); // Ảnh mặc định
-           }
-           sanPhamClientResponseList.add(sanPhamClientResponse);
-       }
-       return sanPhamClientResponseList;
+        for (SanPhamChiTiet sp : sanPhamChiTietDaiDienList){
+            SanPhamClientResponse sanPhamClientResponse=new SanPhamClientResponse();
+            sanPhamClientResponse.setId(sp.getSanPham().getId());
+            sanPhamClientResponse.setMa(sp.getSanPham().getMaSanPham());
+            sanPhamClientResponse.setTen(sp.getSanPham().getTenSanPham());
+            sanPhamClientResponse.setGia(sp.getGia());
+            List<AnhSanPham> anhList = anhSanPhamRepository.findByIdSPCT(sp.getId());
+            if (!anhList.isEmpty()) {
+                sanPhamClientResponse.setAnhUrl(anhList.get(0).getAnhUrl());
+            } else {
+                sanPhamClientResponse.setAnhUrl("defaultImageUrl.jpg"); // Ảnh mặc định
+            }
+            sanPhamClientResponseList.add(sanPhamClientResponse);
+        }
+        return sanPhamClientResponseList;
     }
 
 }

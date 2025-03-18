@@ -48,16 +48,15 @@ public class SanPhamChiTietServiceImpl implements SanPhamChiTietService {
     HoaTietRepository hoaTietRepository;
 
     @Override
-    public List<SanPhamChiTiet> findbyIdSanPham(String idSanPham) {
-        return sanPhamChiTietRepository.findByIdSanPham(idSanPham);
-    }
-
-    @Override
     public SanPhamChiTiet findbyIdSPCT(String idSPCT) {
         return sanPhamChiTietRepository.findById(idSPCT)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + idSPCT));
     }
 
+    @Override
+    public List<SanPhamChiTiet> findbyIdSanPham(String idSanPham) {
+        return sanPhamChiTietRepository.findByIdSanPham(idSanPham);
+    }
 
     @Override
     public List<SanPhamChiTiet> getAllSanPhamChiTiet() {

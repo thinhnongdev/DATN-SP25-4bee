@@ -18,7 +18,10 @@ import java.util.Optional;
 @Repository
 public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
         JpaSpecificationExecutor<HoaDon> {
-    Optional<HoaDon> findByMaHoaDon(String maHoaDon);
+
+    @Query("SELECT h FROM HoaDon h WHERE h.trangThai = :trangThai")
+    List<HoaDon> findByTrangThai(@Param("trangThai") Integer trangThai);
+
     @Query("SELECT new com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO(" +
             "h.trangThai, COUNT(h), SUM(h.tongTien), " +
             "CASE " +
@@ -37,7 +40,7 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
             @Param("toDate") LocalDateTime toDate
     );
 
-    @Query(value = "SELECT *  from hoa_don where trang_thai=1", nativeQuery = true)
+    @Query(value = "SELECT *  from hoa_don where trang_thai= 1", nativeQuery = true)
     List<HoaDon> getHoaDonCho();
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

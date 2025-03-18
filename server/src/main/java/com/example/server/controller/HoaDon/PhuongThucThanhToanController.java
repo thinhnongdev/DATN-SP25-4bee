@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/phuong-thuc-thanh-toan")
+@RequestMapping("/api/admin/phuong-thuc-thanh-toan")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class PhuongThucThanhToanController {

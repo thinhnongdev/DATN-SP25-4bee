@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 @EnableScheduling
 @RestController
-@RequestMapping("/api/phieu-giam-gia")
+@RequestMapping("/api/admin/phieu-giam-gia")
 public class PhieuGiamGiaController {
 
     @Autowired
@@ -38,6 +38,11 @@ public class PhieuGiamGiaController {
     @GetMapping
     public List<PhieuGiamGiaDTO> getAll() {
         return service.getAll();
+    }
+
+    @GetMapping("/active")
+    public List<PhieuGiamGiaDTO> getActivePhieuGiamGia() {
+        return service.getActivePhieuGiamGia();
     }
 
     @GetMapping("/khach_hang")

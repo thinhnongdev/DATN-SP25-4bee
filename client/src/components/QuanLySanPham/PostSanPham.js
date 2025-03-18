@@ -100,7 +100,7 @@ const DemoForm = () => {
   const [danhSachBienThe, setDanhSachBienThe] = useState([]);
   const [currentColor, setCurrentColor] = useState(''); // Màu hiện tại
   const navigate = useNavigate();
-  
+  const token = localStorage.getItem('token');
   // Gọi API để lấy danh sách sản phẩm
 
   const fileInputRef = useRef(null); // Tạo tham chiếu đến input file
@@ -171,7 +171,12 @@ const DemoForm = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/imagesSanPham'); // Gọi API từ backend
+        const response = await axios.get('http://localhost:8080/api/imagesSanPham',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }); // Gọi API từ backend
         setImages(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách ảnh:', error);
@@ -184,7 +189,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingSanPham(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/sanpham');
+        const response = await axios.get('http://localhost:8080/api/admin/sanpham',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setSanPham(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách sản phẩm:', error);
@@ -201,7 +211,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingChatLieu(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/chatlieu');
+        const response = await axios.get('http://localhost:8080/api/admin/chatlieu',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setChatLieu(response.data);
         // Tự động chọn phần tử đầu tiên nếu có dữ liệu
         if (response.data.length > 0) {
@@ -223,7 +238,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuDang(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieudang');
+        const response = await axios.get('http://localhost:8080/api/admin/kieudang',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuDang(response.data);
         if (response.data.length > 0) {
           const firstKieuDang = response.data[0];
@@ -244,7 +264,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingThuongHieu(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu');
+        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setThuongHieu(response.data);
         if (response.data.length > 0) {
           const firstThuongHieu = response.data[0];
@@ -265,7 +290,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCuc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucuc');
+        const response = await axios.get('http://localhost:8080/api/admin/kieucuc',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCuc(response.data);
         if (response.data.length > 0) {
           const firstKieuCuc = response.data[0];
@@ -286,7 +316,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCoAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucoao');
+        const response = await axios.get('http://localhost:8080/api/admin/kieucoao',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCoAo(response.data);
         if (response.data.length > 0) {
           const firstKieuCoAo = response.data[0];
@@ -307,7 +342,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCoTayAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao');
+        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCoTayAo(response.data);
         if (response.data.length > 0) {
           const firstKieuCoTayAo = response.data[0];
@@ -328,7 +368,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuTuiAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao');
+        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuTuiAo(response.data);
         if (response.data.length > 0) {
           const firstKieuTuiAo = response.data[0];
@@ -349,7 +394,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuTayAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutayao');
+        const response = await axios.get('http://localhost:8080/api/admin/kieutayao',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuTayAo(response.data);
         if (response.data.length > 0) {
           const firstKieuTayAo = response.data[0];
@@ -370,7 +420,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingDanhMuc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/danhmuc');
+        const response = await axios.get('http://localhost:8080/api/admin/danhmuc',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setDanhMuc(response.data);
         if (response.data.length > 0) {
           const firstDanhMuc = response.data[0];
@@ -391,7 +446,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingHoaTiet(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/hoatiet');
+        const response = await axios.get('http://localhost:8080/api/admin/hoatiet',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setHoaTiet(response.data);
         if (response.data.length > 0) {
           const firstHoaTiet = response.data[0];
@@ -412,7 +472,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingMauSac(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/mausac');
+        const response = await axios.get('http://localhost:8080/api/admin/mausac',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setColors(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách màu sắc:', error);
@@ -428,7 +493,12 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKichThuoc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc');
+        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setSizes(response.data);
         console.log(response.data);
       } catch (error) {
@@ -456,10 +526,15 @@ const DemoForm = () => {
       const response = await axios.post(
         'http://localhost:8080/api/admin/sanpham/addsanphamchitiet',
         dataToSend,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       console.log('Dữ liệu đã gửi thành công:', response.data);
       console.log('Dữ liệu gửi đi thành công:', dataToSend);
-      navigate('/sanpham');
+      navigate('/admin/sanpham');
       toast.success('Thêm sản phẩm thành công');
     } catch (error) {
       console.log('Dữ liệu thất bại:', dataToSend);
@@ -612,13 +687,23 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/sanpham/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/sanpham/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setSanPham((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addsanpham', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addsanpham',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setSanPham((prev) => [ response.data, ...prev]);
       }
 
@@ -664,14 +749,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setChatLieu((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa chất liệu thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setChatLieu((prev) => [response.data, ...prev]);
         toast.success('Thêm chất liệu thành công');
       }
@@ -718,14 +813,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieudang/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/kieudang/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuDang((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa kiểu dáng thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieudang', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkieudang',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuDang((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu dáng thành công');
       }
@@ -772,14 +877,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/thuonghieu/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/thuonghieu/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setThuongHieu((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa thương hiệu thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addthuonghieu', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addthuonghieu',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setThuongHieu((prev) => [response.data, ...prev]);
         toast.success('Thêm thương hiệu thành công');
       }
@@ -826,14 +941,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCuc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa kiểu cúc thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucuc', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkieucuc',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCuc((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu cúc thành công');
       }
@@ -880,14 +1005,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucoao/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/kieucoao/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCoAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa kiểu cổ áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucoao', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkieucoao',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCoAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu cổ áo thành công');
       }
@@ -936,6 +1071,11 @@ const DemoForm = () => {
         await axios.patch(
           `http://localhost:8080/api/admin/kieucotayao/${editingRecord.id}`,
           values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
         );
         setKieuCoTayAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
@@ -943,7 +1083,12 @@ const DemoForm = () => {
         toast.success('Sửa kiểu cổ tay áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucotayao', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkieucotayao',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuCoTayAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu cổ tay áo thành công');
       }
@@ -989,14 +1134,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieutuiao/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/kieutuiao/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuTuiAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa kiểu túi áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieutuiao', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkieutuiao',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuTuiAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu túi áo thành công');
       }
@@ -1040,14 +1195,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieutayao/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/kieutayao/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuTayAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa kiểu tay áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieutayao', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkieutayao',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setKieuTayAo((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu tay áo thành công');
       }
@@ -1092,14 +1257,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setHoaTiet((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa họa tiết thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setHoaTiet((prev) => [response.data, ...prev]);
         toast.success('Thêm họa tiết thành công');
       }
@@ -1143,14 +1318,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setDanhMuc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa danh mục thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc', values);
+        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setDanhMuc((prev) => [response.data, ...prev]);
         toast.success('Thêm danh mục thành công');
       }

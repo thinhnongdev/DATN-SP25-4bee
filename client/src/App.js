@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Modal, theme } from 'antd';
-import { Link, Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode'; // Sử dụng named import
 import './App.css';
@@ -42,8 +42,8 @@ const breadcrumbMap = {
 const menuItems = [
   { key: '1', icon: <BarChartOutlined />, label: 'Thống kê', path: '/admin' },
   { key: '2', icon: <ShoppingCartOutlined />, label: 'Bán hàng', path: '/admin/banhang' },
-  { key: '3', icon: <FileTextOutlined />, label: 'Hóa đơn', path: '/admin/hoadon' },
-  { key: '15', icon: <TagsOutlined />, label: 'Phiếu Giảm Giá', path: '/admin/phieugiamgia' },
+  { key: '3', icon: <FileTextOutlined />, label: 'Hóa đơn', path: '/admin/hoa-don' },
+  { key: '15', icon: <TagsOutlined />, label: 'Phiếu Giảm Giá', path: '/admin/phieu-giam-gia' },
   { key: '16', icon: <UserOutlined />, label: 'Nhân Viên', path: '/admin/nhanvien' },
   { key: '17', icon: <TeamOutlined />, label: 'Khách Hàng', path: '/admin/khachhang' },
 ];
@@ -260,6 +260,12 @@ const App = () => {
   const userRole = token ? getRoleFromToken(token) : null;
   console.log('Token:', token);
   console.log('Role từ token:', userRole);
+  const navigate = useNavigate(); // Thêm useNavigate
+  useEffect(() => {
+    if (token && (userRole === 'ADMIN' || userRole === 'NHAN_VIEN') && location.pathname === '/') {
+      navigate('/admin'); // Điều hướng tới admin
+    }
+  }, [token, userRole, location.pathname, navigate]);
 
   if (location.pathname === '/login' || location.pathname === '/register') {
     return (

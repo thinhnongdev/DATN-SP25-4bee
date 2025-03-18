@@ -30,7 +30,12 @@ export const calculateDiscountAmount = (voucher, total) => {
 export const findBestVoucher = async (totalBeforeVoucher) => {
   try {
     const response = await api.get(
-      `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeVoucher}`
+      `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeVoucher}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
     );
     const availableVouchers = response.data || [];
 
@@ -62,9 +67,13 @@ export const findBestVoucher = async (totalBeforeVoucher) => {
  */
 export const applyVoucher = async (hoaDonId, voucherId) => {
   try {
-    const response = await api.post(`/api/admin/hoa-don/${hoaDonId}/voucher`, {
-      voucherId,
-    });
+      const response = await api.post(`/api/admin/hoa-don/${hoaDonId}/voucher`, { voucherId },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error applying voucher:", error);

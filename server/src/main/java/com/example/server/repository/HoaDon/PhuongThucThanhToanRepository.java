@@ -7,5 +7,4 @@ import java.util.Optional;
 
 public interface PhuongThucThanhToanRepository extends JpaRepository<PhuongThucThanhToan, String> {
     Optional<PhuongThucThanhToan> findByMaPhuongThucThanhToan(String maPhuongThuc);
-
 }

@@ -9,9 +9,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/khach_hang")
+@RequestMapping("/api/admin/khach_hang")
 
 public class KhachHangController {
     @Autowired
@@ -46,5 +47,22 @@ public class KhachHangController {
     public ResponseEntity<String> deleteKhachHang(@PathVariable String id) {
         khachHangService.deleteKhachHang(id);
         return ResponseEntity.ok("Delete success");
+    }
+
+    // Thêm endpoint mới để tạo địa chỉ cho khách hàng
+    @PostMapping("/diaChi")
+    public ResponseEntity<DiaChi> addAddressForCustomer(@RequestBody Map<String, Object> request) {
+        String khachHangId = (String) request.get("khachHangId");
+        Map<String, Object> diaChiMap = (Map<String, Object>) request.get("diaChi");
+
+        DiaChi diaChi = new DiaChi();
+        diaChi.setTinh((String) diaChiMap.get("tinh"));
+        diaChi.setHuyen((String) diaChiMap.get("huyen"));
+        diaChi.setXa((String) diaChiMap.get("xa"));
+        diaChi.setMoTa((String) diaChiMap.get("moTa"));
+        diaChi.setTrangThai(1);
+
+        DiaChi savedAddress = khachHangService.addAddressForCustomer(khachHangId, diaChi);
+        return ResponseEntity.ok(savedAddress);
     }
 }

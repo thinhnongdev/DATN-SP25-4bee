@@ -1,9 +1,7 @@
 package com.example.server.controller.BanHang;
 
-import com.example.server.dto.HoaDon.request.AddProductRequest;
-import com.example.server.dto.HoaDon.request.HoaDonRequest;
-import com.example.server.dto.HoaDon.request.PhieuGiamGiaRequest;
-import com.example.server.dto.HoaDon.request.UpdateProductQuantityRequest;
+import com.example.server.dto.HoaDon.request.*;
+import com.example.server.dto.HoaDon.response.DiaChiResponse;
 import com.example.server.dto.HoaDon.response.HoaDonResponse;
 import com.example.server.dto.HoaDon.response.SanPhamChiTietHoaDonResponse;
 import com.example.server.entity.HoaDon;
@@ -79,7 +77,7 @@ public class BanHangTaiQuay {
         if (!delayApplyVoucher) {
             response = banHangService.applyBestVoucher(hoaDonId);
         }
-        webSocketService.sendInvoiceUpdate(hoaDonId); // Thêm dòng này
+        webSocketService.sendInvoiceUpdate(hoaDonId);
         return ResponseEntity.ok(response);
     }
 
@@ -166,14 +164,20 @@ public class BanHangTaiQuay {
         return ResponseEntity.ok(banHangServiceImpl.applyVoucher(hoaDonId, request.getVoucherId()));
     }
 
-    @PostMapping("/{id}/complete")
-    public ResponseEntity<HoaDonResponse> completeOrder(@PathVariable String id, @RequestBody HoaDonRequest request) {
-        HoaDonResponse response = banHangServiceImpl.completeOrder(id, request);
+    @PostMapping("/{hoaDonId}/complete")
+    public ResponseEntity<HoaDonResponse> completeOrder(@PathVariable String hoaDonId, @RequestBody HoaDonRequest request) {
+        if (request.getThanhToans() == null || request.getThanhToans().isEmpty()) {
+            return ResponseEntity.badRequest().body(null);
+        }
+
+        HoaDonResponse response = banHangServiceImpl.completeOrder(hoaDonId, request);
+
         // In hóa đơn sau khi xác nhận đơn hàng
-        ResponseEntity<?> printResponse = printHoaDon(id);
+        ResponseEntity<?> printResponse = printHoaDon(hoaDonId);
         if (printResponse.getStatusCode() != HttpStatus.OK) {
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
+
         return ResponseEntity.ok(response);
     }
 
@@ -203,6 +207,34 @@ public class BanHangTaiQuay {
 
         return ResponseEntity.ok(banHangServiceImpl.selectCustomer(hoaDonId, customerId, diaChiId));
     }
+
+    @GetMapping("/{hoaDonId}/dia-chi-chi-tiet")
+    public ResponseEntity<Map<String, String>> getAddressDetails(@PathVariable String hoaDonId) {
+        Map<String, String> addressParts = banHangServiceImpl.getDiaChiGiaoHang(hoaDonId);
+        return ResponseEntity.ok(addressParts);
+    }
+
+    @PutMapping("/{hoaDonId}/update-address")
+    public ResponseEntity<HoaDonResponse> updateDiaChiGiaoHang(
+            @PathVariable String hoaDonId,
+            @RequestBody UpdateDiaChiRequest addressRequest) {
+
+        if (hoaDonId == null || addressRequest == null || addressRequest.getDiaChiId() == null) {
+            log.error("Dữ liệu không hợp lệ: thiếu hoaDonId hoặc diaChiId.");
+            return ResponseEntity.badRequest().body(null);
+        }
+
+        try {
+            HoaDonResponse response = banHangServiceImpl.updateDiaChiGiaoHang(hoaDonId, addressRequest);
+            log.info("Cập nhật địa chỉ giao hàng thành công cho hóa đơn: {}", hoaDonId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Lỗi server khi cập nhật địa chỉ: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+
 
     @PutMapping("/{hoaDonId}/update-loai-hoa-don")
     public ResponseEntity<?> updateLoaiHoaDon(@PathVariable String hoaDonId, @RequestBody Map<String, Integer> request) {

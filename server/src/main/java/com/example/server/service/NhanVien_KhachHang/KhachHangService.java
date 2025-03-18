@@ -70,6 +70,15 @@ public class KhachHangService {
 
         return savedKhachHang;
     }
+//    huy làm test thêm địa chỉ cho khách hàng
+// Thêm phương thức để tạo địa chỉ mới cho khách hàng
+public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
+    KhachHang khachHang = khachHangRepository.findById(khachHangId)
+            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng với id: " + khachHangId));
+
+    diaChi.setKhachHang(khachHang);
+    return diaChiRepository.save(diaChi);
+}
 
     private String generateMaKhachHang(KhachHangCreationRequest khachHangRequest) {
         String tenKhachHang = khachHangRequest.getTenKhachHang();

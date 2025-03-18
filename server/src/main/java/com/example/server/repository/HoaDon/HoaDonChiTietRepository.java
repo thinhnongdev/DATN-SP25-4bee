@@ -15,6 +15,8 @@ import java.util.Optional;
 public interface HoaDonChiTietRepository extends JpaRepository<HoaDonChiTiet, String> {
     List<HoaDonChiTiet> findByHoaDon(HoaDon hoaDon);
 
+    List<HoaDonChiTiet> findByHoaDonId(String hoaDonId);
+
     @Query("SELECT h FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.sanPhamChiTiet.id = :sanPhamChiTietId")
     Optional<HoaDonChiTiet> findByHoaDonAndSanPhamChiTiet(@Param("hoaDonId") String hoaDonId, @Param("sanPhamChiTietId") String sanPhamChiTietId);
 

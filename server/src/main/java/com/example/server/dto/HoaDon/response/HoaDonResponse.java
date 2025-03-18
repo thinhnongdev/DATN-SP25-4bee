@@ -29,13 +29,18 @@ public class HoaDonResponse {
     private LocalDateTime thoiGianGiaoHang;
     private LocalDateTime thoiGianNhanHang;
     private BigDecimal tongTien;
+    private BigDecimal phiVanChuyen;
     private String ghiChu;
     private Integer trangThai;
     private LocalDateTime ngayTao;
     private NhanVienResponse nhanVien;
     private KhachHangResponse khachHang;
     private PhieuGiamGiaResponse phieuGiamGia;
-    private String tenPhuongThucThanhToan; // Tên phương thức thanh toán
+    //    private String tenPhuongThucThanhToan; // Tên phương thức thanh toán
+    private List<ThanhToanHoaDonResponse> thanhToans;
+
     private List<HoaDonChiTietResponse> hoaDonChiTiets;
     private List<DiaChiResponse> diaChiList; // Thêm thuộc tính này
+
+    private String message;
 }

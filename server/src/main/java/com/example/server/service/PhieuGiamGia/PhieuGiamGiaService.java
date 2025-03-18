@@ -21,11 +21,11 @@ public interface PhieuGiamGiaService {
     void deleteById(String id);
     String getDiscountInfo(String maPhieuGiamGia);
     double applyDiscount(String maPhieuGiamGia, double tongGiaTriDonHang);
+    List<PhieuGiamGia> getAllPhieuCongKhai();
+    List<PhieuGiamGiaDTO> getActivePhieuGiamGia();
 
     // Thêm phương thức lấy danh sách khách hàng theo mã phiếu giảm giá
     List<KhachHang> getKhachHangByMaPhieuGiamGia(String maPhieuGiamGia);
-
-    List<PhieuGiamGia> getAllPhieuCongKhai();
 
     // Thêm phương thức huỷ phiếu giảm giá cho khách hàng
     void cancelPhieuGiamGiaForCustomer(String maPhieuGiamGia, String maKhachHang);

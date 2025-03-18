@@ -4,6 +4,7 @@ import com.example.server.dto.HoaDon.request.LichSuHoaDonRequest;
 import com.example.server.dto.HoaDon.response.LichSuHoaDonResponse;
 import com.example.server.entity.HoaDon;
 import com.example.server.entity.LichSuHoaDon;
+import com.example.server.entity.NhanVien;
 import com.example.server.mapper.impl.LichSuHoaDonMapper;
 import com.example.server.repository.HoaDon.HoaDonRepository;
 import com.example.server.repository.HoaDon.LichSuHoaDonRepository;
@@ -36,27 +37,56 @@ public class LichSuHoaDonService {
     }
 
     public void saveLichSuHoaDon(LichSuHoaDonRequest request) {
-        // Lấy đối tượng HoaDon từ database
+        // 1. Lấy hóa đơn từ database
         HoaDon hoaDon = hoaDonRepository.findById(request.getHoaDonId())
                 .orElseThrow(() -> new IllegalArgumentException("Hóa đơn không tồn tại với ID: " + request.getHoaDonId()));
 
-        // Tạo entity LichSuHoaDon
+        // 2. Tạo entity LichSuHoaDon
         LichSuHoaDon entity = new LichSuHoaDon();
-        String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8); // Tạo ID từ UUID
-        entity.setId("LS" + uuid);
-//        entity.setId( UUID.randomUUID().toString()); // Tạo ID ngẫu nhiên
+        entity.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8)); // Tạo ID từ UUID
         entity.setHoaDon(hoaDon);
         entity.setTrangThai(request.getTrangThai());
 
-//        NhanVien nhanVien = nhanVienRepository.findById(request.getNhanVien())
-//                .orElseThrow(() -> new IllegalArgumentException("Nhân viên không tồn tại với ID: " + request.getNhanVien()));
-//        entity.setNhanVien(nhanVien);
-
+        // 3. Gán thời gian tạo (nếu không có thì lấy thời gian hiện tại)
         entity.setNgayTao(LocalDateTime.now());
-        entity.setHanhDong("Cập nhật trạng thái hóa đơn");
-        entity.setMoTa(request.getGhiChu());
 
-        // Lưu vào database
+        // 4. Xác định nhân viên thực hiện (nếu có)
+//        if (request.getNhanVienId() != null) {
+//            NhanVien nhanVien = nhanVienRepository.findById(request.getNhanVienId())
+//                    .orElseThrow(() -> new IllegalArgumentException("Nhân viên không tồn tại với ID: " + request.getNhanVienId()));
+//            entity.setNhanVien(nhanVien);
+//        }
+
+        // 5. Ghi nhận hành động và mô tả
+        entity.setHanhDong("Cập nhật trạng thái hóa đơn");
+        entity.setMoTa(request.getGhiChu() != null ? request.getGhiChu() : "Không có mô tả");
+
+        // 6. Lưu vào database
         repository.save(entity);
     }
+//    public void saveLichSuHoaDon(LichSuHoaDonRequest request) {
+//        // Lấy đối tượng HoaDon từ database
+//        HoaDon hoaDon = hoaDonRepository.findById(request.getHoaDonId())
+//                .orElseThrow(() -> new IllegalArgumentException("Hóa đơn không tồn tại với ID: " + request.getHoaDonId()));
+//
+//        // Tạo entity LichSuHoaDon
+//        LichSuHoaDon entity = new LichSuHoaDon();
+//        String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8); // Tạo ID từ UUID
+//        entity.setId("LS" + uuid);
+////        entity.setId( UUID.randomUUID().toString()); // Tạo ID ngẫu nhiên
+//        entity.setHoaDon(hoaDon);
+//        entity.setTrangThai(request.getTrangThai());
+//
+////        NhanVien nhanVien = nhanVienRepository.findById(request.getNhanVien())
+////                .orElseThrow(() -> new IllegalArgumentException("Nhân viên không tồn tại với ID: " + request.getNhanVien()));
+////        entity.setNhanVien(nhanVien);
+//
+//        entity.setNgayTao(LocalDateTime.now());
+//        entity.setHanhDong("Cập nhật trạng thái hóa đơn");
+//        entity.setMoTa(request.getGhiChu());
+//
+//        // Lưu vào database
+//        repository.save(entity);
+//    }
+
 }

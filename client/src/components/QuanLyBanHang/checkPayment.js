@@ -8,6 +8,9 @@ export const checkPayment = async (hoaDonId, amount) => {
     const response = await axios.get(
       `http://localhost:8080/api/admin/ban-hang/sepay/transactions`,
       {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
         params: { account_number: accountNumber, limit: limit },
       }
     );

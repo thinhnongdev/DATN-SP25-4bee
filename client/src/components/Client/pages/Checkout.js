@@ -30,6 +30,7 @@ const CheckoutForm = () => {
   const [shippingFee, setShippingFee] = useState(null);
   const [form] = Form.useForm();
   const [formData, setFormData] = useState({});
+
   const API_TOKEN = '4f7fc40f-023f-11f0-aff4-822fc4284d92';
 
   useEffect(() => {
@@ -153,9 +154,9 @@ const CheckoutForm = () => {
   };
   console.log('formData:', formData);
   console.log('selectedVoucher:', selectedVoucher);
-console.log('totalAmount:', totalAmount);
-console.log('totalPayMent:', totalPayMent);
-console.log('cartProducts:', cartProducts);
+  console.log('totalAmount:', totalAmount);
+  console.log('totalPayMent:', totalPayMent);
+  console.log('cartProducts:', cartProducts);
 
 const handleSubmitOrder = () => {
   if (!validateForm()) return;

@@ -185,11 +185,13 @@ public class PDFGenerator {
 
 
     private void addProductsTable(Document document, List<HoaDonChiTiet> chiTiets) {
-        Table table = new Table(new float[]{3, 1, 2, 2});
+        Table table = new Table(new float[]{4, 2, 2, 1, 2, 2});
         table.setWidth(UnitValue.createPercentValue(100));
 
         // Thêm tiêu đề bảng
         table.addHeaderCell(createHeaderCell("Sản phẩm"));
+        table.addHeaderCell(createHeaderCell("Màu sắc"));
+        table.addHeaderCell(createHeaderCell("Kích thước"));
         table.addHeaderCell(createHeaderCell("SL"));
         table.addHeaderCell(createHeaderCell("Đơn giá"));
         table.addHeaderCell(createHeaderCell("Thành tiền"));
@@ -199,13 +201,12 @@ public class PDFGenerator {
             SanPhamChiTiet sanPham = chiTiet.getSanPhamChiTiet();
             BigDecimal thanhTien = sanPham.getGia().multiply(new BigDecimal(chiTiet.getSoLuong()));
 
-            table.addCell(createCell(sanPham.getSanPham().getTenSanPham(), false));
-            table.addCell(createCell(String.valueOf(chiTiet.getSoLuong()), false)
-                    .setTextAlignment(TextAlignment.CENTER));
-            table.addCell(createCell(formatCurrency(sanPham.getGia()), false)
-                    .setTextAlignment(TextAlignment.RIGHT));
-            table.addCell(createCell(formatCurrency(thanhTien), false)
-                    .setTextAlignment(TextAlignment.RIGHT));
+            table.addCell(createCell(sanPham.getSanPham().getTenSanPham(), false).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(createCell(sanPham.getMauSac() != null ? sanPham.getMauSac().getTenMau() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(createCell(sanPham.getKichThuoc() != null ? sanPham.getKichThuoc().getTenKichThuoc() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(createCell(String.valueOf(chiTiet.getSoLuong()), false).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(createCell(formatCurrency(sanPham.getGia()), false).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(createCell(formatCurrency(thanhTien), false).setTextAlignment(TextAlignment.CENTER));
         }
 
         document.add(table);
@@ -216,8 +217,10 @@ public class PDFGenerator {
         document.add(new Paragraph("THÔNG TIN THANH TOÁN")
                 .setBold()
                 .setFontSize(14));
-        Table table = new Table(new float[]{3, 1});
-        table.setWidth(UnitValue.createPercentValue(100));
+
+        Table table = new Table(new float[]{4, 2});
+        table.setWidth(UnitValue.createPercentValue(60));
+        table.setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.RIGHT);
 
         table.addCell(createCell("Tổng tiền hàng:", true).setBorder(null));
         table.addCell(createCell(formatCurrency(amounts.getTongTienHang()), false)
@@ -231,7 +234,14 @@ public class PDFGenerator {
                     .setBorder(null));
         }
 
-        table.addCell(createCell("Tổng thanh toán:", true).setBorder(null));
+        if (amounts.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
+            table.addCell(createCell("Phí vận chuyển:", true).setBorder(null));
+            table.addCell(createCell(formatCurrency(amounts.getPhiVanChuyen()), false)
+                    .setTextAlignment(TextAlignment.RIGHT)
+                    .setBorder(null));
+        }
+
+        table.addCell(createCell("Tổng thanh toán:", true).setBorder(null).setBold());
         table.addCell(createCell(formatCurrency(amounts.getTongThanhToan()), false)
                 .setTextAlignment(TextAlignment.RIGHT)
                 .setBorder(null)
@@ -246,6 +256,7 @@ public class PDFGenerator {
     private static class InvoiceAmounts {
         private BigDecimal tongTienHang;
         private BigDecimal tienGiamGia;
+        private BigDecimal phiVanChuyen;
         private BigDecimal tongThanhToan;
     }
 
@@ -286,11 +297,13 @@ public class PDFGenerator {
                 }
             }
         }
+//        Lấy phí vận chuyển
+        BigDecimal phiVanChuyen = hoaDon.getPhiVanChuyen() != null ? hoaDon.getPhiVanChuyen() : BigDecimal.ZERO;
 
         // Tính tổng thanh toán
-        BigDecimal tongThanhToan = tongTienHang.subtract(tienGiamGia).max(BigDecimal.ZERO);
+        BigDecimal tongThanhToan = tongTienHang.add(phiVanChuyen).subtract(tienGiamGia).max(BigDecimal.ZERO);
 
-        return new InvoiceAmounts(tongTienHang, tienGiamGia, tongThanhToan);
+        return new InvoiceAmounts(tongTienHang, tienGiamGia, phiVanChuyen, tongThanhToan);
     }
 
     private void validateInvoiceData(HoaDon hoaDon) {
@@ -329,7 +342,7 @@ public class PDFGenerator {
             cell.setBold(); // Đậm chữ cho tiêu đề
         }
         return cell
-                .setPadding(5) // Tạo khoảng cách trong ô
+                .setPadding(5)
                 .setTextAlignment(TextAlignment.LEFT);
     }
 

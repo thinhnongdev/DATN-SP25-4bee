@@ -19,10 +19,15 @@ const MauSac = () => {
   const [searchText, setSearchText] = useState('');
   const [color, setColor] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const token = localStorage.getItem('token');
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/mausac');
+      const response = await axios.get('http://localhost:8080/api/admin/mausac', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setMauSac(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -104,8 +109,12 @@ const MauSac = () => {
         // Cập nhật
         try {
           await axios.patch(
-            `http://localhost:8080/api/admin/mausac/${editingRecord.id}`,
-            dataToSend,
+            `http://localhost:8080/api/admin/mausac/${editingRecord.id}`,dataToSend,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
           );
           setMauSac((prev) =>
             prev.map((item) => (item.id === editingRecord.id ? { ...item, ...dataToSend } : item)),
@@ -118,8 +127,12 @@ const MauSac = () => {
         // Thêm mới
         try {
           const response = await axios.post(
-            'http://localhost:8080/api/admin/addmausac',
-            dataToSend,
+            'http://localhost:8080/api/admin/addmausac',dataToSend,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
           );
           setMauSac((prev) => [response.data, ...prev]);
           setColor('');
@@ -262,8 +275,8 @@ const MauSac = () => {
           dataSource={filteredData.map((item) => ({ ...item, key: item.id }))}
           columns={columns}
           pagination={pagination}
-      onChange={handleTableChange}
-      rowKey="id"
+          onChange={handleTableChange}
+          rowKey="id"
         />
       </Container>
 

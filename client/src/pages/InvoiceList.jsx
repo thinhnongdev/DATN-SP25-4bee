@@ -80,6 +80,7 @@ function InvoiceList() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const token = localStorage.getItem("token");
 
   const handleCloseQrModal = () => {
     setIsQrModalOpen(false);
@@ -94,6 +95,9 @@ function InvoiceList() {
           keyword: filters.keyword || null,
           trangThai: filters.trangThai || null,
         },
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
       if (response.status === 200) {
         setInvoices(response.data.content);
@@ -225,7 +229,12 @@ function InvoiceList() {
   const handleDelete = async () => {
     try {
       const response = await api.delete(
-        `/api/admin/hoa-don/${selectedInvoice.id}`
+        `/api/admin/hoa-don/${selectedInvoice.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       );
       if (response.status === 200 || response.status === 204) {
         toast.success("Xóa hóa đơn thành công");
@@ -246,10 +255,16 @@ function InvoiceList() {
   const handlePrintInvoice = async (id) => {
     try {
       setPrintingInvoices((prev) => new Set([...prev, id]));
-      const response = await api.get(`/api/admin/hoa-don/${id}/print`, {
-        responseType: "blob",
-        headers: { Accept: "application/pdf, application/json" },
-      });
+      const response = await api.get(
+        `/api/admin/hoa-don/${id}/print`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/pdf, application/json"
+          },
+          responseType: "blob"
+        }
+      );
 
       const contentType = response.headers["content-type"];
       if (!contentType.includes("application/pdf")) {
@@ -352,13 +367,13 @@ function InvoiceList() {
       // Filter by price range
       if (
         filters.minPrice &&
-        parseFloat(invoice.tongTien) < parseFloat(filters.minPrice)
+        Number(invoice.tongTien) < Number(filters.minPrice)
       ) {
         return false;
       }
       if (
         filters.maxPrice &&
-        parseFloat(invoice.tongTien) > parseFloat(filters.maxPrice)
+        Number(invoice.tongTien) > Number(filters.maxPrice)
       ) {
         return false;
       }
@@ -473,7 +488,11 @@ function InvoiceList() {
       dataIndex: "tongTien",
       key: "tongTien",
       align: "center",
-      render: (text) => formatCurrency(text),
+      render: (text, record) => {
+        const shippingCost = record.phiVanChuyen || 0;
+        const total = Number(text) + Number(shippingCost);
+        return formatCurrency(total);
+      },
     },
     {
       title: "Thao tác",
@@ -484,7 +503,7 @@ function InvoiceList() {
           <Tooltip title="Chi tiết">
             <Button
               icon={<EditOutlined />}
-              onClick={() => navigate(`/hoa-don/detail/${record.id}`)}
+              onClick={() => navigate(`/admin/hoa-don/detail/${record.id}`)}
             />
           </Tooltip>
           <Tooltip title="In hóa đơn">
@@ -535,17 +554,77 @@ function InvoiceList() {
             <Col span={12}>
               <Input
                 placeholder="Giá tối thiểu"
-                value={filters.minPrice}
-                onChange={(e) => handleFilterChange("minPrice")(e.target.value)}
-                type="number"
+                value={
+                  filters.minPrice
+                    ? filters.minPrice
+                        .toString()
+                        .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                    : ""
+                }
+                onChange={(e) => {
+                  const value = e.target.value.replace(/,/g, "");
+                  if (value === "" || /^\d+$/.test(value)) {
+                    const numValue = value ? Number(value) : "";
+                    handleFilterChange("minPrice")(numValue);
+                  }
+                }}
+                onBlur={() => {
+                  // Kiểm tra ràng buộc khi người dùng hoàn tất nhập liệu
+                  if (
+                    filters.minPrice &&
+                    filters.maxPrice &&
+                    Number(filters.minPrice) > Number(filters.maxPrice)
+                  ) {
+                    toast.warning(
+                      "Giá trị tối thiểu không được lớn hơn giá trị tối đa!"
+                    );
+                    // Đặt lại giá trị tối thiểu bằng giá trị tối đa
+                    handleFilterChange("minPrice")(filters.maxPrice);
+                  }
+                }}
+                status={
+                  filters.maxPrice && filters.minPrice > filters.maxPrice
+                    ? "error"
+                    : ""
+                }
               />
             </Col>
             <Col span={12}>
               <Input
                 placeholder="Giá tối đa"
-                value={filters.maxPrice}
-                onChange={(e) => handleFilterChange("maxPrice")(e.target.value)}
-                type="number"
+                value={
+                  filters.maxPrice
+                    ? filters.maxPrice
+                        .toString()
+                        .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                    : ""
+                }
+                onChange={(e) => {
+                  const value = e.target.value.replace(/,/g, "");
+                  if (value === "" || /^\d+$/.test(value)) {
+                    const numValue = value ? Number(value) : "";
+                    handleFilterChange("maxPrice")(numValue);
+                  }
+                }}
+                onBlur={() => {
+                  // Kiểm tra ràng buộc khi người dùng hoàn tất nhập liệu
+                  if (
+                    filters.minPrice &&
+                    filters.maxPrice &&
+                    Number(filters.maxPrice) < Number(filters.minPrice)
+                  ) {
+                    toast.warning(
+                      "Giá trị tối đa không được nhỏ hơn giá trị tối thiểu!"
+                    );
+                    // Đặt lại giá trị tối đa bằng giá trị tối thiểu
+                    handleFilterChange("maxPrice")(filters.minPrice);
+                  }
+                }}
+                status={
+                  filters.minPrice && filters.maxPrice < filters.minPrice
+                    ? "error"
+                    : ""
+                }
               />
             </Col>
             <Col span={24}>
@@ -605,7 +684,7 @@ function InvoiceList() {
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                onClick={() => navigate("/hoa-don/create")}
+                onClick={() => navigate("/ban-hang")}
               >
                 Tạo mới
               </Button>
@@ -633,7 +712,7 @@ function InvoiceList() {
               }
               key="2"
             />
-             <TabPane
+            <TabPane
               tab={
                 <span>
                   Chờ giao hàng{" "}
@@ -663,8 +742,7 @@ function InvoiceList() {
             <TabPane
               tab={
                 <span>
-                  Đã hủy{" "}
-                  <sup style={{ color: "red" }}>{statusCounts[6]}</sup>
+                  Đã hủy <sup style={{ color: "red" }}>{statusCounts[6]}</sup>
                 </span>
               }
               key="6"
@@ -695,19 +773,6 @@ function InvoiceList() {
             />
           </div>
         </Card>
-        <Modal
-          visible={deleteDialogOpen}
-          onCancel={() => setDeleteDialogOpen(false)}
-          onOk={handleDelete}
-          okText="Xóa"
-          cancelText="Hủy"
-          title="Xác nhận xóa"
-          centered
-        >
-          <Text>
-            Bạn có chắc chắn muốn xóa hóa đơn {selectedInvoice?.maHoaDon}?
-          </Text>
-        </Modal>
         <PreviewModal />
         <Modal
           title="Quét mã QR Hóa Đơn"
@@ -720,7 +785,7 @@ function InvoiceList() {
             isActive={isQrModalOpen} // Chỉ quét khi modal mở
             onScanSuccess={(decodedText) => {
               setIsQrModalOpen(false);
-              navigate(`/hoa-don/detail/${decodedText}`);
+              navigate(`/admin/hoa-don/detail/${decodedText}`);
             }}
             onScanError={(error) => {
               console.error("QR scan error:", error);

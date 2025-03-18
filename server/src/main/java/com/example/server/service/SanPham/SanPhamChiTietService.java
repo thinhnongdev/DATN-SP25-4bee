@@ -7,8 +7,8 @@ import com.example.server.entity.*;
 import java.util.List;
 
 public interface SanPhamChiTietService {
-    List<SanPhamChiTiet> findbyIdSanPham(String idSanPham);
     SanPhamChiTiet findbyIdSPCT(String idSPCT);
+    List<SanPhamChiTiet> findbyIdSanPham(String idSanPham);
     List<SanPhamChiTiet> getAllSanPhamChiTiet();
     Integer findSoLuongbyIdSanPham(String idSanPham);
     void saveSanPhamChiTiet(SanPhamChiTietCreationRequest sanPhamChiTietCreationRequest);

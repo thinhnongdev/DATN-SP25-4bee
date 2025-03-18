@@ -17,15 +17,16 @@ const HoaTiet = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem('token');
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/hoatiet',{
-        headers: {
-          Authorization: `Bearer ${token}` // Thêm token vào header
-        }
-      });
+      const response = await axios.get('http://localhost:8080/api/admin/hoatiet',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
       setHoaTiet(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -84,22 +85,24 @@ const HoaTiet = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`, values,{
-          headers: {
-            Authorization: `Bearer ${token}` // Thêm token vào header
-          }
-        });
+        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`,  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setHoaTiet((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa họa tiết thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet', values,{
-          headers: {
-            Authorization: `Bearer ${token}` // Thêm token vào header
-          }
-        });
+        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet',  values,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
         setHoaTiet((prev) => [response.data, ...prev]);
         toast.success('Thêm họa tiết thành công');
       }

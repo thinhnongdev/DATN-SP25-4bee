@@ -88,9 +88,5 @@ public class ThanhToanClientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Đặt hàng thất bại: " + e.getClass().getName() + " - " + e.getMessage());
         }
-
     }
-
-
-
 }

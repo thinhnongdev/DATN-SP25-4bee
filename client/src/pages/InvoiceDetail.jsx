@@ -61,7 +61,7 @@ const getStatusText = (status) => {
       return "Chờ xác nhận";
     case 2:
       return "Đã xác nhận";
-      case 3:
+    case 3:
       return "Chờ giao hàng";
     case 4:
       return "Đang giao hàng";
@@ -124,16 +124,23 @@ function InvoiceDetail() {
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorDialogMessage, setErrorDialogMessage] = useState("");
   const [totalBeforeDiscount, setTotalBeforeDiscount] = useState(0);
-
+  const token = localStorage.getItem("token");
   const socket = useRef(null);
 
   const fetchInvoice = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/admin/hoa-don/${id}`);
+      const response = await api.get(
+        `/api/admin/hoa-don/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
       toast.success("Tải thông tin hóa đơn thành công");
       if (response.data) {
-        console.log("📌 Dữ liệu hóa đơn từ API:", response.data);
+        console.log(" Dữ liệu hóa đơn từ API:", response.data);
         setInvoice(response.data);
         setNewStatus(response.data.trangThai.toString());
 
@@ -186,7 +193,14 @@ function InvoiceDetail() {
 
   const fetchProducts = async () => {
     try {
-      const response = await api.get("/api/admin/hoa-don/san-pham/all");
+      const response = await api.get(
+        "/api/admin/hoa-don/san-pham/all",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
       const productsData = response.data;
 
       // Lấy hình ảnh từ API sản phẩm chi tiết
@@ -195,6 +209,7 @@ function InvoiceDetail() {
           try {
             const imgResponse = await api.get(
               `/api/admin/sanphamchitiet/${product.id}/hinhanh`
+              ,{headers:{Authorization: `Bearer ${token}`}}
             );
             return {
               ...product,
@@ -235,7 +250,10 @@ function InvoiceDetail() {
       );
       await api.post(`/api/admin/hoa-don/${id}/voucher`, {
         voucherId: bestVoucher.id,
-      });
+      },
+      {headers
+        :{Authorization: `Bearer ${token}`}}
+      );
     }
 
     if (appliedVoucher) {
@@ -268,7 +286,14 @@ function InvoiceDetail() {
 
   const fetchInvoiceProducts = async () => {
     try {
-      const response = await api.get(`/api/admin/hoa-don/${id}/san-pham`);
+      const response = await api.get(
+        `/api/admin/hoa-don/${id}/san-pham`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
       const products = response.data;
 
       // Gọi API lấy hình ảnh cho từng sản phẩm
@@ -276,7 +301,12 @@ function InvoiceDetail() {
         products.map(async (product) => {
           try {
             const imgResponse = await api.get(
-              `/api/admin/sanphamchitiet/${product.sanPhamChiTietId}/hinhanh`
+              `/api/admin/sanphamchitiet/${product.sanPhamChiTietId}/hinhanh`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`, // Gắn token vào đây
+                },
+              }
             );
             return {
               ...product,
@@ -304,7 +334,12 @@ function InvoiceDetail() {
 
     try {
       const response = await api.get(
-        `/api/admin/phieu-giam-gia/available?orderTotal=${invoice.tongTien}`
+        `/api/admin/phieu-giam-gia/available?orderTotal=${invoice.tongTien}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       );
       console.log("Danh sách voucher từ API:", response.data);
       setVouchers(response.data);
@@ -336,9 +371,18 @@ function InvoiceDetail() {
     }
 
     try {
-      const response = await api.post(`/api/admin/hoa-don/${id}/voucher`, {
-        voucherId: selectedVoucher.id,
-      });
+      const response = await api.post(
+        `/api/admin/hoa-don/${id}/voucher`,
+        {
+          voucherId: selectedVoucher.id
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
       const originalTotal =
         (totalBeforeDiscount || 0) + (invoice?.phiVanChuyen || 0);
@@ -377,7 +421,11 @@ function InvoiceDetail() {
     }
 
     try {
-      await api.delete(`/api/admin/hoa-don/${id}/voucher`);
+      await api.delete(`/api/admin/hoa-don/${id}/voucher`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
 
       const originalTotal =
         (totalBeforeDiscount || 0) + (invoice?.phiVanChuyen || 0);
@@ -443,104 +491,199 @@ function InvoiceDetail() {
   };
 
   const createFullAddress = () => {
-    const parts = new Set();
-
+    const parts = [];
+  
     if (specificAddress?.trim()) {
-      parts.add(specificAddress.trim());
+      parts.push(specificAddress.trim());
     }
-    if (selectedWard?.name) {
-      parts.add(selectedWard.name);
+    
+    if (selectedWard?.WardName) {
+      parts.push(selectedWard.WardName);
     }
-    if (selectedDistrict?.name) {
-      parts.add(selectedDistrict.name);
+    
+    if (selectedDistrict?.DistrictName) {
+      parts.push(selectedDistrict.DistrictName);
     }
-    if (selectedProvince?.name) {
-      parts.add(selectedProvince.name);
+    
+    if (selectedProvince?.ProvinceName) {
+      parts.push(selectedProvince.ProvinceName);
     }
-
-    return Array.from(parts).join(", ");
+  
+    return parts.join(", ");
   };
 
   const handleSaveRecipientInfo = async () => {
     if (!province || !district || !ward) {
-      toast.error(
-        "Vui lòng chọn đầy đủ Tỉnh/Thành phố, Quận/Huyện và Phường/Xã"
-      );
+      toast.error("Vui lòng chọn đầy đủ Tỉnh/Thành phố, Quận/Huyện và Phường/Xã");
       return;
     }
-
+  
     if (!recipientName || !phoneNumber) {
       toast.error("Vui lòng nhập đầy đủ tên và số điện thoại người nhận");
       return;
     }
-
-    const fullAddress = createFullAddress(); // ✅ Chỉ sử dụng `fullAddress`
-
+  
+    const fullAddress = createFullAddress();
+  
     const updateData = {
       tenNguoiNhan: recipientName,
       soDienThoai: phoneNumber,
       phiVanChuyen: shippingFee,
       ghiChu: note,
-      diaChi: fullAddress, // ✅ Chỉ gửi địa chỉ đầy đủ
+      diaChi: fullAddress,
+      provinceId: province,
+      districtId: district,
+      wardCode: ward
     };
-
+  
     try {
-      console.log("📌 Sending update request:", updateData);
-
-      const response = await api.put(`/api/admin/hoa-don/${id}`, updateData);
-
+      console.log("Sending update request:", updateData);
+  
+      const response = await api.put(
+        `/api/admin/hoa-don/${id}`,
+        updateData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+  
       if (response.data) {
-        toast.success("Cập nhật thông tin đơn hàng thành công");
-
-        // ✅ Cập nhật state ngay lập tức
         setInvoice(response.data);
-
-        // ✅ Load lại dữ liệu từ server để đảm bảo tính nhất quán
-        await fetchInvoice();
-
-        setOpenEditRecipientDialog(false);
+        toast.success("Cập nhật thông tin người nhận thành công");
+        handleCloseEditRecipientDialog();
+        fetchInvoice(); // Làm mới dữ liệu
       }
     } catch (error) {
-      console.error("❌ Error updating invoice:", error);
+      console.error("Error updating invoice:", error);
       toast.error("Lỗi khi cập nhật thông tin đơn hàng");
     }
   };
 
   const fetchProvinces = async () => {
     try {
-      const response = await axios.get("https://provinces.open-api.vn/api/p/");
+      const response = await api.get("/api/admin/hoa-don/dia-chi/tinh", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       setProvinces(response.data);
+      return response.data;
     } catch (error) {
-      toast.error("Lỗi khi tải danh sách tỉnh");
-    }
-  };
-
-  const fetchDistricts = async (provinceCode) => {
-    try {
-      const response = await axios.get(
-        `https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`
-      );
-      setDistricts(response.data.districts);
-      return response.data.districts; // ✅ Trả về danh sách quận/huyện
-    } catch (error) {
-      toast.error("Lỗi khi tải danh sách quận");
+      console.error("Lỗi khi tải danh sách tỉnh/thành phố:", error);
+      toast.error("Lỗi khi tải danh sách tỉnh/thành phố");
       return [];
     }
   };
-
-  const fetchWards = async (districtCode) => {
+  
+  const fetchDistricts = async (provinceId) => {
     try {
-      const response = await axios.get(
-        `https://provinces.open-api.vn/api/d/${districtCode}?depth=2`
+      const response = await api.get(
+        `/api/admin/hoa-don/dia-chi/huyen`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          params: {
+            provinceId: provinceId
+          }
+        }
       );
-      setWards(response.data.wards);
-      return response.data.wards; // ✅ Trả về danh sách phường/xã
+      setDistricts(response.data);
+      return response.data;
     } catch (error) {
-      toast.error("Lỗi khi tải danh sách xã");
+      console.error("Lỗi khi tải danh sách quận/huyện:", error);
+      toast.error("Lỗi khi tải danh sách quận/huyện");
       return [];
     }
   };
-
+  
+  const fetchWards = async (districtId) => {
+    try {
+      const response = await api.get(
+        `/api/admin/hoa-don/dia-chi/xa`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          params: {
+            districtId: districtId
+          }
+        }
+      );      setWards(response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách phường/xã:", error);
+      toast.error("Lỗi khi tải danh sách phường/xã");
+      return [];
+    }
+  };
+  
+  // Hàm chuẩn hóa chuỗi (loại bỏ dấu và khoảng trắng thừa)
+  const normalizeString = (str) => {
+    if (!str) return "";
+    return str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Loại bỏ dấu
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .trim()
+      .replace(/\s+/g, " "); // Loại bỏ khoảng trắng thừa
+  };
+  
+  // Hàm tìm kiếm phần tử gần đúng trong danh sách
+  const findClosestMatch = (name, list) => {
+    if (!name || !list || !list.length) return null;
+  
+    name = name.trim();
+  
+    // Chuẩn hóa tên để so sánh
+    const normalizedName = name.toLowerCase();
+    const normalizedNoAccent = normalizeString(name);
+  
+    // 1. Tìm kiếm chính xác trước
+    const exactMatch = list.find(
+      (item) => item.ProvinceName?.toLowerCase().trim() === normalizedName || 
+               item.DistrictName?.toLowerCase().trim() === normalizedName ||
+               item.WardName?.toLowerCase().trim() === normalizedName
+    );
+    
+    if (exactMatch) {
+      console.log(`Tìm thấy kết quả khớp chính xác cho "${name}"`);
+      return exactMatch;
+    }
+  
+    // 2. Tìm kiếm không phân biệt dấu
+    const noAccentMatch = list.find(
+      (item) => normalizeString(item.ProvinceName || item.DistrictName || item.WardName) === normalizedNoAccent
+    );
+    
+    if (noAccentMatch) {
+      console.log(`Tìm thấy kết quả khớp không dấu cho "${name}"`);
+      return noAccentMatch;
+    }
+  
+    // 3. Tìm kiếm chứa từ khóa
+    const containsMatch = list.find(
+      (item) => {
+        const itemName = item.ProvinceName || item.DistrictName || item.WardName;
+        return normalizeString(itemName).includes(normalizedNoAccent) ||
+               normalizedNoAccent.includes(normalizeString(itemName));
+      }
+    );
+    
+    if (containsMatch) {
+      console.log(`Tìm thấy kết quả chứa từ khóa cho "${name}"`);
+      return containsMatch;
+    }
+  
+    console.log(`Không tìm thấy kết quả gần đúng nào cho "${name}"`);
+    return null;
+  };
+  
   const handleOpenEditRecipientDialog = () => {
     setOpenEditRecipientDialog(true);
   };
@@ -550,33 +693,40 @@ function InvoiceDetail() {
   };
 
   const handleProvinceChange = async (value) => {
-    const selected = provinces.find((p) => p.code === value);
-    setSelectedProvince(selected);
     setProvince(value);
-    setDistrict("");
-    setWard("");
+    setDistrict(null);
+    setWard(null);
     setSelectedDistrict(null);
     setSelectedWard(null);
+    
     if (value) {
+      const provinceObj = provinces.find(p => p.ProvinceID === value);
+      setSelectedProvince(provinceObj);
       await fetchDistricts(value);
+    } else {
+      setDistricts([]);
+      setWards([]);
     }
   };
 
   const handleDistrictChange = async (value) => {
-    const selected = districts.find((d) => d.code === value);
-    setSelectedDistrict(selected);
     setDistrict(value);
-    setWard("");
+    setWard(null);
     setSelectedWard(null);
+    
     if (value) {
+      const districtObj = districts.find(d => d.DistrictID === value);
+      setSelectedDistrict(districtObj);
       await fetchWards(value);
+    } else {
+      setWards([]);
     }
   };
 
   const handleWardChange = (value) => {
-    const selected = wards.find((w) => w.code === value);
-    setSelectedWard(selected);
     setWard(value);
+    const wardObj = wards.find(w => w.WardCode === value);
+    setSelectedWard(wardObj);
   };
 
   useEffect(() => {
@@ -608,7 +758,7 @@ function InvoiceDetail() {
       fetchPaymentHistory();
 
       // Initialize WebSocket connection
-      const socket = new SockJS("http://localhost:8080/ws");
+      const socket = new SockJS("http://localhost:8080/ws",{headers:{Authorization: `Bearer ${token}`}});
       const stompClient = new Client({
         webSocketFactory: () => socket,
         onConnect: () => {
@@ -685,41 +835,76 @@ function InvoiceDetail() {
       setPhoneNumber(invoice.soDienThoai);
       setSpecificAddress(invoice.moTa || "");
       setNote(invoice.ghiChu);
-      setShippingFee(invoice.phiVanChuyen);
-
-      const loadLocations = async () => {
-        if (provinces.length === 0) {
-          await fetchProvinces();
-        }
-
-        if (invoice.tinh) {
-          const foundProvince = provinces.find((p) => p.name === invoice.tinh);
-          if (foundProvince) {
-            setProvince(foundProvince.code);
-            setSelectedProvince(foundProvince);
-
-            const districtsData = await fetchDistricts(foundProvince.code);
-            const foundDistrict = districtsData.find(
-              (d) => d.name === invoice.huyen
-            );
-            if (foundDistrict) {
-              setDistrict(foundDistrict.code);
-              setSelectedDistrict(foundDistrict);
-
-              const wardsData = await fetchWards(foundDistrict.code);
-              const foundWard = wardsData.find((w) => w.name === invoice.xa);
-              if (foundWard) {
-                setWard(foundWard.code);
-                setSelectedWard(foundWard);
+      setShippingFee(invoice.phiVanChuyen || 0);
+  
+      const loadLocationData = async () => {
+        try {
+          // Tải danh sách tỉnh/thành phố
+          const provincesData = await fetchProvinces();
+          
+          if (!provincesData.length) return;
+          
+          // Tìm tỉnh/thành phố từ địa chỉ hiện có
+          if (invoice.diaChi) {
+            const addressParts = invoice.diaChi.split(', ').filter(Boolean);
+            
+            // Giả sử phần cuối cùng là tỉnh/thành phố
+            if (addressParts.length > 0) {
+              const provinceName = addressParts[addressParts.length - 1];
+              const matchingProvince = findClosestMatch(provinceName, provincesData);
+              
+              if (matchingProvince) {
+                setProvince(matchingProvince.ProvinceID);
+                setSelectedProvince(matchingProvince);
+                
+                // Tải quận/huyện
+                const districtsData = await fetchDistricts(matchingProvince.ProvinceID);
+                
+                // Tìm quận/huyện
+                if (addressParts.length > 1) {
+                  const districtName = addressParts[addressParts.length - 2];
+                  const matchingDistrict = findClosestMatch(districtName, districtsData);
+                  
+                  if (matchingDistrict) {
+                    setDistrict(matchingDistrict.DistrictID);
+                    setSelectedDistrict(matchingDistrict);
+                    
+                    // Tải phường/xã
+                    const wardsData = await fetchWards(matchingDistrict.DistrictID);
+                    
+                    // Tìm phường/xã
+                    if (addressParts.length > 2) {
+                      const wardName = addressParts[addressParts.length - 3];
+                      const matchingWard = findClosestMatch(wardName, wardsData);
+                      
+                      if (matchingWard) {
+                        setWard(matchingWard.WardCode);
+                        setSelectedWard(matchingWard);
+                      }
+                    }
+                  }
+                }
               }
             }
+            
+            // Địa chỉ cụ thể là phần còn lại
+            const specificAddressParts = addressParts.slice(
+              0, 
+              addressParts.length - (selectedWard ? 3 : selectedDistrict ? 2 : 1)
+            );
+            
+            if (specificAddressParts.length > 0) {
+              setSpecificAddress(specificAddressParts.join(', '));
+            }
           }
+        } catch (error) {
+          console.error("Lỗi khi tải dữ liệu địa chỉ:", error);
         }
       };
-
-      loadLocations();
+      
+      loadLocationData();
     }
-  }, [openEditRecipientDialog, invoice, provinces]);
+  }, [openEditRecipientDialog, invoice]);
 
   const handleAddProduct = async (product, quantity) => {
     if (!product) {
@@ -731,6 +916,12 @@ function InvoiceDetail() {
       const response = await api.post(`/api/admin/hoa-don/${id}/san-pham`, {
         sanPhamChiTietId: product.id,
         soLuong: quantity,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Gắn token vào header
+          "Content-Type": "application/json",
+        },
       });
 
       const newProduct = {
@@ -838,7 +1029,10 @@ function InvoiceDetail() {
         okButtonProps: { danger: true },
         onOk: async () => {
           try {
-            await api.delete(`/api/admin/hoa-don/${id}`);
+            await api.delete(`/api/admin/hoa-don/${id}`, {
+              headers: {
+                Authorization: `Bearer ${token}`, // Thêm token vào header
+              }});
             toast.success("Đã hủy đơn hàng và hoàn lại sản phẩm, mã giảm giá.");
             fetchInvoice(); // Cập nhật giao diện
           } catch (error) {
@@ -867,7 +1061,11 @@ function InvoiceDetail() {
         `/api/admin/hoa-don/${id}/status`,
         null,
         {
-          params: { trangThai: nextStatus }, // Gửi trạng thái mới qua params
+          params: { trangThai: nextStatus },
+          headers: {
+            Authorization: `Bearer ${token}`, // Gắn token vào header
+            "Content-Type": "application/json",
+          },
         }
       );
       // 2. Cập nhật state sau khi thành công
@@ -895,7 +1093,10 @@ function InvoiceDetail() {
   const fetchPaymentHistory = async () => {
     try {
       setLoadingPayments(true);
-      const response = await api.get(`/api/thanh-toan-hoa-don/hoa-don/${id}`);
+      const response = await api.get(`/api/thanh-toan-hoa-don/hoa-don/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Thêm token vào header
+        }});
       setPaymentHistory(response.data);
     } catch (error) {
       console.error("Error fetching payment history:", error);
@@ -949,7 +1150,10 @@ function InvoiceDetail() {
   const fetchOrderHistory = async () => {
     try {
       setLoadingHistory(true);
-      const response = await api.get(`/api/lich-su-hoa-don/hoa-don/${id}`);
+      const response = await api.get(`/api/lich-su-hoa-don/hoa-don/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Thêm token vào header
+        }});
       // Giả sử response.data là mảng các bản ghi có thuộc tính ngayTao
       const sortedHistory = response.data.sort(
         (a, b) => new Date(b.ngayTao) - new Date(a.ngayTao)
@@ -963,83 +1167,38 @@ function InvoiceDetail() {
     }
   };
 
-  // Add helper functions
-  const getProvinceName = (provinceCode) => {
-    const province = provinces.find((p) => p.code === provinceCode);
-    return province ? province.name : null; // Trả về null nếu không tìm thấy
-  };
-
-  const getDistrictName = (districtCode) => {
-    const district = districts.find((d) => d.code === districtCode);
-    return district ? district.name : null;
-  };
-
-  const getWardName = (wardCode) => {
-    const ward = wards.find((w) => w.code === wardCode);
-    return ward ? ward.name : null;
-  };
-
   // Add formatFullAddress helper function
   const formatFullAddress = () => {
     if (!invoice || invoice.tenNguoiNhan === "Khách hàng lẻ") {
       return "Không có địa chỉ";
     }
-
+  
     const parts = [];
-
+  
     if (specificAddress?.trim()) parts.push(specificAddress.trim());
-    if (selectedWard?.name && selectedWard.name !== "null")
-      parts.push(selectedWard.name);
-    if (selectedDistrict?.name && selectedDistrict.name !== "null")
-      parts.push(selectedDistrict.name);
-    if (selectedProvince?.name && selectedProvince.name !== "null")
-      parts.push(selectedProvince.name);
-
+    
+    // Sử dụng cấu trúc dữ liệu mới và kiểm tra kỹ lưỡng để tránh giá trị null
+    if (selectedWard?.WardName && selectedWard.WardName !== "null") 
+      parts.push(selectedWard.WardName);
+    else if (invoice.xa && invoice.xa !== "null")
+      parts.push(invoice.xa);
+      
+    if (selectedDistrict?.DistrictName && selectedDistrict.DistrictName !== "null")
+      parts.push(selectedDistrict.DistrictName);
+    else if (invoice.huyen && invoice.huyen !== "null")
+      parts.push(invoice.huyen);
+      
+    if (selectedProvince?.ProvinceName && selectedProvince.ProvinceName !== "null")
+      parts.push(selectedProvince.ProvinceName);
+    else if (invoice.tinh && invoice.tinh !== "null")
+      parts.push(invoice.tinh);
+  
+    // Nếu không có địa chỉ đã phân tích, sử dụng địa chỉ đầy đủ từ invoice
+    if (parts.length === 0 && invoice.diaChi && invoice.diaChi !== "null") {
+      return invoice.diaChi;
+    }
+  
     return parts.length > 0 ? parts.join(", ") : "Không có địa chỉ";
-  };
-
-  // Update handleSaveAddress function
-  const handleSaveAddress = async () => {
-    try {
-      const fullAddress = formatFullAddress();
-
-      const addressData = {
-        maHoaDon: id,
-        tenNguoiNhan: recipientName,
-        soDienThoai: phoneNumber,
-        diaChi: fullAddress,
-        tinh: getProvinceName(province),
-        huyen: getDistrictName(district),
-        xa: getWardName(ward),
-      };
-
-      const response = await api.put(
-        `/api/admin/hoa-don/${id}/dia-chi`,
-        addressData
-      );
-
-      if (response.data) {
-        setInvoice(response.data);
-        toast.success("Cập nhật địa chỉ thành công");
-        setOpenEditDialog(false);
-      }
-    } catch (error) {
-      console.error("Error saving address:", error);
-      toast.error("Lỗi khi cập nhật địa chỉ");
-    }
-  };
-
-  const renderTrangThai = (trangThai) => {
-    switch (trangThai) {
-      case 1:
-        return "Thành công";
-      case 0:
-        return "Chờ xử lý";
-      case -1:
-        return "Thất bại";
-      default:
-        return "Không xác định";
-    }
   };
 
   const handleErrorDialogClose = () => {
@@ -1054,7 +1213,10 @@ function InvoiceDetail() {
 
   useEffect(() => {
     // 1. Khởi tạo kết nối WebSocket
-    const socket = new SockJS("http://localhost:8080/ws");
+    const socket = new SockJS("http://localhost:8080/ws", {
+      headers: {
+        Authorization: `Bearer ${token}`, // Thêm token vào header
+      }});
     const stompClient = new Client({
       webSocketFactory: () => socket,
       onConnect: () => {
@@ -1293,7 +1455,7 @@ function InvoiceDetail() {
           </Col>
           <Col span={12}>
             <Text strong>Thời gian dự kiến nhận:</Text>
-            {invoice.trangThai >= 2
+            {invoice.trangThai == 2 && invoice.trangThai == 3
               ? formatDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000))
               : ""}
           </Col>
@@ -1371,7 +1533,7 @@ function InvoiceDetail() {
               dataIndex: "gia",
               key: "gia",
               align: "center",
-              render: (text) => formatCurrency(text),
+              render: (text, record) => formatCurrency(record.giaThoiDiem || text),
             },
             {
               title: "Số lượng",
@@ -1392,8 +1554,9 @@ function InvoiceDetail() {
               dataIndex: "thanhTien",
               key: "thanhTien",
               align: "center",
-              render: (text) => formatCurrency(text),
-            },
+              render: (text, record) =>
+                formatCurrency((record.giaThoiDiem || record.gia) * record.soLuong),
+            },            
             {
               title: "Trạng thái",
               dataIndex: "trangThai",
@@ -1431,10 +1594,27 @@ function InvoiceDetail() {
               <Text strong>Tổng tiền hàng:</Text>
               <Text>{formatCurrency(totalBeforeDiscount)}</Text>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
               <Text strong>Phí vận chuyển:</Text>
-              <Text>{formatCurrency(invoice.phiVanChuyen)}</Text>
+              <InputNumber
+                value={shippingFee}
+                onChange={(value) => setShippingFee(value)}
+                style={{ width: "120px" }}
+                min={0}
+                step={1000}
+                formatter={(value) =>
+                  `${value} đ`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                }
+                parser={(value) => value.replace(/\D/g, "")}
+              />
             </div>
+
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <Text strong>Voucher giảm giá:</Text>
               <div>
@@ -1445,33 +1625,54 @@ function InvoiceDetail() {
                       invoice.trangThai === 1 ? handleRemoveVoucher : undefined
                     }
                     color="black"
-                  >
+                    >
                     {invoice.phieuGiamGia.maPhieuGiamGia}
-                  </Tag>
-                ) : (
-                  <Button
+                    </Tag>
+                  ) : (
+                    <Button
                     type="default"
                     icon={<TagOutlined />}
                     onClick={() => setOpenVoucherDialog(true)}
                     disabled={invoice.trangThai !== 1}
-                  >
+                    >
                     Thêm
-                  </Button>
-                )}
+                    </Button>
+                  )}
+                  </div>
+                </div>
+                {/* {invoice.phieuGiamGia && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <Text strong>Giảm giá:</Text>
+                  <Text type="success">
+                    {formatCurrency(
+                    calculateDiscountAmount(
+                      invoice.phieuGiamGia,
+                      totalBeforeDiscount + (invoice?.phiVanChuyen || 0)
+                    )
+                    )}
+                  </Text>
+                  </div>
+                )} */}
+                <Divider />
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <Text strong>Tổng tiền thanh toán:</Text>
+                  <Text type="danger" strong>
+                  {formatCurrency(
+                    totalBeforeDiscount + 
+                    (invoice?.phiVanChuyen || 0) - 
+                    (invoice.phieuGiamGia ? 
+                    calculateDiscountAmount(
+                      invoice.phieuGiamGia, 
+                      totalBeforeDiscount + (invoice?.phiVanChuyen || 0)
+                    ) : 0)
+                  )}
+                  </Text>
+                </div>
+                </Space>
               </div>
-            </div>
-            <Divider />
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <Text strong>Tổng tiền thanh toán:</Text>
-              <Text type="danger" strong>
-                {formatCurrency(invoice.tongTien)}
-              </Text>
-            </div>
-          </Space>
-        </div>
-      </Card>
+              </Card>
 
-      {/* Edit Recipient Dialog */}
+              {/* Edit Recipient Dialog */}
       <Modal
         title="Chỉnh sửa thông tin người nhận"
         visible={openEditRecipientDialog}
@@ -1494,45 +1695,67 @@ function InvoiceDetail() {
               onChange={(e) => setPhoneNumber(e.target.value)}
             />
           </Form.Item>
-          <Form.Item label="Tỉnh">
-            <Select value={province || ""} onChange={handleProvinceChange}>
+          <Form.Item label="Tỉnh/Thành phố">
+            <Select 
+              value={province} 
+              onChange={handleProvinceChange}
+              placeholder="Chọn tỉnh/thành phố"
+              style={{ width: '100%' }}
+              showSearch
+              filterOption={(input, option) =>
+                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              }
+            >
               {provinces.map((p) => (
-                <Select.Option key={p.code} value={p.code}>
-                  {p.name}
+                <Select.Option key={p.ProvinceID} value={p.ProvinceID}>
+                  {p.ProvinceName}
                 </Select.Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item label="Quận/Huyện">
             <Select
-              value={district || ""}
+              value={district}
               onChange={handleDistrictChange}
               disabled={!province}
+              placeholder="Chọn quận/huyện"
+              style={{ width: '100%' }}
+              showSearch
+              filterOption={(input, option) =>
+                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+              }
             >
               {districts.map((d) => (
-                <Select.Option key={d.code} value={d.code}>
-                  {d.name}
+                <Select.Option key={d.DistrictID} value={d.DistrictID}>
+                  {d.DistrictName}
                 </Select.Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item label="Phường/Xã">
-            <Select
-              value={ward || ""}
-              onChange={handleWardChange}
-              disabled={!district}
-            >
-              {wards.map((w) => (
-                <Select.Option key={w.code} value={w.code}>
-                  {w.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
+  <Select
+    value={ward}
+    onChange={handleWardChange}
+    disabled={!district}
+    placeholder="Chọn phường/xã"
+    style={{ width: '100%' }}
+    showSearch
+    filterOption={(input, option) =>
+      option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+    }
+  >
+    {Array.isArray(wards) ? wards.map((w) => (
+      <Select.Option key={w.WardCode} value={w.WardCode}>
+        {w.WardName}
+      </Select.Option>
+    )) : null}
+  </Select>
+</Form.Item>
           <Form.Item label="Địa chỉ cụ thể">
             <Input
               value={specificAddress}
               onChange={(e) => setSpecificAddress(e.target.value)}
+              placeholder="Số nhà, tên đường"
             />
           </Form.Item>
           <Form.Item label="Phí vận chuyển">
@@ -1540,6 +1763,10 @@ function InvoiceDetail() {
               value={shippingFee}
               onChange={(value) => setShippingFee(value)}
               style={{ width: "100%" }}
+              formatter={(value) => `${value} đ`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              parser={(value) => value.replace(/[^\d]/g, "")}
+              min={0}
+              step={1000}
             />
           </Form.Item>
           <Form.Item label="Ghi chú">

@@ -51,7 +51,7 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
   const [tempQuantities, setTempQuantities] = useState({});
   const [productList, setProductList] = useState(products);
   const [selectedProducts, setSelectedProducts] = useState([]); // Thêm state cho việc chọn nhiều sản phẩm
-
+  const token = localStorage.getItem("token");
   //xử lý phân trang, thay đổi STT dòng bắt đầu khi chuyển trang
   const handleTableChange = (pagination) => {
     setPagination(pagination);
@@ -75,7 +75,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/chatlieu"
+          "http://localhost:8080/api/admin/chatlieu",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setChatLieu(response.data);
       } catch (error) {
@@ -90,7 +93,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieudang"
+          "http://localhost:8080/api/admin/kieudang",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setKieuDang(response.data);
       } catch (error) {
@@ -106,7 +112,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/thuonghieu"
+          "http://localhost:8080/api/admin/thuonghieu",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setThuongHieu(response.data);
       } catch (error) {
@@ -122,7 +131,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieucuc"
+          "http://localhost:8080/api/admin/kieucuc",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setKieuCuc(response.data);
       } catch (error) {
@@ -138,7 +150,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieucoao"
+          "http://localhost:8080/api/admin/kieucoao",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setKieuCoAo(response.data);
       } catch (error) {
@@ -154,7 +169,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieucotayao"
+          "http://localhost:8080/api/admin/kieucotayao",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setKieuCoTayAo(response.data);
       } catch (error) {
@@ -170,7 +188,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieutuiao"
+          "http://localhost:8080/api/admin/kieutuiao",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setKieuTuiAo(response.data);
       } catch (error) {
@@ -186,7 +207,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieutayao"
+          "http://localhost:8080/api/admin/kieutayao",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setKieuTayAo(response.data);
       } catch (error) {
@@ -202,7 +226,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/mausac"
+          "http://localhost:8080/api/admin/mausac",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setColors(response.data);
       } catch (error) {
@@ -218,7 +245,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kichthuoc"
+          "http://localhost:8080/api/admin/kichthuoc",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setSizes(response.data);
         console.log(response.data);
@@ -235,7 +265,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/hoatiet"
+          "http://localhost:8080/api/admin/hoatiet",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setHoaTiet(response.data);
         console.log(response.data);
@@ -252,7 +285,10 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/danhmuc"
+          "http://localhost:8080/api/admin/danhmuc",
+          {headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          }},
         );
         setDanhMuc(response.data);
         console.log(response.data);
@@ -508,13 +544,7 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
       key: "soLuong",
       align: "center",
       render: (_, record) => (
-        <InputNumber
-          min={1}
-          max={record.soLuongTonKho} // Kiểm tra số lượng tồn kho
-          value={tempQuantities[record.id] || 1}
-          onChange={(value) => handleQuantityChange(record.id, value)}
-          style={{ width: 60 }}
-        />
+        <Text>1</Text>  // Chỉ hiển thị số 1, không cho phép điều chỉnh
       ),
     },
   ];

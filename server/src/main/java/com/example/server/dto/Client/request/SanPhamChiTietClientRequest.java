@@ -15,63 +15,63 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class SanPhamChiTietClientRequest {
-     String id;
+    String id;
 
 
     String maSanPhamChiTiet;
 
 
-     Integer soLuong;
+    Integer soLuong;
 
 
-     String moTa;
+    String moTa;
 
 
-     Boolean trangThai;
+    Boolean trangThai;
 
 
-     java.math.BigDecimal gia;
+    java.math.BigDecimal gia;
 
 
-     MauSac mauSac;
+    MauSac mauSac;
 
-     ChatLieu chatLieu;
-
-
-     DanhMuc danhMuc;
+    ChatLieu chatLieu;
 
 
-     SanPham sanPham;
+    DanhMuc danhMuc;
 
 
-     KichThuoc kichThuoc;
+    SanPham sanPham;
 
 
-     ThuongHieu thuongHieu;
+    KichThuoc kichThuoc;
 
 
-     KieuDang kieuDang;
+    ThuongHieu thuongHieu;
 
 
-     KieuCuc kieuCuc;
+    KieuDang kieuDang;
 
 
-     KieuCoAo kieuCoAo;
+    KieuCuc kieuCuc;
 
 
-     KieuTayAo kieuTayAo;
+    KieuCoAo kieuCoAo;
 
 
-     KieuCoTayAo kieuCoTayAo;
+    KieuTayAo kieuTayAo;
 
 
-     HoaTiet hoaTiet;
+    KieuCoTayAo kieuCoTayAo;
 
 
-     KieuTuiAo tuiAo;
+    HoaTiet hoaTiet;
 
 
-     LocalDateTime ngayTao;
+    KieuTuiAo tuiAo;
+
+
+    LocalDateTime ngayTao;
 
     Integer quantity;
 

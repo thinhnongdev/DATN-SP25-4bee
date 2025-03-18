@@ -24,8 +24,8 @@ public class ThanhToanClientService {
         thanhToanHoaDon.setId(UUID.randomUUID().toString());
         thanhToanHoaDon.setPhuongThucThanhToan(phuongThucThanhToanHoaDonRepository.findByMaPhuongThucThanhToan(phuongThucThanhToan).orElseThrow());
         thanhToanHoaDon.setHoaDon(hoaDon);
-        thanhToanHoaDon.setTongTien(tienThanhToan);
-        thanhToanHoaDon.setTrangThai(1);
+        thanhToanHoaDon.setSoTien(tienThanhToan);
+        thanhToanHoaDon.setTrangThai(phuongThucThanhToan.equalsIgnoreCase("BANK") ? 2 : 1);
         thanhToanHoaDon.setNgayTao(LocalDateTime.now());
         return thanhToanHoaDonRepository.save(thanhToanHoaDon);
     }

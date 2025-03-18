@@ -2,19 +2,24 @@ package com.example.server.mapper.impl;
 
 import com.example.server.constant.HoaDonConstant;
 import com.example.server.dto.HoaDon.request.HoaDonRequest;
+import com.example.server.dto.HoaDon.request.ThanhToanRequest;
 import com.example.server.dto.HoaDon.response.*;
 import com.example.server.entity.*;
 import com.example.server.exception.ResourceNotFoundException;
 import com.example.server.mapper.interfaces.IHoaDonMapper;
+import com.example.server.repository.HoaDon.PhuongThucThanhToanRepository;
 import com.example.server.repository.HoaDon.SanPhamChiTietHoaDonRepository;
+import com.example.server.repository.HoaDon.ThanhToanHoaDonRepository;
 import com.example.server.repository.NhanVien_KhachHang.DiaChiRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
 import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import com.example.server.service.SanPham.AnhSanPhamService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -29,8 +34,9 @@ public class HoaDonMapper implements IHoaDonMapper {
     private final SanPhamChiTietHoaDonRepository sanPhamChiTietHoaDonRepository;
     private final DiaChiRepository diaChiRepository;
     private final AnhSanPhamService anhSanPhamService;
-
-
+    private final PhuongThucThanhToanRepository phuongThucThanhToanRepository;
+    @Autowired
+    private ThanhToanHoaDonMapper thanhToanHoaDonMapper;
 
     @Override
     public HoaDon requestToEntity(HoaDonRequest request) {
@@ -47,15 +53,39 @@ public class HoaDonMapper implements IHoaDonMapper {
             hoaDon.setHoaDonChiTiets(chiTietList);
         }
 
-        // Ánh xạ phương thức thanh toán
-//        if (request.getPhuongThucThanhToans() != null) {
-//            List<ThanhToanHoaDon> thanhToans = request.getPhuongThucThanhToans().stream()
-//                    .map(phuongThuc -> mapPhuongThucThanhToan(phuongThuc, hoaDon))
-//                    .collect(Collectors.toList());
-//            thanhToans.forEach(thanhToan -> thanhToan.setHoaDon(hoaDon));
-//            hoaDon.setThanhToanHoaDons(thanhToans);
-//        }
+        // Sử dụng `mapPhuongThucThanhToan()` để ánh xạ danh sách thanh toán
+        if (request.getThanhToans() != null) {
+            List<ThanhToanHoaDon> thanhToanList = request.getThanhToans().stream()
+                    .map(thanhToanRequest -> {
+                        PhuongThucThanhToan phuongThuc = phuongThucThanhToanRepository
+                                .findByMaPhuongThucThanhToan(thanhToanRequest.getMaPhuongThucThanhToan())
+                                .orElseThrow(() -> new IllegalArgumentException("Phương thức không hợp lệ: " + thanhToanRequest.getMaPhuongThucThanhToan()));
+
+                        ThanhToanHoaDon thanhToan = mapPhuongThucThanhToan(phuongThuc, hoaDon);
+                        thanhToan.setSoTien(thanhToanRequest.getSoTien());
+                        return thanhToan;
+                    })
+                    .collect(Collectors.toList());
+
+            hoaDon.setThanhToanHoaDons(thanhToanList);
+        }
+
         return hoaDon;
+    }
+
+    private ThanhToanHoaDon mapThanhToanRequestToEntity(ThanhToanRequest request, HoaDon hoaDon) {
+        if (request == null) return null;
+
+        PhuongThucThanhToan phuongThuc = phuongThucThanhToanRepository
+                .findByMaPhuongThucThanhToan(request.getMaPhuongThucThanhToan())
+                .orElseThrow(() -> new IllegalArgumentException("Phương thức không hợp lệ: " + request.getMaPhuongThucThanhToan()));
+
+        ThanhToanHoaDon thanhToan = new ThanhToanHoaDon();
+        thanhToan.setPhuongThucThanhToan(phuongThuc);
+        thanhToan.setSoTien(request.getSoTien());
+        thanhToan.setNgayTao(LocalDateTime.now());
+
+        return thanhToan;
     }
 
     private HoaDonChiTiet mapRequestToHoaDonChiTiet(HoaDonChiTietResponse chiTietRequest) {
@@ -139,25 +169,49 @@ public class HoaDonMapper implements IHoaDonMapper {
             }
         }
 
-        // Kiểm tra điều kiện sử dụng địa chỉ hóa đơn thay vì địa chỉ khách hàng
-        boolean diaChiKhongHopLe = (diaChiKhachHang == null) ||
-                (hoaDon.getNgaySua() != null && diaChiKhachHang.getNgaySua() != null &&
-                        diaChiKhachHang.getNgaySua().isBefore(hoaDon.getNgaySua()));
+        // Nếu hóa đơn có địa chỉ, ưu tiên hiển thị
+        if (hoaDon.getDiaChi() != null && !hoaDon.getDiaChi().trim().isEmpty()) {
+            return buildHoaDonResponse(hoaDon, hoaDon.getDiaChi(), "", "", "");
+        }
 
-        // Nếu địa chỉ không hợp lệ, dùng địa chỉ trong hóa đơn
-        String moTa = diaChiKhongHopLe ? hoaDon.getDiaChi() : diaChiKhachHang.getMoTa();
-        String xa = diaChiKhongHopLe ? "" : diaChiKhachHang.getXa();
-        String huyen = diaChiKhongHopLe ? "" : diaChiKhachHang.getHuyen();
-        String tinh = diaChiKhongHopLe ? "" : diaChiKhachHang.getTinh();
+        // Nếu khách hàng là khách lẻ (không có thông tin khách hàng), hiển thị "Không có địa chỉ"
+        if (hoaDon.getKhachHang() == null) {
+            return buildHoaDonResponse(hoaDon, "Không có địa chỉ", "", "", "");
+        }
+
+        // Nếu khách hàng có địa chỉ, hiển thị địa chỉ đầu tiên của khách hàng
+        if (diaChiKhachHang != null) {
+            return buildHoaDonResponse(
+                    hoaDon,
+                    diaChiKhachHang.getMoTa(),
+                    diaChiKhachHang.getXa(),
+                    diaChiKhachHang.getHuyen(),
+                    diaChiKhachHang.getTinh()
+            );
+        }
+
+        // Nếu không có địa chỉ nào, hiển thị "Không có địa chỉ"
+        return buildHoaDonResponse(hoaDon, "Không có địa chỉ", "", "", "");
+    }
+
+    /**
+     * Hàm hỗ trợ xây dựng response từ hóa đơn và thông tin địa chỉ
+     */
+    private HoaDonResponse buildHoaDonResponse(HoaDon hoaDon, String moTa, String xa, String huyen, String tinh) {
+        List<ThanhToanHoaDonResponse> thanhToanResponses = hoaDon.getThanhToanHoaDons() != null
+                ? hoaDon.getThanhToanHoaDons().stream()
+                .map(thanhToanHoaDonMapper::toDTO)
+                .collect(Collectors.toList())
+                : Collections.emptyList();
 
         return HoaDonResponse.builder()
                 .id(hoaDon.getId())
                 .maHoaDon(hoaDon.getMaHoaDon())
                 .tenNguoiNhan(hoaDon.getTenNguoiNhan())
                 .loaiHoaDon(hoaDon.getLoaiHoaDon())
-                .soDienThoai(soDienThoaiKhachHang != null ? soDienThoaiKhachHang : hoaDon.getSoDienThoai())
+                .soDienThoai(hoaDon.getKhachHang() != null ? hoaDon.getKhachHang().getSoDienThoai() : hoaDon.getSoDienThoai())
                 .emailNguoiNhan(hoaDon.getEmailNguoiNhan())
-                .diaChi(diaChiKhongHopLe ? hoaDon.getDiaChi() : (moTa + ", " + xa + ", " + huyen + ", " + tinh))
+                .diaChi(moTa + (!xa.isEmpty() ? ", " + xa : "") + (!huyen.isEmpty() ? ", " + huyen : "") + (!tinh.isEmpty() ? ", " + tinh : ""))
                 .tinh(tinh)
                 .huyen(huyen)
                 .xa(xa)
@@ -166,15 +220,18 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .thoiGianGiaoHang(hoaDon.getThoiGianGiaoHang())
                 .thoiGianNhanHang(hoaDon.getThoiGianNhanHang())
                 .tongTien(hoaDon.getTongTien())
+                .phiVanChuyen(hoaDon.getPhiVanChuyen())
                 .ghiChu(hoaDon.getGhiChu())
                 .trangThai(hoaDon.getTrangThai())
                 .ngayTao(hoaDon.getNgayTao())
+                .thanhToans(thanhToanResponses)
                 .nhanVien(mapNhanVienToResponse(hoaDon.getNhanVien()))
                 .khachHang(mapKhachHangToResponse(hoaDon.getKhachHang()))
                 .phieuGiamGia(mapPhieuGiamGiaToResponse(hoaDon.getPhieuGiamGia()))
                 .hoaDonChiTiets(mapHoaDonChiTietToResponse(hoaDon.getHoaDonChiTiets()))
                 .build();
     }
+
 
 
 

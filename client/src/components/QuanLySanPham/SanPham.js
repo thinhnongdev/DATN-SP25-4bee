@@ -18,9 +18,14 @@ const SanPham = () => {
   const [searchText, setSearchText] = useState('');
   const [trangThaiFilter, setTrangThaiFilter] = useState('all'); // Mặc định là "all"
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const token = localStorage.getItem('token');
   useEffect(() => {
     axios
-      .get('http://localhost:8080/api/admin/sanpham')
+      .get('http://localhost:8080/api/admin/sanpham', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       .then((response) => {
         setSanPham(response.data);
         console.log(response.data);
@@ -129,13 +134,13 @@ const SanPham = () => {
     },
   ];
   const handleUpdate = (sanPhamId) => {
-    navigate(`/sanpham/${sanPhamId}`);
+    navigate(`/admin/sanpham/${sanPhamId}`);
   };
   const handleChiTietSP = (sanPhamId) => {
-    navigate(`/sanpham/chitietsanpham/${sanPhamId}`);
+    navigate(`/admin/sanpham/chitietsanpham/${sanPhamId}`);
   };
   const handleAdd = () => {
-    navigate(`/sanpham/addsanpham`);
+    navigate(`/admin/sanpham/addsanpham`);
   };
   return (
     <>

@@ -62,6 +62,9 @@ public class HoaDon {
     @Column(name = "tong_tien")
     private BigDecimal tongTien;
 
+    @Column(name="phi_van_chuyen")
+    private BigDecimal phiVanChuyen;
+
     @Column(name = "ghi_chu")
     private String ghiChu;
 
@@ -80,7 +83,7 @@ public class HoaDon {
     @Column(name = "nguoi_sua")
     private String nguoiSua;
 
-    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = false, fetch = FetchType.LAZY)
     private List<HoaDonChiTiet> hoaDonChiTiets = new ArrayList<>();
 
     @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true)

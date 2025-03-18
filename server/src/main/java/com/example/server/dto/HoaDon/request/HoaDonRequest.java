@@ -33,7 +33,7 @@ public class HoaDonRequest {
 
     private List<SanPhamChiTietHoaDonResponse> sanPhams; // Danh sách sản phẩm trong hóa đơn
 
-    private List<String> phuongThucThanhToans;
+    private List<ThanhToanRequest> thanhToans; // Danh sách phương thức thanh toán
 
     private List<HoaDonChiTietResponse> hoaDonChiTiets;
 

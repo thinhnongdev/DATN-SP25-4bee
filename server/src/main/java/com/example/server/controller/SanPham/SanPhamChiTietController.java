@@ -43,7 +43,6 @@ public class SanPhamChiTietController {
     public List<SanPhamChiTiet> getSanPhamChiTietById(@PathVariable String id) {
         return sanPhamChiTietService.findbyIdSanPham(id);
     }
-
     @GetMapping("/sanpham/chitietsanpham")
     public List<SanPhamChiTiet> getAllSanPhamChiTiet() {
         return sanPhamChiTietService.getAllSanPhamChiTiet();

@@ -15,10 +15,16 @@ const PhieuGiamGiaAdd = () => {
   const [searchValue, setSearchValue] = useState("");
   const [disabledCustomerKeys, setDisabledCustomerKeys] = useState([]);
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
   // Lấy danh sách khách hàng
   useEffect(() => {
     axios
-      .get("http://localhost:8080/api/phieu-giam-gia/khach_hang")
+      .get("http://localhost:8080/api/phieu-giam-gia/khach_hang",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
       .then((response) => {
         const data = response.data || [];
         setCustomers(data);
@@ -78,7 +84,12 @@ const PhieuGiamGiaAdd = () => {
     };
 
     axios
-      .post("http://localhost:8080/api/phieu-giam-gia", requestData)
+      .post("http://localhost:8080/api/phieu-giam-gia", requestData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
       .then(() => {
         toast.success("Thêm phiếu giảm giá thành công");
         form.resetFields();

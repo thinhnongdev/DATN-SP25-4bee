@@ -17,10 +17,15 @@ const KieuCuc = () => {
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
+  const token = localStorage.getItem('token');
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kieucuc');
+      const response = await axios.get('http://localhost:8080/api/admin/kieucuc', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setKieuCuc(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -77,14 +82,22 @@ const KieuCuc = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`, values);
+        await axios.patch(`http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCuc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
         toast.success('Sửa kiểu cúc thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucuc', values);
+        const response = await axios.post('http://localhost:8080/api/admin/addkieucuc', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCuc((prev) => [response.data, ...prev]);
         toast.success('Thêm kiểu cúc thành công');
       }

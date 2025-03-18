@@ -8,6 +8,7 @@ import com.example.server.entity.HoaDon;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -27,4 +28,5 @@ public interface IHoaDonService {
     byte[] generateInvoicePDF(String id);
     Map<String, Long> getInvoiceCounts(HoaDonSearchCriteria criteria);
     HoaDon validateAndGet(String id);
+    HoaDon capNhatPhiVanChuyen(String hoaDonId, BigDecimal phiVanChuyen);
 }
