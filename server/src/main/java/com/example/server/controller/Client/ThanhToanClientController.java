@@ -66,6 +66,7 @@ public class ThanhToanClientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi gọi API SePay.");
         }
     }
+
     @PostMapping("/thanhToanDonHangChuaDangNhap")
     public ResponseEntity<?> thanhToanDonHangChuaDangNhap(@RequestBody CheckoutRequest request) {
         try {
@@ -81,9 +82,9 @@ public class ThanhToanClientController {
                     request.getTongTienThanhToan()
             );
             hoaDonChiTietClientService.addHoaDonChiTiet(request.getSanPhamChiTietList(), hoaDon);
-
+            thanhToanClientService.sendOrderConfirmationEmail(request.getThongTinGiaoHang(), hoaDon, request.getTongTienThanhToan(),request.getSanPhamChiTietList());
             return ResponseEntity.ok("Đặt hàng thành công!");
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace(); // In ra log chi tiết lỗi ở terminal backend
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Đặt hàng thất bại: " + e.getClass().getName() + " - " + e.getMessage());

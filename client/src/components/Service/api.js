@@ -3,15 +3,13 @@ import axios from "axios";
 const API_URL = "http://localhost:8080/api/admin/phieu-giam-gia";
 const KHACH_HANG_URL = "http://localhost:8080/api/admin/phieu-giam-gia/khach-hang";
 
-// Lấy token từ localStorage
-const token = localStorage.getItem("token");
-
-// Hàm tạo headers có token
-const getAuthHeaders = () => ({
-  Authorization: `Bearer ${token}`,
-  "Content-Type": "application/json",
-});
-
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token"); // Lấy token mỗi lần gọi API
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+};
 // Phương thức liên quan đến phiếu giảm giá
 export const getPhieuGiamGia = () =>
   axios.get(API_URL, { headers: getAuthHeaders() });

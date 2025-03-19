@@ -1,12 +1,14 @@
 import axios from 'axios';
 
 const API_URL = 'http://localhost:8080/api/nhan_vien';
-const token = localStorage.getItem('token'); // Lấy token từ localStorage
+
+// Hàm lấy token luôn đảm bảo là giá trị mới nhất
+const getToken = () => localStorage.getItem('token');
 
 export async function getAllApi() {
   try {
     const response = await axios.get(`${API_URL}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     console.log('Phản hồi từ API:', response);
     return response;
@@ -20,19 +22,19 @@ export const getPostApi = (newNhanVien) =>
   axios.post(`${API_URL}`, newNhanVien, {
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getToken()}`,
     },
   });
 
 export const getPutApi = (id, updateNhanVien) =>
   axios.put(`${API_URL}/${id}`, updateNhanVien, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${getToken()}` },
   });
 
 export async function getDeleteApi(id) {
   try {
     const response = await axios.delete(`${API_URL}/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     console.log(`Nhân viên có ID ${id} đã được xóa thành công!`, response);
 
@@ -51,7 +53,7 @@ export async function getDeleteApi(id) {
 
 export const getNhanVienById = (id) =>
   axios.get(`${API_URL}/${id}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${getToken()}` },
   });
 
 export const scanQRCode = async (file) => {
@@ -62,7 +64,7 @@ export const scanQRCode = async (file) => {
     const response = await axios.post(`${API_URL}/scan-qr`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${getToken()}`,
       },
     });
     return response.data;

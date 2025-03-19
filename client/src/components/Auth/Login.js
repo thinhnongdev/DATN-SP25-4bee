@@ -3,18 +3,33 @@ import { Form, Input, Button, Card, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import { data, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 
 const LoginForm = () => {
   const navigate = useNavigate();
-
+const getRoleFromToken = (token) => {
+  try {
+    return jwtDecode(token)?.scope || null;
+  } catch (error) {
+    console.error('Lỗi giải mã token:', error);
+    return null;
+  }
+};
   const onFinish = async (values) => {
     try {
       const response = await axios.post("http://localhost:8080/api/auth/login", values);
       console.log(response.data.token)
       if (response.data.token) {
         localStorage.setItem("token", response.data.token); // Lưu token vào localStorage
+        const userRole = response.data.token ? getRoleFromToken(response.data.token) : null;
+        if (userRole === "ADMIN") {
+          navigate("/admin");
+        } else if (userRole === "NHAN_VIEN") {
+          navigate("/admin/ban-hang");
+        } else {
+          navigate("/"); // Mặc định cho KHACH_HANG
+        }
         message.success("Đăng nhập thành công!");
-        navigate("/"); // Chuyển hướng sau khi đăng nhập thành công
       }
     } catch (error) {
       console.log(values)

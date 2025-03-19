@@ -24,11 +24,11 @@ public class HoaDonClientService {
     public HoaDon createHoaDonClient(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, PhieuGiamGia phieuGiamGia) {
         HoaDon hoaDon = new HoaDon();
         hoaDon.setId(UUID.randomUUID().toString());
-        hoaDon.setMaHoaDon("HD" + System.currentTimeMillis());
+        hoaDon.setMaHoaDon(thongTinGiaoHangClientRequest.getMaHoaDon());
         hoaDon.setPhieuGiamGia(phieuGiamGia);
-        hoaDon.setKhachHang(khachHangRepository.findByMaKhachHang("KH000").get());
+        //hoaDon.setKhachHang(khachHangRepository.findByMaKhachHang("KH000").get());
         hoaDon.setNhanVien(null);
-        hoaDon.setLoaiHoaDon(1);
+        hoaDon.setLoaiHoaDon(1);// loại hóa đơn online
         hoaDon.setTenNguoiNhan(thongTinGiaoHangClientRequest.getHoTen());
         hoaDon.setSoDienThoai(thongTinGiaoHangClientRequest.getSoDienThoai());
         hoaDon.setEmailNguoiNhan(thongTinGiaoHangClientRequest.getEmail());

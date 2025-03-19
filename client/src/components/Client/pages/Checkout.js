@@ -12,8 +12,9 @@ import {
   Divider,
   Image,
   message,
+  Modal,
 } from 'antd';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -30,9 +31,11 @@ const CheckoutForm = () => {
   const [shippingFee, setShippingFee] = useState(null);
   const [form] = Form.useForm();
   const [formData, setFormData] = useState({});
-
+  const [qrUrl, setQrUrl] = useState('');
+  const [isModalPaymentQR, setIsModalVisiblePaymentQR] = useState(false);
+  const [maHoaDon, setMaHoaDon] = useState(null);
   const API_TOKEN = '4f7fc40f-023f-11f0-aff4-822fc4284d92';
-
+  const navigate = useNavigate();
   useEffect(() => {
     // Lấy danh sách tỉnh/thành phố
     axios
@@ -112,6 +115,31 @@ const CheckoutForm = () => {
   );
   const totalPayMent = totalAmount + shippingFee - selectedVoucher.giaTriGiam;
 
+  //mã hóa đơn
+  const generateUniqueOrderCode = () => {
+    const randomPart = Math.floor(1000 + Math.random() * 9000);
+    const timestampPart = Date.now();
+    return `HDO${timestampPart}${randomPart}`;
+  };
+
+  const generateQR = (maHoaDon) => {
+    const account = '102876619993'; // Số tài khoản nhận
+    const bank = 'VietinBank'; // Ngân hàng (Vietinbank)
+    // Lấy mã hóa đơn từ đối tượng order của tab hiện tại
+    // const currentOrder = tabs.find(tab => tab.key === hoaDonId)?.order;
+    // const maHoaDon = currentOrder?.maHoaDon || hoaDonId;
+    const description = `SEVQR thanh toan don hang ${maHoaDon}`; // Nội dung thanh toán
+    const template = 'compact'; // Kiểu hiển thị QR
+
+    // Tạo URL QR Code
+    const qrLink = `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${totalPayMent}&des=${encodeURIComponent(
+      description,
+    )}&template=${template}&download=false`;
+
+    setQrUrl(qrLink); // Cũng lưu vào qrUrl để hiển thị trong modal
+    setIsModalVisiblePaymentQR(true); // Mở modal hiển thị QR
+  };
+
   const toggleDetails = () => setShowDetails(!showDetails);
 
   const validateForm = () => {
@@ -158,28 +186,167 @@ const CheckoutForm = () => {
   console.log('totalPayMent:', totalPayMent);
   console.log('cartProducts:', cartProducts);
 
-const handleSubmitOrder = () => {
-  if (!validateForm()) return;
+  // const handleSubmitOrder = () => {
+  //   if (!validateForm()) return;
+  // SetMaHoaDon(generateUniqueOrderCode());
+  //   const orderData = {
+  //     sanPhamChiTietList: cartProducts,
+  //     thongTinGiaoHang: formData,
+  //     tongTienThanhToan: totalPayMent,
+  //     tongTienHang: totalAmount,
+  //     phieuGiamGia: selectedVoucher,
+  //   };
+  // if(formData.phuongThucThanhToan === 'BANK'){
+  //   generateQR();
+  //   return;
+  // }
+  //   axios
+  //     .post('http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap', orderData)
+  //     .then((res) => {
+  //       message.success(res.data || 'Đặt hàng thành công!');
+  //     })
+  //     .catch((err) => {
+  //       const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
+  //       message.error(errorMessage);
+  //     });
+  // };
+  const checkPaymentStatus = async (hoaDonId) => {
+    try {
+      const res = await axios.get(
+        `http://localhost:8080/api/client/thanhtoan/sepay/transactions?account_number=102876619993&limit=5`,
+      );
 
-  const orderData = {
-    sanPhamChiTietList: cartProducts,
-    thongTinGiaoHang: formData,
-    tongTienThanhToan: totalPayMent,
-    tongTienHang: totalAmount,
-    phieuGiamGia: selectedVoucher,
+      const transactions = res.data?.transactions || [];
+
+      console.log(' Dữ liệu giao dịch:', transactions);
+
+      // Tìm giao dịch có chứa mã hóa đơn và đảm bảo tiền vào lớn hơn 0
+      const foundTransaction = transactions.find(
+        (txn) =>
+          txn.transaction_content.includes(`SEVQR thanh toan don hang ${hoaDonId}`) &&
+          parseFloat(txn.amount_in) > 0, // Đảm bảo có tiền vào tài khoản
+      );
+
+      if (foundTransaction) {
+        console.log(` Giao dịch thành công cho hóa đơn: ${hoaDonId}`);
+        return true;
+      }
+
+      console.log(` Chưa có giao dịch khớp với hóa đơn: ${hoaDonId}`);
+      return false;
+    } catch (error) {
+      console.error(' Lỗi khi kiểm tra thanh toán:', error.response?.data || error.message);
+      return false;
+    }
   };
 
-  axios
-    .post('http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap', orderData)
-    .then((res) => {
-      message.success(res.data || 'Đặt hàng thành công!');
-    })
-    .catch((err) => {
-      const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
-      message.error(errorMessage);
-    });
-};
+  const handleSubmitOrder = async () => {
+    if (!validateForm()) return;
 
+    const uniqueOrderCode = generateUniqueOrderCode();
+    const orderData = {
+      sanPhamChiTietList: cartProducts,
+      thongTinGiaoHang: {
+        ...formData,
+        maHoaDon: uniqueOrderCode, // Thêm mã hóa đơn vào thông tin giao hàng
+      },
+      tongTienThanhToan: totalPayMent,
+      tongTienHang: totalAmount,
+      phieuGiamGia: selectedVoucher,
+    };
+
+    if (formData.phuongThucThanhToan === 'BANK') {
+      generateQR(uniqueOrderCode); // Tạo QR cho thanh toán
+      setIsModalVisiblePaymentQR(true); // Hiện modal chờ thanh toán
+
+      let isPaid = false;
+      let attempts = 0;
+
+      // Kiểm tra trạng thái thanh toán mỗi 5 giây trong 60 giây
+      const interval = setInterval(async () => {
+        attempts++;
+        isPaid = await checkPaymentStatus(uniqueOrderCode);
+
+        if (isPaid) {
+          message.success('Thanh toán thành công!');
+          setIsModalVisiblePaymentQR(false);
+          clearInterval(interval);
+
+          axios
+            .post(
+              'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap',
+              orderData,
+            )
+            .then((res) => {
+              message.success(res.data || 'Đặt hàng thành công!');
+
+              // ✅ Xóa giỏ hàng và mã giảm giá sau khi thanh toán thành công
+              localStorage.removeItem('cart');
+              localStorage.removeItem('selectedVoucher');
+
+              //  Chuyển hướng về trang xác nhận đơn hàng
+              navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
+            })
+            .catch((err) => {
+              const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
+              message.error(errorMessage);
+            });
+        }
+
+        if (attempts >= 60) {
+          //5 phút
+          message.error('Quá thời gian chờ thanh toán. Vui lòng thử lại!');
+          setIsModalVisiblePaymentQR(false);
+          clearInterval(interval);
+        }
+      }, 5000);
+
+      return;
+    }
+
+    // Xử lý thanh toán thường
+    axios
+      .post('http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap', orderData)
+      .then((res) => {
+        message.success(res.data || 'Đặt hàng thành công!');
+        // ✅ Xóa giỏ hàng và mã giảm giá sau khi thanh toán thành công
+        localStorage.removeItem('cart');
+        localStorage.removeItem('selectedVoucher');
+
+        // ✅ Chuyển hướng về trang xác nhận đơn hàng
+        navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
+      })
+      .catch((err) => {
+        const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
+        message.error(errorMessage);
+      });
+  };
+
+
+    const [countdown, setCountdown] = useState(300); // 300 giây = 5 phút
+  
+    useEffect(() => {
+      if (isModalPaymentQR && countdown > 0) {
+        const timer = setInterval(() => {
+          setCountdown((prev) => prev - 1);
+        }, 1000);
+  
+        return () => clearInterval(timer);
+      }
+    }, [isModalPaymentQR, countdown]);
+  
+    const formatTime = (seconds) => {
+      const minutes = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
+    };
+    const handleCancelPayment = () => {
+      setIsModalVisiblePaymentQR(false);
+      setQrUrl(null); // Xóa mã QR
+      setCountdown(300); // Reset lại thời gian nếu cần
+      message.warning("Giao dịch đã bị hủy!");
+    };
+    
   return (
     <div
       style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', backgroundColor: 'white' }}
@@ -388,7 +555,6 @@ const handleSubmitOrder = () => {
             onClick={() => {
               if (validateForm()) {
                 handleSubmitOrder();
-                message.success('Đặt hàng thành công!');
               }
             }}
           >
@@ -396,6 +562,34 @@ const handleSubmitOrder = () => {
           </Button>
         </Col>
       </Row>
+      <Modal
+  title="Quét QR để thanh toán"
+  open={isModalPaymentQR}
+  onCancel={() => handleCancelPayment()}
+  footer={null}
+>
+  {qrUrl && (
+    <div style={{ textAlign: "center" }}>
+      <img src={qrUrl} alt="QR Code" style={{ width: "100%" }} />
+      <h3 style={{ marginTop: "10px", color: "red" }}>
+        Thời gian còn lại: {formatTime(countdown)}
+      </h3>
+      <div style={{ marginTop: "20px", textAlign: "left" }}>
+        <h4 style={{ color: "#1890ff" }}>Hướng dẫn thanh toán:</h4>
+        <ol style={{ paddingLeft: "20px", lineHeight: "1.8" }}>
+          <li>Quét mã QR bằng ứng dụng ngân hàng của bạn.</li>
+          <li>Kiểm tra chính xác thông tin người nhận và số tiền.</li>
+          <li>Xác nhận thanh toán và chờ đơn hàng hoàn tất.</li>
+          <li>
+            Sau khi thanh toán, đơn hàng sẽ tự động xác nhận trong vòng 5 phút.
+          </li>
+        </ol>
+      </div>
+    </div>
+  )}
+</Modal>
+
+
     </div>
   );
 };

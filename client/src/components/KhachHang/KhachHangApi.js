@@ -2,14 +2,14 @@ import axios from "axios";
 
 const API_URL = "http://localhost:8080/api/admin/khach_hang";
 
-// Lấy token từ localStorage
-const token = localStorage.getItem("token");
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token"); // Lấy token mỗi lần gọi API
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+};
 
-// Hàm tạo headers kèm token
-const getAuthHeaders = () => ({
-  Authorization: `Bearer ${token}`,
-  "Content-Type": "application/json",
-});
 
 // API: Lấy tất cả khách hàng
 export async function getAllApi() {

@@ -137,6 +137,8 @@ const Cart = () => {
           />
           <div>
             <Text strong>{record.sanPham.tenSanPham}</Text>
+            <br />
+            <Text type="secondary">{record.sanPham.maSanPham}</Text>
           </div>
         </Space>
       ),

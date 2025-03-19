@@ -421,7 +421,7 @@ function CreateForm({ getAllKhachHang, handleClose }) {
                   onChange={handleDateChange}
                 />
               </Form.Item>
-
+              
               <Form.Item
                 label="Email"
                 name="email"

@@ -31,6 +31,7 @@ import ProductDetailClient from './components/Client/pages/ProductDetail';
 import CartClient from './components/Client/pages/Cart';
 import ContactClient from './components/Client/pages/Contact';
 import Checkout from './components/Client/pages/Checkout';
+import OrderSuccessPage from './components/Client/pages/OrderSuccess';
 const { Header, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
@@ -41,7 +42,7 @@ const breadcrumbMap = {
 
 const menuItems = [
   { key: '1', icon: <BarChartOutlined />, label: 'Thống kê', path: '/admin' },
-  { key: '2', icon: <ShoppingCartOutlined />, label: 'Bán hàng', path: '/admin/banhang' },
+  { key: '2', icon: <ShoppingCartOutlined />, label: 'Bán hàng', path: '/admin/ban-hang' },
   { key: '3', icon: <FileTextOutlined />, label: 'Hóa đơn', path: '/admin/hoa-don' },
   { key: '15', icon: <TagsOutlined />, label: 'Phiếu Giảm Giá', path: '/admin/phieu-giam-gia' },
   { key: '16', icon: <UserOutlined />, label: 'Nhân Viên', path: '/admin/nhanvien' },
@@ -69,6 +70,7 @@ const productSubMenu = [
 */
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const token = localStorage.getItem('token');
   const {
     token: { colorBgContainer },
   } = theme.useToken();
@@ -116,7 +118,7 @@ const AdminLayout = () => {
   };
   const [userInfo, setUserInfo] = useState(null);
   const [error, setError] = useState(null);
-  const token = localStorage.getItem('token');
+
   useEffect(() => {
     if (token) {
       fetchUserInfo(token)
@@ -229,6 +231,7 @@ const CustomerLayout = () => {
           <Route path="/cart" element={<CartClient />} />
           <Route path="/contact" element={<ContactClient />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/order-success" element={<OrderSuccessPage />} />
         </Routes>
       </Content>
       <FooterClient />
@@ -261,11 +264,7 @@ const App = () => {
   console.log('Token:', token);
   console.log('Role từ token:', userRole);
   const navigate = useNavigate(); // Thêm useNavigate
-  useEffect(() => {
-    if (token && (userRole === 'ADMIN' || userRole === 'NHAN_VIEN') && location.pathname === '/') {
-      navigate('/admin'); // Điều hướng tới admin
-    }
-  }, [token, userRole, location.pathname, navigate]);
+
 
   if (location.pathname === '/login' || location.pathname === '/register') {
     return (

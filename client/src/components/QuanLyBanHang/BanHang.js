@@ -64,7 +64,7 @@ import { MenuItem, FormControl, InputLabel } from "@mui/material";
 import { checkPayment } from "./checkPayment"; // Import hàm checkPayment
 import GiaoHang from "./GiaoHang";
 import QrScanner from "../QrScanner";
-const token = localStorage.getItem("token"); // Lấy token từ localStorage
+
 const { Content, Sider } = Layout;
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
@@ -172,7 +172,9 @@ const BanHang = () => {
   const [modalHandlers, setModalHandlers] = useState({
   onCancel: () => setIsModalVisiblePaymentQR(false),
   onOk: () => setIsModalVisiblePaymentQR(false)
-});
+}
+);
+const token = localStorage.getItem("token"); // Lấy token từ localStorage
   
     // Add function to calculate all totals for an order
     const calculateOrderTotals = (hoaDonId, productsOverride, orderOverride) => {
