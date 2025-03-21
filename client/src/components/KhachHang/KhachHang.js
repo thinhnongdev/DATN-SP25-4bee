@@ -140,7 +140,7 @@ const KhachHang = ({ onAddClick, onViewClick }) => {
   return (
     <div style={{ maxWidth: "2000px", margin: "0 auto", padding: "20px" }}>
       {/* Phần bộ lọc */}
-
+      <h4>Danh sách khách hàng</h4>
       <div
         style={{
           background: "#fff",
@@ -149,54 +149,50 @@ const KhachHang = ({ onAddClick, onViewClick }) => {
           marginBottom: "20px",
         }}
       >
-        <h4 style={{ textAlign: "center" }}>Danh sách khách hàng</h4>
+        <h5 style={{ marginBottom: "10px" }}>Bộ lọc</h5>
         <div
           style={{
             display: "flex",
+            flexWrap: "wrap",
+            gap: 10,
             justifyContent: "space-between",
             alignItems: "center",
-            gap: "10px",
             marginBottom: "15px",
           }}
         >
-          <div style={{ flex: 1 }}>
-            <Input
-              placeholder="Nhập tên khách hàng"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <Select
-              value={genderFilter}
-              onChange={setGenderFilter}
-              style={{ width: "150px" }}
-            >
-              <Option value="all">Tất cả giới tính</Option>
-              <Option value="male">Nam</Option>
-              <Option value="female">Nữ</Option>
-            </Select>
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              style={{ width: "150px" }}
-            >
-              <Option value="all">Tất cả trạng thái</Option>
-              <Option value="active">Hoạt động</Option>
-              <Option value="inactive">Ngưng hoạt động</Option>
-            </Select>
-          </div>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <Button icon={<PlusOutlined />} onClick={onAddClick}>
-              Thêm khách hàng
-            </Button>
-            <Button icon={<FileExcelOutlined />} onClick={exportToExcel}>
-              Xuất Excel
-            </Button>
-          </div>
+          <Input
+            style={{ flex: "1 1 200px" }}
+            placeholder="Nhập tên khách hàng"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Select
+            style={{ flex: "1 1 150px" }}
+            value={genderFilter}
+            onChange={setGenderFilter}
+          >
+            <Option value="all">Tất cả giới tính</Option>
+            <Option value="male">Nam</Option>
+            <Option value="female">Nữ</Option>
+          </Select>
+          <Select
+            style={{ flex: "1 1 150px" }}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          >
+            <Option value="all">Tất cả trạng thái</Option>
+            <Option value="active">Hoạt động</Option>
+            <Option value="inactive">Ngưng hoạt động</Option>
+          </Select>
+          <Button icon={<PlusOutlined />} onClick={onAddClick}>
+            Thêm khách hàng
+          </Button>
+          <Button icon={<FileExcelOutlined />} onClick={exportToExcel}>
+            Xuất Excel
+          </Button>
         </div>
       </div>
+
       {/* Phần bảng khách hàng */}
       <div style={{ background: "#fff", padding: "15px", borderRadius: "8px" }}>
         <Table

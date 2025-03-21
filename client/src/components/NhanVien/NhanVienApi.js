@@ -1,14 +1,12 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/nhan_vien';
+const API_URL = 'http://localhost:8080/api/admin/nhan_vien';
 
-// Hàm lấy token luôn đảm bảo là giá trị mới nhất
-const getToken = () => localStorage.getItem('token');
 
 export async function getAllApi() {
   try {
     const response = await axios.get(`${API_URL}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     });
     console.log('Phản hồi từ API:', response);
     return response;
@@ -22,19 +20,19 @@ export const getPostApi = (newNhanVien) =>
   axios.post(`${API_URL}`, newNhanVien, {
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${getToken()}`,
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
     },
   });
 
 export const getPutApi = (id, updateNhanVien) =>
   axios.put(`${API_URL}/${id}`, updateNhanVien, {
-    headers: { Authorization: `Bearer ${getToken()}` },
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
   });
 
 export async function getDeleteApi(id) {
   try {
     const response = await axios.delete(`${API_URL}/${id}`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     });
     console.log(`Nhân viên có ID ${id} đã được xóa thành công!`, response);
 
@@ -53,7 +51,7 @@ export async function getDeleteApi(id) {
 
 export const getNhanVienById = (id) =>
   axios.get(`${API_URL}/${id}`, {
-    headers: { Authorization: `Bearer ${getToken()}` },
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
   });
 
 export const scanQRCode = async (file) => {
@@ -64,7 +62,7 @@ export const scanQRCode = async (file) => {
     const response = await axios.post(`${API_URL}/scan-qr`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
-        Authorization: `Bearer ${getToken()}`,
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
     });
     return response.data;

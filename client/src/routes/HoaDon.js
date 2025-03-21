@@ -3,14 +3,14 @@ import InvoiceList from "../pages/InvoiceList";
 import InvoiceDetail from "../pages/InvoiceDetail";
 import BanHang from "../components/QuanLyBanHang/BanHang";
 
-const PhieuGiamGiaRoutes = () => {
+const HoaDonRoutes = () => {
   return (
     <>
       <Route path="/hoa-don" element={<InvoiceList />} />
       <Route path="/ban-hang" element={<BanHang />} />
-      <Route path="/hoa-don/detail/:id" element={<InvoiceDetail />} />    
-      </>
+      <Route path="/hoa-don/detail/:id" element={<InvoiceDetail />} />
+    </>
   );
 };
 
-export default PhieuGiamGiaRoutes;
+export default HoaDonRoutes;

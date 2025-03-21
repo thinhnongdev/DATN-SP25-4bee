@@ -138,134 +138,134 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    @Transactional
-    public HoaDonResponse addProduct(String hoaDonId, AddProductRequest request) {
-        log.info("Thêm sản phẩm: hoaDonId={}, productDetailId={}, quantity={}",
-                hoaDonId, request.getSanPhamChiTietId(), request.getSoLuong());
-
-        // 🛒 Lấy hóa đơn
-        HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
-        log.info(" Hóa đơn hợp lệ: {}", hoaDon.getId());
-
-        // Tìm sản phẩm chi tiết
-        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository
-                .findBySanPhamIdAndTrangThai(request.getSanPhamChiTietId(), true)
-                .orElseThrow(() -> new ValidationException("Sản phẩm không hợp lệ hoặc không đủ hàng"));
-
-        BigDecimal giaTaiThoiDiem = sanPhamChiTiet.getGia(); //  Lưu giá hiện tại khi thêm vào hóa đơn
-
-        //  Kiểm tra tồn kho
-        if (sanPhamChiTiet.getSoLuong() < request.getSoLuong()) {
-            log.error(" Không đủ hàng: Yêu cầu={}, Tồn kho={}", request.getSoLuong(), sanPhamChiTiet.getSoLuong());
-            throw new ValidationException("Sản phẩm không đủ số lượng trong kho");
-        }
-
-        //  Cập nhật số lượng tồn kho
-        sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - request.getSoLuong());
-        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
-        log.info("Đã cập nhật tồn kho: Sản phẩm={}, Tồn kho mới={}", sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
-
-        //  Kiểm tra sản phẩm đã có trong hóa đơn chưa
-        Optional<HoaDonChiTiet> existingChiTietOpt = hoaDon.getHoaDonChiTiets().stream()
-                .filter(ct -> ct.getTrangThai() == 1 &&
-                        ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
-                .findFirst();
-
-        if (existingChiTietOpt.isPresent()) {
-            HoaDonChiTiet existingChiTiet = existingChiTietOpt.get();
-
-            // Nếu giá không thay đổi, cập nhật số lượng
-            if (existingChiTiet.getSanPhamChiTiet().getGia().compareTo(giaTaiThoiDiem) == 0) { // Lấy từ DB
-                existingChiTiet.setSoLuong(existingChiTiet.getSoLuong() + request.getSoLuong());
-                log.info(" Cập nhật số lượng sản phẩm trong hóa đơn.");
-                return HoaDonResponse.builder()
-                        .id(hoaDon.getId())
-                        .message("Cập nhật số lượng sản phẩm trong hóa đơn.")
-                        .build();
-            } else {
-                // Nếu giá thay đổi, thêm sản phẩm như một mục mới
-                HoaDonChiTiet newChiTiet = HoaDonChiTiet.builder()
-                        .id(UUID.randomUUID().toString())
-                        .hoaDon(hoaDon)
-                        .sanPhamChiTiet(sanPhamChiTiet)
-                        .soLuong(request.getSoLuong())
-                        .trangThai(1)
-                        .build();
-                hoaDon.getHoaDonChiTiets().add(newChiTiet);
-                log.info("🆕 Thêm sản phẩm với giá mới vào hóa đơn.");
-                return HoaDonResponse.builder()
-                        .id(hoaDon.getId())
-                        .message("Sản phẩm đã thay đổi giá, một mục mới đã được thêm vào hóa đơn.")
-                        .build();
-            }
-        } else {
-            // Nếu sản phẩm chưa có trong hóa đơn, thêm mới
-            HoaDonChiTiet newChiTiet = HoaDonChiTiet.builder()
-                    .id(UUID.randomUUID().toString())
-                    .hoaDon(hoaDon)
-                    .sanPhamChiTiet(sanPhamChiTiet)
-                    .soLuong(request.getSoLuong())
-                    .trangThai(1)
-                    .build();
-            hoaDon.getHoaDonChiTiets().add(newChiTiet);
-            log.info("Sản phẩm mới được thêm vào hóa đơn.");
-            return HoaDonResponse.builder()
-                    .id(hoaDon.getId())
-                    .message("Sản phẩm đã được thêm vào hóa đơn.")
-                    .build();
-        }
-    }
-
 //    @Override
 //    @Transactional
 //    public HoaDonResponse addProduct(String hoaDonId, AddProductRequest request) {
-//        log.info("Bắt đầu xử lý thêm sản phẩm: hoaDonId={}, productDetailId={}, quantity={}",
+//        log.info("Thêm sản phẩm: hoaDonId={}, productDetailId={}, quantity={}",
 //                hoaDonId, request.getSanPhamChiTietId(), request.getSoLuong());
 //
-//        // Kiểm tra hóa đơn
+//        // Lấy hóa đơn
 //        HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
-//        log.info("Hóa đơn hợp lệ: {}", hoaDon.getId());
+//        log.info(" Hóa đơn hợp lệ: {}", hoaDon.getId());
 //
 //        // Tìm sản phẩm chi tiết
 //        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository
 //                .findBySanPhamIdAndTrangThai(request.getSanPhamChiTietId(), true)
-//                .orElseThrow(() -> new ValidationException("Sản phẩm chi tiết không hợp lệ hoặc không đủ hàng"));
+//                .orElseThrow(() -> new ValidationException("Sản phẩm không hợp lệ hoặc không đủ hàng"));
 //
-//        // Kiểm tra tồn kho
+//        BigDecimal giaTaiThoiDiem = sanPhamChiTiet.getGia(); //  Lưu giá hiện tại khi thêm vào hóa đơn
+//
+//        //  Kiểm tra tồn kho
 //        if (sanPhamChiTiet.getSoLuong() < request.getSoLuong()) {
-//            log.error("Không đủ hàng: yêu cầu={}, tồn kho={}", request.getSoLuong(), sanPhamChiTiet.getSoLuong());
+//            log.error(" Không đủ hàng: Yêu cầu={}, Tồn kho={}", request.getSoLuong(), sanPhamChiTiet.getSoLuong());
 //            throw new ValidationException("Sản phẩm không đủ số lượng trong kho");
 //        }
 //
-//        // Cập nhật số lượng tồn kho
+//        //  Cập nhật số lượng tồn kho
 //        sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - request.getSoLuong());
 //        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
-//        log.info(" Đã cập nhật tồn kho: sản phẩm={}, tồn kho mới={}",
-//                sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
+//        log.info("Đã cập nhật tồn kho: Sản phẩm={}, Tồn kho mới={}", sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
 //
-//        // Thêm vào hóa đơn
-//        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
-//                .filter(ct -> ct.getTrangThai() == 1 && ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
-//                .findFirst()
-//                .orElse(null);
+//        //  Kiểm tra sản phẩm đã có trong hóa đơn chưa
+//        Optional<HoaDonChiTiet> existingChiTietOpt = hoaDon.getHoaDonChiTiets().stream()
+//                .filter(ct -> ct.getTrangThai() == 1 &&
+//                        ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
+//                .findFirst();
 //
-//        if (chiTiet != null) {
-//            chiTiet.setSoLuong(chiTiet.getSoLuong() + request.getSoLuong());
+//        if (existingChiTietOpt.isPresent()) {
+//            HoaDonChiTiet existingChiTiet = existingChiTietOpt.get();
+//
+//            // Nếu giá không thay đổi, cập nhật số lượng
+//            if (existingChiTiet.getSanPhamChiTiet().getGia().compareTo(giaTaiThoiDiem) == 0) { // Lấy từ DB
+//                existingChiTiet.setSoLuong(existingChiTiet.getSoLuong() + request.getSoLuong());
+//                log.info(" Cập nhật số lượng sản phẩm trong hóa đơn.");
+//                return HoaDonResponse.builder()
+//                        .id(hoaDon.getId())
+//                        .message("Cập nhật số lượng sản phẩm trong hóa đơn.")
+//                        .build();
+//            } else {
+//                // Nếu giá thay đổi, thêm sản phẩm như một mục mới
+//                HoaDonChiTiet newChiTiet = HoaDonChiTiet.builder()
+//                        .id(UUID.randomUUID().toString())
+//                        .hoaDon(hoaDon)
+//                        .sanPhamChiTiet(sanPhamChiTiet)
+//                        .soLuong(request.getSoLuong())
+//                        .trangThai(1)
+//                        .build();
+//                hoaDon.getHoaDonChiTiets().add(newChiTiet);
+//                log.info("Thêm sản phẩm với giá mới vào hóa đơn.");
+//                return HoaDonResponse.builder()
+//                        .id(hoaDon.getId())
+//                        .message("Sản phẩm đã thay đổi giá, một mục mới đã được thêm vào hóa đơn.")
+//                        .build();
+//            }
 //        } else {
-//            chiTiet = HoaDonChiTiet.builder()
+//            // Nếu sản phẩm chưa có trong hóa đơn, thêm mới
+//            HoaDonChiTiet newChiTiet = HoaDonChiTiet.builder()
 //                    .id(UUID.randomUUID().toString())
 //                    .hoaDon(hoaDon)
 //                    .sanPhamChiTiet(sanPhamChiTiet)
 //                    .soLuong(request.getSoLuong())
 //                    .trangThai(1)
 //                    .build();
-//            hoaDon.getHoaDonChiTiets().add(chiTiet);
+//            hoaDon.getHoaDonChiTiets().add(newChiTiet);
+//            log.info("Sản phẩm mới được thêm vào hóa đơn.");
+//            return HoaDonResponse.builder()
+//                    .id(hoaDon.getId())
+//                    .message("Sản phẩm đã được thêm vào hóa đơn.")
+//                    .build();
 //        }
-//
-//        recalculateTotal(hoaDon);
-//        return mapper.entityToResponse(hoaDonRepository.save(hoaDon));
 //    }
+
+    @Override
+    @Transactional
+    public HoaDonResponse addProduct(String hoaDonId, AddProductRequest request) {
+        log.info("Bắt đầu xử lý thêm sản phẩm: hoaDonId={}, productDetailId={}, quantity={}",
+                hoaDonId, request.getSanPhamChiTietId(), request.getSoLuong());
+
+        // Kiểm tra hóa đơn
+        HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
+        log.info("Hóa đơn hợp lệ: {}", hoaDon.getId());
+
+        // Tìm sản phẩm chi tiết
+        SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietHoaDonRepository
+                .findBySanPhamIdAndTrangThai(request.getSanPhamChiTietId(), true)
+                .orElseThrow(() -> new ValidationException("Sản phẩm chi tiết không hợp lệ hoặc không đủ hàng"));
+
+        // Kiểm tra tồn kho
+        if (sanPhamChiTiet.getSoLuong() < request.getSoLuong()) {
+            log.error("Không đủ hàng: yêu cầu={}, tồn kho={}", request.getSoLuong(), sanPhamChiTiet.getSoLuong());
+            throw new ValidationException("Sản phẩm không đủ số lượng trong kho");
+        }
+
+        // Cập nhật số lượng tồn kho
+        sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - request.getSoLuong());
+        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
+        log.info(" Đã cập nhật tồn kho: sản phẩm={}, tồn kho mới={}",
+                sanPhamChiTiet.getId(), sanPhamChiTiet.getSoLuong());
+
+        // Thêm vào hóa đơn
+        HoaDonChiTiet chiTiet = hoaDon.getHoaDonChiTiets().stream()
+                .filter(ct -> ct.getTrangThai() == 1 && ct.getSanPhamChiTiet().getId().equals(sanPhamChiTiet.getId()))
+                .findFirst()
+                .orElse(null);
+
+        if (chiTiet != null) {
+            chiTiet.setSoLuong(chiTiet.getSoLuong() + request.getSoLuong());
+        } else {
+            chiTiet = HoaDonChiTiet.builder()
+                    .id(UUID.randomUUID().toString())
+                    .hoaDon(hoaDon)
+                    .sanPhamChiTiet(sanPhamChiTiet)
+                    .soLuong(request.getSoLuong())
+                    .trangThai(1)
+                    .build();
+            hoaDon.getHoaDonChiTiets().add(chiTiet);
+        }
+
+        recalculateTotal(hoaDon);
+        return mapper.entityToResponse(hoaDonRepository.save(hoaDon));
+    }
 
     @Override
     @Transactional

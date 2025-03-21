@@ -64,14 +64,13 @@ import { MenuItem, FormControl, InputLabel } from "@mui/material";
 import { checkPayment } from "./checkPayment"; // Import hàm checkPayment
 import GiaoHang from "./GiaoHang";
 import QrScanner from "../QrScanner";
-
 const { Content, Sider } = Layout;
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 
 // Add near the top of the file with other constants
 const PAYMENT_METHOD = {
-  CASH: "COD",
+  CASH: "CASH",
   QR: "BANK",
   // Add other payment methods as needed
 };
@@ -172,8 +171,7 @@ const BanHang = () => {
   const [modalHandlers, setModalHandlers] = useState({
   onCancel: () => setIsModalVisiblePaymentQR(false),
   onOk: () => setIsModalVisiblePaymentQR(false)
-}
-);
+});
 const token = localStorage.getItem("token"); // Lấy token từ localStorage
   
     // Add function to calculate all totals for an order
@@ -197,7 +195,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
           voucherValue: null,
         };
       }
-  
+
       // Tính tổng tiền sản phẩm
       const subtotal = calculateTotalBeforeDiscount(products);
   
@@ -411,14 +409,14 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
     }
 
     const payload = {
-      diaChiId: address.id, // 🟢 Đúng key như backend mong đợi
+      diaChiId: address.id, // Đúng key như backend mong đợi
       moTa: address.moTa,
       xa: address.xa,
       huyen: address.huyen,
       tinh: address.tinh,
     };
 
-    console.log("🚀 Gửi request cập nhật địa chỉ:", payload);
+    console.log("Gửi request cập nhật địa chỉ:", payload);
 
     try {
       await axios.put(
@@ -613,7 +611,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
   // 1. Load pending orders
   const fetchPendingOrders = async (isInitializing = false) => {
     try {
-      const response = await api.get("/api/admin/ban-hang/hoadoncho", {
+      const response = await api.get("/api/admin/ban-hang/hoadontaiquay", {
         headers: {
           Authorization: `Bearer ${token}`, // Thêm token vào header
         },
@@ -3142,7 +3140,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                                                           color: "#1f1f1f",
                                                         }}
                                                       >
-                                                        {product.tenSanPham ||
+                                                        {product.sanPham.tenSanPham ||
                                                           "Không có tên"}
                                                       </div>
                                                     </Tooltip>
@@ -3189,15 +3187,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                                                               fontSize: "12px",
                                                             }}
                                                           >
-                                                            {product.maSanPham ||
-                                                              (product.sanPhamChiTiet &&
-                                                                product
-                                                                  .sanPhamChiTiet
-                                                                  .maSanPham) ||
-                                                              (product.sanPham &&
-                                                                product.sanPham
-                                                                  .maSanPham) ||
-                                                              "N/A"}
+                                                            {product.maSanPhamChiTiet||"---"}
                                                           </Typography.Text>
                                                         </Typography.Text>
 

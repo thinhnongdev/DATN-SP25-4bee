@@ -34,7 +34,9 @@ const Navbar = () => {
   const menuItems = [
     { key: '/', label: 'Trang chủ' },
     { key: '/products', label: 'Sản phẩm' },
-    { key: '/contact', label: 'Liên hệ' }
+    { key: '/contact', label: 'Liên hệ' },
+    { key: '/products', label: 'Về chúng tôi' },
+    { key: '/contact', label: 'Blog' }
   ];
 
   return (

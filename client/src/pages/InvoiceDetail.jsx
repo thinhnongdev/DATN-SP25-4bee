@@ -184,7 +184,7 @@ function InvoiceDetail() {
         }
       }
     } catch (error) {
-      console.error("❌ Lỗi khi tải hóa đơn:", error);
+      console.error("Lỗi khi tải hóa đơn:", error);
       toast.error("Lỗi khi tải thông tin hóa đơn");
     } finally {
       setLoading(false);
@@ -454,6 +454,12 @@ function InvoiceDetail() {
         `/api/admin/hoa-don/${id}/voucher/${invoice.phieuGiamGia.id}`,
         {
           voucherId: selectedVoucher.id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
       );
 
@@ -947,7 +953,12 @@ function InvoiceDetail() {
   const handleConfirmDelete = async () => {
     try {
       await api.delete(
-        `/api/admin/hoa-don/${id}/chi-tiet/${deletingProductId}`
+        `/api/admin/hoa-don/${id}/chi-tiet/${deletingProductId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Gắn token vào header
+          },
+        }
       );
       toast.success("Xóa sản phẩm thành công");
       setInvoiceProducts((prevProducts) => {
@@ -968,7 +979,7 @@ function InvoiceDetail() {
   };
 
   const getProductStatusText = (status) => {
-    return status === true ? "Thành công" : "Không thành công";
+    return status == 1 ? "Thành công" : "Không thành công";
   };
 
   const handleUpdateQuantity = async (hoaDonChiTietId, newQuantity) => {
@@ -980,7 +991,13 @@ function InvoiceDetail() {
     try {
       const response = await api.put(
         `/api/admin/hoa-don/${id}/chi-tiet/${hoaDonChiTietId}/so-luong`,
-        { soLuong: newQuantity }
+        { soLuong: newQuantity },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
       // Cập nhật danh sách sản phẩm
@@ -1356,6 +1373,13 @@ function InvoiceDetail() {
                 align: "center",
                 render: (text, record, index) => index + 1,
               },
+              // {
+              //   title: "Mã giao dịch",
+              //   dataIndex: "index",
+              //   key: "index",
+              //   align: "center",
+              //   render: (text, record, index) => index + 1,
+              // },
               {
                 title: "Số tiền",
                 dataIndex: "tongTien",
@@ -1376,6 +1400,7 @@ function InvoiceDetail() {
                 align: "center",
                 render: (text) => formatDate(text),
               },
+
               {
                 title: "Trạng thái",
                 dataIndex: "trangThai",
@@ -1386,10 +1411,12 @@ function InvoiceDetail() {
                     color={text === 1 ? "green" : text === 0 ? "orange" : "red"}
                   >
                     {text === 1
-                      ? "Tiền mặt"
+                      ? "Đã thanh toán"
                       : text === 2
-                      ? "Chuyển khoản"
-                      : "Đang xử lý"}
+                      ? "Chờ thanh toán"
+                      : text === 3
+                      ? "Trả sau"
+                      : "---"}
                   </Tag>
                 ),
               },
@@ -1398,14 +1425,14 @@ function InvoiceDetail() {
                 dataIndex: "moTa",
                 key: "moTa",
                 align: "center",
-                render: (text) => text || "N/A",
+                render: (text) => text || "---",
               },
               {
                 title: "Nhân viên",
                 dataIndex: "nhanVien",
                 key: "nhanVien",
                 align: "center",
-                render: (text) => text || "N/A",
+                render: (text) => text || "---",
               },
             ]}
             pagination={false}

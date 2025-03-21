@@ -4,7 +4,7 @@ import PhieuGiamGiaAdd from "../components/PhieuGiamGia/PhieuGiamGiaAdd";
 import UpdatePhieuGiamGia from "../components/PhieuGiamGia/UpdatePhieuGiamGia"
 // import InvoiceCreate from "../pages/InvoiceCreate";
 
-const HoaDonRoutes = () => {
+const PhieuGiamGiaRoutes = () => {
   return (
     <>
               <Route path="/phieu-giam-gia" element={<PhieuGiamGiaList />} />
@@ -14,4 +14,4 @@ const HoaDonRoutes = () => {
   );
 };
 
-export default HoaDonRoutes;
+export default PhieuGiamGiaRoutes;

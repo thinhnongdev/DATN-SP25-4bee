@@ -58,6 +58,7 @@ public class KhachHangService {
             diaChi.setTinh(diaChiRequest.getTinh());
             diaChi.setHuyen(diaChiRequest.getHuyen());
             diaChi.setXa(diaChiRequest.getXa());
+            diaChi.setDiaChiCuThe(diaChiRequest.getDiaChiCuThe());
             diaChi.setTrangThai(1);
             dc.add(diaChi);
         }
@@ -70,7 +71,8 @@ public class KhachHangService {
 
         return savedKhachHang;
     }
-//    huy làm test thêm địa chỉ cho khách hàng
+
+    //    huy làm test thêm địa chỉ cho khách hàng
 // Thêm phương thức để tạo địa chỉ mới cho khách hàng
 public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
     KhachHang khachHang = khachHangRepository.findById(khachHangId)

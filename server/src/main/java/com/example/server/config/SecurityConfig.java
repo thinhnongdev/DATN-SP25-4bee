@@ -19,7 +19,14 @@ import java.util.Arrays;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    private final String[] PUBLIC_ENDPOINTS = {"/api/auth/login", "/api/auth/introspect", "/api/auth/logout", "/api/auth/refreshToken", "/api/auth/getInfoUser"};
+    private final String[] PUBLIC_ENDPOINTS = {
+            "/api/auth/login",
+            "/api/auth/introspect",
+            "/api/auth/logout",
+            "/api/auth/refreshToken",
+            "/api/auth/getInfoUser",
+            "/api/chat" // Thêm /api/chat vào đây
+    };
     @Autowired
     CustomJwtDecoder customJwtDecoder;
     @Bean

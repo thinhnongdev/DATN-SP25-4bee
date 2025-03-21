@@ -18,5 +18,5 @@ public class ThongTinGiaoHangClientRequest {
     String diaChi;
     String ghiChu;
     String phuongThucThanhToan;
-String maHoaDon;
+    String maHoaDon;
 }

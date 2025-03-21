@@ -24,6 +24,9 @@ public class PhieuGiamGiaDTO {
     private Integer trangThai;
     private LocalDateTime ngayTao;
 
+    public PhieuGiamGiaDTO() {
+    }
+
     public PhieuGiamGiaDTO(PhieuGiamGia entity) {
         this.id = entity.getId();
         this.maPhieuGiamGia = entity.getMaPhieuGiamGia();

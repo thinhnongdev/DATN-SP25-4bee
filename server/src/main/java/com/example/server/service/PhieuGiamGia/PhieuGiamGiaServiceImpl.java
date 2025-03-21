@@ -777,12 +777,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     }
 
 
-
-
-
-
-
-
     @Override
     public Page<PhieuGiamGiaDTO> getAllWithPagination(Pageable pageable) {
         return repository.findAll(pageable)
@@ -797,32 +791,28 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         entity.setTrangThai(2);
         repository.save(entity);
     }
-
-
-
-
     // Phương thức tự động kiểm tra và đóng phiếu giảm giá hết hạn
-    @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
-    @Transactional
-    public void checkAndUpdateExpiredCoupons() {
-        logger.info("Bắt đầu kiểm tra và cập nhật trạng thái phiếu giảm giá...");
-
-
-        ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
-        LocalDateTime now = LocalDateTime.now(Clock.system(zoneId));
-
-        // Cập nhật phiếu giảm giá sắp diễn ra
-        List<PhieuGiamGia> upcomingCoupons = repository.findAllByNgayKetThucBeforeAndTrangThai(now, 1);
-        upcomingCoupons.forEach(phieu -> phieu.setTrangThai(3)); // Sắp diễn ra
-        repository.saveAll(upcomingCoupons);
-
-        // Cập nhật phiếu giảm giá hết hạn
-        List<PhieuGiamGia> expiredCoupons = repository.findAllByNgayKetThucBeforeAndTrangThai(now, 1);
-        expiredCoupons.forEach(phieu -> phieu.setTrangThai(2)); // Ngừng hoạt động
-        repository.saveAll(expiredCoupons);
-
-        logger.info("Đã cập nhật trạng thái của {} phiếu giảm giá.", (upcomingCoupons.size() + expiredCoupons.size()));
-    }
+//    @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
+//    @Transactional
+//    public void checkAndUpdateExpiredCoupons() {
+//        logger.info("Bắt đầu kiểm tra và cập nhật trạng thái phiếu giảm giá...");
+//
+//
+//        ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
+//        LocalDateTime now = LocalDateTime.now(Clock.system(zoneId));
+//
+//        // Cập nhật phiếu giảm giá sắp diễn ra
+//        List<PhieuGiamGia> upcomingCoupons = repository.findAllByNgayKetThucBeforeAndTrangThai(now, 1);
+//        upcomingCoupons.forEach(phieu -> phieu.setTrangThai(3)); // Sắp diễn ra
+//        repository.saveAll(upcomingCoupons);
+//
+//        // Cập nhật phiếu giảm giá hết hạn
+//        List<PhieuGiamGia> expiredCoupons = repository.findAllByNgayKetThucBeforeAndTrangThai(now, 1);
+//        expiredCoupons.forEach(phieu -> phieu.setTrangThai(2)); // Ngừng hoạt động
+//        repository.saveAll(expiredCoupons);
+//
+//        logger.info("Đã cập nhật trạng thái của {} phiếu giảm giá.", (upcomingCoupons.size() + expiredCoupons.size()));
+//    }
 
 
 

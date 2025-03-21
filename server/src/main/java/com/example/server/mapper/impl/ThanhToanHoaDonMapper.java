@@ -1,6 +1,7 @@
 package com.example.server.mapper.impl;
 
 
+import com.example.server.constant.PaymentConstant;
 import com.example.server.dto.HoaDon.response.ThanhToanHoaDonResponse;
 import com.example.server.entity.ThanhToanHoaDon;
 import org.springframework.stereotype.Component;
@@ -13,12 +14,13 @@ public class ThanhToanHoaDonMapper {
         return new ThanhToanHoaDonResponse(
                 entity.getId(),
                 entity.getHoaDon() != null ? entity.getHoaDon().getId() : null,
-                entity.getHoaDon() != null && entity.getHoaDon().getNhanVien() != null ? entity.getHoaDon().getNhanVien().getTenNhanVien() : "N/A",
+                entity.getHoaDon() != null && entity.getHoaDon().getNhanVien() != null
+                        ? entity.getHoaDon().getNhanVien().getTenNhanVien() : "N/A",
                 entity.getPhuongThucThanhToan() != null ? entity.getPhuongThucThanhToan().getId() : null,
                 entity.getPhuongThucThanhToan() != null ? entity.getPhuongThucThanhToan().getTenPhuongThucThanhToan() : "Không rõ",
-                entity.getSoTien(),
+                entity.getSoTien() != null ? entity.getSoTien() : BigDecimal.ZERO, // Tránh lỗi null
                 entity.getMoTa(),
-                entity.getTrangThai(),
+                entity.getTrangThai() != null ? entity.getTrangThai() : 2, // Đảm bảo giá trị mặc định là "Chờ thanh toán"
                 entity.getNgayTao(),
                 entity.getNgaySua()
         );
@@ -28,7 +30,7 @@ public class ThanhToanHoaDonMapper {
         ThanhToanHoaDon entity = new ThanhToanHoaDon();
         entity.setId(dto.getId());
         entity.setMoTa(dto.getMoTa());
-        entity.setTrangThai(dto.getTrangThai());
+        entity.setTrangThai(dto.getTrangThai() != null ? dto.getTrangThai() : 2); //  Tránh lỗi null khi tạo entity
         return entity;
     }
 }

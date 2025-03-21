@@ -182,10 +182,10 @@ public class BanHangTaiQuay {
     }
 
 
-    @GetMapping("/hoadoncho")
+    @GetMapping("/hoadontaiquay")
     public ResponseEntity<?> getAllPendingOrders() {
         try {
-            List<HoaDon> pendingOrders = banHangService.getHoaDonCho();
+            List<HoaDon> pendingOrders = banHangService.getHoaDonTaiQuay();
             List<HoaDonResponse> response = pendingOrders.stream().map(hoaDonMapper::entityToResponse).collect(Collectors.toList());
             return ResponseEntity.ok(response);
         } catch (Exception e) {

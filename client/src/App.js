@@ -21,8 +21,8 @@ import PhieuGiamGiaRoutes from './routes/PhieuGiamGia';
 import SanPhamRoutes from './routes/SanPham';
 import NhanVienRoute from './routes/NhanVien';
 import KhachHangRoute from './routes/KhachHang';
-import Login from './components/auth/Login';
-import Register from './components/auth/Register';
+import Login from './components/Auth/Login';
+import Register from './components/Auth/Register';
 import NavClient from './components/Client/components/Navbar';
 import FooterClient from './components/Client/components/Footer';
 import HomeClient from './components/Client/pages/Home';
@@ -32,6 +32,8 @@ import CartClient from './components/Client/pages/Cart';
 import ContactClient from './components/Client/pages/Contact';
 import Checkout from './components/Client/pages/Checkout';
 import OrderSuccessPage from './components/Client/pages/OrderSuccess';
+import ThongkeList from './components/Thongke/ThongkeList';
+import Chatbot from './components/Client/Chat/Chatbot';
 const { Header, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
@@ -70,7 +72,6 @@ const productSubMenu = [
 */
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const token = localStorage.getItem('token');
   const {
     token: { colorBgContainer },
   } = theme.useToken();
@@ -118,7 +119,7 @@ const AdminLayout = () => {
   };
   const [userInfo, setUserInfo] = useState(null);
   const [error, setError] = useState(null);
-
+  const token = localStorage.getItem('token');
   useEffect(() => {
     if (token) {
       fetchUserInfo(token)
@@ -200,15 +201,17 @@ const AdminLayout = () => {
             />
           </div>
         </Header>
-        <Content style={{ margin: '16px', padding: 24, minHeight: 360 }}>
-          <Routes>
-            {HoaDonRoutes()}
-            {PhieuGiamGiaRoutes()}
-            {SanPhamRoutes()}
-            {NhanVienRoute()}
-            {KhachHangRoute()}
-          </Routes>
-        </Content>
+        <Content style={{ margin: "16px", padding: 24, minHeight: 360 }}>
+            <Routes>
+              <Route path="/" element={<ThongkeList />} /> {/* Hiển thị ThongkeList ở /admin */}
+              {HoaDonRoutes()}
+              {PhieuGiamGiaRoutes()}
+              {SanPhamRoutes()}
+              {NhanVienRoute()}
+              {KhachHangRoute()}
+            </Routes>
+          </Content>
+          <Chatbot />
       </Layout>
     </Layout>
   );
@@ -235,6 +238,7 @@ const CustomerLayout = () => {
         </Routes>
       </Content>
       <FooterClient />
+      <Chatbot />
     </Layout>
   );
 };
@@ -263,7 +267,6 @@ const App = () => {
   const userRole = token ? getRoleFromToken(token) : null;
   console.log('Token:', token);
   console.log('Role từ token:', userRole);
-  const navigate = useNavigate(); // Thêm useNavigate
 
 
   if (location.pathname === '/login' || location.pathname === '/register') {

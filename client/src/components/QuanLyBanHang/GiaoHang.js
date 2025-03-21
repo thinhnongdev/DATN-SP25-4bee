@@ -946,10 +946,8 @@ const GiaoHang = React.forwardRef(
       try {
         const response = await axios.put(
           `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/update-address`,
-          
           payload,
-          { headers: 
-      
+          { headers:
             { 
               Authorization: `Bearer ${localStorage.getItem("token")}`,
               "Content-Type": "application/json" } }
@@ -1224,7 +1222,10 @@ const GiaoHang = React.forwardRef(
 
         // Bước 3: Lấy danh sách phường/xã từ API
         const wardsResponse = await axios.get(
-          `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${matchingDistrict.DistrictID}`
+          `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${matchingDistrict.DistrictID}`,
+          {headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          }},
         );
         const wards = wardsResponse.data;
 

@@ -32,7 +32,7 @@ public class ThanhToanHoaDon extends BaseEntity{
     private String moTa;
 
     @Column(name = "trang_thai")
-    private Integer trangThai;
+    private Integer trangThai; // set mặc định là chờ thanh toán để tránh lỗi null (test)
 
     @Column(name = "tong_tien", nullable = false)
     private BigDecimal soTien; // Số tiền thanh toán theo phương thức này

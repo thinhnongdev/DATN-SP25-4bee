@@ -684,7 +684,7 @@ function InvoiceList() {
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                onClick={() => navigate("/ban-hang")}
+                onClick={() => navigate("/admin/ban-hang")}
               >
                 Tạo mới
               </Button>

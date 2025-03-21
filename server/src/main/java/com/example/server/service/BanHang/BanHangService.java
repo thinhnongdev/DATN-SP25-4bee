@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface BanHangService {
     HoaDonResponse createHoaDon(HoaDonRequest request);
-    List<HoaDon> getHoaDonCho();
+    List<HoaDon> getHoaDonTaiQuay();
     HoaDonResponse addProduct(String hoaDonId, AddProductRequest request);  // Thêm sản phẩm vào hóa đơn (giảm tồn kho)
 //    HoaDonResponse addMultipleProducts(String hoaDonId, List<AddProductRequest> requests);
 HoaDonResponse updateDiaChiGiaoHang(String hoaDonId, UpdateDiaChiRequest addressRequest);

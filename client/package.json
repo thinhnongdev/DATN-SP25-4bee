@@ -15,6 +15,7 @@
     "autoprefixer": "^10.4.20",
     "axios": "^1.7.9",
     "bootstrap": "^5.3.3",
+    "chart.js": "^4.4.8",
     "cra-template": "1.2.0",
     "date-fns": "^3.6.0",
     "dayjs": "^1.11.13",
@@ -28,6 +29,7 @@
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.9",
+    "react-chartjs-2": "^5.3.0",
     "react-colorful": "^5.6.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.4.0",
@@ -35,6 +37,7 @@
     "react-router-dom": "^7.1.1",
     "react-scripts": "5.0.1",
     "react-toastify": "^11.0.2",
+    "react18": "^0.0.1-security",
     "recharts": "^2.15.0",
     "sockjs-client": "^1.6.1",
     "xlsx": "^0.18.5"

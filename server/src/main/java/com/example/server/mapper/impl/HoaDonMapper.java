@@ -1,6 +1,7 @@
 package com.example.server.mapper.impl;
 
 import com.example.server.constant.HoaDonConstant;
+import com.example.server.constant.PaymentConstant;
 import com.example.server.dto.HoaDon.request.HoaDonRequest;
 import com.example.server.dto.HoaDon.request.ThanhToanRequest;
 import com.example.server.dto.HoaDon.response.*;
@@ -222,7 +223,7 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .tongTien(hoaDon.getTongTien())
                 .phiVanChuyen(hoaDon.getPhiVanChuyen())
                 .ghiChu(hoaDon.getGhiChu())
-                .trangThai(hoaDon.getTrangThai())
+                .trangThai(hoaDon.getTrangThai() != null ? hoaDon.getTrangThai() : 0) // Tránh null
                 .ngayTao(hoaDon.getNgayTao())
                 .thanhToans(thanhToanResponses)
                 .nhanVien(mapNhanVienToResponse(hoaDon.getNhanVien()))
@@ -231,6 +232,7 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .hoaDonChiTiets(mapHoaDonChiTietToResponse(hoaDon.getHoaDonChiTiets()))
                 .build();
     }
+
 
 
 
@@ -360,12 +362,19 @@ public class HoaDonMapper implements IHoaDonMapper {
     }
 
     private int determineTrangThai(String phuongThucId) {
-        if ("PTTT001".equals(phuongThucId)) {
-            return 1; // Trạng thái 1 tiền mặt
-        } else if ("PTTT002".equals(phuongThucId) || "PTTT003".equals(phuongThucId)) {
-            return 2; // Trạng thái 2 chuyển khoản
-        } else {
-            return 0; // Trạng thái mặc định
+        if (phuongThucId == null) {
+            throw new IllegalArgumentException("Phương thức thanh toán không được để trống.");
+        }
+
+        switch (phuongThucId) {
+            case PaymentConstant.PAYMENT_METHOD_COD:
+                return PaymentConstant.PAYMENT_STATUS_COD; // Trả sau (COD)
+            case PaymentConstant.PAYMENT_METHOD_CASH:
+                return PaymentConstant.PAYMENT_STATUS_PAID; // Tiền mặt -> Đã thanh toán ngay
+            case PaymentConstant.PAYMENT_METHOD_BANK:
+                return PaymentConstant.PAYMENT_STATUS_UNPAID; // Chuyển khoản -> Cần xác nhận
+            default:
+                return PaymentConstant.PAYMENT_STATUS_UNPAID; // Mặc định là chưa thanh toán
         }
     }
 

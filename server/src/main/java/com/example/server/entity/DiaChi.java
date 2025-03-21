@@ -46,6 +46,8 @@ public class DiaChi {
 
     @Column(name = "nguoi_sua")
     private String nguoiSua;
+    @Column(name = "dia_chi_cu_the")
+    private String diaChiCuThe;
 
     @ManyToOne
     @JoinColumn(name = "id_khach_hang", referencedColumnName = "id")
