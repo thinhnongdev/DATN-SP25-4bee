@@ -1,12 +1,11 @@
-import axios from "axios";
+import axios from 'axios';
 
-const API_URL = "http://localhost:8080/api/admin/khach_hang";
-
+const API_URL = 'http://localhost:8080/api/admin/khach_hang';
 
 // Hàm tạo headers kèm token
 const getAuthHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
-  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem('token')}`,
+  'Content-Type': 'application/json',
 });
 
 // API: Lấy tất cả khách hàng
@@ -15,10 +14,10 @@ export async function getAllApi() {
     const response = await axios.get(`${API_URL}`, {
       headers: getAuthHeaders(),
     });
-    console.log("Phản hồi từ API:", response);
+    console.log('Phản hồi từ API:', response);
     return response;
   } catch (error) {
-    console.error("Lỗi gọi API getAllApi:", error);
+    console.error('Lỗi gọi API getAllApi:', error);
     return null;
   }
 }
@@ -32,13 +31,13 @@ export const getPostApi = (newKhachHang) =>
 // API: Cập nhật thông tin khách hàng
 export const getPutApi = async (id, updateKhachHang) => {
   try {
-    console.log("Updating customer with data:", updateKhachHang);
+    console.log('Updating customer with data:', updateKhachHang);
     const response = await axios.put(`${API_URL}/${id}`, updateKhachHang, {
       headers: getAuthHeaders(),
     });
     return response;
   } catch (error) {
-    console.error("Error in getPutApi:", error);
+    console.error('Error in getPutApi:', error);
     throw error;
   }
 };

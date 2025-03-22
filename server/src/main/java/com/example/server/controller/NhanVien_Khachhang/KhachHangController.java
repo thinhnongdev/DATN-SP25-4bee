@@ -35,6 +35,7 @@ public class KhachHangController {
 
     @PostMapping
     public ResponseEntity<KhachHang> createKhachHang(@RequestBody KhachHangCreationRequest khachHangRequest) {
+        System.out.println(khachHangRequest.getDiaChi());
         return ResponseEntity.ok(khachHangService.createKhachHang(khachHangRequest));
     }
 
@@ -60,6 +61,7 @@ public class KhachHangController {
         diaChi.setHuyen((String) diaChiMap.get("huyen"));
         diaChi.setXa((String) diaChiMap.get("xa"));
         diaChi.setMoTa((String) diaChiMap.get("moTa"));
+        diaChi.setDiaChiCuThe((String) diaChiMap.get("diaChiCuThe"));
         diaChi.setTrangThai(1);
 
         DiaChi savedAddress = khachHangService.addAddressForCustomer(khachHangId, diaChi);

@@ -1,13 +1,13 @@
 package com.example.server.service.NhanVien_KhachHang;
 
 
-
 import com.example.server.dto.NhanVien_KhachHang.KhachHangCreationRequest;
 import com.example.server.entity.DiaChi;
 import com.example.server.entity.KhachHang;
 import com.example.server.repository.NhanVien_KhachHang.DiaChiRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.transaction.Transactional;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -38,7 +38,7 @@ public class KhachHangService {
     @Autowired
     private JavaMailSender mailSender;
 
-    public KhachHang createKhachHang(KhachHangCreationRequest khachHangRequest){
+    public KhachHang createKhachHang(KhachHangCreationRequest khachHangRequest) {
 
         KhachHang kh = new KhachHang();
         kh.setMaKhachHang(generateMaKhachHang(khachHangRequest));
@@ -74,13 +74,13 @@ public class KhachHangService {
 
     //    huy làm test thêm địa chỉ cho khách hàng
 // Thêm phương thức để tạo địa chỉ mới cho khách hàng
-public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
-    KhachHang khachHang = khachHangRepository.findById(khachHangId)
-            .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng với id: " + khachHangId));
+    public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
+        KhachHang khachHang = khachHangRepository.findById(khachHangId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khách hàng với id: " + khachHangId));
 
-    diaChi.setKhachHang(khachHang);
-    return diaChiRepository.save(diaChi);
-}
+        diaChi.setKhachHang(khachHang);
+        return diaChiRepository.save(diaChi);
+    }
 
     private String generateMaKhachHang(KhachHangCreationRequest khachHangRequest) {
         String tenKhachHang = khachHangRequest.getTenKhachHang();
@@ -123,19 +123,19 @@ public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
             helper.setTo(khachHang.getEmail());
             helper.setSubject("Chào mừng bạn!");
             String htmlContent = """
-                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                    <h2 style="color: #007bff;">Chào mừng {{tenKhachHang}}!</h2>
-                    <p>Bạn đã đăng kí tài khoản thành công</p>
-                    <p>Thông tin của bạn:</p>
-                    <ul>
-                        <li><b>Email:</b> {{email}}</li>
-                        <li><b>Mật khẩu tạm thời:</b> {{password}}</li>
-                    </ul>
-                    <p>Hãy thay đổi mật khẩu sau khi đăng nhập.</p>
-                    <p>Trân trọng,</p>
-                    <p><b>Ban Quản Lý Nhân Sự</b></p>
-                </div>
-            """
+                        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                            <h2 style="color: #007bff;">Chào mừng {{tenKhachHang}}!</h2>
+                            <p>Bạn đã đăng kí tài khoản thành công</p>
+                            <p>Thông tin của bạn:</p>
+                            <ul>
+                                <li><b>Email:</b> {{email}}</li>
+                                <li><b>Mật khẩu tạm thời:</b> {{password}}</li>
+                            </ul>
+                            <p>Hãy thay đổi mật khẩu sau khi đăng nhập.</p>
+                            <p>Trân trọng,</p>
+                            <p><b>Ban Quản Lý Nhân Sự</b></p>
+                        </div>
+                    """
                     .replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
                     .replace("{{email}}", khachHang.getEmail())
                     .replace("{{password}}", generatedPassword);
@@ -147,7 +147,7 @@ public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
         }
     }
 
-    public List<KhachHang> getAllKhachHang(){
+    public List<KhachHang> getAllKhachHang() {
         return khachHangRepository.findAllKhachHangSortedByNgayTao();
     }
 
@@ -155,7 +155,7 @@ public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
         return khachHangRepository.findById(id).orElse(null);
     }
 
-
+    @Transactional
     public KhachHang updateKhachHang(String id, KhachHangCreationRequest updatedKhachHang) {
         KhachHang existingKhachHang = khachHangRepository.findById(id).orElse(null);
 
@@ -165,7 +165,7 @@ public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
             existingKhachHang.setNgaySinh(updatedKhachHang.getNgaySinh());
             existingKhachHang.setSoDienThoai(updatedKhachHang.getSoDienThoai());
             existingKhachHang.setEmail(updatedKhachHang.getEmail());
-
+            diaChiRepository.softDeleteByKhachHangId(id);//xóa mềm các địa chỉ cũ  (set trangThai về O(false))
             List<DiaChi> diaChiList = new ArrayList<>();
             if (updatedKhachHang.getDiaChi() != null) {
                 for (DiaChi diaChiRequest : updatedKhachHang.getDiaChi()) {
@@ -174,6 +174,7 @@ public DiaChi addAddressForCustomer(String khachHangId, DiaChi diaChi) {
                     diaChi.setTinh(diaChiRequest.getTinh());
                     diaChi.setHuyen(diaChiRequest.getHuyen());
                     diaChi.setXa(diaChiRequest.getXa());
+                    diaChi.setDiaChiCuThe(diaChiRequest.getDiaChiCuThe());
                     diaChi.setTrangThai(1);
                     diaChiList.add(diaChi);
                 }
