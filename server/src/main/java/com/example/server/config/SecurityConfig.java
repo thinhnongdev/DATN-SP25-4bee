@@ -25,6 +25,7 @@ public class SecurityConfig {
             "/api/auth/logout",
             "/api/auth/refreshToken",
             "/api/auth/getInfoUser",
+            "/api/auth/register",
             "/api/chat" // Thêm /api/chat vào đây
     };
     @Autowired

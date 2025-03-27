@@ -1,9 +1,6 @@
 package com.example.server.controller.Auth;
 
-import com.example.server.dto.Auth.request.AuthenticationRequest;
-import com.example.server.dto.Auth.request.IntrospectRequest;
-import com.example.server.dto.Auth.request.LogoutRequest;
-import com.example.server.dto.Auth.request.RefreshTokenRequest;
+import com.example.server.dto.Auth.request.*;
 import com.example.server.dto.Auth.response.AuthenticationResponse;
 import com.example.server.dto.Auth.response.IntrospectResponse;
 import com.example.server.dto.Auth.response.UserResponse;
@@ -46,5 +43,16 @@ public class AuthenticationController {
     @PostMapping("/getInfoUser")
     public UserResponse getInfoUser(@RequestBody IntrospectRequest request) throws ParseException, JOSEException {
         return authenticationService.findUserByToken(request);
+    }
+    @PostMapping("/register")
+    public ResponseEntity<?> registerAccount(@RequestBody RegisterAccountRequest request) {
+        try{
+            authenticationService.registerAccountForClient(request);
+            return ResponseEntity.ok("Đăng ký tài khoản thành công!");
+        }catch (RuntimeException e){
+            System.out.println("Lỗi khi tạo tài khoản"+e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+
     }
 }

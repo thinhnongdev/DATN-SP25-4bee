@@ -148,7 +148,7 @@ const Cart = () => {
       render: (_, record) => (
         <div>
           <Text>
-            {record.mauSac.tenMau}-{record.kichThuoc.tenKichThuoc}
+            {record.mauSac.tenMau} - {record.kichThuoc.tenKichThuoc}
           </Text>
         </div>
       ),

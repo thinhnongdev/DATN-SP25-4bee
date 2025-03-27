@@ -13,6 +13,8 @@ import {
   Image,
   message,
   Modal,
+  Checkbox,
+  Empty,
 } from 'antd';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -30,12 +32,103 @@ const CheckoutForm = () => {
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [shippingFee, setShippingFee] = useState(null);
   const [form] = Form.useForm();
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({
+    hoTen: '',
+    soDienThoai: '',
+    email: '',
+    province: null,
+    district: null,
+    ward: null,
+    diaChiCuThe: '',
+    ghiChu: '',
+  });
+
   const [qrUrl, setQrUrl] = useState('');
   const [isModalPaymentQR, setIsModalVisiblePaymentQR] = useState(false);
+  const [isAddressList, setIsAddressList] = useState(false);
   const [maHoaDon, setMaHoaDon] = useState(null);
   const API_TOKEN = '4f7fc40f-023f-11f0-aff4-822fc4284d92';
   const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+  const [userInfo, setUserInfo] = useState(null);
+  const [addressList, setAddressList] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [provinceFormatData, setProvinceFormatData] = useState([]);
+  const [districtFormatData, setDistrictFormatData] = useState([]);
+  const [wardCache, setWardCache] = useState({});
+
+  const fetchLocationData = async () => {
+    try {
+      const headers = { Token: API_TOKEN, 'Content-Type': 'application/json' };
+
+      const [provinceRes, districtRes] = await Promise.all([
+        axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {
+          headers,
+        }),
+        axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/district', {
+          headers,
+        }),
+      ]);
+
+      setProvinceFormatData(provinceRes.data.data);
+      setDistrictFormatData(districtRes.data.data);
+    } catch (error) {
+      console.error('Lỗi khi tải dữ liệu địa chỉ:', error);
+      message.error('Không thể tải dữ liệu địa chỉ. Vui lòng kiểm tra lại API hoặc token!');
+    }
+  };
+
+  // Format xã/phường và tự động fetch nếu chưa có dữ liệu
+  const fetchWardByDistrict = async (districtId) => {
+    try {
+      const response = await axios.get(
+        `https://online-gateway.ghn.vn/shiip/public-api/master-data/ward?district_id=${districtId}`,
+        {
+          headers: { Token: API_TOKEN, 'Content-Type': 'application/json' },
+        },
+      );
+
+      if (response.data.code === 200) {
+        setWardCache((prevCache) => ({
+          ...prevCache,
+          [districtId]: response.data.data,
+        }));
+      } else {
+        console.error('Lỗi API GHN:', response.data);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải xã/phường:', error.response?.data || error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchLocationData();
+  }, []);
+
+  const formatProvinceName = (provinceId) => {
+    if (!provinceFormatData.length) return 'Đang tải...';
+    const province = provinceFormatData.find((p) => String(p.ProvinceID) === String(provinceId));
+    return province ? province.ProvinceName : 'Không xác định';
+  };
+
+  const formatDistrictName = (districtId) => {
+    if (!districtFormatData.length) return 'Đang tải...';
+    const district = districtFormatData.find((d) => String(d.DistrictID) === String(districtId));
+    return district ? district.DistrictName : 'Không xác định';
+  };
+
+  const formatWardName = (wardId, districtId) => {
+    // Kiểm tra cache
+    if (!wardCache[districtId]) {
+      fetchWardByDistrict(districtId);
+      return 'Đang tải xã/phường...';
+    }
+
+    const ward = wardCache[districtId].find((w) => String(w.WardCode) === String(wardId));
+
+    return ward ? ward.WardName : 'Không xác định';
+  };
+
   useEffect(() => {
     // Lấy danh sách tỉnh/thành phố
     axios
@@ -47,13 +140,15 @@ const CheckoutForm = () => {
   }, []);
 
   const handleProvinceChange = (value) => {
-    setFormData({ ...formData, province: value, district: null, ward: null });
+    setFormData({ ...formData, province: value, district: null, ward: null, diaChiCuThe: null });
     setSelectedProvince(value);
+    setSelectedDistrict(null);
+    setShippingFee(0);
     // Lấy danh sách quận/huyện
     axios
       .post(
         'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
-        { province_id: value },
+        { province_id: Number(value) },
         { headers: { Token: API_TOKEN } },
       )
       .then((res) => setDistricts(res.data.data))
@@ -63,51 +158,17 @@ const CheckoutForm = () => {
   const handleDistrictChange = (value) => {
     setFormData({ ...formData, district: value, ward: null });
     setSelectedDistrict(value);
+    console.log('id huyên', value);
     // Lấy danh sách phường/xã
     axios
       .post(
         'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward?district_id',
-        { district_id: value },
+        { district_id: Number(value) },
         { headers: { Token: API_TOKEN } },
       )
       .then((res) => setWards(res.data.data))
       .catch((err) => console.error('Lỗi lấy phường xã:', err));
   };
-  const fetchShippingFee = () => {
-    axios
-      .post(
-        'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
-        {
-          service_type_id: 2,
-          insurance_value: totalAmount,
-          from_district_id: 3440, //nam từ liêm // Mã quận/huyện của shop
-          to_district_id: selectedDistrict,
-          weight: 1000, // Trọng lượng gói hàng (đơn vị gram)
-          length: 30,
-          width: 20,
-          height: 10,
-        },
-        {
-          headers: {
-            Token: API_TOKEN,
-            ShopId: 5687296,
-            'Content-Type': 'application/json',
-          },
-        },
-      )
-      .then((res) => {
-        console.log('Phí ship:', res.data.data.total);
-        setShippingFee(res.data.data.total);
-      })
-      .catch((err) => console.error('Lỗi tính phí ship:', err));
-  };
-
-  // Gọi khi chọn quận/huyện xong
-  useEffect(() => {
-    if (selectedDistrict) {
-      fetchShippingFee();
-    }
-  }, [selectedDistrict]);
 
   const totalAmount = cartProducts.reduce(
     (total, product) => total + product.gia * product.quantity,
@@ -142,6 +203,225 @@ const CheckoutForm = () => {
 
   const toggleDetails = () => setShowDetails(!showDetails);
 
+  //Hàm fetch thông tin user từ token
+  const fetchUserInfo = async (token) => {
+    try {
+      const response = await axios.post(
+        'http://localhost:8080/api/auth/getInfoUser',
+        { token }, // Không cần stringify thủ công vì axios tự xử lý
+        { headers: { 'Content-Type': 'application/json' } },
+      );
+      console.log('User Info:', response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch user info:', err);
+      return null;
+    }
+  };
+
+  //Hàm fetch danh sách địa chỉ dựa vào customerId
+  const fetchAddresses = async (customerId) => {
+    try {
+      const response = await axios.get(`http://localhost:8080/api/client/diaChi/${customerId}`);
+      console.log('Fetched Addresses:', response.data);
+      const addresses = response.data;
+      console.log('Dữ liệu địa chỉ trả về:', response.data);
+      setAddressList((prev) => {
+        if (JSON.stringify(prev) !== JSON.stringify(addresses)) {
+          return addresses;
+        }
+        return prev;
+      });
+      console.log('địa chỉ mặc định', addresses);
+      if (addresses.length > 0) {
+        const defaultAddress = addresses.find((addr) => addr.isDefault) || addresses[0];
+        console.log('địa chỉ mặc định kp', defaultAddress.huyen);
+        setSelectedAddress((prev) => (prev !== defaultAddress ? defaultAddress : prev));
+        setSelectedDistrict(defaultAddress.huyen);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải địa chỉ:', error);
+      message.error('Không thể tải địa chỉ. Vui lòng thử lại!');
+    }
+  };
+
+  //Fetch user info khi component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      console.log('Token found:', token);
+      fetchUserInfo(token).then((data) => {
+        if (data) {
+          console.log('Setting user info:', data);
+          setUserInfo(data);
+        }
+      });
+    } else {
+      console.log('Không tìm thấy token');
+    }
+  }, []);
+  useEffect(() => {
+    if (userInfo?.id) {
+      fetchAddresses(userInfo.id);
+    }
+  }, [userInfo]);
+  const fetchShippingFee = () => {
+    axios
+      .post(
+        'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
+        {
+          service_type_id: 2,
+          insurance_value: Number(totalAmount),
+          from_district_id: 3440, //huyện nam từ liêm
+          to_district_id: Number(selectedDistrict),
+          weight: 1000, // Trọng lượng gói hàng (đơn vị gram)
+          length: 30,
+          width: 20,
+          height: 10,
+        },
+        {
+          headers: {
+            Token: API_TOKEN,
+            ShopId: 5687296,
+            'Content-Type': 'application/json',
+          },
+        },
+      )
+      .then((res) => {
+        console.log('Phí ship:', res.data.data.total);
+        setShippingFee(res.data.data.total);
+      })
+      .catch((err) => console.error('Lỗi tính phí ship:', err));
+  };
+
+  // Gọi phí vận chuyển khi quận/huyện thay đổi và đã có đầy đủ thông tin cần thiết
+  useEffect(() => {
+    if (formData.district) {
+      setSelectedDistrict(formData.district);
+      fetchShippingFee();
+      console.log('Phí ship thay đổi:', shippingFee);
+    }
+  }, [formData.district]);
+  useEffect(() => {
+    if (selectedDistrict) {
+      fetchShippingFee();
+    }
+    fetchShippingFee();
+  }, [selectedDistrict]);
+  const handleOpenAddress = () => {
+    setIsAddressList(true);
+    if (userInfo?.id) {
+      console.log('Fetching addresses for customerId:', userInfo.id);
+      fetchAddresses(userInfo.id);
+    }
+  };
+  const handleSelectAddress = (addressId) => {
+    const selected = addressList.find((address) => address.id === addressId);
+
+    if (selected && selected.id !== selectedAddress?.id) {
+      setSelectedAddress(selected);
+
+      // Cập nhật form với thông tin địa chỉ được chọn
+      setFormData({
+        id: selected.id || '',
+        hoTen: selected.name || '',
+        soDienThoai: selected.phone || '',
+        email: selected.email || '',
+        province: selected.tinh,
+        district: selected.huyen,
+        ward: selected.xa,
+        diaChiCuThe: selected.diaChiCuThe,
+      });
+    }
+  };
+
+  const handleConfirm = () => {
+    if (selectedAddress) {
+      console.log('địa chỉ da chon:', selectedAddress);
+      setIsAddressList(false);
+    } else {
+      message.warning('Vui lòng chọn một địa chỉ!');
+    }
+  };
+  // const handleCancelAddress = () => {
+  //   setFormData({ ...formData, province: null, district: null, ward: null,diaChiCuThe:null });
+  //   setIsAddressList(false);
+  // };
+
+  // Load tỉnh thành phố
+  useEffect(() => {
+    axios
+      .get('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {
+        headers: { Token: API_TOKEN, 'Content-Type': 'application/json' },
+      })
+      .then((res) => {
+        setProvinces(res.data.data);
+
+        // Nếu có sẵn địa chỉ mặc định, cập nhật formData
+        if (userInfo) {
+          setFormData((prevData) => ({
+            ...prevData,
+            hoTen: userInfo.ten || '',
+            soDienThoai: userInfo.soDienThoai || '',
+            email: userInfo.email || '',
+          }));
+        }
+
+        if (selectedAddress) {
+          setFormData((prevData) => ({
+            ...prevData,
+            province: selectedAddress.tinh,
+            district: selectedAddress.huyen,
+            ward: selectedAddress.xa,
+            diaChiCuThe: selectedAddress.diaChiCuThe,
+          }));
+        }
+      })
+      .catch((err) => console.error('Lỗi lấy tỉnh thành:', err));
+  }, [userInfo, selectedAddress]);
+
+  // Load quận/huyện khi có tỉnh mặc định
+  useEffect(() => {
+    if (formData.province) {
+      axios
+        .post(
+          'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
+          { province_id: Number(formData.province) },
+          { headers: { Token: API_TOKEN } },
+        )
+        .then((res) => {
+          setDistricts(res.data.data);
+
+          // Nếu đã có quận/huyện mặc định, load tiếp phường/xã
+          if (formData.district) {
+            axios
+              .post(
+                'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward',
+                { district_id: Number(formData.district) },
+                { headers: { Token: API_TOKEN } },
+              )
+              .then((res) => setWards(res.data.data))
+              .catch((err) => console.error('Lỗi lấy phường xã:', err));
+          }
+        })
+        .catch((err) => console.error('Lỗi lấy quận huyện:', err));
+    }
+  }, [formData.province]);
+
+  // Load phường/xã khi quận/huyện thay đổi
+  useEffect(() => {
+    if (formData.district) {
+      axios
+        .post(
+          'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward',
+          { district_id: Number(formData.district) },
+          { headers: { Token: API_TOKEN } },
+        )
+        .then((res) => setWards(res.data.data))
+        .catch((err) => console.error('Lỗi lấy phường xã:', err));
+    }
+  }, [formData.district]);
+
   const validateForm = () => {
     const phoneRegex = /^\d{10}$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -153,7 +433,7 @@ const CheckoutForm = () => {
       { field: 'province', message: 'Vui lòng chọn tỉnh/thành phố!' },
       { field: 'district', message: 'Vui lòng chọn quận/huyện!' },
       { field: 'ward', message: 'Vui lòng chọn phường/xã!' },
-      { field: 'diaChi', message: 'Vui lòng nhập địa chỉ!' },
+      { field: 'diaChiCuThe', message: 'Vui lòng nhập địa chỉ cụ thể!' },
     ];
 
     for (const { field, message: errorMsg } of requiredFields) {
@@ -210,6 +490,7 @@ const CheckoutForm = () => {
   //       message.error(errorMessage);
   //     });
   // };
+
   const checkPaymentStatus = async (hoaDonId) => {
     try {
       const res = await axios.get(
@@ -243,110 +524,110 @@ const CheckoutForm = () => {
   const handleSubmitOrder = async () => {
     if (!validateForm()) return;
 
-    const uniqueOrderCode = generateUniqueOrderCode();
-    const orderData = {
-      sanPhamChiTietList: cartProducts,
-      thongTinGiaoHang: {
-        ...formData,
-        maHoaDon: uniqueOrderCode, // Thêm mã hóa đơn vào thông tin giao hàng
+    Modal.confirm({
+      title: 'Xác nhận đặt hàng',
+      content: 'Bạn có chắc muốn đặt hàng không?',
+      okText: 'Xác nhận',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        const uniqueOrderCode = generateUniqueOrderCode();
+        const orderData = {
+          sanPhamChiTietList: cartProducts,
+          thongTinGiaoHang: {
+            ...formData,
+            maHoaDon: uniqueOrderCode,
+          },
+          tongTienThanhToan: totalPayMent,
+          tongTienHang: totalAmount,
+          phieuGiamGia: selectedVoucher,
+        };
+
+        if (formData.phuongThucThanhToan === 'BANK') {
+          generateQR(uniqueOrderCode);
+          setIsModalVisiblePaymentQR(true);
+
+          let isPaid = false;
+          let attempts = 0;
+
+          const interval = setInterval(async () => {
+            attempts++;
+            isPaid = await checkPaymentStatus(uniqueOrderCode);
+
+            if (isPaid) {
+              message.success('Thanh toán thành công!');
+              setIsModalVisiblePaymentQR(false);
+              clearInterval(interval);
+
+              axios
+                .post(
+                  'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap',
+                  orderData,
+                )
+                .then((res) => {
+                  message.success(res.data || 'Đặt hàng thành công!');
+                  localStorage.removeItem('cart');
+                  localStorage.removeItem('selectedVoucher');
+                  navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
+                })
+                .catch((err) => {
+                  const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
+                  message.error(errorMessage);
+                });
+            }
+
+            if (attempts >= 60) {
+              message.error('Quá thời gian chờ thanh toán. Vui lòng thử lại!');
+              setIsModalVisiblePaymentQR(false);
+              clearInterval(interval);
+            }
+          }, 5000);
+
+          return;
+        }
+
+        axios
+          .post(
+            'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap',
+            orderData,
+          )
+          .then((res) => {
+            message.success(res.data || 'Đặt hàng thành công!');
+            localStorage.removeItem('cart');
+            localStorage.removeItem('selectedVoucher');
+            navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
+          })
+          .catch((err) => {
+            const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
+            message.error(errorMessage);
+          });
       },
-      tongTienThanhToan: totalPayMent,
-      tongTienHang: totalAmount,
-      phieuGiamGia: selectedVoucher,
-    };
-
-    if (formData.phuongThucThanhToan === 'BANK') {
-      generateQR(uniqueOrderCode); // Tạo QR cho thanh toán
-      setIsModalVisiblePaymentQR(true); // Hiện modal chờ thanh toán
-
-      let isPaid = false;
-      let attempts = 0;
-
-      // Kiểm tra trạng thái thanh toán mỗi 5 giây trong 60 giây
-      const interval = setInterval(async () => {
-        attempts++;
-        isPaid = await checkPaymentStatus(uniqueOrderCode);
-
-        if (isPaid) {
-          message.success('Thanh toán thành công!');
-          setIsModalVisiblePaymentQR(false);
-          clearInterval(interval);
-
-          axios
-            .post(
-              'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap',
-              orderData,
-            )
-            .then((res) => {
-              message.success(res.data || 'Đặt hàng thành công!');
-
-              // ✅ Xóa giỏ hàng và mã giảm giá sau khi thanh toán thành công
-              localStorage.removeItem('cart');
-              localStorage.removeItem('selectedVoucher');
-
-              //  Chuyển hướng về trang xác nhận đơn hàng
-              navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
-            })
-            .catch((err) => {
-              const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
-              message.error(errorMessage);
-            });
-        }
-
-        if (attempts >= 60) {
-          //5 phút
-          message.error('Quá thời gian chờ thanh toán. Vui lòng thử lại!');
-          setIsModalVisiblePaymentQR(false);
-          clearInterval(interval);
-        }
-      }, 5000);
-
-      return;
-    }
-
-    // Xử lý thanh toán thường
-    axios
-      .post('http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap', orderData)
-      .then((res) => {
-        message.success(res.data || 'Đặt hàng thành công!');
-        // ✅ Xóa giỏ hàng và mã giảm giá sau khi thanh toán thành công
-        localStorage.removeItem('cart');
-        localStorage.removeItem('selectedVoucher');
-
-        // ✅ Chuyển hướng về trang xác nhận đơn hàng
-        navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
-      })
-      .catch((err) => {
-        const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
-        message.error(errorMessage);
-      });
+    });
   };
 
+  const [countdown, setCountdown] = useState(300); // 300 giây = 5 phút
 
-    const [countdown, setCountdown] = useState(300); // 300 giây = 5 phút
-  
-    useEffect(() => {
-      if (isModalPaymentQR && countdown > 0) {
-        const timer = setInterval(() => {
-          setCountdown((prev) => prev - 1);
-        }, 1000);
-  
-        return () => clearInterval(timer);
-      }
-    }, [isModalPaymentQR, countdown]);
-  
-    const formatTime = (seconds) => {
-      const minutes = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
-    };
-    const handleCancelPayment = () => {
-      setIsModalVisiblePaymentQR(false);
-      setQrUrl(null); // Xóa mã QR
-      setCountdown(300); // Reset lại thời gian nếu cần
-      message.warning("Giao dịch đã bị hủy!");
-    };
-    
+  useEffect(() => {
+    if (isModalPaymentQR && countdown > 0) {
+      const timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [isModalPaymentQR, countdown]);
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+  const handleCancelPayment = () => {
+    setIsModalVisiblePaymentQR(false);
+    setQrUrl(null); // Xóa mã QR
+    setCountdown(300); // Reset lại thời gian nếu cần
+    message.warning('Giao dịch đã bị hủy!');
+  };
+
   return (
     <div
       style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', backgroundColor: 'white' }}
@@ -355,7 +636,15 @@ const CheckoutForm = () => {
         {/* Shipping Address Section */}
         <Col xs={24} md={14}>
           <Card>
-            <Title level={2}>Địa chỉ giao hàng</Title>
+            <Row align="middle" style={{ marginBottom: '20px' }}>
+              <Col>
+                <Title level={2}>Địa chỉ giao hàng</Title>
+              </Col>
+              <Col flex="auto" style={{ textAlign: 'right' }}>
+                {token ? <Button onClick={() => handleOpenAddress()}>Chọn địa chỉ</Button> : null}
+              </Col>
+            </Row>
+
             <Row gutter={[16, 16]}>
               <Col span={6}>
                 <Text strong>Họ tên</Text>
@@ -401,7 +690,7 @@ const CheckoutForm = () => {
                   value={formData.province}
                 >
                   {provinces.map((item) => (
-                    <Option key={item.ProvinceID} value={item.ProvinceID}>
+                    <Option key={item.ProvinceID} value={item.ProvinceID.toString()}>
                       {item.ProvinceName}
                     </Option>
                   ))}
@@ -417,10 +706,10 @@ const CheckoutForm = () => {
                   onChange={handleDistrictChange}
                   disabled={!formData.province}
                   style={{ width: '100%' }}
-                  value={formData.district}
+                  value={districts.length ? formData.district : undefined} // Chờ load xong mới hiện
                 >
                   {districts.map((item) => (
-                    <Option key={item.DistrictID} value={item.DistrictID}>
+                    <Option key={item.DistrictID} value={item.DistrictID.toString()}>
                       {item.DistrictName}
                     </Option>
                   ))}
@@ -436,7 +725,7 @@ const CheckoutForm = () => {
                   style={{ width: '100%' }}
                   disabled={!formData.district}
                   onChange={(value) => setFormData({ ...formData, ward: value })}
-                  value={formData.ward}
+                  value={wards.length ? formData.ward : undefined} // Chờ load xong mới hiện
                 >
                   {wards.map((item) => (
                     <Option key={item.WardCode} value={item.WardCode}>
@@ -452,8 +741,8 @@ const CheckoutForm = () => {
               <Col span={18}>
                 <Input
                   placeholder="Số nhà, tên đường"
-                  value={formData.diaChi}
-                  onChange={(e) => setFormData({ ...formData, diaChi: e.target.value })}
+                  value={formData.diaChiCuThe}
+                  onChange={(e) => setFormData({ ...formData, diaChiCuThe: e.target.value })}
                 />
               </Col>
 
@@ -563,33 +852,83 @@ const CheckoutForm = () => {
         </Col>
       </Row>
       <Modal
-  title="Quét QR để thanh toán"
-  open={isModalPaymentQR}
-  onCancel={() => handleCancelPayment()}
-  footer={null}
->
-  {qrUrl && (
-    <div style={{ textAlign: "center" }}>
-      <img src={qrUrl} alt="QR Code" style={{ width: "100%" }} />
-      <h3 style={{ marginTop: "10px", color: "red" }}>
-        Thời gian còn lại: {formatTime(countdown)}
-      </h3>
-      <div style={{ marginTop: "20px", textAlign: "left" }}>
-        <h4 style={{ color: "#1890ff" }}>Hướng dẫn thanh toán:</h4>
-        <ol style={{ paddingLeft: "20px", lineHeight: "1.8" }}>
-          <li>Quét mã QR bằng ứng dụng ngân hàng của bạn.</li>
-          <li>Kiểm tra chính xác thông tin người nhận và số tiền.</li>
-          <li>Xác nhận thanh toán và chờ đơn hàng hoàn tất.</li>
-          <li>
-            Sau khi thanh toán, đơn hàng sẽ tự động xác nhận trong vòng 5 phút.
-          </li>
-        </ol>
-      </div>
-    </div>
-  )}
-</Modal>
-
-
+        title="Quét QR để thanh toán"
+        open={isModalPaymentQR}
+        onCancel={() => handleCancelPayment()}
+        footer={null}
+      >
+        {qrUrl && (
+          <div style={{ textAlign: 'center' }}>
+            <img src={qrUrl} alt="QR Code" style={{ width: '100%' }} />
+            <h3 style={{ marginTop: '10px', color: 'red' }}>
+              Thời gian còn lại: {formatTime(countdown)}
+            </h3>
+            <div style={{ marginTop: '20px', textAlign: 'left' }}>
+              <h4 style={{ color: '#1890ff' }}>Hướng dẫn thanh toán:</h4>
+              <ol style={{ paddingLeft: '20px', lineHeight: '1.8' }}>
+                <li>Quét mã QR bằng ứng dụng ngân hàng của bạn.</li>
+                <li>Kiểm tra chính xác thông tin người nhận và số tiền.</li>
+                <li>Xác nhận thanh toán và chờ đơn hàng hoàn tất.</li>
+                <li>Sau khi thanh toán, đơn hàng sẽ tự động xác nhận trong vòng 5 phút.</li>
+              </ol>
+            </div>
+          </div>
+        )}
+      </Modal>
+      <Modal title="Chọn địa chỉ giao hàng" open={isAddressList} closable={false} footer={null}>
+        <Row gutter={[16, 16]} style={{ flexDirection: 'column', alignItems: 'center' }}>
+          {addressList.length > 0 ? (
+            addressList.map((address) => (
+              <Col span={24} key={address.id} style={{ display: 'flex', justifyContent: 'center' }}>
+                <Card
+                  title={address.name}
+                  bordered={selectedAddress.id === address.id}
+                  style={{
+                    backgroundColor: selectedAddress.id === address.id ? '#e6f7ff' : '#fff',
+                    transition: 'background-color 0.2s ease-in-out',
+                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    width: '450px', //  Kích thước cố định
+                    minHeight: '100px', //  Đảm bảo không quá nhỏ
+                    maxHeight: '300px', //  Không cho vượt quá chiều cao
+                    overflow: 'hidden', //  Ẩn nội dung tràn
+                    textOverflow: 'ellipsis',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                  }}
+                  onClick={() => handleSelectAddress(address.id)}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      whiteSpace: 'normal', // Cho phép xuống dòng
+                      wordBreak: 'break-word', // Tự động xuống dòng khi quá dài
+                    }}
+                  >
+                    <Checkbox checked={selectedAddress.id === address.id} />
+                    <span>
+                      {address.diaChiCuThe}, {formatWardName(address.xa, address.huyen)},{' '}
+                      {formatDistrictName(address.huyen)}, {formatProvinceName(address.tinh)}
+                    </span>
+                  </div>
+                </Card>
+              </Col>
+            ))
+          ) : (
+            <Empty description="Không có địa chỉ nào, vui lòng thêm mới!" />
+          )}
+        </Row>
+        <div style={{ marginTop: '16px', textAlign: 'right' }}>
+          <Button type="primary" onClick={() => handleConfirm()} disabled={!selectedAddress}>
+            Xác nhận
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

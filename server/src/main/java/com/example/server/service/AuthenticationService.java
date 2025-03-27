@@ -1,9 +1,6 @@
 package com.example.server.service;
 
-import com.example.server.dto.Auth.request.AuthenticationRequest;
-import com.example.server.dto.Auth.request.IntrospectRequest;
-import com.example.server.dto.Auth.request.LogoutRequest;
-import com.example.server.dto.Auth.request.RefreshTokenRequest;
+import com.example.server.dto.Auth.request.*;
 import com.example.server.dto.Auth.response.AuthenticationResponse;
 import com.example.server.dto.Auth.response.IntrospectResponse;
 import com.example.server.dto.Auth.response.UserResponse;
@@ -13,6 +10,7 @@ import com.example.server.entity.NhanVien;
 import com.example.server.entity.TaiKhoan;
 import com.example.server.repository.Auth.InvalidateTokenRepository;
 import com.example.server.repository.Auth.TaiKhoanRepository;
+import com.example.server.repository.Auth.VaiTroRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
 import com.example.server.repository.NhanVien_KhachHang.NhanVienRepository;
 import com.nimbusds.jose.*;
@@ -32,6 +30,7 @@ import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Objects;
@@ -45,7 +44,8 @@ public class AuthenticationService {
     private KhachHangRepository khachHangRepository;
     @Autowired
     private NhanVienRepository nhanVienRepository;
-
+@Autowired
+private VaiTroRepository vaiTroRepository;
     @Autowired
     TaiKhoanRepository taiKhoanRepository;
     @Autowired
@@ -164,6 +164,7 @@ public class AuthenticationService {
         var roleUser=signJWT.getJWTClaimsSet().getStringClaim("scope");
         if(roleUser.equals("ADMIN")||roleUser.equals("NHAN_VIEN")){
             NhanVien nhanVien=nhanVienRepository.findByEmail(username).get();
+            userResponse.setId(nhanVien.getId());
             userResponse.setMa(nhanVien.getMaNhanVien());
             userResponse.setTen(nhanVien.getTenNhanVien());
             userResponse.setEmail(nhanVien.getEmail());
@@ -171,11 +172,35 @@ public class AuthenticationService {
         }
         if(roleUser.equals("KHACH_HANG")){
             KhachHang khachHang=khachHangRepository.findByEmail(username).get();
+            userResponse.setId(khachHang.getId());
+            userResponse.setSoDienThoai(khachHang.getSoDienThoai());
             userResponse.setMa(khachHang.getMaKhachHang());
             userResponse.setTen(khachHang.getTenKhachHang());
             userResponse.setEmail(khachHang.getEmail());
 
         }
         return userResponse;
+    }
+    public void registerAccountForClient(RegisterAccountRequest request){
+
+            if(taiKhoanRepository.existsByUsername(request.getEmail())){
+                throw new RuntimeException("Email đã được sử dụng!");
+            }
+                PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+                TaiKhoan taiKhoan=new TaiKhoan();
+                taiKhoan.setUsername(request.getEmail());
+                taiKhoan.setPassword(passwordEncoder.encode(request.getPassword()));//Mã hóa mật khẩu bằng bcrypt
+                taiKhoan.setNgayTao(LocalDateTime.now());
+                taiKhoan.setVaiTro(vaiTroRepository.findByTenVaiTro("KHACH_HANG").get());
+                taiKhoanRepository.save(taiKhoan);//tạo tài khoản
+
+                KhachHang khachHang=new KhachHang();
+                khachHang.setTenKhachHang(request.getHoTen());
+                khachHang.setMaKhachHang("KH"+System.currentTimeMillis());
+                khachHang.setEmail(request.getEmail());
+                khachHang.setNgaySinh(request.getNgaySinh());
+                khachHang.setNgayTao(LocalDateTime.now());
+                khachHang.setTaiKhoan(taiKhoan);
+                khachHangRepository.save(khachHang); //tạo khách hàng
     }
 }

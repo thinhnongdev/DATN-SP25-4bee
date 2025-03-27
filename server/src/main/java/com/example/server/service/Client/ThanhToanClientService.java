@@ -52,7 +52,7 @@ public class ThanhToanClientService {
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
 
             helper.setTo(khachHang.getEmail());
-            helper.setSubject("Xác nhận đơn hàng #" + hoaDon.getMaHoaDon());
+            helper.setSubject("Thông tin đơn đặt hàng #" + hoaDon.getMaHoaDon());
 
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
                     .withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
@@ -63,14 +63,14 @@ public class ThanhToanClientService {
                         <div style="background: linear-gradient(90deg, #283E51, #D2222D); color: #fff; padding: 20px; text-align: center;">
                             <h2 style="margin: 0;">Thông tin đơn hàng tại 4BEE</h2>
                         </div>
-                        <div style="padding: 20px; background: #fff;">
+                        <div style="padding: 10px; background: #fff;">
                             <h3 style="color: #333; font-size: 18px;">Cảm ơn quý khách <strong>{{tenKhachHang}}</strong> đã đặt hàng tại 4BEE</h3>
                             <p style="font-size: 16px; color: #555;">4BEE rất vui mừng thông báo rằng đơn hàng của quý khách đã được tiếp nhận và đang trong quá trình xử lý. Nhân viên 4BEE sẽ gọi điện cho quý khách để xác nhận trong thời gian sớm nhất.</p>
                         </div>
 
                         <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
 
-                        <div style="padding: 20px;">
+                        <div style="padding: 10px;">
                             <h4 style="color: #333; font-size: 18px;">Thông tin khách hàng</h4>
                             <p><strong>Tên khách hàng:</strong> {{tenKhachHang}}</p>
                             <p><strong>Địa chỉ email:</strong> {{email}}</p>
@@ -79,7 +79,7 @@ public class ThanhToanClientService {
                             <p><strong>Khách hàng ghi chú:</strong> {{ghiChu}}</p>
                         </div>
 
-                        <h4 style="padding: 20px; background: #f4f4f4; font-size: 18px;">Nội dung đặt hàng</h4>
+                        <h4 style="padding: 10px; background: #f4f4f4; font-size: 18px;">Nội dung đặt hàng</h4>
                         <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #ddd;">
                             <thead>
                                 <tr style="background-color: #FFD700; color: #333;">
@@ -108,7 +108,7 @@ public class ThanhToanClientService {
                     .replace("{{tenKhachHang}}", khachHang.getHoTen())
                     .replace("{{email}}", khachHang.getEmail())
                     .replace("{{soDienThoai}}", khachHang.getSoDienThoai())
-                    .replace("{{diaChi}}", khachHang.getDiaChi())
+                    .replace("{{diaChi}}", khachHang.getDiaChiCuThe())
                     .replace("{{ghiChu}}", khachHang.getGhiChu() != null ? khachHang.getGhiChu() : "Không có")
                     .replace("{{tongTien}}", String.format("%,.0f", tienThanhToan));
 

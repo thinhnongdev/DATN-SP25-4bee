@@ -15,7 +15,7 @@ public class ThongTinGiaoHangClientRequest {
     String province;
     String district;
     String ward;
-    String diaChi;
+    String diaChiCuThe;
     String ghiChu;
     String phuongThucThanhToan;
     String maHoaDon;

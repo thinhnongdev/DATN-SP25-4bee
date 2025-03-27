@@ -32,7 +32,7 @@ public class HoaDonClientService {
         hoaDon.setTenNguoiNhan(thongTinGiaoHangClientRequest.getHoTen());
         hoaDon.setSoDienThoai(thongTinGiaoHangClientRequest.getSoDienThoai());
         hoaDon.setEmailNguoiNhan(thongTinGiaoHangClientRequest.getEmail());
-        hoaDon.setDiaChi(thongTinGiaoHangClientRequest.getDiaChi());
+        hoaDon.setDiaChi(thongTinGiaoHangClientRequest.getDiaChiCuThe()+", "+thongTinGiaoHangClientRequest.getWard()+", "+thongTinGiaoHangClientRequest.getDistrict()+", "+thongTinGiaoHangClientRequest.getProvince());
         hoaDon.setTrangThaiGiaoHang(1);
         hoaDon.setTongTien(tongTienHang);
         hoaDon.setGhiChu(thongTinGiaoHangClientRequest.getGhiChu());

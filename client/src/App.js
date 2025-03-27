@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Modal, theme } from 'antd';
+import { Layout, Menu, message, Modal, theme } from 'antd';
 import { Link, Route, Routes, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode'; // Sử dụng named import
@@ -34,6 +34,8 @@ import Checkout from './components/Client/pages/Checkout';
 import OrderSuccessPage from './components/Client/pages/OrderSuccess';
 import ThongkeList from './components/Thongke/ThongkeList';
 import Chatbot from './components/Client/Chat/Chatbot';
+import SearchOrder from './components/Client/pages/SearchOrder';
+import { checkTokenValidity } from './components/Client/pages/checkTokenValidity';
 const { Header, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
@@ -235,6 +237,7 @@ const CustomerLayout = () => {
           <Route path="/contact" element={<ContactClient />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success" element={<OrderSuccessPage />} />
+          <Route path="/searchOrder" element={<SearchOrder />} />
         </Routes>
       </Content>
       <FooterClient />
@@ -256,6 +259,17 @@ const getRoleFromToken = (token) => {
 };
 
 const App = () => {
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      checkTokenValidity(token).then((isValid) => {
+        if (!isValid) {
+          message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+          window.location.href = "/login"; // Điều hướng đến trang đăng nhập
+        }
+      });
+    }
+  }, []);
   const location = useLocation();
   // Cập nhật tiêu đề trang dựa vào đường dẫn
   useEffect(() => {

@@ -61,5 +61,7 @@ public class KhachHang {
     @Column(name = "nguoi_sua")
     private String nguoiSua;
 
-
+    @ManyToOne
+    @JoinColumn(name = "id_tai_khoan")
+    TaiKhoan taiKhoan;
 }
