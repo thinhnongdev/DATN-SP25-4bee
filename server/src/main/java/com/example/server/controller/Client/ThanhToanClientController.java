@@ -9,6 +9,7 @@ import com.example.server.entity.SanPhamChiTiet;
 import com.example.server.service.Client.HoaDonChiTietClientService;
 import com.example.server.service.Client.HoaDonClientService;
 import com.example.server.service.Client.ThanhToanClientService;
+import com.example.server.service.GiaoHang.GHNService;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +32,8 @@ public class ThanhToanClientController {
     HoaDonChiTietClientService hoaDonChiTietClientService;
     @Autowired
     HoaDonClientService hoaDonClientService;
-
+    @Autowired
+    GHNService ghnService;
 
     @Value("${sepay.api.key}") // Lấy giá trị từ application.properties
     private String API_KEY;
@@ -66,6 +68,7 @@ public class ThanhToanClientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi gọi API SePay.");
         }
     }
+
     @PostMapping("/thanhToanDonHangChuaDangNhap")
     public ResponseEntity<?> thanhToanDonHangChuaDangNhap(@RequestBody CheckoutRequest request) {
         try {
@@ -81,9 +84,13 @@ public class ThanhToanClientController {
                     request.getTongTienThanhToan()
             );
             hoaDonChiTietClientService.addHoaDonChiTiet(request.getSanPhamChiTietList(), hoaDon);
-            thanhToanClientService.sendOrderConfirmationEmail(request.getThongTinGiaoHang(), hoaDon, request.getTongTienThanhToan(),request.getSanPhamChiTietList());
+            String provinceName = ghnService.getProvinceName(Long.parseLong(request.getThongTinGiaoHang().getProvince()));
+            String districtName = ghnService.getDistrictName(Long.parseLong(request.getThongTinGiaoHang().getProvince()), Long.parseLong(request.getThongTinGiaoHang().getDistrict()));
+            String wardName = ghnService.getWardName(Long.parseLong(request.getThongTinGiaoHang().getDistrict()), request.getThongTinGiaoHang().getWard());
+            request.getThongTinGiaoHang().setDiaChiCuThe(request.getThongTinGiaoHang().getDiaChiCuThe() + ", " + wardName + ", " + districtName + ", " + provinceName);
+            thanhToanClientService.sendOrderConfirmationEmail(request.getThongTinGiaoHang(), hoaDon, request.getTongTienThanhToan(), request.getSanPhamChiTietList(), request.getPhieuGiamGia(),request.getTongTienHang());
             return ResponseEntity.ok("Đặt hàng thành công!");
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace(); // In ra log chi tiết lỗi ở terminal backend
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Đặt hàng thất bại: " + e.getClass().getName() + " - " + e.getMessage());

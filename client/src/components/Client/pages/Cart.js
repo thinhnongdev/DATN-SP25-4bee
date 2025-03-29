@@ -114,15 +114,13 @@ const Cart = () => {
   const handleCheckout = async () => {
     try {
       console.log('Đang chuyển hướng đến trang checkout...');
-      navigate("/checkout",{state:{cartProducts,selectedVoucher}});
+      navigate('/checkout', { state: { cartProducts, selectedVoucher } });
     } catch (error) {
       console.error('Lỗi điều hướng:', error);
       message.error('Có lỗi xảy ra khi chuyển trang!');
     }
   };
-  
-  
-  
+
   const columns = [
     {
       title: 'Sản phẩm',
@@ -211,57 +209,78 @@ const Cart = () => {
   ];
 
   const subtotal = cartProducts.reduce((sum, item) => sum + item.gia * item.quantity, 0);
-  const voucher = subtotal > 0 && selectedVoucher ? selectedVoucher.giaTriGiam : 0; //
-  const total = subtotal - voucher;
-  const getBestVoucher = (vouchers, subtotal) => {
-    return vouchers
-      .filter(voucher => subtotal >= voucher.giaTriToiThieu)
-      .reduce((bestVoucher, currentVoucher) => {
-        const getDiscountValue = (voucher) => {
-          if (typeof voucher.giaTriGiam === 'string' && voucher.giaTriGiam.includes('%')) {
-            return Math.min((parseFloat(voucher.giaTriGiam) / 100) * subtotal, voucher.soTienGiamToiDa);
-          }
-          return Math.min(Number(voucher.giaTriGiam) || 0, voucher.soTienGiamToiDa);
-        };
-  
-        const currentDiscount = getDiscountValue(currentVoucher);
-        const bestDiscount = bestVoucher ? getDiscountValue(bestVoucher) : 0;
-  
-        return currentDiscount > bestDiscount ? currentVoucher : bestVoucher;
-      }, null);
+  const getDiscountValue = (voucher, subtotal) => {
+    if (!voucher) return 0; // Nếu không có voucher, không giảm giá
+
+    if (voucher.loaiPhieuGiamGia === 1) {
+      // Giảm theo %
+      const discount = (parseFloat(voucher.giaTriGiam) / 100) * subtotal;
+      return Math.min(discount, voucher.soTienGiamToiDa); // Không vượt quá mức tối đa
+    }
+
+    // Giảm giá cố định (VND)
+    return voucher.giaTriGiam || 0;
   };
-  
+
+  const voucherDiscount = subtotal > 0 ? getDiscountValue(selectedVoucher, subtotal) : 0;
+  const total = subtotal - voucherDiscount;
+
+  const getBestVoucher = (vouchers, subtotal) => {
+    return (
+      vouchers
+        .filter((voucher) => subtotal >= voucher.giaTriToiThieu) // Chỉ lấy voucher hợp lệ
+        .map((voucher) => {
+          let discountValue = 0;
+
+          if (voucher.loaiPhieuGiamGia === 1) {
+            // Giảm giá theo %
+            const percentDiscount = (parseFloat(voucher.giaTriGiam) / 100) * subtotal;
+            discountValue = Math.min(percentDiscount, voucher.soTienGiamToiDa);
+          } else {
+            // Giảm giá số tiền cố định (VND)
+            discountValue = Math.min(Number(voucher.giaTriGiam) || 0, voucher.soTienGiamToiDa);
+          }
+
+          return { ...voucher, discount: discountValue };
+        })
+        .sort((a, b) => b.discount - a.discount)[0] || null // Sắp xếp giảm dần theo giá trị giảm giá và lấy cái lớn nhất
+    );
+  };
+
   useEffect(() => {
     if (voucherList.length > 0) {
-      const bestVoucher = getBestVoucher(voucherList, subtotal) || voucherList[0];
-  
-      if (!selectedVoucher) setSelectedVoucher(bestVoucher);
-  
-      const sortedVouchers = [
-        bestVoucher,
-        ...voucherList.filter((voucher) => voucher.id !== bestVoucher?.id),
-      ];
-  
+      const bestVoucher = getBestVoucher(voucherList, subtotal);
+
+      if (!selectedVoucher) {
+        setSelectedVoucher(bestVoucher);
+      }
+
+      const sortedVouchers = bestVoucher
+        ? [bestVoucher, ...voucherList.filter((voucher) => voucher.id !== bestVoucher.id)]
+        : [...voucherList];
+
       setVoucherList(
         sortedVouchers.map((voucher) => ({
           ...voucher,
           isBest: voucher.id === bestVoucher?.id,
-        }))
+        })),
       );
     }
-  }, [subtotal]); // Loại bỏ voucherList khỏi dependency
-  
+  }, [subtotal]); // Thêm voucherList vào dependency
+  console.log('voucher được chọn', selectedVoucher);
   const handleSelectVoucher = (voucher) => {
-    setSelectedVoucher(selectedVoucher?.id === voucher.id ? null : voucher);
-  
-    const sortedVouchers = [
-      voucher,
-      ...voucherList.filter(v => v.id !== voucher.id),
-    ];
-  
-    setVoucherList(sortedVouchers);
+    setSelectedVoucher((prev) => (prev?.id === voucher.id ? null : voucher));
+
+    setVoucherList((prevList) => {
+      const bestVoucher = getBestVoucher(prevList, subtotal); // Tính lại voucher tốt nhất
+
+      return prevList.map((v) => ({
+        ...v,
+        isBest: v.id === bestVoucher?.id, // Giữ nguyên isBest cho voucher tốt nhất
+      }));
+    });
   };
-  
+
   return (
     <div style={{ margin: '32px auto', width: '90%' }}>
       <Title level={2}>Giỏ hàng của bạn</Title>
@@ -306,7 +325,8 @@ const Cart = () => {
                 <Row justify="space-between" style={{ marginTop: '16px' }}>
                   <Col>Giảm giá:</Col>
                   <Col>
-                  {voucher.toLocaleString('vi-VN')}<Text>đ</Text>
+                    {voucherDiscount.toLocaleString('vi-VN')}
+                    <Text>đ</Text>
                   </Col>
                 </Row>
 
@@ -328,7 +348,7 @@ const Cart = () => {
                 size="large"
                 block
                 disabled={cartProducts.length === 0}
-                 onClick={handleCheckout}
+                onClick={handleCheckout}
               >
                 {/* <Link to="/checkout" ></Link> */}
                 Tiến hành đặt hàng
@@ -345,13 +365,12 @@ const Cart = () => {
           </Link>
         </div>
       )}
-      {/* Modal chọn voucher */}
-      {/* <Modal
+      <Modal
         title="Danh sách voucher"
         open={isModalVoucher}
         onCancel={() => setIsModalVoucher(false)}
         footer={null}
-        style={{ maxHeight: '600px' ,maxWidth: '480px'}}
+        style={{ maxHeight: '600px', maxWidth: '480px' }}
       >
         <Row gutter={[0, 8]} justify="center" style={{ overflowY: 'auto', maxHeight: '500px' }}>
           {voucherList.map((voucher) => (
@@ -360,23 +379,25 @@ const Cart = () => {
                 hoverable
                 style={{
                   border:
-                  selectedVoucher?.id === voucher.id ? '2px solid #1890ff' : '1px solid #ddd',
+                    selectedVoucher?.id === voucher.id ? '2px solid #1890ff' : '1px solid #ddd',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '8px',
+                  margin: '8px',
                   boxShadow: selectedVoucher?.id === voucher.id ? '0 0 10px #1890ff' : 'none',
                   position: 'relative',
                   fontSize: '12px',
                   width: '400px',
                   height: '130px',
                 }}
-                onClick={() => setSelectedVoucher(selectedVoucher?.id === voucher.id ? null : voucher)}
+                onClick={() => handleSelectVoucher(voucher)}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <img
-                    src=''
+                    src={
+                      voucher.imageUrl || 'https://dummyimage.com/60x60/ddd/999.png&text=No+Image'
+                    }
                     alt="Voucher"
                     style={{ width: '60px', height: '60px', borderRadius: '4px' }}
                   />
@@ -387,15 +408,33 @@ const Cart = () => {
                     <Text type="secondary" style={{ display: 'block', marginBottom: 2 }}>
                       {voucher.tenPhieuGiamGia}
                     </Text>
-                    <Text strong style={{ color: '#fa8c16', display: 'block', marginBottom: 2 }}>
-                      Giảm {voucher.giaTriGiam.toLocaleString('vi-VN')}đ
+                    <Text strong style={{ color: 'red', display: 'block', marginBottom: 2 }}>
+                      Giảm {voucher.giaTriGiam.toLocaleString('vi-VN')}{' '}
+                      {voucher.loaiPhieuGiamGia === 1 ? '%' : 'đ'}
                     </Text>
                     <Text type="secondary" style={{ display: 'block' }}>
-                      Tối đa: {voucher.soTienGiamToiDa.toLocaleString('vi-VN')}đ - Tối thiểu:{' '}
-                      {voucher.giaTriToiThieu.toLocaleString('vi-VN')}đ
+                      Giảm tối đa: {voucher.soTienGiamToiDa.toLocaleString('vi-VN')}đ - Cho đơn tối
+                      thiểu: {voucher.giaTriToiThieu.toLocaleString('vi-VN')}đ
                     </Text>
                   </div>
                 </div>
+                {voucher.isBest && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '-10px',
+                      left: '-10px',
+                      backgroundColor: '#fa8c16',
+                      color: '#fff',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontWeight: 'bold',
+                      fontSize: '10px',
+                    }}
+                  >
+                    Tốt nhất
+                  </div>
+                )}
                 <Radio
                   checked={selectedVoucher?.id === voucher.id}
                   style={{
@@ -408,87 +447,22 @@ const Cart = () => {
             </Col>
           ))}
         </Row>
-      </Modal> */}
-
-<Modal
-  title="Danh sách voucher"
-  open={isModalVoucher}
-  onCancel={() => setIsModalVoucher(false)}
-  footer={null}
-  style={{ maxHeight: '600px', maxWidth: '480px' }}
->
-  <Row gutter={[0, 8]} justify="center" style={{ overflowY: 'auto', maxHeight: '500px' }}>
-    {voucherList.map((voucher) => (
-      <Col span={24} key={voucher.id}>
-        <Card
-          hoverable
-          style={{
-            border: selectedVoucher?.id === voucher.id ? '2px solid #1890ff' : '1px solid #ddd',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            margin: '8px',
-            boxShadow: selectedVoucher?.id === voucher.id ? '0 0 10px #1890ff' : 'none',
-            position: 'relative',
-            fontSize: '12px',
-            width: '400px',
-            height: '130px',
-          }}
-          onClick={() => handleSelectVoucher(voucher)}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img
-              src={voucher.imageUrl || 'https://dummyimage.com/60x60/ddd/999.png&text=No+Image'}
-              alt="Voucher"
-              style={{ width: '60px', height: '60px', borderRadius: '4px' }}
-            />
-            <div>
-              <Title level={5} style={{ marginBottom: 2 }}>
-                {voucher.maPhieuGiamGia}
-              </Title>
-              <Text type="secondary" style={{ display: 'block', marginBottom: 2 }}>
-                {voucher.tenPhieuGiamGia}
-              </Text>
-              <Text strong style={{ color: '#fa8c16', display: 'block', marginBottom: 2 }}>
-                Giảm {voucher.giaTriGiam.toLocaleString('vi-VN')}đ
-              </Text>
-              <Text type="secondary" style={{ display: 'block' }}>
-                Tối đa: {voucher.soTienGiamToiDa.toLocaleString('vi-VN')}đ - Tối thiểu: {voucher.giaTriToiThieu.toLocaleString('vi-VN')}đ
-              </Text>
-            </div>
-          </div>
-          {voucher.isBest && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '-10px',
-                left: '-10px',
-                backgroundColor: '#fa8c16',
-                color: '#fff',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontWeight: 'bold',
-                fontSize: '10px',
-              }}
-            >
-              Tốt nhất
-            </div>
-          )}
-          <Radio
-            checked={selectedVoucher?.id === voucher.id}
+        {selectedVoucher && (
+          <div
             style={{
-              position: 'absolute',
-              top: '4px',
-              right: '4px',
+              textAlign: 'center',
+              padding: '10px',
+              borderTop: '1px solid #ddd',
+              marginTop: '10px',
             }}
-          />
-        </Card>
-      </Col>
-    ))}
-  </Row>
-</Modal>
-
+          >
+            <Text style={{fontSize:'16px'}}>Giảm giá áp dụng: </Text>
+            <Text strong style={{ fontSize: '16px', color: 'red' }}>
+              {voucherDiscount.toLocaleString('vi-VN')}đ
+            </Text>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

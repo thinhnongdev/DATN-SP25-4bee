@@ -19,7 +19,7 @@ import java.util.Optional;
 
 public interface PhieuGiamGiaRepository extends JpaRepository<PhieuGiamGia, String>,
         JpaSpecificationExecutor<PhieuGiamGia> {
-    @Query("SELECT p FROM PhieuGiamGia p WHERE p.loaiPhieuGiamGia=1 and p.trangThai=1 ORDER BY p.ngayTao DESC")
+    @Query("SELECT p FROM PhieuGiamGia p WHERE p.kieuGiamGia=1 and p.trangThai=1 ORDER BY p.ngayTao DESC")
     List<PhieuGiamGia> findAllCongKhai();
     Optional<PhieuGiamGia> findByMaPhieuGiamGia(String maPhieuGiamGia);
 

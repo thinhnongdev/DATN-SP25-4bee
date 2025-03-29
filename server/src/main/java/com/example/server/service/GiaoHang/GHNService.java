@@ -105,6 +105,56 @@ public class GHNService {
 
         return (List<Map<String, Object>>) response.getBody().get("data");
     }
+    public String getProvinceName(Long provinceId) {
+        String url = ghnApiUrl + "/master-data/province";
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Token", ghnApiKey);
 
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+        if (response.getBody() != null && response.getBody().get("data") != null) {
+            for (Map<String, Object> province : (Iterable<Map<String, Object>>) response.getBody().get("data")) {
+                if (province.get("ProvinceID").toString().equals(provinceId.toString())) {
+                    return (String) province.get("ProvinceName");
+                }
+            }
+        }
+        return "Không tìm thấy tỉnh/thành";
+    }
+
+    public String getDistrictName(Long provinceId, Long districtId) {
+        String url = ghnApiUrl + "/master-data/district?province_id=" + provinceId;
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Token", ghnApiKey);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+        if (response.getBody() != null && response.getBody().get("data") != null) {
+            for (Map<String, Object> district : (Iterable<Map<String, Object>>) response.getBody().get("data")) {
+                if (district.get("DistrictID").toString().equals(districtId.toString())) {
+                    return (String) district.get("DistrictName");
+                }
+            }
+        }
+        return "Không tìm thấy quận/huyện";
+    }
+
+    public String getWardName(Long districtId, String wardCode) {
+        String url = ghnApiUrl + "/master-data/ward?district_id=" + districtId;
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Token", ghnApiKey);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
+        if (response.getBody() != null && response.getBody().get("data") != null) {
+            for (Map<String, Object> ward : (Iterable<Map<String, Object>>) response.getBody().get("data")) {
+                if (ward.get("WardCode").equals(wardCode)) {
+                    return (String) ward.get("WardName");
+                }
+            }
+        }
+        return "Không tìm thấy phường/xã";
+    }
 }
 

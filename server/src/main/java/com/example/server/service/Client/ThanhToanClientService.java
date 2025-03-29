@@ -3,6 +3,7 @@ package com.example.server.service.Client;
 import com.example.server.dto.Client.request.SanPhamChiTietClientRequest;
 import com.example.server.dto.Client.request.ThongTinGiaoHangClientRequest;
 import com.example.server.entity.HoaDon;
+import com.example.server.entity.PhieuGiamGia;
 import com.example.server.entity.PhuongThucThanhToan;
 import com.example.server.entity.ThanhToanHoaDon;
 import com.example.server.repository.HoaDon.PhuongThucThanhToanRepository;
@@ -46,7 +47,7 @@ public class ThanhToanClientService {
     }
 
     @Async("emailTaskExecutor")
-    public void sendOrderConfirmationEmail(ThongTinGiaoHangClientRequest khachHang, HoaDon hoaDon, BigDecimal tienThanhToan, List<SanPhamChiTietClientRequest> sanPhamChiTietClientRequestList) {
+    public void sendOrderConfirmationEmail(ThongTinGiaoHangClientRequest khachHang, HoaDon hoaDon, BigDecimal tienThanhToan, List<SanPhamChiTietClientRequest> sanPhamChiTietClientRequestList, PhieuGiamGia phieuGiamGia, BigDecimal tongTienHang) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
@@ -86,6 +87,8 @@ public class ThanhToanClientService {
                                     <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">STT</th>
                                     <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Mã kho</th>
                                     <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Sản phẩm</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Màu sắc</th>
+                                    <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Kích thước</th>
                                     <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Đơn giá</th>
                                     <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Số lượng</th>
                                     <th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Tổng tiền</th>
@@ -96,6 +99,8 @@ public class ThanhToanClientService {
                             </tbody>
                         </table>
 
+                        <h5 style="padding: 10px; text-align: right; font-size: 20px;">Giảm giá: <strong>{{giamGia}} đ</strong></h5>
+                        <h5 style="padding: 10px; text-align: right; font-size: 20px;">Phí vận chuyển: <strong>{{phiShip}} đ</strong></h5>
                         <h3 style="padding: 10px; color: red; text-align: right; font-size: 20px;">Thanh toán: <strong>{{tongTien}} đ</strong></h3>
 
                         <div style="background: #f1f1f1; padding: 10px; text-align: center;">
@@ -104,14 +109,29 @@ public class ThanhToanClientService {
                     </div>
                     """;
 
+            BigDecimal giamGia = null;
+            if (tongTienHang.compareTo(phieuGiamGia.getGiaTriToiThieu()) == 0 || tongTienHang.compareTo(phieuGiamGia.getGiaTriToiThieu()) > 0) {//kiểm tra giá tổng tiền có nhỏ hơn giá trị giảm tối thiếu không
+                if (phieuGiamGia.getLoaiPhieuGiamGia().equals(1)) {//nếu loại giảm giá là %
+                    BigDecimal giaTriGiamTheoPhanTram = tongTienHang.divide(BigDecimal.valueOf(100)).multiply(phieuGiamGia.getGiaTriGiam());
+                    if (giaTriGiamTheoPhanTram.compareTo(phieuGiamGia.getSoTienGiamToiDa()) < 0) {//nếu giá trị giảm theo phần trăm nhỏ hơn giá trị giảm tối đa
+                        giamGia = giaTriGiamTheoPhanTram;
+                    } else {
+                        giamGia = phieuGiamGia.getSoTienGiamToiDa();
+                    }
+                } else {
+                    giamGia = phieuGiamGia.getGiaTriGiam();
+                }
+            }
+            System.out.println("số tiền được giảm"+giamGia);
             htmlContent = htmlContent
                     .replace("{{tenKhachHang}}", khachHang.getHoTen())
                     .replace("{{email}}", khachHang.getEmail())
                     .replace("{{soDienThoai}}", khachHang.getSoDienThoai())
                     .replace("{{diaChi}}", khachHang.getDiaChiCuThe())
                     .replace("{{ghiChu}}", khachHang.getGhiChu() != null ? khachHang.getGhiChu() : "Không có")
+                    .replace("{{giamGia}}", String.format("%,.0f", giamGia))
+                    .replace("{{phiShip}}", String.format("%,.0f",(tienThanhToan.add(giamGia).subtract(tongTienHang))))
                     .replace("{{tongTien}}", String.format("%,.0f", tienThanhToan));
-
             String chiTietSanPham = "";
             int stt = 1;
 
@@ -120,12 +140,16 @@ public class ThanhToanClientService {
                         "<tr>" +
                                 "<td style='text-align: center; padding: 10px; border: 1px solid #ddd;'>%d</td>" +
                                 "<td style='padding: 10px; border: 1px solid #ddd;'>%s</td>" +
+                                "<td style='padding: 10px; border: 1px solid #ddd; color: #007bff;'>%s</td>"
+                                +
+                                "<td style='padding: 10px; border: 1px solid #ddd; color: #007bff;'>%s</td>"
+                                +
                                 "<td style='padding: 10px; border: 1px solid #ddd; color: #007bff;'>%s</td>" +
                                 "<td style='text-align: center; padding: 10px; border: 1px solid #ddd;'>%,.0f đ</td>" +
                                 "<td style='text-align: center; padding: 10px; border: 1px solid #ddd;'>%d</td>" +
                                 "<td style='text-align: center; padding: 10px; border: 1px solid #ddd; font-weight: bold; color: red;'>%,.0f đ</td>" +
                                 "</tr>",
-                        stt++, chiTiet.getMaSanPhamChiTiet(), chiTiet.getSanPham().getTenSanPham(),
+                        stt++, chiTiet.getMaSanPhamChiTiet(), chiTiet.getSanPham().getTenSanPham(), chiTiet.getMauSac().getTenMau(), chiTiet.getKichThuoc().getTenKichThuoc(),
                         chiTiet.getGia(), chiTiet.getQuantity(),
                         chiTiet.getGia().multiply(BigDecimal.valueOf(chiTiet.getQuantity()))
                 );

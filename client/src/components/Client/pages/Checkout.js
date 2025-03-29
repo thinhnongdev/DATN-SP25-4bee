@@ -174,7 +174,6 @@ const CheckoutForm = () => {
     (total, product) => total + product.gia * product.quantity,
     0,
   );
-  const totalPayMent = totalAmount + shippingFee - selectedVoucher.giaTriGiam;
 
   //mã hóa đơn
   const generateUniqueOrderCode = () => {
@@ -265,34 +264,6 @@ const CheckoutForm = () => {
       fetchAddresses(userInfo.id);
     }
   }, [userInfo]);
-  const fetchShippingFee = () => {
-    axios
-      .post(
-        'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
-        {
-          service_type_id: 2,
-          insurance_value: Number(totalAmount),
-          from_district_id: 3440, //huyện nam từ liêm
-          to_district_id: Number(selectedDistrict),
-          weight: 1000, // Trọng lượng gói hàng (đơn vị gram)
-          length: 30,
-          width: 20,
-          height: 10,
-        },
-        {
-          headers: {
-            Token: API_TOKEN,
-            ShopId: 5687296,
-            'Content-Type': 'application/json',
-          },
-        },
-      )
-      .then((res) => {
-        console.log('Phí ship:', res.data.data.total);
-        setShippingFee(res.data.data.total);
-      })
-      .catch((err) => console.error('Lỗi tính phí ship:', err));
-  };
 
   // Gọi phí vận chuyển khi quận/huyện thay đổi và đã có đầy đủ thông tin cần thiết
   useEffect(() => {
@@ -343,10 +314,6 @@ const CheckoutForm = () => {
       message.warning('Vui lòng chọn một địa chỉ!');
     }
   };
-  // const handleCancelAddress = () => {
-  //   setFormData({ ...formData, province: null, district: null, ward: null,diaChiCuThe:null });
-  //   setIsAddressList(false);
-  // };
 
   // Load tỉnh thành phố
   useEffect(() => {
@@ -460,36 +427,61 @@ const CheckoutForm = () => {
 
     return true;
   };
+  const getDiscountValue = (voucher, totalAmount) => {
+    if (!voucher) return 0; // Nếu không có voucher, không giảm giá
+
+    if (voucher.loaiPhieuGiamGia === 1) {
+      // Giảm theo %
+      const discount = (parseFloat(voucher.giaTriGiam) / 100) * totalAmount;
+      return Math.min(discount, voucher.soTienGiamToiDa); // Không vượt quá mức tối đa
+    }
+    // Giảm giá cố định (VND)
+    return voucher.giaTriGiam || 0;
+  };
+
+  const voucherDiscount = totalAmount > 0 ? getDiscountValue(selectedVoucher, totalAmount) : 0;
+
+  const fetchShippingFee = () => {
+    axios
+      .post(
+        'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
+        {
+          service_type_id: 2,
+          insurance_value: Number(totalAmount),
+          from_district_id: 3440, //huyện nam từ liêm
+          to_district_id: Number(selectedDistrict),
+          weight: 1000, // Trọng lượng gói hàng (đơn vị gram)
+          length: 30,
+          width: 20,
+          height: 10,
+        },
+        {
+          headers: {
+            Token: API_TOKEN,
+            ShopId: 5687296,
+            'Content-Type': 'application/json',
+          },
+        },
+      )
+      .then((res) => {
+        console.log('Phí ship:', res.data.data.total);
+        if (totalAmount - voucherDiscount > 2000000) {
+          //nếu tổng tiền sản phẩm sau khi trừ giảm giá mà từ 2 triệu sẽ được miễn phí ship
+          setShippingFee(0);
+        } else {
+          setShippingFee(res.data.data.total);
+        }
+      })
+
+      .catch((err) => console.error('Lỗi tính phí ship:', err));
+  };
+
+  const totalPayMent = totalAmount + shippingFee - voucherDiscount;
   console.log('formData:', formData);
   console.log('selectedVoucher:', selectedVoucher);
   console.log('totalAmount:', totalAmount);
   console.log('totalPayMent:', totalPayMent);
   console.log('cartProducts:', cartProducts);
-
-  // const handleSubmitOrder = () => {
-  //   if (!validateForm()) return;
-  // SetMaHoaDon(generateUniqueOrderCode());
-  //   const orderData = {
-  //     sanPhamChiTietList: cartProducts,
-  //     thongTinGiaoHang: formData,
-  //     tongTienThanhToan: totalPayMent,
-  //     tongTienHang: totalAmount,
-  //     phieuGiamGia: selectedVoucher,
-  //   };
-  // if(formData.phuongThucThanhToan === 'BANK'){
-  //   generateQR();
-  //   return;
-  // }
-  //   axios
-  //     .post('http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap', orderData)
-  //     .then((res) => {
-  //       message.success(res.data || 'Đặt hàng thành công!');
-  //     })
-  //     .catch((err) => {
-  //       const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
-  //       message.error(errorMessage);
-  //     });
-  // };
 
   const checkPaymentStatus = async (hoaDonId) => {
     try {
@@ -797,7 +789,7 @@ const CheckoutForm = () => {
             </div>
             <div style={{ padding: '5px 0' }}>
               <Text>Giảm giá</Text>
-              <div style={{ float: 'right' }}>- {selectedVoucher.giaTriGiam.toLocaleString()}₫</div>
+              <div style={{ float: 'right' }}>- {voucherDiscount.toLocaleString()}₫</div>
             </div>
             <div style={{ padding: '5px 0' }}>
               <Text>
@@ -813,9 +805,15 @@ const CheckoutForm = () => {
                   }}
                 />
               </Text>
-
-              <div style={{ float: 'right' }}>
-                + {shippingFee ? shippingFee.toLocaleString() : 0}₫
+              <div
+                style={{
+                  float: 'right',
+                  color: (shippingFee === 0) & selectedDistrict ? '#52c41a' : 'inherit', // Màu xanh thành công nếu miễn phí
+                }}
+              >
+                {(shippingFee === 0) & selectedDistrict
+                  ? 'Miễn phí (Từ 2 triệu)'
+                  : `+ ${shippingFee ? shippingFee.toLocaleString() : 0}₫`}
               </div>
             </div>
             <div style={{ padding: '5px 0' }}>
