@@ -48,7 +48,6 @@ const Cart = () => {
           setLoading(false);
           return;
         }
-
         // Gọi API lấy thông tin từng sản phẩm theo ID
         const productRequests = cartItems.map((item) =>
           axios.get(`http://localhost:8080/api/client/chitietsanpham/${item.id}`),
@@ -390,6 +389,10 @@ const Cart = () => {
                   fontSize: '12px',
                   width: '400px',
                   height: '130px',
+                  backgroundColor: voucher.giaTriToiThieu > subtotal ? '#f5f5f5' : 'white', // Màu nền xám khi bị disable
+                  color: voucher.giaTriToiThieu > subtotal ? '#999' : 'black', // Màu chữ xám khi bị disable
+                  opacity: voucher.giaTriToiThieu > subtotal ? 0.6 : 1, // Làm mờ khi bị disable
+                  pointerEvents: voucher.giaTriToiThieu > subtotal ? 'none' : 'auto', // Ngăn click khi bị disable
                 }}
                 onClick={() => handleSelectVoucher(voucher)}
               >
@@ -456,7 +459,7 @@ const Cart = () => {
               marginTop: '10px',
             }}
           >
-            <Text style={{fontSize:'16px'}}>Giảm giá áp dụng: </Text>
+            <Text style={{ fontSize: '16px' }}>Giảm giá áp dụng: </Text>
             <Text strong style={{ fontSize: '16px', color: 'red' }}>
               {voucherDiscount.toLocaleString('vi-VN')}đ
             </Text>

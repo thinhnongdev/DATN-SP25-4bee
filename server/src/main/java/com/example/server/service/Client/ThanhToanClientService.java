@@ -2,12 +2,11 @@ package com.example.server.service.Client;
 
 import com.example.server.dto.Client.request.SanPhamChiTietClientRequest;
 import com.example.server.dto.Client.request.ThongTinGiaoHangClientRequest;
-import com.example.server.entity.HoaDon;
-import com.example.server.entity.PhieuGiamGia;
-import com.example.server.entity.PhuongThucThanhToan;
-import com.example.server.entity.ThanhToanHoaDon;
+import com.example.server.entity.*;
+import com.example.server.repository.HoaDon.LichSuHoaDonRepository;
 import com.example.server.repository.HoaDon.PhuongThucThanhToanRepository;
 import com.example.server.repository.HoaDon.ThanhToanHoaDonRepository;
+import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -29,13 +28,17 @@ import java.util.UUID;
 @Service
 public class ThanhToanClientService {
     @Autowired
+    private LichSuHoaDonRepository lichSuHoaDonRepository;
+    @Autowired
     ThanhToanHoaDonRepository thanhToanHoaDonRepository;
     @Autowired
     PhuongThucThanhToanRepository phuongThucThanhToanHoaDonRepository;
     @Autowired
     private JavaMailSender mailSender;
+    @Autowired
+    private KhachHangRepository khachHangRepository;
 
-    public ThanhToanHoaDon createThanhToanHoaDon(String phuongThucThanhToan, HoaDon hoaDon, BigDecimal tienThanhToan) {
+    public ThanhToanHoaDon createThanhToanHoaDon(String phuongThucThanhToan, HoaDon hoaDon, BigDecimal tienThanhToan,ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest) {
         ThanhToanHoaDon thanhToanHoaDon = new ThanhToanHoaDon();
         thanhToanHoaDon.setId(UUID.randomUUID().toString());
         thanhToanHoaDon.setPhuongThucThanhToan(phuongThucThanhToanHoaDonRepository.findByMaPhuongThucThanhToan(phuongThucThanhToan).orElseThrow());
@@ -43,6 +46,14 @@ public class ThanhToanClientService {
         thanhToanHoaDon.setSoTien(tienThanhToan);
         thanhToanHoaDon.setTrangThai(phuongThucThanhToan.equalsIgnoreCase("BANK") ? 1 : 3); //1 đã thanh toán, 3 là trả sau
         thanhToanHoaDon.setNgayTao(LocalDateTime.now());
+        LichSuHoaDon lichSuHoaDon=new LichSuHoaDon();
+        lichSuHoaDon.setId(UUID.randomUUID().toString());
+        lichSuHoaDon.setHoaDon(hoaDon);
+        lichSuHoaDon.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElseThrow());
+        lichSuHoaDon.setNgayTao(LocalDateTime.now());
+        lichSuHoaDon.setHanhDong("Thanh toán đơn hàng");
+        lichSuHoaDon.setMoTa("");
+        lichSuHoaDonRepository.save(lichSuHoaDon);
         return thanhToanHoaDonRepository.save(thanhToanHoaDon);
     }
 

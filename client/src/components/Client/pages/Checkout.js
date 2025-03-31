@@ -33,6 +33,7 @@ const CheckoutForm = () => {
   const [shippingFee, setShippingFee] = useState(null);
   const [form] = Form.useForm();
   const [formData, setFormData] = useState({
+    idKhachHang:'',
     hoTen: '',
     soDienThoai: '',
     email: '',
@@ -253,6 +254,7 @@ const CheckoutForm = () => {
         if (data) {
           console.log('Setting user info:', data);
           setUserInfo(data);
+          setFormData({...formData, idKhachHang :data.id})
         }
       });
     } else {
@@ -291,7 +293,7 @@ const CheckoutForm = () => {
 
     if (selected && selected.id !== selectedAddress?.id) {
       setSelectedAddress(selected);
-
+    
       // Cập nhật form với thông tin địa chỉ được chọn
       setFormData({
         id: selected.id || '',
@@ -833,7 +835,9 @@ const CheckoutForm = () => {
               onChange={(e) => setFormData({ ...formData, phuongThucThanhToan: e.target.value })}
             >
               <Radio value="BANK">Thanh toán bằng chuyển khoản</Radio>
+              <Radio value="MoMo">Thanh toán bằng MoMo</Radio>
               <Radio value="COD">Thanh toán bằng COD</Radio>
+          
             </Radio.Group>
           </Card>
           <Button

@@ -81,7 +81,8 @@ public class ThanhToanClientController {
             thanhToanClientService.createThanhToanHoaDon(
                     request.getThongTinGiaoHang().getPhuongThucThanhToan(),
                     hoaDon,
-                    request.getTongTienThanhToan()
+                    request.getTongTienThanhToan(),
+                    request.getThongTinGiaoHang()
             );
             hoaDonChiTietClientService.addHoaDonChiTiet(request.getSanPhamChiTietList(), hoaDon);
             String provinceName = ghnService.getProvinceName(Long.parseLong(request.getThongTinGiaoHang().getProvince()));

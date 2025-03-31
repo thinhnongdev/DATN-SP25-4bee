@@ -9,6 +9,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ThongTinGiaoHangClientRequest {
+    String idKhachHang;
     String hoTen;
     String soDienThoai;
     String email;
