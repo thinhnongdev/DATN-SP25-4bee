@@ -67,25 +67,34 @@ public class BanHangTaiQuay {
     }
 
     @PostMapping("/{hoaDonId}/add-product")
-    public ResponseEntity<?> addProductToHoaDon(@PathVariable String hoaDonId, @RequestBody(required = false) AddProductRequest request, @RequestParam(defaultValue = "true") boolean delayApplyVoucher) {
-
+    public ResponseEntity<?> addProductToHoaDon(
+            @PathVariable String hoaDonId,
+            @RequestBody(required = false) AddProductRequest request,
+            @RequestParam(defaultValue = "true") boolean delayApplyVoucher
+    ) {
         if (request == null) {
             return ResponseEntity.badRequest().body("Dữ liệu sản phẩm không được để trống.");
         }
 
         HoaDonResponse response = banHangService.addProduct(hoaDonId, request);
+
+        // Nếu không trì hoãn áp dụng voucher, gọi applyBestVoucher nhưng không có customerId
         if (!delayApplyVoucher) {
             response = banHangService.applyBestVoucher(hoaDonId);
         }
+
         webSocketService.sendInvoiceUpdate(hoaDonId);
         return ResponseEntity.ok(response);
     }
 
-
     @PutMapping("/{hoaDonId}/chi-tiet/{hoaDonChiTietId}/so-luong")
-    public ResponseEntity<HoaDonResponse> updateProductQuantity(@PathVariable String hoaDonId, @PathVariable String hoaDonChiTietId, @RequestBody UpdateProductQuantityRequest request) {
+    public ResponseEntity<HoaDonResponse> updateProductQuantity(
+            @PathVariable String hoaDonId,
+            @PathVariable String hoaDonChiTietId,
+            @RequestBody UpdateProductQuantityRequest request) {
 
-        log.info("Nhận yêu cầu cập nhật số lượng: HoaDonID={}, ChiTietID={}, SoLuong={}", hoaDonId, hoaDonChiTietId, request.getSoLuong());
+        log.info("Nhận yêu cầu cập nhật số lượng: HoaDonID={}, ChiTietID={}, SoLuong={}, CustomerID={}",
+                hoaDonId, hoaDonChiTietId, request.getSoLuong());
 
         if (request.getSoLuong() == null || request.getSoLuong() <= 0) {
             return ResponseEntity.badRequest().body(null);
@@ -98,6 +107,7 @@ public class BanHangTaiQuay {
 
         return ResponseEntity.ok(response);
     }
+
 
 
     @DeleteMapping("/{hoaDonId}/chi-tiet/{hoaDonChiTietId}")
@@ -261,9 +271,13 @@ public class BanHangTaiQuay {
     }
 
     @PostMapping("/{hoaDonId}/apply-best-voucher")
-    public ResponseEntity<HoaDonResponse> applyBestVoucher(@PathVariable String hoaDonId) {
-        return ResponseEntity.ok(banHangServiceImpl.applyBestVoucher(hoaDonId));
+    public ResponseEntity<HoaDonResponse> applyBestVoucher(
+            @PathVariable String hoaDonId,
+            @RequestParam String customerId // Nhận thêm customerId
+    ) {
+        return ResponseEntity.ok(banHangServiceImpl.applyBestVoucher(hoaDonId, customerId));
     }
+
 
     @GetMapping("/{id}/print")
     public ResponseEntity<?> printHoaDon(@PathVariable String id) {

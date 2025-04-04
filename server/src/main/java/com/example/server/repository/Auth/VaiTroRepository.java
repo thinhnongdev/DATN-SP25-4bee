@@ -8,5 +8,5 @@ import java.util.Optional;
 
 public interface VaiTroRepository extends JpaRepository<VaiTro,String > {
     @Query("select v from VaiTro v where v.tenVaiTro=:tenVaiTro")
-    Optional<VaiTro>findByTenVaiTro(String tenVaiTro);
+    Optional<VaiTro> findByTenVaiTro(String tenVaiTro);
 }

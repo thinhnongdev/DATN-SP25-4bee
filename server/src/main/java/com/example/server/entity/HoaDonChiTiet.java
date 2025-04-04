@@ -3,6 +3,9 @@ package com.example.server.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "hoa_don_chi_tiet")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
@@ -30,5 +33,12 @@ public class HoaDonChiTiet extends BaseEntity {
 
     @Column(name = "trang_thai")
     private Integer trangThai;
+
+    // Thêm trường mới
+    @Column(name = "gia_tai_thoi_diem_them")
+    private BigDecimal giaTaiThoiDiemThem;
+
+    @Column(name = "ngay_them_vao_gio")
+    private LocalDateTime ngayThemVaoGio;
 }
 

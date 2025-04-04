@@ -19,7 +19,6 @@ public class ThanhToanHoaDon extends BaseEntity{
     @Column(name = "id", nullable = false, unique = true, updatable = false)
     private String id;
 
-
     @ManyToOne
     @JoinColumn(name = "id_hoa_don", nullable = false)
     private HoaDon hoaDon;

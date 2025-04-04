@@ -1,6 +1,7 @@
 package com.example.server.service.Client;
 
 import com.example.server.dto.Client.request.SanPhamChiTietClientRequest;
+import com.example.server.dto.Client.response.HoaDonChiTietClientResponse;
 import com.example.server.entity.HoaDon;
 import com.example.server.entity.HoaDonChiTiet;
 import com.example.server.repository.HoaDon.HoaDonChiTietRepository;
@@ -32,5 +33,8 @@ public class HoaDonChiTietClientService {
             hoaDonChiTietRepository.save(hoaDonChiTiet);
 
         }
+    }
+    public List<HoaDonChiTietClientResponse> getHoaDonChiTietList(String idHoaDon) {
+        return hoaDonChiTietRepository.findByHoaDonId(idHoaDon);
     }
 }

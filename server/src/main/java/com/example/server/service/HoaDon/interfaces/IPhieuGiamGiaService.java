@@ -8,6 +8,6 @@ import java.util.List;
 
 public interface IPhieuGiamGiaService {
     PhieuGiamGia validateAndGet(String id);
-    List<PhieuGiamGiaResponse> getAvailableVouchersForOrder(BigDecimal orderTotal);
+    List<PhieuGiamGiaResponse> getAvailableVouchersForOrder(BigDecimal orderTotal, String customerId);
 
 }

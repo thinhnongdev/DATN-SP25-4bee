@@ -49,7 +49,7 @@ public class ThanhToanClientService {
         LichSuHoaDon lichSuHoaDon=new LichSuHoaDon();
         lichSuHoaDon.setId(UUID.randomUUID().toString());
         lichSuHoaDon.setHoaDon(hoaDon);
-        lichSuHoaDon.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElseThrow());
+        lichSuHoaDon.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElse(null));
         lichSuHoaDon.setNgayTao(LocalDateTime.now());
         lichSuHoaDon.setHanhDong("Thanh toán đơn hàng");
         lichSuHoaDon.setMoTa("");
@@ -181,5 +181,4 @@ public class ThanhToanClientService {
         }
 
     }
-
 }

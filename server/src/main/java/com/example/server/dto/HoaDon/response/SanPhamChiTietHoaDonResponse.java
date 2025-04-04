@@ -15,9 +15,11 @@ import java.util.List;
 @AllArgsConstructor
 public class SanPhamChiTietHoaDonResponse {
     private String id;
+    private String sanPhamChiTietId;
     private String maSanPham;
+    private String maSanPhamChiTiet;
     private String tenSanPham;
-    private List<String> hinhAnh; // Đổi thành danh sách ảnh
+    private List<String> hinhAnh;
     private BigDecimal gia;
     private Integer soLuong;
     private BigDecimal thanhTien;
@@ -39,7 +41,11 @@ public class SanPhamChiTietHoaDonResponse {
     private String kieuCoTayAo;
     private String hoaTiet;
     private String kieuTuiAo;
-
+    // Xử lý giá sản phẩm thay đổi
+    private BigDecimal giaTaiThoiDiemThem;
+    private BigDecimal giaHienTai;
+    private boolean giaThayDoi;
+    private BigDecimal chenhLech;
     public String getTrangThaiText() {
         return trangThai ? "Còn hàng" : "Hết hàng";
     }

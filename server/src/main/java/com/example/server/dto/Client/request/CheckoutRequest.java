@@ -12,7 +12,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class  CheckoutRequest {
+public class CheckoutRequest {
     private List<SanPhamChiTietClientRequest> sanPhamChiTietList;
     private ThongTinGiaoHangClientRequest thongTinGiaoHang;
     private BigDecimal tongTienThanhToan;

@@ -14,9 +14,9 @@ import java.util.Optional;
 public interface NhanVienRepository extends JpaRepository<NhanVien, String> {
     @Query("SELECT nv FROM NhanVien nv ORDER BY nv.ngayTao DESC")
     List<NhanVien> findAllNhanVienSortedByNgayTao();
+
+    @Query("SELECT nv FROM NhanVien nv WHERE nv.canCuocCongDan = :canCuocCongDan")
+    Optional<NhanVien> findBySoCCCD(@Param("canCuocCongDan") String canCuocCongDan);
     @Query("SELECT nv FROM NhanVien nv WHERE nv.email = :email")
     Optional<NhanVien> findByEmail(@Param("email") String email);
-    @Query("SELECT nv FROM NhanVien nv WHERE nv.canCuocCongDan = :canCuocCongDan")
-    Optional<NhanVien> findByCanCuocCongDan(@Param("canCuocCongDan") String canCuocCongDan);
-
 }

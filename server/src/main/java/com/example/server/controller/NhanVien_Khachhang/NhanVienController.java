@@ -1,15 +1,15 @@
 package com.example.server.controller.NhanVien_Khachhang;
 
 import com.example.server.entity.NhanVien;
-
+import com.example.server.service.NhanVien_KhachHang.NhanVienService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.example.server.service.NhanVien_KhachHang.NhanVienService;
+
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin/nhan_vien")
+@RequestMapping("/api/nhan_vien")
 public class NhanVienController {
     @Autowired
     NhanVienService nhanVienService;

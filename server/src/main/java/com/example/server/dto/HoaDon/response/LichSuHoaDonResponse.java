@@ -13,6 +13,7 @@ public class LichSuHoaDonResponse {
     private String idHoaDon;
     private String idKhachHang;
     private String idNhanVien;
+    private String tenNhanVien;
     private String hanhDong;
     private String moTa;
     private Integer trangThai;

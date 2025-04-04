@@ -456,12 +456,11 @@ function InvoiceList() {
     },
     {
       title: "Tên nhân viên",
-      dataIndex: "nhanVien",
-      key: "nhanVien",
+      dataIndex: "tenNhanVien",
+      key: "tenNhanVien",
       align: "center",
-      render: (text, record) =>
-        record.nhanVien ? record.nhanVien.tenNhanVien : "N/A",
-    },
+      render: (text) => text || "---",
+    },    
     {
       title: "Loại",
       dataIndex: "loaiHoaDon",
@@ -488,12 +487,9 @@ function InvoiceList() {
       dataIndex: "tongTien",
       key: "tongTien",
       align: "center",
-      render: (text, record) => {
-        const shippingCost = record.phiVanChuyen || 0;
-        const total = Number(text) + Number(shippingCost);
-        return formatCurrency(total);
-      },
+      render: (text, record) => formatCurrency(text),
     },
+    
     {
       title: "Thao tác",
       key: "action",

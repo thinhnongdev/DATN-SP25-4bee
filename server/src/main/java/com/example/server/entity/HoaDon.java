@@ -86,7 +86,6 @@ public class HoaDon {
     @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = false, fetch = FetchType.LAZY)
     private List<HoaDonChiTiet> hoaDonChiTiets = new ArrayList<>();
 
-    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<ThanhToanHoaDon> thanhToanHoaDons = new ArrayList<>();
-
 }

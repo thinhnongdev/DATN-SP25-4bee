@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { ConfigProvider, App as AntdApp } from 'antd';
 import InvoiceList from "../pages/InvoiceList";
 import InvoiceDetail from "../pages/InvoiceDetail";
 import BanHang from "../components/QuanLyBanHang/BanHang";

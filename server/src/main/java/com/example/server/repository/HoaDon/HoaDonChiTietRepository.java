@@ -1,5 +1,6 @@
 package com.example.server.repository.HoaDon;
 
+import com.example.server.dto.Client.response.HoaDonChiTietClientResponse;
 import com.example.server.entity.HoaDon;
 import com.example.server.entity.HoaDonChiTiet;
 import com.example.server.entity.SanPhamChiTiet;
@@ -15,7 +16,11 @@ import java.util.Optional;
 public interface HoaDonChiTietRepository extends JpaRepository<HoaDonChiTiet, String> {
     List<HoaDonChiTiet> findByHoaDon(HoaDon hoaDon);
 
-    List<HoaDonChiTiet> findByHoaDonId(String hoaDonId);
+    @Query("SELECT new com.example.server.dto.Client.response.HoaDonChiTietClientResponse( " +
+            " h.hoaDon.id, h.sanPhamChiTiet.id,h.id, h.soLuong, h.trangThai, h.giaTaiThoiDiemThem, h.ngayThemVaoGio) " +
+            "FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.trangThai = 1")
+    List<HoaDonChiTietClientResponse> findByHoaDonId(@Param("hoaDonId") String hoaDonId);
+
 
     @Query("SELECT h FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.sanPhamChiTiet.id = :sanPhamChiTietId")
     Optional<HoaDonChiTiet> findByHoaDonAndSanPhamChiTiet(@Param("hoaDonId") String hoaDonId, @Param("sanPhamChiTietId") String sanPhamChiTietId);

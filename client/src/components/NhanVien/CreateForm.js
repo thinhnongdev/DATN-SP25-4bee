@@ -1,37 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import {
-  Button,
-  Radio,
-  Input,
-  Form,
-  Row,
-  Col,
-  Card,
-  Select,
-  DatePicker,
-  Divider,
-  Modal,
-} from "antd";
-import { getPostApi, scanQRCode } from "../NhanVien/NhanVienApi";
+import { Button, Radio } from "antd";
+import { Input } from "antd";
+import { getPostApi, scanQRCode } from "./NhanVienApi";
 import axios from "axios";
 import QrScanner from "react-qr-scanner";
-
-const { Option } = Select;
-
 function CreateForm({ handleClose, getAllNhanVien }) {
-  const [tinhThanhList, setTinhThanhList] = useState([]);
-  const [quanHuyenList, setQuanHuyenList] = useState([]);
-  const [xaPhuongList, setXaPhuongList] = useState([]);
-
-  const [selectedTinh, setSelectedTinh] = useState(null);
-  const [selectedHuyen, setSelectedHuyen] = useState(null);
-  const [selectedXa, setSelectedXa] = useState(null);
-
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [form] = Form.useForm();
   const [scanning, setScanning] = useState(false);
-  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     tenNhanVien: "",
     email: "",
@@ -41,123 +16,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
     trangThai: true,
     anh: "",
     canCuocCongDan: "",
-    tinh: "",
-    huyen: "",
-    xa: "",
-    diaChiCuThe: "",
   });
-
-  useEffect(() => {
-    const fetchTinhThanh = async () => {
-      try {
-        const response = await axios.get("http://localhost:5000/data");
-        console.log("Dữ liệu API nhận được:", response.data); // Kiểm tra dữ liệu
-
-        // Kiểm tra response.data có phải là mảng không
-        setTinhThanhList(Array.isArray(response.data) ? response.data : []);
-      } catch (error) {
-        console.error("Lỗi khi lấy danh sách tỉnh/thành:", error);
-        setTinhThanhList([]); // Nếu lỗi, đặt giá trị mặc định là []
-      }
-    };
-
-    fetchTinhThanh();
-  }, []);
-
-  useEffect(() => {
-    console.log("Danh sách tỉnh/thành đã cập nhật:", tinhThanhList);
-  }, [tinhThanhList]);
-
-  const handleTinhChange = async (tinhName) => {
-    setSelectedTinh(tinhName);
-    setSelectedHuyen(null);
-    setSelectedXa(null);
-    setQuanHuyenList([]); // Reset danh sách quận/huyện
-    setXaPhuongList([]); // Reset danh sách xã/phường
-
-    try {
-      const response = await axios.get("http://localhost:5000/data");
-      console.log("Dữ liệu API nhận được:", response.data);
-
-      // Kiểm tra dữ liệu có đúng dạng không
-      if (!Array.isArray(response.data)) {
-        console.error("Dữ liệu không hợp lệ");
-        return;
-      }
-
-      // Tìm tỉnh/thành theo ID
-      const selectedTinh = response.data.find((tinh) => tinh.name === tinhName);
-
-      // Nếu tìm thấy, lấy danh sách quận/huyện của tỉnh đó
-      setQuanHuyenList(selectedTinh ? selectedTinh.data2 : []);
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách quận/huyện:", error);
-      setQuanHuyenList([]);
-    }
-  };
-  useEffect(() => {
-    console.log("danh sách huyện:", quanHuyenList);
-  }, [quanHuyenList]);
-
-  // Khi chọn quận/huyện → Cập nhật danh sách xã/phường
-  const handleHuyenChange = async (huyenName) => {
-    setSelectedHuyen(huyenName);
-    setSelectedXa(null);
-    setXaPhuongList([]); // Reset danh sách xã/phường
-
-    try {
-      const response = await axios.get("http://localhost:5000/data");
-      console.log("Dữ liệu API nhận được:", response.data);
-
-      // Kiểm tra dữ liệu có đúng dạng không
-      if (!Array.isArray(response.data)) {
-        console.error("Dữ liệu không hợp lệ");
-        return;
-      }
-
-      // Tìm tỉnh/thành có chứa huyện đã chọn
-      const selectedTinh = response.data.find(
-        (tinh) =>
-          tinh.data2 && tinh.data2.some((huyen) => huyen.name === huyenName)
-      );
-
-      if (!selectedTinh) {
-        console.error("Không tìm thấy tỉnh chứa huyện này");
-        return;
-      }
-
-      // Tìm huyện theo ID trong tỉnh đã tìm thấy
-      const selectedHuyen = selectedTinh.data2.find(
-        (huyen) => huyen.name === huyenName
-      );
-
-      // Nếu tìm thấy huyện, lấy danh sách xã/phường từ `data3`
-      setXaPhuongList(selectedHuyen ? selectedHuyen.data3 : []);
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách xã/phường:", error);
-      setXaPhuongList([]);
-    }
-  };
-
-  // useEffect(() => {
-  //   console.log("Danh sách xã/phường mới cập nhật:", secl);
-  // }, [xaPhuongList]);
-
-  // Khi chọn xã/phường
-  const handleXaChange = (xaName) => {
-    setSelectedXa(xaName);
-    console.log("tỉnh", selectedTinh);
-    console.log("huyện", selectedHuyen);
-    console.log("xã", xaName);
-  };
-
-  const showModal = () => {
-    setIsModalVisible(true);
-  };
-
-  const handleCancel = () => {
-    setIsModalVisible(false);
-  };
 
   const handleScan = async (data) => {
     if (data) {
@@ -173,7 +32,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
           anh: nhanVien.anh || "",
         });
         toast.success("Đã tìm thấy nhân viên từ mã QR!");
-        setIsModalVisible(false);
+        setScanning(false); // Dừng camera sau khi quét thành công
       } catch (error) {
         toast.error("Không tìm thấy nhân viên từ QR!");
       }
@@ -186,6 +45,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
   };
 
   const [errors, setErrors] = useState({});
+  const fileInputRef = useRef(null);
 
   const validateField = (name, value) => {
     let errorMsg = "";
@@ -225,6 +85,19 @@ function CreateForm({ handleClose, getAllNhanVien }) {
     return errorMsg;
   };
 
+  const validateForm = () => {
+    let newErrors = {};
+
+    Object.keys(formData).forEach((key) => {
+      const error = validateField(key, formData[key]);
+      if (error) newErrors[key] = error;
+    });
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleChangeCCCD = (e) => {
     const { name, value } = e.target;
 
@@ -236,68 +109,52 @@ function CreateForm({ handleClose, getAllNhanVien }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setFormData((prevState) => ({
       ...prevState,
       [name]: value,
     }));
 
-    setErrors((prevErrors) => {
-      const newErrors = { ...prevErrors };
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: validateField(name, value),
+    }));
+  };
 
-      // Nếu người dùng nhập lại giá trị mới, xóa lỗi
-      if (newErrors[name]) {
-        delete newErrors[name];
-      }
+  const handleGenderChange = (gender) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      gioiTinh: gender,
+    }));
 
-      return newErrors;
-    });
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      gioiTinh: validateField("gioiTinh", gender),
+    }));
   };
 
   const checkDuplicateFields = async () => {
     try {
       const existingEmployees = await getAllNhanVien();
 
-      if (!Array.isArray(existingEmployees)) {
-        toast.error("Lỗi khi lấy dữ liệu nhân viên!");
+      if (!existingEmployees) {
+        toast.error("Không thể lấy dữ liệu nhân viên!");
         return false;
       }
 
-      let duplicateErrors = {}; // Reset lỗi trước khi kiểm tra
+      let duplicateErrors = {};
 
-      // Kiểm tra email trùng lặp
-      if (formData.email.trim()) {
-        const isEmailDuplicate = existingEmployees.some(
-          (emp) => emp.email === formData.email
-        );
-        if (isEmailDuplicate) {
-          duplicateErrors.email = "Email đã được sử dụng!";
-        }
+      if (existingEmployees.some((emp) => emp.email === formData.email)) {
+        duplicateErrors.email = "Email đã được sử dụng!";
       }
-
-      // Kiểm tra số điện thoại trùng lặp
-      if (formData.soDienThoai.trim()) {
-        const isPhoneDuplicate = existingEmployees.some(
+      if (
+        existingEmployees.some(
           (emp) => emp.soDienThoai === formData.soDienThoai
-        );
-        if (isPhoneDuplicate) {
-          duplicateErrors.soDienThoai = "Số điện thoại đã được sử dụng!";
-        }
-      }
-
-      // Kiểm tra CCCD trùng lặp
-      if (formData.canCuocCongDan.trim()) {
-        const isCCCDDuplicate = existingEmployees.some(
-          (emp) => emp.canCuocCongDan === formData.canCuocCongDan
-        );
-        if (isCCCDDuplicate) {
-          duplicateErrors.canCuocCongDan = "Số CCCD đã được sử dụng!";
-        }
+        )
+      ) {
+        duplicateErrors.soDienThoai = "Số điện thoại đã được sử dụng!";
       }
 
       setErrors(duplicateErrors);
-
-      // **Trả về true nếu không có lỗi**
       return Object.keys(duplicateErrors).length === 0;
     } catch (error) {
       console.error("Lỗi kiểm tra trùng lặp:", error);
@@ -352,13 +209,19 @@ function CreateForm({ handleClose, getAllNhanVien }) {
   }, [formData]);
 
   //Submit
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      toast.error("Vui lòng nhập đầy đủ thông tin!");
+      return;
+    }
+
     if (!formData.anh) {
       toast.error("Vui lòng tải lên ảnh nhân viên!");
       return;
     }
 
-    // **Chờ kiểm tra trùng lặp trước khi submit**
     const isUnique = await checkDuplicateFields();
     if (!isUnique) {
       toast.error("Thông tin nhập vào đã tồn tại, vui lòng kiểm tra lại!");
@@ -374,304 +237,214 @@ function CreateForm({ handleClose, getAllNhanVien }) {
       trangThai: formData.trangThai,
       anh: String(formData.anh),
       canCuocCongDan: formData.canCuocCongDan,
-      tinh: formData.tinh,
-      huyen: formData.huyen,
-      xa: formData.xa,
-      diaChiCuThe: formData.diaChiCuThe,
     };
 
     try {
       const response = await getPostApi(newNhanVien);
       if (response && response.data) {
         toast.success("Nhân viên mới đã được tạo!");
+        console.log("Nhân viên mới:", response.data);
         getAllNhanVien();
         handleClose();
       }
     } catch (error) {
       toast.error("Có lỗi khi tạo nhân viên!");
       console.error("ERROR", error);
+      if (error.response) {
+        console.error("Lỗi từ Cloudinary:", error.response.data);
+        toast.error(`Lỗi tải ảnh: ${error.response.data.error.message}`);
+      } else {
+        toast.error("Không thể tải ảnh lên, vui lòng thử lại.");
+      }
     }
   };
 
   return (
-    <Card className="create-form-container">
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
-        <Row gutter={24}>
-          <Col span={8}>
-            <h5>Thông tin nhân viên</h5>
-            <Divider />
-
-            <div className="left-section">
-              <div
-                className="avatar-section"
-                onClick={() => fileInputRef.current.click()}
-                style={{
-                  width: "150px",
-                  height: "150px",
-                  borderRadius: "50%",
-                  border: "2px dashed #ddd",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  textAlign: "center",
-                  marginLeft: 100,
-                  marginBottom: 55,
-                }}
-              >
-                {formData.anh ? (
+    <div className="NhanVien">
+      <div className="">
+        {/* Khung thông tin nhân viên */}
+        <div className="card" style={{ padding: "20px", borderRadius: "10px" }}>
+          <h5 className="card-title">Thông tin nhân viên</h5>
+          <hr />
+          <form onSubmit={handleSubmit} className="form">
+            <div className="row">
+              {/* Cột trái: Ảnh đại diện + Mã nhân viên */}
+              <div className="col-md-4 d-flex flex-column align-items-center">
+                {/* Ảnh nhân viên */}
+                <div
+                  className="image-section"
+                  style={{
+                    textAlign: "center",
+                    cursor: "pointer",
+                    marginBottom: "20px",
+                  }}
+                  onClick={() => fileInputRef.current.click()}
+                >
                   <img
-                    src={formData.anh}
+                    src={formData.anh || "https://via.placeholder.com/150"}
                     alt="Ảnh nhân viên"
                     style={{
-                      width: "100%",
-                      height: "100%",
+                      width: "150px",
+                      height: "150px",
                       borderRadius: "50%",
                       objectFit: "cover",
+                      border: "2px solid #ccc",
+                      marginBottom: "10px",
                     }}
                   />
-                ) : (
-                  <div
-                    style={{
-                      fontSize: "14px",
-                      color: "#999",
-                      textAlign: "center",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span>Chọn ảnh</span>
-                    <span
-                      style={{ fontSize: "20px", cursor: "pointer" }}
-                    ></span>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  style={{ display: "none" }}
-                  onChange={(e) => handleUploadImage(e.target.files)}
-                />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleUploadImage(e.target.files)}
+                  />
+                  <p style={{ fontSize: "12px", color: "#555" }}>
+                    Nhấp vào ảnh để chọn
+                  </p>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Quét mã QR CCCD</label>
+                  <Button onClick={() => setScanning(!scanning)}>
+                    {scanning ? "Tắt Camera" : "Mở Camera"}
+                  </Button>
+                  {scanning && (
+                    <QrScanner
+                      delay={300}
+                      onError={handleError}
+                      onScan={handleScan}
+                      style={{ width: "100%", maxWidth: 400, marginTop: 10 }}
+                    />
+                  )}
+                </div>
               </div>
 
-              <Form.Item
-                name="tenNhanVien"
-                label="Tên nhân viên"
-                rules={[
-                  { required: true, message: "Vui lòng nhập tên nhân viên!" },
-                ]}
-              >
-                <Input
-                  placeholder="Nhập tên nhân viên"
-                  onChange={handleChange}
-                />
-              </Form.Item>
-            </div>
-          </Col>
+              {/* Cột phải: Thông tin còn lại */}
+              <div className="col-md-8">
+                {/* Họ tên */}
+                <div className="mb-4">
+                  <label className="form-label">
+                    Họ và tên <span style={{ color: "red" }}>*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    name="tenNhanVien"
+                    value={formData.tenNhanVien}
+                    onChange={handleChange}
+                  />
+                  {errors.tenNhanVien && (
+                    <p className="text-danger">{errors.tenNhanVien}</p>
+                  )}
+                </div>
 
-          <Col span={16}>
-            <div className="right-section">
-              <Button
-                title="Quét mã QR"
-                block
-                onClick={showModal}
-                style={{
-                  marginBottom: "16px",
-                  width: "80px",
-                  marginLeft: "700px",
-                  position: "absolute",
-                }}
-              >
-                Quét QR
-              </Button>
-
-              <Modal
-                open={isModalVisible}
-                onCancel={handleCancel}
-                footer={null}
-                centered
-              >
-                <QrScanner
-                  delay={300}
-                  onError={handleError}
-                  onScan={handleScan}
-                  style={{ width: "100%" }}
-                />
-              </Modal>
-              <h5>Thông tin chi tiết</h5>
-              <Divider />
-
-              <Form.Item
-                name="canCuocCongDan"
-                label="Số CCCD"
-                validateStatus={errors.canCuocCongDan ? "error" : ""}
-                help={errors.canCuocCongDan}
-                rules={[{ required: true, message: "Vui lòng nhập số CCCD!" }]}
-              >
-                <Input
-                  placeholder="Nhập số CCCD"
-                  onChange={handleChange}
-                  onBlur={checkDuplicateFields}
-                />
-              </Form.Item>
-
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    name="gioiTinh"
-                    label="Giới tính"
-                    rules={[
-                      { required: true, message: "Vui lòng chọn giới tính!" },
-                    ]}
-                  >
-                    <Radio.Group>
-                      <Radio value={true}>Nam</Radio>
-                      <Radio value={false}>Nữ</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
+                {/* Ngày sinh */}
+                <div className="mb-4">
+                  <label className="form-label">
+                    Ngày sinh <span style={{ color: "red" }}>*</span>
+                  </label>
+                  <Input
+                    type="date"
                     name="ngaySinh"
-                    label="Ngày sinh"
-                    rules={[
-                      { required: true, message: "Vui lòng chọn ngày sinh!" },
-                    ]}
+                    value={formData.ngaySinh}
+                    onChange={handleChange}
+                  />
+                  {errors.ngaySinh && (
+                    <p className="text-danger">{errors.ngaySinh}</p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div className="mb-4">
+                  <label className="form-label">
+                    Email <span style={{ color: "red" }}>*</span>
+                  </label>
+                  <Input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                  />
+                  {errors.email && (
+                    <p className="text-danger">{errors.email}</p>
+                  )}
+                </div>
+
+                {/* Số điện thoại */}
+                <div className="mb-4">
+                  <label className="form-label">
+                    Số điện thoại <span style={{ color: "red" }}>*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    name="soDienThoai"
+                    value={formData.soDienThoai}
+                    onChange={handleChange}
+                  />
+                  {errors.soDienThoai && (
+                    <p className="text-danger">{errors.soDienThoai}</p>
+                  )}
+                </div>
+
+                {/* Giới tính */}
+                <div className="mb-4">
+                  <label className="form-label">
+                    Giới tính <span style={{ color: "red" }}>*</span>
+                  </label>
+                  <div>
+                    <label className="me-3">
+                      <Radio
+                        name="gioiTinh"
+                        checked={formData.gioiTinh === "Nam"}
+                        onChange={() => handleGenderChange("Nam")}
+                      />{" "}
+                      Nam
+                    </label>
+                    <label>
+                      <Radio
+                        name="gioiTinh"
+                        checked={formData.gioiTinh === "Nữ"}
+                        onChange={() => handleGenderChange("Nữ")}
+                      />{" "}
+                      Nữ
+                    </label>
+                  </div>
+                  {errors.gioiTinh && (
+                    <p className="text-danger">{errors.gioiTinh}</p>
+                  )}
+                </div>
+
+                <div className="mb-4">
+                  <label className="form-label">
+                    Căn cước công dân <span style={{ color: "red" }}>*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    name="canCuocCongDan"
+                    value={formData.canCuocCongDan}
+                    onChange={handleChangeCCCD}
+                  />
+                  {errors.soDienThoai && (
+                    <p className="text-danger">{errors.canCuocCongDan}</p>
+                  )}
+                </div>
+
+
+                {/* Nút lưu nhân viên */}
+                <div className="" style={{ marginLeft: 610 }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ color: "#fff", width: "150px" }}
                   >
-                    <DatePicker
-                      style={{ width: "100%" }}
-                      placeholder="DD-MM-YYYY"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item
-                name="email"
-                label="Email"
-                validateStatus={errors.email ? "error" : ""}
-                help={errors.email}
-                rules={[
-                  { required: true, message: "Vui lòng nhập email!" },
-                  { type: "email", message: "Email không hợp lệ!" },
-                ]}
-              >
-                <Input
-                  placeholder="Nhập email"
-                  onChange={handleChange}
-                  onBlur={checkDuplicateFields} // Kiểm tra trùng lặp khi rời khỏi ô nhập
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="soDienThoai"
-                label="Số điện thoại"
-                validateStatus={errors.soDienThoai ? "error" : ""}
-                help={errors.soDienThoai}
-                rules={[
-                  { required: true, message: "Vui lòng nhập số điện thoại!" },
-                ]}
-              >
-                <Input
-                  placeholder="Nhập số điện thoại"
-                  onChange={handleChange}
-                  onBlur={checkDuplicateFields}
-                />
-              </Form.Item>
-
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Form.Item
-                    label="Tỉnh/Thành phố"
-                    name="tinh"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Vui lòng chọn tỉnh/thành phố",
-                      },
-                    ]}
-                  >
-                    <Select
-                      onChange={handleTinhChange}
-                      placeholder="Chọn tỉnh/thành phố"
-                      name="tinh"
-                    >
-                      {tinhThanhList.map((tinh) => (
-                        <Option key={tinh.id} value={tinh.name}>
-                          {tinh.name}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    label="Quận/Huyện"
-                    name="huyen"
-                    rules={[
-                      { required: true, message: "Vui lòng chọn quận/huyện" },
-                    ]}
-                  >
-                    <Select
-                      onChange={handleHuyenChange}
-                      placeholder="Chọn quận/huyện"
-                      disabled={!selectedTinh}
-                      name="huyen"
-                    >
-                      {quanHuyenList.map((huyen) => (
-                        <Option key={huyen.id} value={huyen.name}>
-                          {huyen.name}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    label="Xã/Phường"
-                    name="xa"
-                    rules={[
-                      { required: true, message: "Vui lòng chọn xã/phường" },
-                    ]}
-                  >
-                    <Select
-                      onChange={handleXaChange}
-                      placeholder="Chọn xã/phường"
-                      disabled={!selectedHuyen}
-                      name="xa"
-                    >
-                      {xaPhuongList.map((xa) => (
-                        <Option key={xa.id} value={xa.name}>
-                          {xa.name}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item
-                name="diaChiCuThe"
-                label="Địa chỉ cụ thể"
-                rules={[
-                  { required: true, message: "Vui lòng nhập địa chỉ cụ thể!" },
-                ]}
-              >
-                <Input placeholder="Nhập địa chỉ cụ thể" />
-              </Form.Item>
-
-              <Form.Item style={{ textAlign: "right", marginTop: "24px" }}>
-                <Button type="primary" htmlType="submit">
-                  Thêm nhân viên
-                </Button>
-              </Form.Item>
+                    Thêm nhân viên
+                  </button>
+                </div>
+              </div>
             </div>
-          </Col>
-        </Row>
-      </Form>
-    </Card>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 }
 

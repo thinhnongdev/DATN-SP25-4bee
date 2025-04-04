@@ -425,12 +425,9 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
       // Reset danh sách sản phẩm đã chọn và số lượng
       setSelectedProducts([]);
       setTempQuantities({});
-      message.success(
-        `Đã thêm ${selectedProducts.length} sản phẩm vào hóa đơn!`
-      );
+
     } catch (error) {
       console.error("Error in handleAddSelectedProducts:", error);
-      message.error("Lỗi khi thêm sản phẩm!");
     }
   };
 

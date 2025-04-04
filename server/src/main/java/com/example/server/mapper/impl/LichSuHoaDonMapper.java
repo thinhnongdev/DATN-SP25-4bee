@@ -13,6 +13,7 @@ public class LichSuHoaDonMapper {
                 entity.getHoaDon().getId(),
                 entity.getKhachHang() != null ? entity.getKhachHang().getId() : null,
                 entity.getNhanVien() != null ? entity.getNhanVien().getId() : null,
+                entity.getNhanVien() != null ? entity.getNhanVien().getTenNhanVien() : "---",
                 entity.getHanhDong(),
                 entity.getMoTa(),
                 entity.getTrangThai(),

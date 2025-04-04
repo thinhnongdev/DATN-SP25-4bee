@@ -62,25 +62,25 @@ function NhanVienConfig() {
   };
 
   const handleAddNhanVien = () => {
-    //if (window.confirm("Bạn có chắc chắn muốn thêm nhân viên?")) {
+    if (window.confirm("Bạn có chắc chắn muốn thêm nhân viên?")) {
       setAppState({
         Creating: true,
         Updating: false,
         View: false,
         selectedNhanVien: null,
       });
-   // }
+    }
   };
 
   const handleEditNhanVien = (nhanVien) => {
-    
+    if (window.confirm("Bạn có chắc chắn muốn sửa nhân viên?")) {
       setAppState({
         Creating: false,
         Updating: true,
         View: false,
         selectedNhanVien: nhanVien,
       });
-    
+    }
   };
 
   const handleCloseForm = () => {

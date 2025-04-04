@@ -50,10 +50,6 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
     @Query("SELECT h FROM HoaDon h WHERE h.id = :hoaDonId")
     HoaDon findHoaDonForUpdate(@Param("hoaDonId") String hoaDonId);
 
-
-
-
-
     // Doanh Thu ngày
     @Query(value = "SELECT IFNULL(SUM(tong_tien), 0) FROM hoa_don " +
             "WHERE DATE(ngay_tao) = CURDATE() AND trang_thai = 5",
@@ -90,7 +86,6 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
             nativeQuery = true)
     BigDecimal getDoanhThuThangTruoc();
 
-
     // Doanh thu năm
     @Query(value = "SELECT IFNULL(SUM(tong_tien), 0) FROM hoa_don " +
             "WHERE YEAR(ngay_tao) = YEAR(CURDATE()) AND trang_thai = 5",
@@ -101,7 +96,6 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
             "WHERE YEAR(ngay_tao) = YEAR(CURDATE()) - 1 AND trang_thai = 5",
             nativeQuery = true)
     BigDecimal getDoanhThuNamTruoc();
-
 
     //Trạng thái
 
@@ -217,5 +211,7 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
     List<Object[]> getTop3SanPhamBanChay();
 
 
+    @Query("select h from HoaDon h where h.trangThai=10 and h.khachHang.email=:email")
+    Optional<HoaDon> findHoaDonPending(String email);
 
 }

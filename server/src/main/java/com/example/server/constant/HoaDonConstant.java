@@ -4,7 +4,19 @@ public class HoaDonConstant {
     private HoaDonConstant() {
         throw new IllegalStateException("Constant class");
     }
-//Trạng thái đơn hàng
+//    Trang thai update hoa don
+    public static final int TRANG_THAI_CAP_NHAT_TT = 1;
+    public static final String TRANG_THAI_CAP_NHAT_TT_TEXT = "Cập nhật thông tin nguời nhận";
+
+    public static String getTrangThaiCapNhatThongTin(Integer loaiHoaDon) {
+        if (loaiHoaDon == null) return "Không xác định";
+        return switch (loaiHoaDon) {
+            case TRANG_THAI_CAP_NHAT_TT -> TRANG_THAI_CAP_NHAT_TT_TEXT;
+            default -> "Không xác định";
+        };
+    }
+
+    //Trạng thái đơn hàng
     public static final int TRANG_THAI_CHO_XAC_NHAN = 1;
     public static final int TRANG_THAI_DA_XAC_NHAN = 2;
     public static final int TRANG_THAI_CHO_GIAO_HANG = 3;

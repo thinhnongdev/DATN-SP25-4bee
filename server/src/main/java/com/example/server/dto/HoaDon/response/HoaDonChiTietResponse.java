@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @Builder
@@ -14,13 +15,27 @@ import java.math.BigDecimal;
 public class HoaDonChiTietResponse {
     private String id;
     private String sanPhamChiTietId;
+    private List<String> hinhAnh; // Thay đổi từ String thành List<String>
     private String tenSanPham;
     private String maSanPham;
+    private String maSanPhamChiTiet;
     private Integer soLuong;
     private BigDecimal gia;
     private BigDecimal thanhTien;
     private Integer trangThai;
-    private String hinhAnh;
-    private BigDecimal giaThoiDiem; //Giá tại thời điểm thêm vào hóa đơn
 
+    // Thêm các trường thông tin chi tiết
+    private String mauSac;
+    private String maMauSac;
+    private String chatLieu;
+    private String danhMuc;
+    private String kichThuoc;
+    private String thuongHieu;
+    private String kieuDang;
+    private String kieuCuc;
+    private String kieuCoAo;
+    private String kieuTayAo;
+    private String kieuCoTayAo;
+    private String hoaTiet;
+    private String kieuTuiAo;
 }

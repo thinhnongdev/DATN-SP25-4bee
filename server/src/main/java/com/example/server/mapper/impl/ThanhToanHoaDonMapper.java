@@ -14,8 +14,7 @@ public class ThanhToanHoaDonMapper {
         return new ThanhToanHoaDonResponse(
                 entity.getId(),
                 entity.getHoaDon() != null ? entity.getHoaDon().getId() : null,
-                entity.getHoaDon() != null && entity.getHoaDon().getNhanVien() != null
-                        ? entity.getHoaDon().getNhanVien().getTenNhanVien() : "N/A",
+                entity.getHoaDon() != null ? entity.getHoaDon().getNguoiTao() : "---",
                 entity.getPhuongThucThanhToan() != null ? entity.getPhuongThucThanhToan().getId() : null,
                 entity.getPhuongThucThanhToan() != null ? entity.getPhuongThucThanhToan().getTenPhuongThucThanhToan() : "Không rõ",
                 entity.getSoTien() != null ? entity.getSoTien() : BigDecimal.ZERO, // Tránh lỗi null

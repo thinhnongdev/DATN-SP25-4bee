@@ -14,18 +14,25 @@ import com.example.server.repository.HoaDon.ThanhToanHoaDonRepository;
 import com.example.server.repository.NhanVien_KhachHang.DiaChiRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
 import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
+import com.example.server.repository.SanPham.AnhSanPhamRepository;
+import com.example.server.service.HoaDon.impl.CurrentUserServiceImpl;
 import com.example.server.service.SanPham.AnhSanPhamService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class HoaDonMapper implements IHoaDonMapper {
@@ -36,6 +43,8 @@ public class HoaDonMapper implements IHoaDonMapper {
     private final DiaChiRepository diaChiRepository;
     private final AnhSanPhamService anhSanPhamService;
     private final PhuongThucThanhToanRepository phuongThucThanhToanRepository;
+    private final AnhSanPhamRepository anhSanPhamRepository;
+    private final CurrentUserServiceImpl currentUserService;
     @Autowired
     private ThanhToanHoaDonMapper thanhToanHoaDonMapper;
 
@@ -175,52 +184,97 @@ public class HoaDonMapper implements IHoaDonMapper {
             return buildHoaDonResponse(hoaDon, hoaDon.getDiaChi(), "", "", "");
         }
 
-        // Nếu khách hàng là khách lẻ (không có thông tin khách hàng), hiển thị "Không có địa chỉ"
-        if (hoaDon.getKhachHang() == null) {
-            return buildHoaDonResponse(hoaDon, "Không có địa chỉ", "", "", "");
+        // Nếu khách hàng là khách lẻ nhưng hóa đơn có địa chỉ, hiển thị địa chỉ từ hóa đơn
+        if (hoaDon.getKhachHang() == null && hoaDon.getDiaChi() != null) {
+            return buildHoaDonResponse(hoaDon, hoaDon.getDiaChi(), "", "", "");
         }
 
         // Nếu khách hàng có địa chỉ, hiển thị địa chỉ đầu tiên của khách hàng
         if (diaChiKhachHang != null) {
             return buildHoaDonResponse(
                     hoaDon,
-                    diaChiKhachHang.getMoTa(),
+                    diaChiKhachHang.getDiaChiCuThe(),
                     diaChiKhachHang.getXa(),
                     diaChiKhachHang.getHuyen(),
                     diaChiKhachHang.getTinh()
             );
         }
 
-        // Nếu không có địa chỉ nào, hiển thị "Không có địa chỉ"
-        return buildHoaDonResponse(hoaDon, "Không có địa chỉ", "", "", "");
+        String[] diaChiTach = tachDiaChi(hoaDon.getDiaChi());
+        return buildHoaDonResponse(hoaDon, diaChiTach[0], diaChiTach[1], diaChiTach[2], diaChiTach[3]);
     }
+
 
     /**
      * Hàm hỗ trợ xây dựng response từ hóa đơn và thông tin địa chỉ
      */
-    private HoaDonResponse buildHoaDonResponse(HoaDon hoaDon, String moTa, String xa, String huyen, String tinh) {
+    private HoaDonResponse buildHoaDonResponse(HoaDon hoaDon, String diaChiCuThe, String xa, String huyen, String tinh) {
         List<ThanhToanHoaDonResponse> thanhToanResponses = hoaDon.getThanhToanHoaDons() != null
                 ? hoaDon.getThanhToanHoaDons().stream()
+                .peek(thanhToan -> log.info("Thanh toán ID: {}, Phương thức: {}",
+                        thanhToan.getId(),
+                        thanhToan.getPhuongThucThanhToan() != null
+                                ? thanhToan.getPhuongThucThanhToan().getTenPhuongThucThanhToan()
+                                : "Không có"))
                 .map(thanhToanHoaDonMapper::toDTO)
                 .collect(Collectors.toList())
                 : Collections.emptyList();
+
+        // Tính tổng tiền từ bảng thanh toán hóa đơn (nếu có)
+        BigDecimal tongTienThanhToan = thanhToanResponses.stream()
+                .map(ThanhToanHoaDonResponse::getTongTien)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+// Tính tổng tiền sản phẩm
+        BigDecimal tongTienSanPham = hoaDon.getHoaDonChiTiets().stream()
+                .map(chiTiet -> chiTiet.getSanPhamChiTiet().getGia().multiply(BigDecimal.valueOf(chiTiet.getSoLuong())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal phiVanChuyen = hoaDon.getPhiVanChuyen() != null ? hoaDon.getPhiVanChuyen() : BigDecimal.ZERO;
+        BigDecimal discountAmount = BigDecimal.ZERO;
+
+// Tính toán giá trị giảm giá từ phiếu giảm giá
+        if (hoaDon.getPhieuGiamGia() != null) {
+            if (hoaDon.getPhieuGiamGia().getLoaiPhieuGiamGia() == 1) { // Giảm giá theo phần trăm
+                discountAmount = tongTienSanPham.multiply(hoaDon.getPhieuGiamGia().getGiaTriGiam())
+                        .divide(new BigDecimal(100), 0, RoundingMode.FLOOR);
+
+                // Kiểm tra nếu có giới hạn giảm giá tối đa
+                if (hoaDon.getPhieuGiamGia().getSoTienGiamToiDa() != null &&
+                        discountAmount.compareTo(hoaDon.getPhieuGiamGia().getSoTienGiamToiDa()) > 0) {
+                    discountAmount = hoaDon.getPhieuGiamGia().getSoTienGiamToiDa();
+                }
+            } else { // Giảm giá cố định
+                discountAmount = hoaDon.getPhieuGiamGia().getGiaTriGiam();
+            }
+        }
+
+// Nếu không có thanh toán, tính lại tổng tiền từ hóa đơn
+        if (tongTienThanhToan.compareTo(BigDecimal.ZERO) == 0) {
+            tongTienThanhToan = tongTienSanPham.add(phiVanChuyen).subtract(discountAmount);
+        }
 
         return HoaDonResponse.builder()
                 .id(hoaDon.getId())
                 .maHoaDon(hoaDon.getMaHoaDon())
                 .tenNguoiNhan(hoaDon.getTenNguoiNhan())
+                .tenNhanVien(hoaDon.getNguoiTao())
                 .loaiHoaDon(hoaDon.getLoaiHoaDon())
                 .soDienThoai(hoaDon.getKhachHang() != null ? hoaDon.getKhachHang().getSoDienThoai() : hoaDon.getSoDienThoai())
                 .emailNguoiNhan(hoaDon.getEmailNguoiNhan())
-                .diaChi(moTa + (!xa.isEmpty() ? ", " + xa : "") + (!huyen.isEmpty() ? ", " + huyen : "") + (!tinh.isEmpty() ? ", " + tinh : ""))
+                .diaChi(Stream.of(diaChiCuThe, xa, huyen, tinh)
+                        .filter(s -> s != null && !s.isEmpty()) // Loại bỏ phần rỗng
+                        .collect(Collectors.joining(", "))) // Ghép chuỗi
                 .tinh(tinh)
                 .huyen(huyen)
                 .xa(xa)
-                .moTa(moTa)
+                .diaChiCuThe(diaChiCuThe)
                 .trangThaiGiaoHang(hoaDon.getTrangThaiGiaoHang())
                 .thoiGianGiaoHang(hoaDon.getThoiGianGiaoHang())
                 .thoiGianNhanHang(hoaDon.getThoiGianNhanHang())
-                .tongTien(hoaDon.getTongTien())
+//                .tongTien(hoaDon.getTongTien())
+                .tongTien(tongTienThanhToan)// Cập nhật tổng tiền từ bảng thanh toán hóa đơn/ nếu bảng thanh toán hóa đơn trống lấy dữ liệu bằng cách :tính giá sản phẩm sản chi tiết có trong hóa đơn + phí vận chuyển(nếu có) - giá trị voucher
+                .giamGia(discountAmount)
                 .phiVanChuyen(hoaDon.getPhiVanChuyen())
                 .ghiChu(hoaDon.getGhiChu())
                 .trangThai(hoaDon.getTrangThai() != null ? hoaDon.getTrangThai() : 0) // Tránh null
@@ -232,10 +286,6 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .hoaDonChiTiets(mapHoaDonChiTietToResponse(hoaDon.getHoaDonChiTiets()))
                 .build();
     }
-
-
-
-
 
     private List<HoaDonChiTietResponse> mapHoaDonChiTietToResponse(List<HoaDonChiTiet> chiTiets) {
         if (chiTiets == null || chiTiets.isEmpty()) return Collections.emptyList();
@@ -251,23 +301,37 @@ public class HoaDonMapper implements IHoaDonMapper {
         SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
         SanPham sanPham = sanPhamChiTiet.getSanPham();
 
-        String hinhAnh = anhSanPhamService.findByIdSPCT(sanPhamChiTiet.getId()) // Lấy danh sách ảnh theo ID sản phẩm chi tiết
-                .stream() // Chuyển danh sách thành Stream để lọc
-                .filter(AnhSanPham::getTrangThai)  // Chỉ lấy ảnh có trạng thái active
-                .map(AnhSanPham::getAnhUrl) // Lấy URL ảnh
-                .findFirst() // Lấy ảnh đầu tiên nếu có
-                .orElse(null); // Nếu không có ảnh nào, trả về null
+        // Lấy tất cả hình ảnh thay vì chỉ lấy hình ảnh đầu tiên
+        List<String> hinhAnh = anhSanPhamRepository
+                .findByIdSPCT(sanPhamChiTiet.getId())
+                .stream()
+                .map(AnhSanPham::getAnhUrl)
+                .collect(Collectors.toList());
 
-        return HoaDonChiTietResponse.builder()
+            return HoaDonChiTietResponse.builder()
                 .id(chiTiet.getId())
                 .sanPhamChiTietId(sanPhamChiTiet.getId())
-                .hinhAnh(hinhAnh) // them hinh anh
+                .hinhAnh(hinhAnh)
                 .tenSanPham(sanPham.getTenSanPham())
                 .maSanPham(sanPham.getMaSanPham())
                 .soLuong(chiTiet.getSoLuong())
                 .gia(sanPhamChiTiet.getGia())
+                .maSanPhamChiTiet(sanPhamChiTiet.getMaSanPhamChiTiet())
                 .thanhTien(sanPhamChiTiet.getGia().multiply(BigDecimal.valueOf(chiTiet.getSoLuong())))
                 .trangThai(chiTiet.getTrangThai())
+                // Thêm các trường thông tin chi tiết
+                .mauSac(sanPhamChiTiet.getMauSac() != null ? sanPhamChiTiet.getMauSac().getTenMau() : null)
+                .maMauSac(sanPhamChiTiet.getMauSac() != null ? sanPhamChiTiet.getMauSac().getMaMau() : null)
+                .chatLieu(sanPhamChiTiet.getChatLieu() != null ? sanPhamChiTiet.getChatLieu().getTenChatLieu() : null)
+                .danhMuc(sanPhamChiTiet.getDanhMuc() != null ? sanPhamChiTiet.getDanhMuc().getTenDanhMuc() : null)
+                .kichThuoc(sanPhamChiTiet.getKichThuoc() != null ? sanPhamChiTiet.getKichThuoc().getTenKichThuoc() : null)
+                .thuongHieu(sanPhamChiTiet.getThuongHieu() != null ? sanPhamChiTiet.getThuongHieu().getTenThuongHieu() : null)
+                .kieuDang(sanPhamChiTiet.getKieuDang() != null ? sanPhamChiTiet.getKieuDang().getTenKieuDang() : null)
+                .kieuCuc(sanPhamChiTiet.getKieuCuc() != null ? sanPhamChiTiet.getKieuCuc().getTenKieuCuc() : null)
+                .kieuCoAo(sanPhamChiTiet.getKieuCoAo() != null ? sanPhamChiTiet.getKieuCoAo().getTenKieuCoAo() : null)
+                .kieuTayAo(sanPhamChiTiet.getKieuTayAo() != null ? sanPhamChiTiet.getKieuTayAo().getTenKieuTayAo() : null)
+                .kieuCoTayAo(sanPhamChiTiet.getKieuCoTayAo() != null ? sanPhamChiTiet.getKieuCoTayAo().getTenKieuCoTayAo() : null)
+                .hoaTiet(sanPhamChiTiet.getHoaTiet() != null ? sanPhamChiTiet.getHoaTiet().getTenHoaTiet() : null)
                 .build();
     }
 
@@ -288,6 +352,7 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .huyen(diaChi.getHuyen())
                 .tinh(diaChi.getTinh())
                 .moTa(diaChi.getMoTa())
+                .diaChiCuThe(diaChi.getDiaChiCuThe())
                 .trangThai(diaChi.getTrangThai())
                 .ngayTao(diaChi.getNgayTao())
                 .ngaySua(diaChi.getNgaySua())
@@ -357,6 +422,7 @@ public class HoaDonMapper implements IHoaDonMapper {
         thanhToan.setHoaDon(hoaDon); // Liên kết với HoaDon
         thanhToan.setPhuongThucThanhToan(phuongThuc);
         thanhToan.setMoTa(phuongThuc.getMoTa());
+        thanhToan.setNguoiTao(currentUserService.getCurrentNhanVien().getTenNhanVien());
         thanhToan.setTrangThai(determineTrangThai(phuongThuc.getId())); // Xác định trạng thái
         return thanhToan;
     }
@@ -397,5 +463,35 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .tenPhieuGiamGia(phieuGiamGia.getTenPhieuGiamGia())
                 .giaTriGiam(phieuGiamGia.getGiaTriGiam())
                 .build();
+    }
+    private String[] tachDiaChi(String diaChi) {
+        if (diaChi == null || diaChi.trim().isEmpty()) {
+            return new String[]{"Không có địa chỉ", "", "", ""};
+        }
+
+        String[] parts = diaChi.split(", ");
+        String tinh = "";
+        String huyen = "";
+        String xa = "";
+        String diaChiCuThe = "";
+
+        // Duyệt từ cuối về đầu để lấy tỉnh -> huyện -> xã
+        for (int i = parts.length - 1; i >= 0; i--) {
+            String part = parts[i];
+
+            if (tinh.isEmpty()) {
+                tinh = part;
+            } else if (huyen.isEmpty() && (part.startsWith("Huyện") || part.startsWith("Quận") || part.startsWith("Thành phố") || part.startsWith("Thị xã"))) {
+                huyen = part;
+            } else if (xa.isEmpty() && (part.startsWith("Xã") || part.startsWith("Phường") || part.startsWith("Thị trấn"))) {
+                xa = part;
+                break; // Dừng lại khi đã lấy được xã/phường/thị trấn
+            }
+        }
+
+        // diaChiCuThe là phần còn lại
+        diaChiCuThe = String.join(", ", Arrays.copyOfRange(parts, 0, Arrays.asList(parts).indexOf(xa)));
+
+        return new String[]{diaChiCuThe, xa, huyen, tinh};
     }
 }

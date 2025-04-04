@@ -4,6 +4,7 @@ import com.example.server.entity.HoaDon;
 import com.example.server.entity.HoaDonChiTiet;
 import com.example.server.entity.PhieuGiamGia;
 import com.example.server.entity.SanPhamChiTiet;
+import com.example.server.service.GiaoHang.AddressCache;
 import com.itextpdf.barcodes.BarcodeQRCode;
 import com.itextpdf.io.font.PdfEncodings;
 import com.itextpdf.kernel.font.PdfFont;
@@ -42,6 +43,7 @@ public class PDFGenerator {
     private static final String SHOP_ADDRESS = "Số 1 Trịnh Văn Bô, Nam Từ Liêm, Hà Nội";
     private static final String SHOP_PHONE = "0123456789";
     private static final String SHOP_EMAIL = "4beeshop@gmail.com";
+    private final AddressCache addressCache;
 
     public byte[] generateInvoicePDF(HoaDon hoaDon) {
         validateInvoiceData(hoaDon);
@@ -70,7 +72,7 @@ public class PDFGenerator {
             addQRCode(document, hoaDon.getMaHoaDon());
             addInvoiceDetails(document, hoaDon);
 
-            addCustomerInfo(document, hoaDon);
+            addCustomerInfo(document, hoaDon);  // 👈 Chỉnh sửa phần hiển thị địa chỉ
             addProductsTable(document, hoaDon.getHoaDonChiTiets());
             addPaymentSummary(document, hoaDon, amounts);
 
@@ -138,6 +140,19 @@ public class PDFGenerator {
             table.setWidth(UnitValue.createPercentValue(100));
             table.addCell(createCell("Tên khách hàng:", true).setBorder(null).setTextAlignment(TextAlignment.LEFT).setPadding(5));
             table.addCell(createCell(hoaDon.getTenNguoiNhan(), false).setBorder(null).setTextAlignment(TextAlignment.LEFT).setWidth(UnitValue.createPercentValue(75)));
+
+            // Nếu là hóa đơn giao hàng (loaiHoaDon = 3), hiển thị thêm địa chỉ
+            String diaChiFormatted = addressCache.getFormattedDiaChi(hoaDon.getDiaChi());
+            if (hoaDon.getLoaiHoaDon() == 3) {
+                table.addCell(createCell("Địa chỉ giao hàng:", true).setBorder(null));
+                table.addCell(createCell(diaChiFormatted != null && !diaChiFormatted.isEmpty() ? diaChiFormatted : "Chưa cung cấp", false)
+                        .setBorder(null)
+                        .setTextAlignment(TextAlignment.LEFT)
+                        .setWidth(UnitValue.createPercentValue(75))
+                        .setPadding(5));
+            }
+
+
             document.add(table);
             document.add(new Paragraph("\n"));
             return;
@@ -162,18 +177,27 @@ public class PDFGenerator {
         table.addCell(createCell("Số điện thoại:", true).setBorder(null));
         table.addCell(createCell(hoaDon.getSoDienThoai(), false).setBorder(null));
 
+        // Chuyển đổi địa chỉ từ ID sang tên đầy đủ
+        String diaChiFormatted = addressCache.getFormattedDiaChi(hoaDon.getDiaChi());
+
+// Kiểm tra nếu địa chỉ không được nhận diện
+        if (diaChiFormatted.contains("Không xác định")) {
+            log.error("⚠ Lỗi: Địa chỉ không được nhận diện cho hóa đơn {}", hoaDon.getId());
+        }
+
         table.addCell(createCell("Địa chỉ:", true).setBorder(null));
-        table.addCell(createCell(hoaDon.getDiaChi(), false)
+        table.addCell(createCell(diaChiFormatted, false)
                 .setBorder(null)
                 .setTextAlignment(TextAlignment.LEFT)
                 .setWidth(UnitValue.createPercentValue(75))
                 .setPadding(5));
 
+
         if (hoaDon.getEmailNguoiNhan() != null && !hoaDon.getEmailNguoiNhan().isEmpty()) {
             table.addCell(createCell("Email:", true).setBorder(null));
             table.addCell(createCell(hoaDon.getEmailNguoiNhan(), false).setBorder(null));
         }
-// Xóa hoặc bỏ qua việc thêm ghi chú
+
         if (hoaDon.getGhiChu() != null && !hoaDon.getGhiChu().isEmpty()) {
             table.addCell(createCell("Ghi chú:", true).setBorder(null));
             table.addCell(createCell(hoaDon.getGhiChu(), false).setBorder(null));
@@ -182,6 +206,7 @@ public class PDFGenerator {
         document.add(table);
         document.add(new Paragraph("\n"));
     }
+
 
 
     private void addProductsTable(Document document, List<HoaDonChiTiet> chiTiets) {

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class SanPhamChiTietServiceImpl implements SanPhamChiTietService {
@@ -56,6 +57,11 @@ public class SanPhamChiTietServiceImpl implements SanPhamChiTietService {
     @Override
     public List<SanPhamChiTiet> findbyIdSanPham(String idSanPham) {
         return sanPhamChiTietRepository.findByIdSanPham(idSanPham);
+    }
+
+    @Override
+    public Optional<SanPhamChiTiet> findByMaSanPhamChiTiet(String maSanPhamChiTiet) {
+        return sanPhamChiTietRepository.findByMaSPCT(maSanPhamChiTiet);
     }
 
     @Override

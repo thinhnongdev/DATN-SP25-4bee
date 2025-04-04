@@ -4,10 +4,7 @@ import com.example.server.dto.HoaDon.response.PhuongThucThanhToanResponse;
 import com.example.server.entity.PhuongThucThanhToan;
 import com.example.server.repository.HoaDon.PhuongThucThanhToanRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,6 +27,19 @@ public class PhuongThucThanhToanController {
                 entity.getMoTa() // Lấy đúng trường mô tả từ database
         )).collect(Collectors.toList());
     }
+
+
+    @GetMapping("/bank-and-cash")
+    public List<PhuongThucThanhToanResponse> getBankAndCashMethods() {
+        List<PhuongThucThanhToan> entities = phuongThucThanhToanRepository.findBankAndCashMethods();
+        return entities.stream().map(entity -> new PhuongThucThanhToanResponse(
+                entity.getId(),
+                entity.getMaPhuongThucThanhToan(),
+                entity.getTenPhuongThucThanhToan(),
+                entity.getMoTa()
+        )).collect(Collectors.toList());
+    }
+
 
 }
 

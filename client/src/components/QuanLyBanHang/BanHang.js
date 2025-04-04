@@ -48,18 +48,19 @@ import {
   EnvironmentOutlined,
   ShoppingOutlined,
   AppstoreOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import { IoIosAddCircle, IoIosAddCircleOutline } from "react-icons/io";
 import { BiQrScan } from "react-icons/bi";
 import { AiOutlineSelect } from "react-icons/ai";
 import { Option } from "antd/es/mentions";
 import axios from "axios";
-import { message } from "antd";
+import { message, notification } from "antd";
 import api from "../../utils/api";
 import { formatCurrency } from "../../utils/format";
 import ProductTable from "../HoaDon/ProductTable";
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import { MenuItem, FormControl, InputLabel } from "@mui/material";
 import { checkPayment } from "./checkPayment"; // Import hàm checkPayment
 import GiaoHang from "./GiaoHang";
@@ -97,27 +98,14 @@ const calculateDiscountAmount = (voucher, total) => {
     // Nếu có giới hạn giảm tối đa và số tiền giảm vượt quá giới hạn
     if (voucher.soTienGiamToiDa && voucher.soTienGiamToiDa > 0) {
       discountAmount = Math.min(discountAmount, voucher.soTienGiamToiDa);
-      console.log("Áp dụng giới hạn tối đa:", discountAmount);
     }
   } else {
     // Loại khác: Giảm theo số tiền cố định
     discountAmount = Math.min(voucher.giaTriGiam, total);
-    console.log("Tính giảm giá cố định:", {
-      fixedAmount: voucher.giaTriGiam,
-      total,
-      finalDiscount: discountAmount,
-    });
   }
 
   // Đảm bảo số tiền giảm không âm và không vượt quá tổng tiền
   discountAmount = Math.max(0, Math.min(discountAmount, total));
-
-  console.log("Kết quả cuối cùng:", {
-    voucherId: voucher.id,
-    voucherCode: voucher.maPhieuGiamGia,
-    total,
-    finalDiscount: discountAmount,
-  });
 
   return discountAmount;
 };
@@ -165,106 +153,126 @@ const BanHang = () => {
   const [isCreateCustomerModalVisible, setIsCreateCustomerModalVisible] =
     useState(false);
   const [qrCode, setQrCode] = useState(""); // Thêm state này để lưu mã QR
+  const token = localStorage.getItem("token"); // Lấy token từ localStorage
   const [calculatingShippingFee, setCalculatingShippingFee] = useState(false);
   const [isQrScannerVisible, setIsQrScannerVisible] = useState(false);
   const [scanningForHoaDonId, setScanningForHoaDonId] = useState(null);
   const [modalHandlers, setModalHandlers] = useState({
-  onCancel: () => setIsModalVisiblePaymentQR(false),
-  onOk: () => setIsModalVisiblePaymentQR(false)
-});
-const token = localStorage.getItem("token"); // Lấy token từ localStorage
-  
-    // Add function to calculate all totals for an order
-    const calculateOrderTotals = (hoaDonId, productsOverride, orderOverride) => {
-      console.log("Calculating totals for order:", hoaDonId);
-  
-      // Sử dụng dữ liệu override nếu có, ngược lại lấy từ state
-      const products = productsOverride || orderProducts[hoaDonId] || [];
-      const order =
-        orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
-  
-      if (!order) {
-        console.warn("No order found for totals calculation");
-        return {
-          subtotal: 0,
-          shippingFee: 0,
-          totalBeforeVoucher: 0,
-          discountAmount: 0,
-          finalTotal: 0,
-          voucherType: null,
-          voucherValue: null,
-        };
-      }
+    onCancel: () => setIsModalVisiblePaymentQR(false),
+    onOk: () => setIsModalVisiblePaymentQR(false),
+  });
+  const [hoaDonId, setHoaDonId] = useState(null); // Thêm state để lưu trữ hoaDonId hiện tại
 
-      // Tính tổng tiền sản phẩm
-      const subtotal = calculateTotalBeforeDiscount(products);
-  
-      // Lấy phí vận chuyển từ order
-      const shippingFee = order.phiVanChuyen || 0;
-  
-      // QUAN TRỌNG: Tổng tiền trước khi áp dụng voucher (KHÔNG bao gồm phí vận chuyển)
-      // Voucher chỉ áp dụng cho tiền hàng, không áp dụng cho phí vận chuyển
-      const totalBeforeVoucher = subtotal;
-  
-      // Tính toán giảm giá dựa trên voucher
-      let discountAmount = 0;
-      let voucherType = null;
-      let voucherValue = null;
-  
-      if (order.phieuGiamGia) {
-        // Chuyển đổi sang số nếu cần
-        voucherType = Number(order.phieuGiamGia.loaiPhieuGiamGia);
-        voucherValue = order.phieuGiamGia.giaTriGiam;
-  
-        // QUAN TRỌNG: Áp dụng voucher chỉ trên giá trị sản phẩm, không bao gồm phí vận chuyển
-        const amountForDiscount = subtotal; // Chỉ áp dụng voucher cho tiền hàng
-  
-        discountAmount = calculateDiscountAmount(
-          {
-            ...order.phieuGiamGia,
-            loaiPhieuGiamGia: voucherType,
-          },
-          amountForDiscount
-        );
+  // Thêm state để quản lý interval
+  const [pollingInterval, setPollingInterval] = useState(null);
+
+  // Hàm fetch dữ liệu mới
+  const fetchLatestData = async () => {
+    try {
+      if (hoaDonId) {
+        await fetchInvoiceProducts(hoaDonId);
+        await fetchPaymentHistory();
       }
-  
-      // Tổng tiền cuối cùng = tiền hàng - giảm giá + phí vận chuyển
-      const finalTotal = subtotal - discountAmount + shippingFee;
-  
-      console.log("📊 Chi tiết tính toán:", {
-        subtotal,
-        shippingFee,
-        totalBeforeVoucher,
-        discountAmount,
-        finalTotal,
-        voucher: order.phieuGiamGia,
-        voucherType,
-        voucherValue,
-      });
-  
+    } catch (error) {
+      console.error("Lỗi khi cập nhật dữ liệu:", error);
+    }
+  };
+
+  // Khởi tạo polling khi component mount
+  useEffect(() => {
+    // Bắt đầu polling mỗi 5 giây
+    const interval = setInterval(fetchLatestData, 5000);
+    setPollingInterval(interval);
+
+    // Cleanup khi component unmount
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [hoaDonId]);
+
+  // Dừng polling khi component unmount hoặc khi hoaDonId thay đổi
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [hoaDonId]);
+
+  // Add function to calculate all totals for an order
+  const calculateOrderTotals = (hoaDonId, productsOverride, orderOverride) => {
+    // Use override data if provided, otherwise get from state
+    const products = productsOverride || orderProducts[hoaDonId] || [];
+    const order =
+      orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
+
+    if (!order) {
+      console.warn("No order found for totals calculation");
       return {
-        subtotal,
-        shippingFee,
-        totalBeforeVoucher,
-        discountAmount,
-        finalTotal,
-        voucherType,
-        voucherValue,
+        subtotal: 0,
+        shippingFee: 0,
+        totalBeforeVoucher: 0,
+        discountAmount: 0,
+        finalTotal: 0,
+        voucherType: null,
+        voucherValue: null,
       };
+    }
+
+    // Calculate product subtotal
+    const subtotal = calculateTotalBeforeDiscount(products);
+
+    // Get shipping fee from order
+    const shippingFee = order.phiVanChuyen || 0;
+
+    // IMPORTANT: Use discount amount directly from the server (giamGia)
+    // This ensures we're using the same calculation logic as the backend
+    let discountAmount = order.giamGia || 0;
+
+    // If order.giamGia is not available, calculate it based on the voucher
+    if (!order.giamGia && order.phieuGiamGia) {
+      const voucherType = Number(order.phieuGiamGia.loaiPhieuGiamGia);
+
+      // Apply voucher only on product subtotal, not including shipping
+      discountAmount = calculateDiscountAmount(
+        {
+          ...order.phieuGiamGia,
+          loaiPhieuGiamGia: voucherType,
+        },
+        subtotal
+      );
+    }
+
+    // Final total = subtotal + shipping fee - discount
+    const finalTotal = subtotal + shippingFee - discountAmount;
+
+    return {
+      subtotal,
+      shippingFee,
+      totalBeforeVoucher: subtotal, // For voucher calculation purposes
+      discountAmount,
+      finalTotal,
+      voucherType: order.phieuGiamGia
+        ? Number(order.phieuGiamGia.loaiPhieuGiamGia)
+        : null,
+      voucherValue: order.phieuGiamGia ? order.phieuGiamGia.giaTriGiam : null,
     };
-    
-    // Update calculateTotalBeforeDiscount to handle undefined/null cases
-    const calculateTotalBeforeDiscount = (products) => {
-      if (!products || !Array.isArray(products)) {
-        return 0;
-      }
-      return products.reduce((sum, product) => {
-        const price = product.gia || 0;
-        const quantity = product.soLuong || 0;
-        return sum + price * quantity;
-      }, 0);
-    };
-    
+  };
+
+  // Update calculateTotalBeforeDiscount to handle undefined/null cases
+  const calculateTotalBeforeDiscount = (products) => {
+    if (!products || !Array.isArray(products)) {
+      return 0;
+    }
+    return products.reduce((sum, product) => {
+      const price = product.gia || 0;
+      const quantity = product.soLuong || 0;
+      return sum + price * quantity;
+    }, 0);
+  };
+
   // Thêm vào component BanHang
   const giaoHangRef = useRef(null);
   useEffect(() => {
@@ -410,7 +418,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
 
     const payload = {
       diaChiId: address.id, // Đúng key như backend mong đợi
-      moTa: address.moTa,
+      diaChiCuThe: address.diaChiCuThe,
       xa: address.xa,
       huyen: address.huyen,
       tinh: address.tinh,
@@ -426,8 +434,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
-        
+        }
       );
 
       setTabs((prev) =>
@@ -437,8 +444,6 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
             : tab
         )
       );
-
-      message.success("Đã cập nhật địa chỉ giao hàng.");
     } catch (error) {
       console.error("Lỗi khi cập nhật địa chỉ vào hóa đơn:", error);
       // message.error("Không thể cập nhật địa chỉ giao hàng, vui lòng thử lại.");
@@ -510,10 +515,13 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{record.tenSanPham}</Typography.Text>
           <Typography.Text type="secondary">
-            Mã: {record.maSanPham}
+            Mã: {record.maSanPhamChiTiet}
           </Typography.Text>
           <Typography.Text type="secondary">
             Chất liệu: {record.chatLieu}
+          </Typography.Text>
+          <Typography.Text type="secondary">
+            Kiểu tay áo: {record.kieuTayAo}
           </Typography.Text>
         </Space>
       ),
@@ -619,8 +627,6 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
       const orders = response.data;
 
       if (orders.length > 0) {
-        console.log("Danh sách hóa đơn từ server:", orders);
-
         const newTabs = orders.map((order, index) => ({
           key: order.id,
           title: `Đơn hàng ${index + 1} - ${order.maHoaDon}`,
@@ -689,79 +695,18 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
   useEffect(() => {
     const initializeData = async () => {
       try {
-        // Đặt cờ để tránh các cập nhật không cần thiết
-        const isInitializing = true;
-
-        // Tải phương thức thanh toán
-        const paymentResponse = await api.get(
-          "/api/admin/phuong-thuc-thanh-toan",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`, // Thêm token vào header
-            },
-          }
-        );
-        setPaymentMethods(paymentResponse.data);
-
-        // Khôi phục dữ liệu từ localStorage trước
-        const savedOrders = localStorage.getItem("pendingOrders");
-        const savedProducts = localStorage.getItem("orderProducts");
-        const savedTotals = localStorage.getItem("orderTotals");
-
-        if (savedOrders) {
-          setTabs(JSON.parse(savedOrders));
-        }
-        if (savedProducts) {
-          setOrderProducts(JSON.parse(savedProducts));
-        }
-        if (savedTotals) {
-          const parsedTotals = JSON.parse(savedTotals);
-          setTotals(parsedTotals);
-
-          // Nếu có activeKey, cập nhật tổng tiền ngay lập tức
-          const firstOrderId = JSON.parse(savedOrders)?.[0]?.key;
-          if (firstOrderId && parsedTotals[firstOrderId]) {
-            setTotalBeforeDiscount(parsedTotals[firstOrderId].subtotal);
-            setTotalAmount(parsedTotals[firstOrderId].finalTotal);
-          }
-        }
-
-        // Sau đó mới gọi API để cập nhật dữ liệu mới nhất
-        await fetchPendingOrders(true); // Truyền tham số true để đánh dấu đây là lần khởi tạo
-        // QUAN TRỌNG: Sau khi tải xong dữ liệu, tính lại tổng tiền và giảm giá cho tất cả tabs
-        if (tabs && tabs.length > 0) {
-          // Tạo một phiên bản mới của totals để cập nhật
-          const newTotals = {};
-
-          // Tính toán lại totals cho từng order
-          for (const tab of tabs) {
-            if (tab.key && tab.order) {
-              // Tính toán chính xác discountAmount cho mỗi order
-              const recalculatedTotals = calculateOrderTotals(tab.key);
-              if (recalculatedTotals) {
-                newTotals[tab.key] = recalculatedTotals;
-              }
-            }
-          }
-
-          // Cập nhật state với tất cả giá trị đã tính lại
-          setTotals(newTotals);
-
-          // Cập nhật UI cho tab hiện tại nếu có
-          if (activeKey && newTotals[activeKey]) {
-            setTotalBeforeDiscount(newTotals[activeKey].subtotal);
-            setTotalAmount(newTotals[activeKey].finalTotal);
-          }
-        }
+        await fetchProducts();
+        await fetchPendingOrders();
+        await fetchPaymentMethods();
+        await loadCustomers();
       } catch (error) {
-        console.error("Lỗi khởi tạo dữ liệu:", error);
+        console.error("Lỗi khi khởi tạo dữ liệu:", error);
+        message.error("Không thể tải dữ liệu ban đầu");
       }
     };
 
     initializeData();
-
-    // Chỉ chạy một lần khi component mount
-  }, []);
+  }, []); // Chỉ chạy một lần khi component mount
 
   // Cập nhật useEffect cho việc chọn tab để tải lại dữ liệu chính xác
   useEffect(() => {
@@ -814,51 +759,6 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
     }
   }, [activeKey]);
 
-  // Add WebSocket connection setup
-  useEffect(() => {
-    // Initialize WebSocket connection
-    const socket = new SockJS("http://localhost:8080/ws");
-    const stompClient = new Client({
-      webSocketFactory: () => socket,
-      onConnect: () => {
-        console.log("✅ WebSocket connected");
-
-        // Subscribe to pending orders updates
-        stompClient.subscribe("/topic/hoa-don-cho", (message) => {
-          console.log("🔄 Pending orders updated");
-          fetchPendingOrders();
-        });
-
-        // Subscribe to individual order updates
-        tabs.forEach((tab) => {
-          stompClient.subscribe(`/topic/hoa-don/${tab.key}`, (message) => {
-            console.log(`🔄 Order ${tab.key} updated`);
-            fetchInvoiceProducts(tab.key).then((products) => {
-              setOrderProducts((prev) => ({
-                ...prev,
-                [tab.key]: products,
-              }));
-            });
-          });
-        });
-      },
-      onStompError: (frame) => {
-        console.error("STOMP error:", frame.headers["message"]);
-        console.error("STOMP error details:", frame.body);
-      },
-      onWebSocketError: (event) => {
-        console.error("WebSocket error:", event);
-      },
-      onDisconnect: () => console.log("❌ WebSocket disconnected"),
-    });
-
-    stompClient.activate();
-
-    return () => {
-      stompClient.deactivate();
-    };
-  }, [tabs]); // Reconnect when tabs change
-
   // Add this useEffect for initialization
   useEffect(() => {
     setOrderProducts({});
@@ -886,8 +786,8 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         },
         {
           headers: {
-        Authorization: `Bearer ${token}`, // Headers go here as third parameter
-          }
+            Authorization: `Bearer ${token}`, // Headers go here as third parameter
+          },
         }
       );
 
@@ -1007,6 +907,9 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
       message.success(
         `Đã thêm ${product.tenSanPham || "sản phẩm"} vào đơn hàng`
       );
+
+      // Fetch dữ liệu mới ngay lập tức sau khi thêm sản phẩm
+      await fetchLatestData();
     } catch (error) {
       console.error("Lỗi khi thêm sản phẩm:", error);
       let errorMessage = "Lỗi khi thêm sản phẩm";
@@ -1063,7 +966,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
 
       // 🟢 Tự động áp dụng mã giảm giá tốt nhất
       await autoApplyBestVoucher(hoaDonId);
-      await fetchInvoiceProducts(hoaDonId);
+      await fetchLatestData();
       await findBestVoucherAndSuggest(hoaDonId);
     } catch (error) {
       console.error("Lỗi khi cập nhật số lượng:", error);
@@ -1148,6 +1051,9 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
       await findBestVoucherAndSuggest(hoaDonId);
 
       message.success("Đã xóa sản phẩm khỏi đơn hàng");
+
+      // Fetch dữ liệu mới sau khi xóa
+      await fetchLatestData();
     } catch (error) {
       console.error("Lỗi khi xóa sản phẩm:", error);
 
@@ -1167,7 +1073,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
   // 6. Apply voucher
   const handleVoucherSelected = async (hoaDonId, voucherId) => {
     try {
-      console.log("🔄 Áp dụng voucher:", { hoaDonId, voucherId });
+      console.log(" Áp dụng voucher:", { hoaDonId, voucherId });
 
       if (!hoaDonId || !voucherId) {
         message.error("Không thể áp dụng voucher");
@@ -1185,7 +1091,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
       );
 
       if (!response.data) {
-        throw new Error("❌ Dữ liệu trả về từ API không hợp lệ.");
+        throw new Error(" Dữ liệu trả về từ API không hợp lệ.");
       }
 
       const updatedOrder = response.data;
@@ -1201,7 +1107,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
 
       console.log("📌 Debug - Tổng tiền sau khi áp dụng voucher:", newTotals);
 
-      // ✅ Cập nhật state theo đúng trình tự
+      //  Cập nhật state theo đúng trình tự
       setTabs((prev) =>
         prev.map((tab) =>
           tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
@@ -1221,7 +1127,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
       setOpenVoucherDialog(false);
       message.success("🎉 Áp dụng voucher thành công!");
     } catch (error) {
-      console.error("❌ Lỗi khi áp dụng voucher:", error);
+      console.error(" Lỗi khi áp dụng voucher:", error);
       message.error("Lỗi khi áp dụng voucher, vui lòng thử lại.");
     }
   };
@@ -1284,8 +1190,12 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
 
   const fetchAvailableVouchers = async () => {
     try {
+      // Get the current order to extract customer information
+      const currentOrder = tabs.find((tab) => tab.key === activeKey)?.order;
+      const customerId = currentOrder?.khachHang?.id || ""; // Default to empty string if no customer
+
       const response = await api.get(
-        `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeDiscount}`,
+        `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeDiscount}&customerId=${customerId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
@@ -1312,7 +1222,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
     try {
       const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
       const currentProducts = orderProducts[hoaDonId] || [];
-  
+
       // Kiểm tra có sản phẩm trong đơn hàng hay không
       if (!currentProducts || currentProducts.length === 0) {
         message.error(
@@ -1320,7 +1230,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         );
         return;
       }
-  
+
       if (
         !currentOrder ||
         !currentOrder.thanhToans ||
@@ -1331,16 +1241,48 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         );
         return;
       }
-  
-      if (currentOrder.loaiHoaDon === 3 && !selectedAddress) {
-        message.error("Vui lòng chọn địa chỉ giao hàng trước khi tiếp tục.");
-        return;
+
+      // Trong hàm handleConfirmOrder
+      if (currentOrder.loaiHoaDon === 3) {
+        // Giao hàng
+        if (!selectedAddress) {
+          // Kiểm tra xem có địa chỉ trong hóa đơn không
+          try {
+            const addressDetailsResponse = await axios.get(
+              `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+
+            const addressDetails = addressDetailsResponse.data;
+            if (
+              !addressDetails ||
+              !addressDetails.tinh ||
+              !addressDetails.huyen ||
+              !addressDetails.xa
+            ) {
+              message.error(
+                "Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục."
+              );
+              return;
+            }
+          } catch (error) {
+            console.error("Lỗi khi kiểm tra địa chỉ hóa đơn:", error);
+            message.error(
+              "Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục."
+            );
+            return;
+          }
+        }
       }
-  
+
       // Kiểm tra tổng số tiền thanh toán có khớp không
       const totalNeeded = totals[hoaDonId]?.finalTotal || 0;
       const { remaining } = calculateChange(hoaDonId);
-  
+
       // Nếu còn thiếu tiền, thông báo lỗi
       if (remaining > 0) {
         message.error(
@@ -1348,94 +1290,94 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         );
         return;
       }
-  
+
       // Lọc danh sách thanh toán chỉ lấy những cái có số tiền > 0
       const validPayments = currentOrder.thanhToans.filter(
         (p) => p && p.soTien > 0
       );
-  
+
       const cashPayment = validPayments.find(
         (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
       );
       const transferPayment = validPayments.find(
         (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
       );
-  
-            // Bước 1: Xử lý thanh toán QR trước (nếu có)
-            let qrPaymentSuccess = true;
-            if (transferPayment && transferPayment.soTien > 0) {
-              // Tạo mã QR với số tiền cần chuyển khoản
-              generateQR(hoaDonId, transferPayment.soTien);
-              
-              try {
-                // Chờ người dùng quét mã và thanh toán
-                const loadingMsg = message.loading(
-                  "Vui lòng quét mã QR và hoàn tất thanh toán",
-                  0
-                );
-                
-                // Tạo một biến để lưu hàm cancel bên ngoài promise
-                let cancelPaymentCheck = null;
-            
-                // Tạo một Promise có thể cancel
-                const paymentPromise = new Promise(async (resolve, reject) => {
-                  let isPaid = false;
-                  let attempts = 0;
-                  const maxAttempts = 60; // Chờ tối đa 60 giây
-                  
-                  // Lưu trữ function để có thể cancel check payment loop
-                  cancelPaymentCheck = () => {
-                    reject(new Error('Payment cancelled'));
-                  };
-            
-                  while (!isPaid && attempts < maxAttempts) {
-                    isPaid = await checkPayment(hoaDonId, transferPayment.soTien);
-                    if (isPaid) {
-                      resolve(true);
-                      break;
-                    }
-                    await new Promise(r => setTimeout(r, 2000));
-                    attempts++;
-                  }
-                  
-                  if (!isPaid) {
-                    reject(new Error('Payment timeout'));
-                  }
-                });
-            
-                // Hiển thị QR code trong modal hiện có thay vì sử dụng Modal.info
-                setIsModalVisiblePaymentQR(true);
-                
-                // Bổ sung xử lý hủy thanh toán cho modal
-                const handleQrModalCancel = () => {
-                  if (cancelPaymentCheck) cancelPaymentCheck();
-                  setIsModalVisiblePaymentQR(false);
-                  loadingMsg(); // Hủy thông báo loading
-                };
-                
-                // Gán handler cho sự kiện đóng modal (thực hiện trong useEffect hoặc custom hook)
-                // Lưu vào state để truy cập từ modal component
-                setModalHandlers({
-                  onCancel: handleQrModalCancel,
-                  onOk: () => {
-                    setIsModalVisiblePaymentQR(false);
-                    loadingMsg(); // Hủy thông báo loading
-                  }
-                });
-            
-                await paymentPromise;
-                
-                loadingMsg();
-                setIsModalVisiblePaymentQR(false);
-                message.success("Đã nhận được thanh toán chuyển khoản!");
-              } catch (error) {
-                setIsModalVisiblePaymentQR(false);
-                message.error("Chưa nhận được thanh toán chuyển khoản, vui lòng thử lại!");
-                qrPaymentSuccess = false;
-                return;
+
+      // Bước 1: Xử lý thanh toán QR trước (nếu có)
+      let qrPaymentSuccess = true;
+      if (transferPayment && transferPayment.soTien > 0) {
+        // Tạo mã QR với số tiền cần chuyển khoản
+        generateQR(hoaDonId, transferPayment.soTien);
+
+        try {
+          // Chờ người dùng quét mã và thanh toán
+          const loadingMsg = message.loading(
+            "Vui lòng quét mã QR và hoàn tất thanh toán",
+            0
+          );
+
+          // Tạo một biến để lưu hàm cancel bên ngoài promise
+          let cancelPaymentCheck = null;
+
+          // Tạo một Promise có thể cancel
+          const paymentPromise = new Promise(async (resolve, reject) => {
+            let isPaid = false;
+            let attempts = 0;
+            const maxAttempts = 60; // Chờ tối đa 60 giây
+
+            // Lưu trữ function để có thể cancel check payment loop
+            cancelPaymentCheck = () => {
+              reject(new Error("Payment cancelled"));
+            };
+
+            while (!isPaid && attempts < maxAttempts) {
+              isPaid = await checkPayment(hoaDonId, transferPayment.soTien);
+              if (isPaid) {
+                resolve(true);
+                break;
               }
+              await new Promise((r) => setTimeout(r, 2000));
+              attempts++;
             }
-  
+
+            if (!isPaid) {
+              reject(new Error("Payment timeout"));
+            }
+          });
+
+          // Hiển thị QR code trong modal hiện có thay vì sử dụng Modal.info
+          setIsModalVisiblePaymentQR(true);
+
+          // Bổ sung xử lý hủy thanh toán cho modal
+          const handleQrModalCancel = () => {
+            if (cancelPaymentCheck) cancelPaymentCheck();
+            setIsModalVisiblePaymentQR(false);
+            loadingMsg(); // Hủy thông báo loading
+          };
+
+          setModalHandlers({
+            onCancel: handleQrModalCancel,
+            onOk: () => {
+              setIsModalVisiblePaymentQR(false);
+              loadingMsg();
+            },
+          });
+
+          await paymentPromise;
+
+          loadingMsg();
+          setIsModalVisiblePaymentQR(false);
+          message.success("Đã nhận được thanh toán chuyển khoản!");
+        } catch (error) {
+          setIsModalVisiblePaymentQR(false);
+          message.error(
+            "Chưa nhận được thanh toán chuyển khoản, vui lòng thử lại!"
+          );
+          qrPaymentSuccess = false;
+          return;
+        }
+      }
+
       // Bước 2: Nếu thanh toán QR thành công (hoặc không có QR), hiển thị hộp thoại xác nhận
       if (qrPaymentSuccess) {
         Modal.confirm({
@@ -1472,18 +1414,40 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
           okText: "Xác nhận",
           cancelText: "Hủy",
           onOk: async () => {
-            // Xử lý danh sách thanh toán trước khi gửi đi
-            const paymentsWithIds = validPayments.map((p) => ({
-              id: p.id || `${hoaDonId}_${p.maPhuongThucThanhToan}`,
-              maPhuongThucThanhToan: p.maPhuongThucThanhToan,
-              soTien: p.soTien,
-            }));
-  
-            // Gửi API hoàn tất thanh toán
+            // Điều chỉnh số tiền thanh toán trước khi gửi API
+            const adjustedPayments = validPayments.map((p, index) => {
+              let adjustedAmount = p.soTien;
+
+              // Nếu là phương thức thanh toán cuối và tổng thanh toán vượt quá
+              if (index === validPayments.length - 1) {
+                const previousTotal = validPayments
+                  .slice(0, -1)
+                  .reduce((sum, payment) => sum + payment.soTien, 0);
+
+                // Điều chỉnh số tiền của phương thức cuối để tổng bằng đúng giá trị đơn hàng
+                if (previousTotal < totalNeeded) {
+                  adjustedAmount = totalNeeded - previousTotal;
+                } else if (previousTotal >= totalNeeded) {
+                  adjustedAmount = 0;
+                }
+              }
+              // Nếu không phải phương thức cuối, giữ nguyên số tiền nhưng không vượt quá tổng cần thanh toán
+              else {
+                adjustedAmount = Math.min(p.soTien, totalNeeded);
+              }
+
+              return {
+                id: p.id || `${hoaDonId}_${p.maPhuongThucThanhToan}`,
+                maPhuongThucThanhToan: p.maPhuongThucThanhToan,
+                soTien: adjustedAmount,
+              };
+            });
+
+            // Gửi API hoàn tất thanh toán với số tiền đã điều chỉnh
             await api.post(
               `/api/admin/ban-hang/${hoaDonId}/complete`,
               {
-                thanhToans: paymentsWithIds
+                thanhToans: adjustedPayments,
               },
               {
                 headers: {
@@ -1491,25 +1455,23 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                 },
               }
             );
-  
+
             // Xử lý tiền thừa nếu có
             const { change } = calculateChange(hoaDonId);
             if (change > 0) {
               message.success(`Tiền thừa: ${formatCurrency(change)}`);
             }
-  
+
             await completeOrderProcess(hoaDonId);
           },
         });
       }
+
+      // Fetch dữ liệu mới sau khi xác nhận
+      await fetchLatestData();
     } catch (error) {
       console.error("Lỗi khi xác nhận đơn hàng:", error);
-      let errorMsg = "Lỗi khi xác nhận đơn hàng!";
-      if (error.response && error.response.data) {
-        errorMsg = error.response.data.message || errorMsg;
-        console.error("Chi tiết lỗi:", error.response.data);
-      }
-      message.error(errorMsg);
+      message.error("Không thể xác nhận đơn hàng");
     }
   };
 
@@ -1564,7 +1526,6 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         headers: {
           Authorization: `Bearer ${token}`, // Thêm token vào header
         },
-        
       });
 
       const blob = new Blob([response.data], { type: "application/pdf" });
@@ -1578,8 +1539,6 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
   // Cập nhật lại findBestVoucherAndSuggest để sử dụng hàm helper
   const findBestVoucherAndSuggest = async (hoaDonId) => {
     try {
-      console.log("🔍 Tìm voucher tốt hơn cho đơn hàng:", hoaDonId);
-
       const order = tabs.find((tab) => tab.key === hoaDonId)?.order;
       if (!order) {
         console.warn("⚠️ Không tìm thấy đơn hàng");
@@ -1588,6 +1547,9 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
 
       const currentProducts = orderProducts[hoaDonId] || [];
       const currentTotal = totals[hoaDonId]?.totalBeforeVoucher || 0;
+
+      // Get customer ID from order
+      const customerId = order.khachHang?.id || "";
 
       // Kiểm tra nếu tổng tiền quá nhỏ, không cần tìm voucher
       if (currentTotal < 10000) {
@@ -1599,22 +1561,37 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
       }
 
       // Sử dụng cache để tránh gọi API liên tục
-      const cacheKey = `active_vouchers_${Math.floor(currentTotal / 10000)}`;
+      const cacheKey = `active_vouchers_${Math.floor(
+        currentTotal / 10000
+      )}_${customerId}`;
       let allVouchers = sessionStorage.getItem(cacheKey);
 
       if (!allVouchers) {
         // Lấy danh sách voucher đang hoạt động
-        const response = await api.get("/api/phieu-giam-gia/active", {
-          headers: {
-            Authorization: `Bearer ${token}`, // Thêm token vào header
-          },
-        });
+        const response = await api.get(
+          `/api/admin/phieu-giam-gia/active?customerId=${customerId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`, // Thêm token vào header
+            },
+          }
+        );
         allVouchers = response.data || [];
         sessionStorage.setItem(cacheKey, JSON.stringify(allVouchers));
       } else {
         allVouchers = JSON.parse(allVouchers);
       }
-
+      // THÊM: Lọc voucher còn số lượng
+      allVouchers = allVouchers.filter((voucher) => {
+        // Chỉ kiểm tra số lượng còn lại
+        if (voucher.soLuong !== undefined && voucher.soLuong <= 0) {
+          console.log(
+            `🎫 Bỏ qua voucher ${voucher.maPhieuGiamGia} - Hết số lượng`
+          );
+          return false;
+        }
+        return true;
+      });
       // Tính giảm giá hiện tại
       const currentDiscount = order.phieuGiamGia
         ? calculateDiscountAmount(order.phieuGiamGia, currentTotal)
@@ -1625,6 +1602,11 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         .filter((voucher) => {
           if (voucher.id === order.phieuGiamGia?.id) return false;
 
+          // Kiểm tra điều kiện áp dụng voucher
+          const amountNeeded = Math.max(
+            0,
+            voucher.giaTriToiThieu - currentTotal
+          );
           const potentialDiscount = calculateDiscountAmount(
             voucher,
             Math.max(currentTotal, voucher.giaTriToiThieu)
@@ -1644,6 +1626,13 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
               voucher,
               Math.max(currentTotal, voucher.giaTriToiThieu)
             ) - currentDiscount,
+          // Update the canApply condition to use currentTotal directly
+          canApply: currentTotal >= voucher.giaTriToiThieu,
+          debug: {
+            currentTotal,
+            minRequired: voucher.giaTriToiThieu,
+            difference: currentTotal - voucher.giaTriToiThieu,
+          },
         }))
         .sort((a, b) => b.additionalSavings - a.additionalSavings)
         .slice(0, 3); // Giới hạn chỉ 3 voucher tốt nhất
@@ -1675,7 +1664,6 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
           !storeProductsFetchTime ||
           now - storeProductsFetchTime > 300000
         ) {
-          console.log("🔄 Tải lại danh sách sản phẩm từ API...");
           try {
             const response = await api.get(
               "/api/admin/sanpham/chitietsanpham",
@@ -1709,12 +1697,11 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
             );
             sessionStorage.setItem("store_products_fetch_time", now.toString());
           } catch (error) {
-            console.error("❌ Lỗi khi lấy danh sách sản phẩm:", error);
+            console.error(" Lỗi khi lấy danh sách sản phẩm:", error);
             allStoreProducts = [];
           }
         } else {
           allStoreProducts = JSON.parse(allStoreProducts);
-          console.log("✅ Sử dụng danh sách sản phẩm từ cache");
         }
 
         // Danh sách ID sản phẩm đã có trong đơn hàng
@@ -1845,7 +1832,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         });
       }
     } catch (error) {
-      console.error("❌ Lỗi khi tìm voucher tốt hơn:", error);
+      console.error(" Lỗi khi tìm voucher tốt hơn:", error);
       setVoucherSuggestions({
         show: false,
         betterVouchers: [],
@@ -1915,12 +1902,11 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
       // Gọi API để áp dụng voucher
       const response = await api.post(
         `/api/admin/hoa-don/${hoaDonId}/voucher`,
+        { voucherId: voucherId },
         {
-          voucherId: voucherId,
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-          
         }
       );
 
@@ -1984,9 +1970,8 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
         payload,
         {
           headers: {
-            Authorization: `Bearer ${token}`, // Thêm token vào header
+            Authorization: `Bearer ${token}`,
           },
-          
         }
       );
 
@@ -2130,14 +2115,10 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
   // Gợi ý mua thêm tiền để áp dụng mã giảm giá tốt hơn
   useEffect(() => {
     if (activeKey && orderProducts[activeKey]) {
-      console.log("🔄 Cập nhật tổng tiền...");
-
       // 🟢 Tính tổng tiền trước khi cập nhật vào `totals`
       const newTotals = calculateOrderTotals(activeKey);
       setTotals((prev) => ({ ...prev, [activeKey]: newTotals }));
       setTotalAmount(newTotals.finalTotal);
-
-      console.log("📌 Tổng tiền mới:", newTotals);
     }
   }, [orderProducts, activeKey]);
 
@@ -2147,7 +2128,6 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
       totals[activeKey] &&
       totals[activeKey].totalBeforeVoucher > 0
     ) {
-      console.log("🔄 Tổng tiền đã cập nhật, tìm voucher tốt nhất...");
       findBestVoucherAndSuggest(activeKey);
     }
   }, [totals, activeKey]); // Chỉ chạy khi tổng tiền thay đổi
@@ -2256,6 +2236,7 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                 padding: "10px",
               }}
             >
+              {/* Phần chọn khách hàng - đưa lên trước Radio.Group */}
               <Row>
                 <Col span={10}>
                   <Text>Khách hàng</Text>
@@ -2293,6 +2274,8 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
               <div
                 style={{ margin: "16px 0", borderBottom: "1px solid #ccc" }}
               ></div>
+
+              {/* Phần chọn loại hóa đơn */}
               <Row>
                 <Col span={24}>
                   <Radio.Group
@@ -2307,25 +2290,17 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                 </Col>
               </Row>
 
-              {/* Chỉ hiển thị GiaoHang khi chọn "Giao hàng" và có khách hàng */}
+              {/* Chỉ hiển thị GiaoHang khi chọn "Giao hàng"*/}
               {order.loaiHoaDon === 3 && (
                 <>
                   <div style={{ marginTop: 10 }}>
-                    {order.khachHang ? (
-                      <GiaoHang
-                        ref={giaoHangRef}
-                        customerId={selectedCustomer?.id}
-                        hoaDonId={activeKey}
-                        onAddressSelect={handleAddressSelect}
-                        onShippingFeeUpdate={handleShippingFeeUpdate} // Thêm prop này
-                      />
-                    ) : (
-                      <Alert
-                        message="Vui lòng chọn khách hàng trước khi thiết lập địa chỉ giao hàng"
-                        type="warning"
-                        showIcon
-                      />
-                    )}
+                    <GiaoHang
+                      ref={giaoHangRef}
+                      customerId={order.khachHang?.id}
+                      hoaDonId={activeKey}
+                      onAddressSelect={handleAddressSelect}
+                      onShippingFeeUpdate={handleShippingFeeUpdate}
+                    />
                   </div>
                 </>
               )}
@@ -2678,17 +2653,25 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                           <>
                             {order.phieuGiamGia.giaTriGiam}% (
                             {formatCurrency(
-                              totals[order.id]?.discountAmount || 0
+                              order.giamGia ||
+                                totals[order.id]?.discountAmount ||
+                                0
                             )}
                             )
                           </>
                         ) : (
-                          formatCurrency(totals[order.id]?.discountAmount || 0)
+                          formatCurrency(
+                            order.giamGia ||
+                              totals[order.id]?.discountAmount ||
+                              0
+                          )
                         )}
                       </Text>
                     ) : (
                       <Text>
-                        {formatCurrency(totals[order.id]?.discountAmount || 0)}
+                        {formatCurrency(
+                          order.giamGia || totals[order.id]?.discountAmount || 0
+                        )}
                       </Text>
                     )}
                   </Col>
@@ -2897,9 +2880,15 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                                   voucher.id
                                 )
                               }
-                              disabled={voucher.amountNeeded > 0}
+                              disabled={
+                                totals[order.id]?.totalBeforeVoucher <
+                                voucher.giaTriToiThieu
+                              }
                             >
-                              {voucher.amountNeeded > 0 ? "Chưa đủ" : "Áp dụng"}
+                              {totals[order.id]?.totalBeforeVoucher >=
+                              voucher.giaTriToiThieu
+                                ? "Áp dụng"
+                                : "Chưa đủ"}
                             </Button>
                           }
                         >
@@ -2929,13 +2918,35 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                                 {formatCurrency(voucher.giaTriToiThieu)}
                               </Text>
                             </div>
-
                             {voucher.amountNeeded > 0 && (
                               <Alert
                                 type="warning"
-                                message={`Cần mua thêm ${formatCurrency(
-                                  voucher.amountNeeded
-                                )}`}
+                                message={
+                                  <Space>
+                                    <InfoCircleOutlined />
+                                    <Text>
+                                      {totals[order.id]?.totalBeforeVoucher >=
+                                      voucher.giaTriToiThieu ? (
+                                        "Đã đủ điều kiện áp dụng"
+                                      ) : (
+                                        <>
+                                          Cần mua thêm{" "}
+                                          <Text
+                                            strong
+                                            style={{ color: "#ff4d4f" }}
+                                          >
+                                            {formatCurrency(
+                                              voucher.giaTriToiThieu -
+                                                (totals[order.id]
+                                                  ?.totalBeforeVoucher || 0)
+                                            )}
+                                          </Text>{" "}
+                                          để áp dụng mã
+                                        </>
+                                      )}
+                                    </Text>
+                                  </Space>
+                                }
                                 style={{
                                   marginBottom: 8,
                                   fontSize: "12px",
@@ -3078,7 +3089,8 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                                                         "#f5f5f5",
                                                     }}
                                                   >
-                                                    {Array.isArray(
+                                                    {product.hinhAnh &&
+                                                    Array.isArray(
                                                       product.hinhAnh
                                                     ) &&
                                                     product.hinhAnh.length >
@@ -3087,9 +3099,15 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                                                         alt={product.tenSanPham}
                                                         src={product.hinhAnh[0]}
                                                         style={{
-                                                          maxWidth: "100%",
-                                                          maxHeight: "100%",
+                                                          width: "100%",
+                                                          height: "100%",
                                                           objectFit: "cover",
+                                                        }}
+                                                        onError={(e) => {
+                                                          e.target.onerror =
+                                                            null;
+                                                          e.target.src =
+                                                            "https://via.placeholder.com/120x120?text=No+Image";
                                                         }}
                                                       />
                                                     ) : (
@@ -3140,7 +3158,8 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                                                           color: "#1f1f1f",
                                                         }}
                                                       >
-                                                        {product.sanPham.tenSanPham ||
+                                                        {product.sanPham
+                                                          .tenSanPham ||
                                                           "Không có tên"}
                                                       </div>
                                                     </Tooltip>
@@ -3187,7 +3206,8 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
                                                               fontSize: "12px",
                                                             }}
                                                           >
-                                                            {product.maSanPhamChiTiet||"---"}
+                                                            {product.maSanPhamChiTiet ||
+                                                              "---"}
                                                           </Typography.Text>
                                                         </Typography.Text>
 
@@ -3394,8 +3414,8 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
             { customerId: newCustomerData.id }, // Request body
             {
               headers: {
-                Authorization: `Bearer ${token}` // Headers go here as third parameter
-              }
+                Authorization: `Bearer ${token}`, // Headers go here as third parameter
+              },
             }
           );
 
@@ -3586,63 +3606,69 @@ const token = localStorage.getItem("token"); // Lấy token từ localStorage
     }
   };
   // Update handlePaymentMethodChange to include IDs for payment methods
-const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
-  const orderTotal = totals[hoaDonId]?.finalTotal || 0;
-  const hasBothMethods = 
-    selectedMethods.includes(PAYMENT_METHOD.CASH) && 
-    selectedMethods.includes(PAYMENT_METHOD.QR);
+  const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
+    const orderTotal = totals[hoaDonId]?.finalTotal || 0;
+    const hasBothMethods =
+      selectedMethods.includes(PAYMENT_METHOD.CASH) &&
+      selectedMethods.includes(PAYMENT_METHOD.QR);
 
-  // Map selected methods to payment objects with proper structure
-  const selectedPayments = selectedMethods.map(methodCode => {
-    // Find the full payment method object from paymentMethods array
-    const method = paymentMethods.find(m => m.maPhuongThucThanhToan === methodCode);
-    
-    if (!method) {
-      console.error('Payment method not found:', methodCode);
-      return null;
-    }
+    // Map selected methods to payment objects with proper structure
+    const selectedPayments = selectedMethods
+      .map((methodCode) => {
+        // Find the full payment method object from paymentMethods array
+        const method = paymentMethods.find(
+          (m) => m.maPhuongThucThanhToan === methodCode
+        );
 
-    // Calculate default amount based on payment method
-    let defaultAmount = 0;
-    if (hasBothMethods) {
-      if (methodCode === PAYMENT_METHOD.QR) {
-        defaultAmount = orderTotal; // Default bank transfer to total amount
-      }
-      // Cash amount starts at 0 when both methods are selected
-    } else if (selectedMethods.length === 1) {
-      defaultAmount = orderTotal; // Single payment method gets full amount
-    }
-
-    // Create payment object with unique ID
-    const paymentId = `${hoaDonId}_${methodCode}`;
-
-    return {
-      id: paymentId,
-      maPhuongThucThanhToan: method.maPhuongThucThanhToan,
-      tenPhuongThucThanhToan: method.tenPhuongThucThanhToan,
-      soTien: defaultAmount,
-    };
-  }).filter(Boolean); // Remove any null values
-
-  // Update tabs state with new payments
-  setTabs(prev => prev.map(tab => 
-    tab.key === hoaDonId 
-      ? { 
-          ...tab, 
-          order: { 
-            ...tab.order, 
-            thanhToans: selectedPayments 
-          } 
+        if (!method) {
+          console.error("Payment method not found:", methodCode);
+          return null;
         }
-      : tab
-  ));
 
-  // Generate QR code if bank transfer is selected
-  if (selectedMethods.includes(PAYMENT_METHOD.QR)) {
-    const qrAmount = hasBothMethods ? orderTotal : orderTotal;
-    generateQR(hoaDonId, qrAmount);
-  }
-};
+        // Calculate default amount based on payment method
+        let defaultAmount = 0;
+        if (hasBothMethods) {
+          if (methodCode === PAYMENT_METHOD.QR) {
+            defaultAmount = orderTotal; // Default bank transfer to total amount
+          }
+          // Cash amount starts at 0 when both methods are selected
+        } else if (selectedMethods.length === 1) {
+          defaultAmount = orderTotal; // Single payment method gets full amount
+        }
+
+        // Create payment object with unique ID
+        const paymentId = `${hoaDonId}_${methodCode}`;
+
+        return {
+          id: paymentId,
+          maPhuongThucThanhToan: method.maPhuongThucThanhToan,
+          tenPhuongThucThanhToan: method.tenPhuongThucThanhToan,
+          soTien: defaultAmount,
+        };
+      })
+      .filter(Boolean); // Remove any null values
+
+    // Update tabs state with new payments
+    setTabs((prev) =>
+      prev.map((tab) =>
+        tab.key === hoaDonId
+          ? {
+              ...tab,
+              order: {
+                ...tab.order,
+                thanhToans: selectedPayments,
+              },
+            }
+          : tab
+      )
+    );
+
+    // Generate QR code if bank transfer is selected
+    if (selectedMethods.includes(PAYMENT_METHOD.QR)) {
+      const qrAmount = hasBothMethods ? orderTotal : orderTotal;
+      generateQR(hoaDonId, qrAmount);
+    }
+  };
 
   // Update the payment input handler for better experience when using both payment methods
   // Update handlePaymentAmountChange to maintain payment IDs
@@ -3912,7 +3938,7 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
-          }
+          },
         }
       );
       setCustomers(response.data);
@@ -3941,12 +3967,12 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
       // Gửi đúng tên tham số là customerId
       const response = await axios.put(
         `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/customer`,
-        {  customerId: customerId},
+        { customerId: customerId },
         {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-         // Đúng tên tham số theo yêu cầu API
+          // Đúng tên tham số theo yêu cầu API
         }
       );
 
@@ -4175,8 +4201,6 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
 
   const fetchInvoiceProducts = async (hoaDonId, skipUIUpdate = false) => {
     try {
-      console.log(`📢 Fetching products for invoice: ${hoaDonId}`);
-
       // Sử dụng debounce để tránh gọi API quá nhiều lần
       if (fetchInvoiceProducts.timer) {
         clearTimeout(fetchInvoiceProducts.timer);
@@ -4238,7 +4262,7 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
                     };
                   } catch (error) {
                     console.error(
-                      `❌ Lỗi khi lấy ảnh sản phẩm ${product.id}:`,
+                      ` Lỗi khi lấy ảnh sản phẩm ${product.id}:`,
                       error
                     );
                     return { ...product, hinhAnh: [] };
@@ -4281,7 +4305,7 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
 
               resolve(productsWithImages);
             } catch (error) {
-              console.error("❌ Lỗi khi lấy danh sách sản phẩm:", error);
+              console.error(" Lỗi khi lấy danh sách sản phẩm:", error);
               resolve([]);
             }
           },
@@ -4289,7 +4313,7 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         ); // Không debounce khi đang khởi tạo
       });
     } catch (error) {
-      console.error("❌ Lỗi khi lấy danh sách sản phẩm:", error);
+      console.error(" Lỗi khi lấy danh sách sản phẩm:", error);
       message.error("Lỗi khi tải danh sách sản phẩm trong hóa đơn");
       return [];
     }
@@ -4410,85 +4434,6 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
     );
   };
 
-  // Add function to calculate all totals for an order
-  // const calculateOrderTotals = (hoaDonId, productsOverride, orderOverride) => {
-  //   console.log("Calculating totals for order:", hoaDonId);
-
-  //   // Sử dụng dữ liệu override nếu có, ngược lại lấy từ state
-  //   const products = productsOverride || orderProducts[hoaDonId] || [];
-  //   const order =
-  //     orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
-
-  //   if (!order) {
-  //     console.warn("No order found for totals calculation");
-  //     return {
-  //       subtotal: 0,
-  //       shippingFee: 0,
-  //       totalBeforeVoucher: 0,
-  //       discountAmount: 0,
-  //       finalTotal: 0,
-  //       voucherType: null,
-  //       voucherValue: null,
-  //     };
-  //   }
-
-  //   // Tính tổng tiền sản phẩm
-  //   const subtotal = calculateTotalBeforeDiscount(products);
-
-  //   // Lấy phí vận chuyển từ order
-  //   const shippingFee = order.phiVanChuyen || 0;
-
-  //   // QUAN TRỌNG: Tổng tiền trước khi áp dụng voucher (KHÔNG bao gồm phí vận chuyển)
-  //   // Voucher chỉ áp dụng cho tiền hàng, không áp dụng cho phí vận chuyển
-  //   const totalBeforeVoucher = subtotal;
-
-  //   // Tính toán giảm giá dựa trên voucher
-  //   let discountAmount = 0;
-  //   let voucherType = null;
-  //   let voucherValue = null;
-
-  //   if (order.phieuGiamGia) {
-  //     // Chuyển đổi sang số nếu cần
-  //     voucherType = Number(order.phieuGiamGia.loaiPhieuGiamGia);
-  //     voucherValue = order.phieuGiamGia.giaTriGiam;
-
-  //     // QUAN TRỌNG: Áp dụng voucher chỉ trên giá trị sản phẩm, không bao gồm phí vận chuyển
-  //     const amountForDiscount = subtotal; // Chỉ áp dụng voucher cho tiền hàng
-
-  //     discountAmount = calculateDiscountAmount(
-  //       {
-  //         ...order.phieuGiamGia,
-  //         loaiPhieuGiamGia: voucherType,
-  //       },
-  //       amountForDiscount
-  //     );
-  //   }
-
-  //   // Tổng tiền cuối cùng = tiền hàng - giảm giá + phí vận chuyển
-  //   const finalTotal = subtotal - discountAmount + shippingFee;
-
-  //   console.log("📊 Chi tiết tính toán:", {
-  //     subtotal,
-  //     shippingFee,
-  //     totalBeforeVoucher,
-  //     discountAmount,
-  //     finalTotal,
-  //     voucher: order.phieuGiamGia,
-  //     voucherType,
-  //     voucherValue,
-  //   });
-
-  //   return {
-  //     subtotal,
-  //     shippingFee,
-  //     totalBeforeVoucher,
-  //     discountAmount,
-  //     finalTotal,
-  //     voucherType,
-  //     voucherValue,
-  //   };
-  // };
-
   // Update the autoApplyBestVoucher function
   const autoApplyBestVoucher = async (hoaDonId) => {
     try {
@@ -4506,12 +4451,25 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         return;
       }
 
+      // Get customer ID from order
+      const customerId = order.khachHang?.id || "";
+
+      // Nếu đã có voucher cũ, kiểm tra điều kiện và xóa nếu cần
+      if (order.phieuGiamGia) {
+        if (totalBeforeVoucher < order.phieuGiamGia.giaTriToiThieu) {
+          // Nếu tổng tiền không đủ điều kiện, xóa voucher cũ
+          await handleRemoveVoucher(hoaDonId);
+          message.info("Đã xóa voucher do không đủ điều kiện áp dụng.");
+          return; // Kết thúc hàm vì không đủ điều kiện áp dụng voucher mới
+        }
+      }
+
       // Gọi API lấy danh sách voucher hợp lệ
       const response = await api.get(
-        `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeVoucher}`,
+        `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeVoucher}&customerId=${customerId}`,
         {
           headers: {
-            Authorization: `Bearer ${token}`, // Thêm token vào header
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -4522,7 +4480,7 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         return;
       }
 
-      // 🔍 Tìm voucher giảm giá cao nhất
+      // Tìm voucher giảm giá cao nhất
       const bestVoucher = availableVouchers.reduce((best, current) => {
         if (totalBeforeVoucher < current.giaTriToiThieu) return best;
 
@@ -4542,7 +4500,7 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         return;
       }
 
-      // 🔍 Tính toán số tiền giảm giá
+      // Tính toán số tiền giảm giá cho voucher mới
       const newDiscount = calculateDiscountAmount(
         bestVoucher,
         totalBeforeVoucher
@@ -4556,11 +4514,16 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         return;
       }
 
-      //Gọi API để áp dụng phiếu giảm giá mới
+      // Nếu có voucher cũ và voucher mới tốt hơn, xóa voucher cũ trước
+      if (order.phieuGiamGia) {
+        await handleRemoveVoucher(hoaDonId);
+      }
+
+      // Gọi API để áp dụng voucher mới
       await api.post(
         `/api/admin/ban-hang/${hoaDonId}/voucher`,
         {
-          voucherId: bestVoucher.id
+          voucherId: bestVoucher.id,
         },
         {
           headers: {
@@ -4569,7 +4532,7 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         }
       );
 
-      // 🔹 Cập nhật `order` mới trong `tabs`
+      // Cập nhật UI và state
       const updatedOrder = {
         ...order,
         phieuGiamGia: bestVoucher,
@@ -4583,7 +4546,6 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         )
       );
 
-      // 🔹 Cập nhật tổng tiền trong `totals`
       const newTotals = {
         subtotal: calculateTotalBeforeDiscount(currentProducts),
         shippingFee: order.phiVanChuyen || 0,
@@ -4601,13 +4563,13 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         `Đã áp dụng mã giảm giá tốt nhất: ${bestVoucher.maPhieuGiamGia}`
       );
 
-      //Làm mới danh sách sản phẩm để đồng bộ dữ liệu
       await fetchInvoiceProducts(hoaDonId);
     } catch (error) {
       console.error("Lỗi khi tự động áp dụng voucher:", error);
       message.error("Không thể áp dụng mã giảm giá tự động.");
     }
   };
+
   const handleCashAmountChange = (hoaDonId, cashAmount) => {
     setTabs((prev) =>
       prev.map((tab) =>
@@ -4788,25 +4750,24 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
     }
   };
 
-  useEffect(() => {
-    const fetchPaymentMethods = async () => {
-      setPaymentMethodsLoading(true);
-      try {
-        const response = await api.get("/api/admin/phuong-thuc-thanh-toan", {
+  const fetchPaymentMethods = async () => {
+    setPaymentMethodsLoading(true);
+    try {
+      const response = await api.get(
+        "/api/admin/phuong-thuc-thanh-toan/bank-and-cash",
+        {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        });
-        setPaymentMethods(response.data);
-      } catch (error) {
-        message.error("Lỗi khi tải phương thức thanh toán");
-      } finally {
-        setPaymentMethodsLoading(false);
-      }
-    };
-
-    fetchPaymentMethods();
-  }, []);
+        }
+      );
+      setPaymentMethods(response.data);
+    } catch (error) {
+      message.error("Lỗi khi tải phương thức thanh toán");
+    } finally {
+      setPaymentMethodsLoading(false);
+    }
+  };
 
   const PreviewModal = () => (
     <AntdModal
@@ -4837,7 +4798,6 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
   // Thêm useEffect mới để gọi findBestVoucherAndSuggest
   useEffect(() => {
     if (activeKey && orderProducts[activeKey]) {
-      console.log("Triggering voucher suggestions...");
       findBestVoucherAndSuggest(activeKey);
     }
   }, [activeKey, orderProducts[activeKey]]); // Thêm dependency
@@ -4845,8 +4805,6 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
   // Thêm hàm fetchInvoiceById để tải lại thông tin hóa đơn từ server
   const fetchInvoiceById = async (hoaDonId) => {
     try {
-      console.log("Đang tải thông tin hóa đơn:", hoaDonId);
-
       // Gọi API để lấy thông tin hóa đơn
       const response = await api.get(`/api/admin/hoa-don/${hoaDonId}`, {
         headers: {
@@ -5021,11 +4979,11 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
       // Gọi API để áp dụng voucher
       const response = await api.post(
         `/api/admin/ban-hang/${hoaDonId}/voucher`,
-        {voucherId: voucherId,
+        {
+          voucherId: voucherId,
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-          
         }
       );
 
@@ -5304,40 +5262,148 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
   // Hàm xử lý khi quét mã QR thành công
   const handleQrScanSuccess = async (qrData) => {
     try {
-      // Giả định rằng mã QR chứa ID của sản phẩm
-      const productId = qrData;
-
+      // Kiểm tra ID hóa đơn
       if (!scanningForHoaDonId) {
         message.error("Không xác định được hóa đơn đang xử lý");
         setIsQrScannerVisible(false);
         return;
       }
 
-      // Gọi API để lấy thông tin sản phẩm
-      const response = await axios.get(
-        `http://localhost:8080/api/admin/sanpham/${productId}`,
+      // Hiển thị trạng thái đang xử lý
+      const loadingKey = "qrScanning";
+      message.loading({
+        content: "Đang tìm sản phẩm...",
+        key: loadingKey,
+        duration: 0,
+      });
+      setLoading(true);
+
+      // Gọi API với mã sản phẩm chi tiết
+      const response = await api.get(
+        `/api/admin/sanpham/sanphamchitiet/ma/${qrData}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`, // Thêm token vào header
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
+
+      if (!response?.data) {
+        throw new Error("Không tìm thấy sản phẩm từ mã QR");
+      }
+
       const product = response.data;
+      message.destroy(loadingKey);
 
-      // Thêm sản phẩm vào hóa đơn với số lượng mặc định là 1
+      // Kiểm tra tồn kho
+      if (product.soLuong <= 0 || product.soLuongTonKho <= 0) {
+        notification.warning({
+          key: "stockWarning",
+          message: "Sản phẩm đã hết hàng",
+          description: `Sản phẩm "${product.tenSanPham}" hiện không còn trong kho.`,
+          icon: <ExclamationCircleOutlined style={{ color: "#faad14" }} />,
+          placement: "topRight",
+          duration: 4,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Animation trước khi thêm sản phẩm
+      const successKey = "addProductSuccess";
+      message.loading({
+        content: "Đang thêm sản phẩm...",
+        key: successKey,
+        duration: 0.5,
+      });
+
+      // Thêm sản phẩm vào hóa đơn
       await handleAddProductToOrder(product);
+      message.destroy(successKey);
 
-      message.success(`Đã thêm sản phẩm "${product.tenSanPham}" vào hóa đơn`);
+      // Thông báo thành công
+      notification.success({
+        message: "Đã thêm sản phẩm vào hóa đơn",
+        description: (
+          <div>
+            <div style={{ fontWeight: "bold" }}>{product.tenSanPham}</div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginTop: 5,
+              }}
+            >
+              <span>
+                Mã: {product.maSanPhamChiTiet || product.maSanPham || "N/A"}
+              </span>
+              <span style={{ fontWeight: "bold", color: "#ff4d4f" }}>
+                {formatCurrency(product.gia)}
+              </span>
+            </div>
+            {product.mauSac && product.kichThuoc && (
+              <div style={{ marginTop: 3, fontSize: "12px", color: "#8c8c8c" }}>
+                {typeof product.mauSac === "string"
+                  ? product.mauSac
+                  : product.mauSac?.tenMau || "N/A"}{" "}
+                -
+                {typeof product.kichThuoc === "string"
+                  ? product.kichThuoc
+                  : product.kichThuoc?.tenKichThuoc || "N/A"}
+              </div>
+            )}
+          </div>
+        ),
+        icon: <CheckCircleOutlined style={{ color: "#52c41a" }} />,
+        placement: "topRight",
+        duration: 4,
+      });
+
+      // Quan trọng: Đóng modal quét QR trước khi hiển thị modal xác nhận
       setIsQrScannerVisible(false);
+
+      // Sau khi đóng modal quét QR, hiển thị modal hỏi người dùng
+      setTimeout(() => {
+        Modal.confirm({
+          title: "Quét thành công!",
+          icon: <CheckCircleOutlined style={{ color: "#52c41a" }} />,
+          content: "Bạn có muốn tiếp tục quét sản phẩm?",
+          okText: "Tiếp tục",
+          cancelText: "Đóng",
+          onOk: () => {
+            // Mở lại modal quét QR
+            setIsQrScannerVisible(true);
+          },
+          onCancel: () => {
+            // Không làm gì, vì modal QR đã đóng
+          },
+          autoFocusButton: "ok",
+          centered: true,
+        });
+      }, 300); // Chờ một chút để đảm bảo modal quét QR đã đóng hoàn toàn
     } catch (error) {
       console.error("Lỗi khi xử lý mã QR:", error);
-      message.error("Không tìm thấy sản phẩm từ mã QR hoặc có lỗi xảy ra");
+
+      // Thông báo lỗi chi tiết hơn
+      let errorMessage = "Không tìm thấy sản phẩm từ mã QR hoặc có lỗi xảy ra";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+
+      notification.error({
+        message: "Lỗi quét mã QR",
+        description: errorMessage,
+        icon: <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />,
+        placement: "topRight",
+        duration: 4,
+      });
+
+      // Đóng modal quét QR trong trường hợp lỗi
+      setIsQrScannerVisible(false);
+    } finally {
+      setLoading(false);
     }
   };
-
   // Xử lý khi có lỗi quét QR
   const handleQrScanError = (error) => {
-    console.error("Lỗi quét QR:", error);
     message.error("Lỗi khi quét mã QR, vui lòng thử lại");
   };
 
@@ -5659,6 +5725,9 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
                             )})`
                           : `Giảm ${formatCurrency(voucher.giaTriGiam)}`}
                       </div>
+                      <div>Tên phiếu giảm giá: {voucher.tenPhieuGiamGia}</div>
+                      <div>Số lượng: {voucher.soLuong}</div>
+
                       <div style={{ color: "rgba(0, 0, 0, 0.45)" }}>
                         Số tiền giảm: {formatCurrency(discountAmount)}
                       </div>
@@ -5685,10 +5754,7 @@ const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
         open={isModalPaymentQR}
         onCancel={modalHandlers.onCancel}
         footer={[
-          <Button
-            key="cancel"
-            onClick={modalHandlers.onCancel}
-          >
+          <Button key="cancel" onClick={modalHandlers.onCancel}>
             Đóng
           </Button>,
           <Button

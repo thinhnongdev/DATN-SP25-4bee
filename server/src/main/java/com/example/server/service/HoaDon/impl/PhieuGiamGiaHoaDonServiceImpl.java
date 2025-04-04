@@ -12,8 +12,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -23,22 +25,41 @@ public class PhieuGiamGiaHoaDonServiceImpl implements IPhieuGiamGiaService {
     private final IPhieuGiamGia mapper;
 
     @Override
-    public List<PhieuGiamGiaResponse> getAvailableVouchersForOrder(BigDecimal orderTotal) {
+    public List<PhieuGiamGiaResponse> getAvailableVouchersForOrder(BigDecimal orderTotal, String customerId) {
         LocalDateTime now = LocalDateTime.now();
-        return phieuGiamGiaRepository.findAll().stream()
+
+        // 1. Lấy phiếu giảm giá công khai
+        List<PhieuGiamGiaResponse> publicVouchers = phieuGiamGiaRepository.findAllCongKhai().stream()
                 .filter(voucher ->
-                        // Đang hoạt động
-                        voucher.getTrangThai() == 1 &&
-                                // Còn số lượng
-                                voucher.getSoLuong() > 0 &&
-                                // Trong thời gian hiệu lực
+                        voucher.getSoLuong() > 0 &&
                                 now.isAfter(voucher.getNgayBatDau()) &&
                                 now.isBefore(voucher.getNgayKetThuc()) &&
-                                // Đủ điều kiện áp dụng
                                 orderTotal.compareTo(voucher.getGiaTriToiThieu()) >= 0
                 )
                 .map(mapper::entityToResponse)
                 .collect(Collectors.toList());
+
+        log.info("Found {} public vouchers", publicVouchers.size());
+
+        // 2. Lấy phiếu giảm giá cá nhân của khách hàng cụ thể
+        List<PhieuGiamGiaResponse> personalVouchers = new ArrayList<>();
+        if (customerId != null && !customerId.isEmpty() && !"Khách hàng lẻ".equals(customerId)) {
+            personalVouchers = phieuGiamGiaRepository.findPersonalVouchers(customerId, now).stream()
+                    .filter(voucher -> orderTotal.compareTo(voucher.getGiaTriToiThieu()) >= 0)
+                    .map(mapper::entityToResponse)
+                    .collect(Collectors.toList());
+
+            log.info("Found {} personal vouchers for customer {}", personalVouchers.size(), customerId);
+        }
+
+        // 3. Gộp danh sách và loại bỏ trùng lặp
+        List<PhieuGiamGiaResponse> allVouchers = Stream.concat(publicVouchers.stream(), personalVouchers.stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        log.info("Total vouchers available: {}", allVouchers.size());
+
+        return allVouchers;
     }
 
 //    @Override

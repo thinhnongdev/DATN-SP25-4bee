@@ -26,7 +26,7 @@ public class HoaDonRequest {
 
     private String idPhieuGiamGia;
 
-    @NotNull(message = "Loại hóa đơn không được để trống")
+//    @NotNull(message = "Loại hóa đơn không được để trống")
     private Integer loaiHoaDon; // 1: Online, 2: Tại quầy, 3: Giao hàng
 
     private String ghiChu;

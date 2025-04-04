@@ -2,6 +2,7 @@ package com.example.server.service.HoaDon.impl;
 
 import com.example.server.Util.PDFGenerator;
 import com.example.server.constant.HoaDonConstant;
+import com.example.server.constant.PaymentConstant;
 import com.example.server.dto.HoaDon.request.AddProductRequest;
 import com.example.server.dto.HoaDon.request.HoaDonRequest;
 import com.example.server.dto.HoaDon.request.HoaDonSearchCriteria;
@@ -19,6 +20,7 @@ import com.example.server.repository.HoaDon.ThanhToanHoaDonRepository;
 import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import com.example.server.service.HoaDon.interfaces.ICurrentUserService;
 import com.example.server.service.HoaDon.interfaces.IHoaDonService;
+import com.example.server.service.HoaDon.interfaces.IThanhToanHoaDonService;
 import com.example.server.specification.HoaDonSpecification;
 import com.example.server.validator.interfaces.IHoaDonValidator;
 import jakarta.persistence.EntityManager;
@@ -31,6 +33,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
@@ -54,8 +57,12 @@ public class HoaDonServiceImpl implements IHoaDonService {
     private final IHoaDonMapper hoaDonMapper;
     private final IHoaDonValidator hoaDonValidator;
     private final ICurrentUserService currentUserService;
+
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Autowired
+    private  ThanhToanHoaDonService thanhToanHoaDonService;
 
     @Autowired
     private LichSuHoaDonService lichSuHoaDonService;
@@ -168,10 +175,14 @@ public class HoaDonServiceImpl implements IHoaDonService {
     }
 
     @Override
+    @Transactional
     public HoaDonResponse updateHoaDon(String id, HoaDonRequest request) {
         log.info("Updating invoice with id: {} and request: {}", id, request);
 
+        // Tìm hóa đơn hiện tại
         HoaDon hoaDon = findHoaDonById(id);
+
+        // Kiểm tra và xác thực dữ liệu
         hoaDonValidator.validateUpdate(request, hoaDon);
 
         // Cập nhật thông tin cơ bản từ request
@@ -180,12 +191,32 @@ public class HoaDonServiceImpl implements IHoaDonService {
         hoaDon.setGhiChu(request.getGhiChu());
 
         // Cập nhật địa chỉ nếu có
-        if (request.getDiaChi() != null) {
-            hoaDon.setDiaChi(request.getDiaChi());
+        if (StringUtils.hasText(request.getDiaChi())) {
+            // Xử lý địa chỉ, nếu cần format hay validate
+            hoaDon.setDiaChi(request.getDiaChi().trim());
+        }
+
+        // Nếu là khách hàng lẻ (không có ID khách hàng), cập nhật thông tin trong hoaDon
+        if (hoaDon.getKhachHang() == null) {
+            log.info("Updating anonymous customer information in invoice");
         }
 
         hoaDon.setNgaySua(LocalDateTime.now());
         hoaDon.setNguoiSua(currentUserService.getCurrentUsername());
+
+        // Lưu lịch sử thay đổi nếu cần
+        LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
+        lichSuHoaDon.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
+        lichSuHoaDon.setHoaDon(hoaDon);
+        lichSuHoaDon.setNgaySua(LocalDateTime.now());
+
+        // Lấy đối tượng NhanVien từ currentUserService
+        NhanVien nhanVien = currentUserService.getCurrentNhanVien();
+        lichSuHoaDon.setNhanVien(nhanVien);
+        lichSuHoaDon.setTrangThai(1);
+        lichSuHoaDon.setHanhDong("Cập nhật thông tin người nhận");
+        lichSuHoaDon.setMoTa("Cập nhật thông tin người nhận: " + request.getTenNguoiNhan() + ", Địa chỉ: " + request.getDiaChi() +", SĐT" +request.getSoDienThoai());
+        lichSuHoaDonRepository.save(lichSuHoaDon);
 
         // Lưu lại hóa đơn
         hoaDon = hoaDonRepository.save(hoaDon);
@@ -196,9 +227,18 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
 
     @Override
+    @Transactional
     public HoaDonResponse getHoaDonById(String id) {
-        return hoaDonMapper.entityToResponse(findHoaDonById(id));
+        HoaDon hoaDon = hoaDonRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn!"));
+
+        // Kiểm tra Hibernate có load danh sách thanh toán không
+        hoaDon.getThanhToanHoaDons().size();
+        log.info("Số lượng thanh toán trước khi ánh xạ: {}", hoaDon.getThanhToanHoaDons().size());
+
+        return hoaDonMapper.entityToResponse(hoaDon);
     }
+
 
     private HoaDon findHoaDonById(String id) {
         return hoaDonRepository.findById(id)
@@ -213,7 +253,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
     //Update địa chỉ
     @Override
-    public HoaDonResponse updateHoaDonAddress(String id, String diaChi, String tinh, String huyen, String xa, String moTa) {
+    public HoaDonResponse updateHoaDonAddress(String id, String diaChi, String tinh, String huyen, String xa, String diaChiCuThe) {
         HoaDon hoaDon = hoaDonRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại với id: " + id));
 
@@ -223,7 +263,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
         // Format địa chỉ đúng cách
         StringBuilder fullAddress = new StringBuilder();
-        if (moTa != null && !moTa.isEmpty()) fullAddress.append(moTa).append(", ");
+        if (diaChiCuThe != null && !diaChiCuThe.isEmpty()) fullAddress.append(diaChiCuThe).append(", ");
         fullAddress.append(xa).append(", ")
                 .append(huyen).append(", ")
                 .append(tinh);
@@ -310,45 +350,49 @@ public class HoaDonServiceImpl implements IHoaDonService {
         // 2. Kiểm tra tính hợp lệ của trạng thái
         hoaDonValidator.validateUpdateTrangThai(trangThai, hoaDon);
 
-        // 3. Cập nhật trạng thái
+        // 3. Cập nhật trạng thái hóa đơn
         hoaDon.setTrangThai(trangThai);
         hoaDon.setNgaySua(LocalDateTime.now());
-//        hoaDon.setNguoiSua(currentUserService.getCurrentUsername());
 
         // Xử lý thời gian dựa trên trạng thái
         if (trangThai.equals(HoaDonConstant.TRANG_THAI_DANG_GIAO)) {
             hoaDon.setThoiGianGiaoHang(LocalDateTime.now());
         } else if (trangThai.equals(HoaDonConstant.TRANG_THAI_HOAN_THANH)) {
             hoaDon.setThoiGianNhanHang(LocalDateTime.now());
+
+            // 4. Khi hóa đơn "Hoàn thành", cập nhật thanh toán từ "Chưa thanh toán" / "Trả sau" thành "Đã thanh toán"
+            List<ThanhToanHoaDon> thanhToans = thanhToanHoaDonRepository.findByHoaDonId(id);
+            for (ThanhToanHoaDon thanhToan : thanhToans) {
+                if (thanhToan.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID ||
+                        thanhToan.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD) {
+                    thanhToanHoaDonService.updatePaymentStatus(thanhToan.getId(), PaymentConstant.PAYMENT_STATUS_PAID);
+                    log.info("Updated payment {} to PAID for invoice {}", thanhToan.getId(), hoaDon.getId());
+                }
+            }
         }
 
-        // 4. Lưu thay đổi hóa đơn
+        // 5. Lưu thay đổi hóa đơn
         hoaDon = hoaDonRepository.save(hoaDon);
         log.info("Updated status for invoice ID: {}", hoaDon.getId());
 
-        // 5. Lưu lịch sử vào bảng `lich_su_hoa_don`
+        // 6. Lưu lịch sử vào bảng `lich_su_hoa_don`
         LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
-        String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 8); // Tạo ID từ UUID
-        lichSuHoaDon.setId("LS" + uuid);
-//        lichSuHoaDon.setId(UUID.randomUUID().toString());
+        lichSuHoaDon.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
         lichSuHoaDon.setHoaDon(hoaDon);
-//        lichSuHoaDon.setNhanVien(new NhanVien(currentUserService.getCurrentUserId())); // Nhân viên hiện tại
         lichSuHoaDon.setHanhDong("Cập nhật trạng thái hóa đơn");
 
         String trangThaiText = HoaDonConstant.getTrangThaiText(trangThai);
         lichSuHoaDon.setMoTa("Chuyển sang trạng thái " + trangThaiText);
-
         lichSuHoaDon.setTrangThai(trangThai);
-        lichSuHoaDon.setNgayTao(LocalDateTime.now());
         lichSuHoaDon.setNgaySua(LocalDateTime.now());
-
-        // Lưu lịch sử vào database
+        lichSuHoaDon.setNhanVien(currentUserService.getCurrentNhanVien());
         lichSuHoaDonRepository.save(lichSuHoaDon);
         log.info("Saved invoice history for invoice ID: {}", hoaDon.getId());
 
-        // 6. Trả về response
+        // 7. Trả về response
         return hoaDonMapper.entityToResponse(hoaDon);
     }
+
 
     // search
     @Override
@@ -414,22 +458,22 @@ public class HoaDonServiceImpl implements IHoaDonService {
         }
 
         // Kiểm tra mã giảm giá (nếu có)
-        if (hoaDon.getPhieuGiamGia() != null) {
-            PhieuGiamGia phieuGiamGia = hoaDon.getPhieuGiamGia();
-
-            if (phieuGiamGia.getTrangThai() == null || phieuGiamGia.getTrangThai() != 1) {
-                throw new IllegalStateException("Mã giảm giá không hợp lệ hoặc đã hết hạn");
-            }
-
-            LocalDateTime now = LocalDateTime.now();
-            if (phieuGiamGia.getNgayBatDau() != null && now.isBefore(phieuGiamGia.getNgayBatDau())) {
-                throw new IllegalStateException("Mã giảm giá chưa đến thời gian sử dụng");
-            }
-
-            if (phieuGiamGia.getNgayKetThuc() != null && now.isAfter(phieuGiamGia.getNgayKetThuc())) {
-                throw new IllegalStateException("Mã giảm giá đã hết hạn");
-            }
-        }
+//        if (hoaDon.getPhieuGiamGia() != null) {
+//            PhieuGiamGia phieuGiamGia = hoaDon.getPhieuGiamGia();
+//
+//            if (phieuGiamGia.getTrangThai() == null || phieuGiamGia.getTrangThai() != 1) {
+//                throw new IllegalStateException("Mã giảm giá không hợp lệ hoặc đã hết hạn");
+//            }
+//
+//            LocalDateTime now = LocalDateTime.now();
+//            if (phieuGiamGia.getNgayBatDau() != null && now.isBefore(phieuGiamGia.getNgayBatDau())) {
+//                throw new IllegalStateException("Mã giảm giá chưa đến thời gian sử dụng");
+//            }
+//
+//            if (phieuGiamGia.getNgayKetThuc() != null && now.isAfter(phieuGiamGia.getNgayKetThuc())) {
+//                throw new IllegalStateException("Mã giảm giá đã hết hạn");
+//            }
+//        }
     }
 
 

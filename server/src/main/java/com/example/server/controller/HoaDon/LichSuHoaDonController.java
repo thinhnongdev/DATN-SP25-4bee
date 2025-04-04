@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/lich-su-hoa-don")
+@RequestMapping("/api/admin/lich-su-hoa-don")
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class LichSuHoaDonController {
     private final LichSuHoaDonService service;

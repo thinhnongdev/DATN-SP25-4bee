@@ -27,10 +27,10 @@ export const calculateDiscountAmount = (voucher, total) => {
 /**
  * Find the best voucher for an order
  */
-export const findBestVoucher = async (totalBeforeVoucher) => {
+export const findBestVoucher = async (totalBeforeVoucher, customerId = "") => {
   try {
     const response = await api.get(
-      `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeVoucher}`,
+      `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeVoucher}&customerId=${customerId}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -67,11 +67,13 @@ export const findBestVoucher = async (totalBeforeVoucher) => {
  */
 export const applyVoucher = async (hoaDonId, voucherId) => {
   try {
-      const response = await api.post(`/api/admin/hoa-don/${hoaDonId}/voucher`, { voucherId },
+    const response = await api.post(
+      `/api/admin/hoa-don/${hoaDonId}/voucher`,
+      { voucherId },
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
-        }
+        },
       }
     );
     return response.data;

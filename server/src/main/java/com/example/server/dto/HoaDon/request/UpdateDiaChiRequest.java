@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class UpdateDiaChiRequest {
     private String diaChiId;
-    private String moTa;
+    private String diaChiCuThe;
     private String xa;
     private String huyen;
     private String tinh;

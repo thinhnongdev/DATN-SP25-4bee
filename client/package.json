@@ -37,7 +37,6 @@
     "react-router-dom": "^7.1.1",
     "react-scripts": "5.0.1",
     "react-toastify": "^11.0.2",
-    "react18": "^0.0.1-security",
     "recharts": "^2.15.0",
     "sockjs-client": "^1.6.1",
     "xlsx": "^0.18.5"

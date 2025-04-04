@@ -16,6 +16,7 @@ public class DiaChiResponse {
     private String xa;
     private String huyen;
     private String tinh;
+    private String diaChiCuThe;
     private String moTa;
     private Integer trangThai;
     private LocalDateTime ngayTao;

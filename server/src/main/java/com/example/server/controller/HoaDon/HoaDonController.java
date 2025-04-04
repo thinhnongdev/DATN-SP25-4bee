@@ -103,22 +103,7 @@ public class HoaDonController {
     public int layPhiVanChuyen(@RequestBody GHNTinhPhiRequest request) {
         return ghnService.tinhPhiVanChuyen(request);
     }
-//    @PostMapping("/{id}/cap-nhat-phi-van-chuyen")
-//    public ResponseEntity<HoaDonResponse> capNhatPhiVanChuyen(
-//            @PathVariable String id,
-//            @RequestBody GHNTinhPhiRequest request) {
-//
-//        // Gọi GHN API để tính phí
-//        int phiVanChuyen = ghnService.tinhPhiVanChuyen(request);
-//
-//        // Cập nhật phí vào hóa đơn
-//        HoaDon hoaDon = hoaDonService.capNhatPhiVanChuyen(id, BigDecimal.valueOf(phiVanChuyen));
-//
-//        // Trả về response
-//        HoaDonResponse response = hoaDonMapper.entityToResponse(hoaDon);
-//
-//        return ResponseEntity.ok(response);
-//    }
+
     @PostMapping("/{id}/cap-nhat-phi-van-chuyen")
     public ResponseEntity<HoaDonResponse> capNhatPhiVanChuyen(
             @PathVariable String id,
@@ -172,13 +157,13 @@ public class HoaDonController {
         String tinh = request.getOrDefault("tinh", "");
         String huyen = request.getOrDefault("huyen", "");
         String xa = request.getOrDefault("xa", "");
-        String moTa = request.getOrDefault("moTa", "");
+        String diaChiCuThe = request.getOrDefault("diaChiCuThe", "");
 
         if (tinh.isEmpty() || huyen.isEmpty() || xa.isEmpty()) {
             return ResponseEntity.badRequest().body(null);
         }
 
-        return ResponseEntity.ok(hoaDonService.updateHoaDonAddress(id, diaChi, tinh, huyen, xa, moTa));
+        return ResponseEntity.ok(hoaDonService.updateHoaDonAddress(id, diaChi, tinh, huyen, xa, diaChiCuThe));
     }
 
     @GetMapping("/search")
@@ -260,9 +245,9 @@ public class HoaDonController {
         return ResponseEntity.ok(hoaDonSanPhamServiceImpl.applyVoucher(hoaDonId, request.getVoucherId()));
     }
 
-    @DeleteMapping("/{id}/voucher")
-    public ResponseEntity<HoaDonResponse> removeVoucher(@PathVariable String id) {
-        return ResponseEntity.ok(hoaDonSanPhamServiceImpl.removeVoucher(id));
+    @DeleteMapping("/{hoaDonId}/voucher")
+    public ResponseEntity<HoaDonResponse> removeVoucher(@PathVariable String hoaDonId) {
+        return ResponseEntity.ok(hoaDonSanPhamServiceImpl.removeVoucher(hoaDonId));
     }
 
     @GetMapping("/statistics")

@@ -26,7 +26,10 @@ public class SecurityConfig {
             "/api/auth/refreshToken",
             "/api/auth/getInfoUser",
             "/api/auth/register",
-            "/api/chat" // Thêm /api/chat vào đây
+            "/api/chat", // Thêm /api/chat vào đây
+            "/ws/**",       // Add WebSocket endpoint
+            "/ws/info/**",  // Add WebSocket info endpoint
+            "/topic/**"     // Add STOMP destination prefix
     };
     @Autowired
     CustomJwtDecoder customJwtDecoder;

@@ -44,8 +44,8 @@ public class AuthenticationService {
     private KhachHangRepository khachHangRepository;
     @Autowired
     private NhanVienRepository nhanVienRepository;
-@Autowired
-private VaiTroRepository vaiTroRepository;
+    @Autowired
+    private VaiTroRepository vaiTroRepository;
     @Autowired
     TaiKhoanRepository taiKhoanRepository;
     @Autowired
@@ -183,24 +183,24 @@ private VaiTroRepository vaiTroRepository;
     }
     public void registerAccountForClient(RegisterAccountRequest request){
 
-            if(taiKhoanRepository.existsByUsername(request.getEmail())){
-                throw new RuntimeException("Email đã được sử dụng!");
-            }
-                PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
-                TaiKhoan taiKhoan=new TaiKhoan();
-                taiKhoan.setUsername(request.getEmail());
-                taiKhoan.setPassword(passwordEncoder.encode(request.getPassword()));//Mã hóa mật khẩu bằng bcrypt
-                taiKhoan.setNgayTao(LocalDateTime.now());
-                taiKhoan.setVaiTro(vaiTroRepository.findByTenVaiTro("KHACH_HANG").get());
-                taiKhoanRepository.save(taiKhoan);//tạo tài khoản
+        if(taiKhoanRepository.existsByUsername(request.getEmail())){
+            throw new RuntimeException("Email đã được sử dụng!");
+        }
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+        TaiKhoan taiKhoan=new TaiKhoan();
+        taiKhoan.setUsername(request.getEmail());
+        taiKhoan.setPassword(passwordEncoder.encode(request.getPassword()));//Mã hóa mật khẩu bằng bcrypt
+        taiKhoan.setNgayTao(LocalDateTime.now());
+        taiKhoan.setVaiTro(vaiTroRepository.findByTenVaiTro("KHACH_HANG").get());
+        taiKhoanRepository.save(taiKhoan);//tạo tài khoản
 
-                KhachHang khachHang=new KhachHang();
-                khachHang.setTenKhachHang(request.getHoTen());
-                khachHang.setMaKhachHang("KH"+System.currentTimeMillis());
-                khachHang.setEmail(request.getEmail());
-                khachHang.setNgaySinh(request.getNgaySinh());
-                khachHang.setNgayTao(LocalDateTime.now());
-                khachHang.setTaiKhoan(taiKhoan);
-                khachHangRepository.save(khachHang); //tạo khách hàng
+        KhachHang khachHang=new KhachHang();
+        khachHang.setTenKhachHang(request.getHoTen());
+        khachHang.setMaKhachHang("KH"+System.currentTimeMillis());
+        khachHang.setEmail(request.getEmail());
+        khachHang.setNgaySinh(request.getNgaySinh());
+        khachHang.setNgayTao(LocalDateTime.now());
+        khachHang.setTaiKhoan(taiKhoan);
+        khachHangRepository.save(khachHang); //tạo khách hàng
     }
 }

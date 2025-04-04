@@ -3,6 +3,7 @@ package com.example.server.service.GiaoHang;
 import com.example.server.dto.GiaoHang.GHNCuaHangResponse;
 import com.example.server.dto.GiaoHang.GHNTinhPhiRequest;
 import com.example.server.dto.GiaoHang.GHNTinhPhiResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -69,7 +70,8 @@ public class GHNService {
 
         return response.getBody().getData().getTotal();
     }
-//    Lấy danh sách địa chỉ của api GHN
+
+    //    Lấy danh sách địa chỉ của api GHN
     public List<Map<String, Object>> layDanhSachTinhThanh() {
         String url = ghnApiUrl + "master-data/province";
         HttpHeaders headers = new HttpHeaders();
@@ -79,7 +81,25 @@ public class GHNService {
         ResponseEntity<Map> response = restTemplate.exchange(
                 url, HttpMethod.GET, entity, Map.class);
 
-        return (List<Map<String, Object>>) response.getBody().get("data");
+        // Kiểm tra dữ liệu trả về
+        if (response.getBody() == null || !response.getBody().containsKey("data")) {
+            System.err.println("GHN API trả về dữ liệu null hoặc không có key 'data'");
+            return List.of(); // Trả về danh sách rỗng để tránh lỗi
+        }
+
+        List<Map<String, Object>> danhSach = (List<Map<String, Object>>) response.getBody().get("data");
+
+        if (danhSach == null) {
+            System.err.println("GHN API không có danh sách tỉnh/thành phố");
+            return List.of();
+        }
+
+        return danhSach.stream()
+                .map(p -> Map.of(
+                        "id", p.get("ProvinceID"),
+                        "name", p.get("ProvinceName")
+                ))
+                .toList();
     }
 
     public List<Map<String, Object>> layDanhSachQuanHuyen(int provinceId) {
@@ -91,8 +111,26 @@ public class GHNService {
         ResponseEntity<Map> response = restTemplate.exchange(
                 url, HttpMethod.GET, entity, Map.class);
 
-        return (List<Map<String, Object>>) response.getBody().get("data");
+        if (response.getBody() == null || !response.getBody().containsKey("data")) {
+            System.err.println("GHN API trả về dữ liệu null hoặc không có key 'data' cho quận/huyện");
+            return List.of();
+        }
+
+        List<Map<String, Object>> danhSach = (List<Map<String, Object>>) response.getBody().get("data");
+
+        if (danhSach == null) {
+            System.err.println("GHN API không có danh sách quận/huyện");
+            return List.of();
+        }
+
+        return danhSach.stream()
+                .map(d -> Map.of(
+                        "id", d.get("DistrictID"),
+                        "name", d.get("DistrictName")
+                ))
+                .toList();
     }
+
 
     public List<Map<String, Object>> layDanhSachPhuongXa(int districtId) {
         String url = ghnApiUrl + "master-data/ward?district_id=" + districtId;
@@ -103,8 +141,31 @@ public class GHNService {
         ResponseEntity<Map> response = restTemplate.exchange(
                 url, HttpMethod.GET, entity, Map.class);
 
-        return (List<Map<String, Object>>) response.getBody().get("data");
+        // Kiểm tra dữ liệu trả về
+        if (response.getBody() == null) {
+            System.err.println("GHN API trả về NULL cho districtId: " + districtId);
+            return List.of();
+        }
+
+        if (!response.getBody().containsKey("data")) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> danhSach = (List<Map<String, Object>>) response.getBody().get("data");
+
+        if (danhSach == null || danhSach.isEmpty()) {
+            return List.of();
+        }
+
+        return danhSach.stream()
+                .map(w -> Map.of(
+                        "id", w.get("WardCode"),
+                        "name", w.get("WardName")
+                ))
+                .toList();
     }
+
+
     public String getProvinceName(Long provinceId) {
         String url = ghnApiUrl + "/master-data/province";
         HttpHeaders headers = new HttpHeaders();

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -43,6 +44,18 @@ public class SanPhamChiTietController {
     public List<SanPhamChiTiet> getSanPhamChiTietById(@PathVariable String id) {
         return sanPhamChiTietService.findbyIdSanPham(id);
     }
+
+    @GetMapping("/sanpham/sanphamchitiet/ma/{maSPCT}")
+    public ResponseEntity<SanPhamChiTiet> getSanPhamChiTietByMaSPCT(@PathVariable("maSPCT") String maSanPhamChiTiet) {
+        Optional<SanPhamChiTiet> result = sanPhamChiTietService.findByMaSanPhamChiTiet(maSanPhamChiTiet);
+
+        if (result.isPresent()) {
+            return ResponseEntity.ok(result.get());
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @GetMapping("/sanpham/chitietsanpham")
     public List<SanPhamChiTiet> getAllSanPhamChiTiet() {
         return sanPhamChiTietService.getAllSanPhamChiTiet();

@@ -33,8 +33,8 @@ import ContactClient from './components/Client/pages/Contact';
 import Checkout from './components/Client/pages/Checkout';
 import OrderSuccessPage from './components/Client/pages/OrderSuccess';
 import ThongkeList from './components/Thongke/ThongkeList';
-import Chatbot from './components/Client/Chat/Chatbot';
 import SearchOrder from './components/Client/pages/SearchOrder';
+import Chatbot from './components/Client/Chat/Chatbot';
 import { checkTokenValidity } from './components/Client/pages/checkTokenValidity';
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -43,7 +43,6 @@ const breadcrumbMap = {
   '/phieu-giam-gia': 'Danh sách Phiếu Giảm Giá',
   '/add-p': 'Thêm Phiếu Giảm Giá',
 };
-
 const menuItems = [
   { key: '1', icon: <BarChartOutlined />, label: 'Thống kê', path: '/admin' },
   { key: '2', icon: <ShoppingCartOutlined />, label: 'Bán hàng', path: '/admin/ban-hang' },
@@ -265,6 +264,7 @@ const App = () => {
       checkTokenValidity(token).then((isValid) => {
         if (!isValid) {
           message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+          window.dispatchEvent(new Event('cartUpdated'));
           window.location.href = "/login"; // Điều hướng đến trang đăng nhập
         }
       });

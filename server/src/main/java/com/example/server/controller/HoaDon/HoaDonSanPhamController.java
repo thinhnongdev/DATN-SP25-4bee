@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/hoa-don")
@@ -96,5 +97,62 @@ public class HoaDonSanPhamController {
         HoaDonResponse response = hoaDonSanPhamService.removeProduct(hoaDonId, hoaDonChiTietId);
         webSocketService.sendProductUpdate(hoaDonId); // Gửi sự kiện WebSocket
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{hoaDonId}/chi-tiet/{hoaDonChiTietId}/gia")
+    @Operation(summary = "Cập nhật giá sản phẩm trong giỏ hàng")
+    public ResponseEntity<HoaDonResponse> updateProductPrice(
+            @PathVariable String hoaDonId,
+            @PathVariable String hoaDonChiTietId,
+            @RequestParam Boolean useCurrentPrice) {
+        log.info("Nhận request cập nhật giá: hoaDonId={}, hoaDonChiTietId={}, useCurrentPrice={}",
+                hoaDonId, hoaDonChiTietId, useCurrentPrice);
+
+        try {
+            HoaDonResponse response = hoaDonSanPhamService.updateProductPrice(hoaDonId, hoaDonChiTietId, useCurrentPrice);
+            webSocketService.sendProductUpdate(hoaDonId); // Gửi thông báo WebSocket
+            return ResponseEntity.ok(response);
+        } catch (ValidationException e) {
+            log.error("Validation error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        } catch (ResourceNotFoundException e) {
+            log.error("Không tìm thấy tài nguyên: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            log.error("Lỗi không xác định khi cập nhật giá sản phẩm", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("/{hoaDonId}/cap-nhat-gia")
+    @Operation(summary = "Cập nhật giá tất cả sản phẩm trong giỏ hàng")
+    public ResponseEntity<HoaDonResponse> updateAllProductPrices(
+            @PathVariable String hoaDonId,
+            @RequestParam Boolean useCurrentPrices) {
+        log.info("Nhận request cập nhật tất cả giá: hoaDonId={}, useCurrentPrices={}",
+                hoaDonId, useCurrentPrices);
+
+        try {
+            HoaDonResponse response = hoaDonSanPhamService.updateAllProductPrices(hoaDonId, useCurrentPrices);
+            webSocketService.sendProductUpdate(hoaDonId); // Gửi thông báo WebSocket
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Lỗi khi cập nhật giá tất cả sản phẩm", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/{hoaDonId}/kiem-tra-gia")
+    @Operation(summary = "Kiểm tra thay đổi giá trong giỏ hàng")
+    public ResponseEntity<Map<String, Object>> checkPriceChanges(@PathVariable String hoaDonId) {
+        log.info("Kiểm tra thay đổi giá cho giỏ hàng: {}", hoaDonId);
+
+        try {
+            Map<String, Object> result = hoaDonSanPhamService.checkPriceChanges(hoaDonId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Lỗi khi kiểm tra thay đổi giá", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 }

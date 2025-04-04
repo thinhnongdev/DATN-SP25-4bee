@@ -17,7 +17,8 @@ import {
 import { CheckCircleOutlined, DeleteOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
+import { checkTokenValidity } from './checkTokenValidity';
+import { jwtDecode } from 'jwt-decode';
 const { Title, Text } = Typography;
 const Cart = () => {
   const [isModalVoucher, setIsModalVoucher] = useState(false);
@@ -42,7 +43,7 @@ const Cart = () => {
     const fetchProduct = async () => {
       try {
         const cartItems = JSON.parse(localStorage.getItem('cart')) || []; // Lấy giỏ hàng từ localStorage
-
+        console.log('giỏ hàng ', cartItems);
         if (cartItems.length === 0) {
           setCartProducts([]);
           setLoading(false);
@@ -95,21 +96,107 @@ const Cart = () => {
   }, []);
 
   const handleQuantityChange = (id, value) => {
+    if (isNaN(value) || value < 1) {
+      message.warning("Số lượng phải lớn hơn 0!");
+      return;
+    }
+  
     const updatedCart = cartProducts.map((item) =>
-      item.id === id ? { ...item, quantity: value } : item,
+      item.id === id ? { ...item, quantity: value } : item
     );
+  
     setCartProducts(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
-    window.dispatchEvent(new Event('cartUpdated'));
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    window.dispatchEvent(new Event("cartUpdated"));
+  
+    // Nếu số lượng = 0, gọi hàm xóa
+    if (value === 0) {
+      handleRemoveItem(id);
+      return;
+    }
+  
+    // Kiểm tra và gửi API cập nhật database
+    const token = localStorage.getItem("token");
+    if (token) {
+      checkTokenValidity(token).then((isValid) => {
+        if (!isValid) {
+          message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+          localStorage.removeItem("token");
+          localStorage.removeItem("cart");
+          window.dispatchEvent(new Event("cartUpdated"));
+          window.location.href = "/login";
+        } else {
+          const decodedToken = jwtDecode(token);
+          const email = decodedToken?.sub;
+          const cartItem = updatedCart.find(item => item.id === id);
+  
+          const cartData = {
+            sanPhamChiTiet: cartItem,
+            email: email,
+          };
+  
+          axios
+            .post("http://localhost:8080/api/client/order/addHoaDonChiTiet", cartData)
+            .then((response) => {
+              console.log("Cập nhật số lượng trong database:", response.data);
+            })
+            .catch((error) => {
+              console.error("Có lỗi khi cập nhật số lượng:", error);
+            });
+        }
+      });
+    }
   };
+  
 
   const handleRemoveItem = (id) => {
-    const updatedCart = cartProducts.filter((item) => item.id !== id);
-    setCartProducts(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
-    window.dispatchEvent(new Event('cartUpdated'));
-    message.success('Đã xóa sản phẩm khỏi giỏ hàng!');
+    Modal.confirm({
+      title: "Xác nhận xóa",
+      content: "Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?",
+      okText: "Xóa",
+      cancelText: "Hủy",
+      onOk: () => {
+        const updatedCart = cartProducts.filter((item) => item.id !== id);
+        setCartProducts(updatedCart);
+        localStorage.setItem("cart", JSON.stringify(updatedCart));
+        window.dispatchEvent(new Event("cartUpdated"));
+        message.success("Đã xóa sản phẩm khỏi giỏ hàng!");
+  
+        // Gửi API xóa sản phẩm khỏi database
+        const token = localStorage.getItem("token");
+        if (token) {
+          checkTokenValidity(token).then((isValid) => {
+            if (!isValid) {
+              message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+              localStorage.removeItem("token");
+              localStorage.removeItem("cart");
+              window.dispatchEvent(new Event("cartUpdated"));
+              window.location.href = "/login";
+            } else {
+              const decodedToken = jwtDecode(token);
+              const email = decodedToken?.sub;
+              const cartItem = cartProducts.find(item => item.id === id);
+  
+              const cartData = {
+                sanPhamChiTiet: { ...cartItem, quantity: 0 }, // Đặt quantity = 0 để backend biết cần xóa
+                email: email,
+              };
+  
+              axios
+                .post("http://localhost:8080/api/client/order/addHoaDonChiTiet", cartData)
+                .then((response) => {
+                  console.log("Sản phẩm đã bị xóa khỏi database:", response.data);
+                })
+                .catch((error) => {
+                  console.error("Có lỗi khi xóa sản phẩm khỏi database:", error);
+                });
+            }
+          });
+        }
+      },
+    });
   };
+  
   const handleCheckout = async () => {
     try {
       console.log('Đang chuyển hướng đến trang checkout...');
@@ -252,6 +339,7 @@ const Cart = () => {
 
       if (!selectedVoucher) {
         setSelectedVoucher(bestVoucher);
+        console.log('Voucher tốt nhất:', bestVoucher);
       }
 
       const sortedVouchers = bestVoucher
@@ -267,6 +355,7 @@ const Cart = () => {
     }
   }, [subtotal]); // Thêm voucherList vào dependency
   console.log('voucher được chọn', selectedVoucher);
+
   const handleSelectVoucher = (voucher) => {
     setSelectedVoucher((prev) => (prev?.id === voucher.id ? null : voucher));
 

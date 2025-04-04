@@ -10,9 +10,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/client")
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
-public class DiaChiCLientController {
+public class DiaChiClientController {
     @Autowired
     KhachHangService khachHangService;
+
     @GetMapping("/diaChi/{idKhachHang}")
     public List<DiaChi> getDiaChiByIdKhachHang(@PathVariable("idKhachHang") String idKhachHang) {
         return khachHangService.findDiaChiByIdKhachHang(idKhachHang);

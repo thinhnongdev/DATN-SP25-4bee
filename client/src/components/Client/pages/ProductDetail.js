@@ -15,7 +15,10 @@ import {
   Input,
 } from 'antd';
 import { ShoppingCartOutlined } from '@ant-design/icons';
+import { checkTokenValidity } from './checkTokenValidity';
+import { jwtDecode } from 'jwt-decode';
 
+import SanPhamChiTiet from '../../QuanLySanPham/SanPhamChiTiet';
 const { Title, Text } = Typography;
 
 const ProductDetail = () => {
@@ -70,7 +73,7 @@ const ProductDetail = () => {
       return null;
     }
   };
-  
+
   // Fetch data và nhóm sản phẩm
   useEffect(() => {
     const fetchProduct = async () => {
@@ -140,7 +143,33 @@ const ProductDetail = () => {
 
     // Lấy giỏ hàng hiện tại từ localStorage hoặc tạo mảng mới
     const existingCart = JSON.parse(localStorage.getItem('cart')) || [];
-
+    const token = localStorage.getItem('token');
+    if (token) {
+      checkTokenValidity(token).then((isValid) => {
+        if (!isValid) {
+          message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+          localStorage.removeItem('token');
+          localStorage.removeItem('cart');
+          window.dispatchEvent(new Event('cartUpdated'));
+          window.location.href = '/login'; // Điều hướng đến trang đăng nhập
+        } else {
+          const decodedToken = jwtDecode(token);
+          const email = decodedToken?.sub;
+          const cartData = {
+            sanPhamChiTiet: cartItem,
+            email: email,
+          };
+          axios
+            .post('http://localhost:8080/api/client/order/addHoaDonChiTiet', cartData)
+            .then((response) => {
+              console.log('Sản phẩm đã được lưu vào giỏ:', response.data);
+            })
+            .catch((error) => {
+              console.error('Có lỗi khi lưu sản phẩm vào giỏ:', error);
+            });
+        }
+      });
+    }
     // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
     const existingIndex = existingCart.findIndex((item) => item.id === selectedVariant.idSPCT);
 
@@ -344,14 +373,14 @@ const ProductDetail = () => {
             >
               Thêm vào giỏ hàng
             </Button>
-            <Button
+            {/* <Button
               type="primary"
               size="large"
               onClick={handleAddToCart}
               style={{ width: '50%', marginBottom: '24px', marginTop: '24px' }}
             >
               Mua ngay
-            </Button>
+            </Button> */}
           </div>
 
           {/* Hướng dẫn chăm sóc */}

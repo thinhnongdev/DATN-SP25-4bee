@@ -23,7 +23,7 @@ public class HoaDonResponse {
     private String tinh;
     private String huyen;
     private String xa;
-    private String moTa;
+    private String diaChiCuThe;
 
     private Integer trangThaiGiaoHang;
     private LocalDateTime thoiGianGiaoHang;
@@ -36,7 +36,9 @@ public class HoaDonResponse {
     private NhanVienResponse nhanVien;
     private KhachHangResponse khachHang;
     private PhieuGiamGiaResponse phieuGiamGia;
-    //    private String tenPhuongThucThanhToan; // Tên phương thức thanh toán
+
+    private BigDecimal giamGia;
+
     private List<ThanhToanHoaDonResponse> thanhToans;
 
     private List<HoaDonChiTietResponse> hoaDonChiTiets;

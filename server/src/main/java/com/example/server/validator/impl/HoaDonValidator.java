@@ -33,11 +33,11 @@ public class HoaDonValidator implements IHoaDonValidator {
             errors.add("Tên người nhận không được để trống");
         }
 
-        if (StringUtils.isEmpty(request.getSoDienThoai())) {
-            errors.add("Số điện thoại không được để trống");
-        } else if (!request.getSoDienThoai().matches("\\d{10}")) {
-            errors.add("Số điện thoại không hợp lệ");
-        }
+//        if (StringUtils.isEmpty(request.getSoDienThoai())) {
+//            errors.add("Số điện thoại không được để trống");
+//        } else if (!request.getSoDienThoai().matches("\\d{10}")) {
+//            errors.add("Số điện thoại không hợp lệ");
+//        }
 
 //        if (request.getTongTien() == null || request.getTongTien().compareTo(BigDecimal.ZERO) < 0) {
 //            errors.add("Tổng tiền phải lớn hơn hoặc bằng 0");

@@ -20,7 +20,8 @@ HoaDonResponse updateDiaChiGiaoHang(String hoaDonId, UpdateDiaChiRequest address
     HoaDonResponse applyVoucher(String hoaDonId, String voucherId);  // Áp dụng voucher
     HoaDonResponse completeOrder(String hoaDonId, HoaDonRequest request);
 //    HoaDonResponse findById(String hoaDonId);
-    HoaDonResponse applyBestVoucher (String hoaDonId);
+    HoaDonResponse applyBestVoucher(String hoaDonId, String customerId);  // Có customerId
+    HoaDonResponse applyBestVoucher(String hoaDonId);
     HoaDonResponse selectCustomer (String hoaDonId, String customerName, String diaChiId);
     void updateLoaiHoaDon(String hoaDonId, Integer loaiHoaDon);
 
