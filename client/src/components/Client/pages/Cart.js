@@ -19,6 +19,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { checkTokenValidity } from './checkTokenValidity';
 import { jwtDecode } from 'jwt-decode';
+import isEqual from 'lodash/isEqual';
 const { Title, Text } = Typography;
 const Cart = () => {
   const [isModalVoucher, setIsModalVoucher] = useState(false);
@@ -134,7 +135,6 @@ const Cart = () => {
             sanPhamChiTiet: cartItem,
             email: email,
           };
-  
           axios
             .post("http://localhost:8080/api/client/order/addHoaDonChiTiet", cartData)
             .then((response) => {
@@ -336,24 +336,32 @@ const Cart = () => {
   useEffect(() => {
     if (voucherList.length > 0) {
       const bestVoucher = getBestVoucher(voucherList, subtotal);
-
-      if (!selectedVoucher) {
+  
+      // Chỉ set selectedVoucher nếu thay đổi
+      if (!selectedVoucher || selectedVoucher.id !== bestVoucher?.id) {
         setSelectedVoucher(bestVoucher);
         console.log('Voucher tốt nhất:', bestVoucher);
       }
-
+  
+      // Tạo danh sách voucher mới
       const sortedVouchers = bestVoucher
-        ? [bestVoucher, ...voucherList.filter((voucher) => voucher.id !== bestVoucher.id)]
+        ? [bestVoucher, ...voucherList.filter((v) => v.id !== bestVoucher.id)]
         : [...voucherList];
-
-      setVoucherList(
-        sortedVouchers.map((voucher) => ({
-          ...voucher,
-          isBest: voucher.id === bestVoucher?.id,
-        })),
-      );
+  
+      const updatedList = sortedVouchers.map((voucher) => ({
+        ...voucher,
+        isBest: voucher.id === bestVoucher?.id,
+      }));
+  
+      // Chỉ set nếu danh sách mới khác danh sách cũ
+      if (!isEqual(updatedList, voucherList)) {
+        setVoucherList(updatedList);
+      }
     }
-  }, [subtotal]); // Thêm voucherList vào dependency
+  }, [subtotal]); // CHỈ cần subtotal thôi!
+  
+
+  
   console.log('voucher được chọn', selectedVoucher);
 
   const handleSelectVoucher = (voucher) => {

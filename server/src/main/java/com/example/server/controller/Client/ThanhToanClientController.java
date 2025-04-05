@@ -89,7 +89,35 @@ public class ThanhToanClientController {
             String districtName = ghnService.getDistrictName(Long.parseLong(request.getThongTinGiaoHang().getProvince()), Long.parseLong(request.getThongTinGiaoHang().getDistrict()));
             String wardName = ghnService.getWardName(Long.parseLong(request.getThongTinGiaoHang().getDistrict()), request.getThongTinGiaoHang().getWard());
             request.getThongTinGiaoHang().setDiaChiCuThe(request.getThongTinGiaoHang().getDiaChiCuThe() + ", " + wardName + ", " + districtName + ", " + provinceName);
-            thanhToanClientService.sendOrderConfirmationEmail(request.getThongTinGiaoHang(), hoaDon, request.getTongTienThanhToan(), request.getSanPhamChiTietList(), request.getPhieuGiamGia(),request.getTongTienHang());
+            thanhToanClientService.sendOrderConfirmationEmail(request.getThongTinGiaoHang(), hoaDon, request.getTongTienThanhToan(), request.getSanPhamChiTietList(), request.getPhieuGiamGia(), request.getTongTienHang());
+            return ResponseEntity.ok("Đặt hàng thành công!");
+        } catch (Exception e) {
+            e.printStackTrace(); // In ra log chi tiết lỗi ở terminal backend
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Đặt hàng thất bại: " + e.getClass().getName() + " - " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/thanhToanDonHangDaDangNhap")
+    public ResponseEntity<?> thanhToanDonHangDaDangNhap(@RequestBody CheckoutRequest request) {
+        try {
+            HoaDon hoaDon = hoaDonClientService.ThanhToanHoaDonPending(
+                    request.getThongTinGiaoHang(),
+                    request.getTongTienHang(),
+                    request.getPhieuGiamGia()
+            );
+            System.out.println(request.getThongTinGiaoHang().getPhuongThucThanhToan());
+            thanhToanClientService.createThanhToanHoaDon(
+                    request.getThongTinGiaoHang().getPhuongThucThanhToan(),
+                    hoaDon,
+                    request.getTongTienThanhToan(),
+                    request.getThongTinGiaoHang()
+            );
+            String provinceName = ghnService.getProvinceName(Long.parseLong(request.getThongTinGiaoHang().getProvince()));
+            String districtName = ghnService.getDistrictName(Long.parseLong(request.getThongTinGiaoHang().getProvince()), Long.parseLong(request.getThongTinGiaoHang().getDistrict()));
+            String wardName = ghnService.getWardName(Long.parseLong(request.getThongTinGiaoHang().getDistrict()), request.getThongTinGiaoHang().getWard());
+            request.getThongTinGiaoHang().setDiaChiCuThe(request.getThongTinGiaoHang().getDiaChiCuThe() + ", " + wardName + ", " + districtName + ", " + provinceName);
+            thanhToanClientService.sendOrderConfirmationEmail(request.getThongTinGiaoHang(), hoaDon, request.getTongTienThanhToan(), request.getSanPhamChiTietList(), request.getPhieuGiamGia(), request.getTongTienHang());
             return ResponseEntity.ok("Đặt hàng thành công!");
         } catch (Exception e) {
             e.printStackTrace(); // In ra log chi tiết lỗi ở terminal backend

@@ -62,10 +62,35 @@ public class HoaDonClientService {
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
         return hoaDon1;
-    }
+    };
+    public HoaDon ThanhToanHoaDonPending(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, PhieuGiamGia phieuGiamGia) {
+        HoaDon hoaDon = hoaDonRepository.findByMaHoaDon(thongTinGiaoHangClientRequest.getMaHoaDon()).orElseThrow(()->new RuntimeException("Không tìm thấy hóa đơn pending cần thanh toán"));
+        hoaDon.setPhieuGiamGia(phieuGiamGia);
+        hoaDon.setNhanVien(null);
+        hoaDon.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElse(null));
+        hoaDon.setLoaiHoaDon(1);// loại hóa đơn online
+        hoaDon.setTenNguoiNhan(thongTinGiaoHangClientRequest.getHoTen());
+        hoaDon.setSoDienThoai(thongTinGiaoHangClientRequest.getSoDienThoai());
+        hoaDon.setEmailNguoiNhan(thongTinGiaoHangClientRequest.getEmail());
+        hoaDon.setDiaChi(thongTinGiaoHangClientRequest.getDiaChiCuThe() + ", " + thongTinGiaoHangClientRequest.getWard() + ", " + thongTinGiaoHangClientRequest.getDistrict() + ", " + thongTinGiaoHangClientRequest.getProvince());
+        hoaDon.setTrangThaiGiaoHang(1);
+        hoaDon.setTongTien(tongTienHang);
+        hoaDon.setGhiChu(thongTinGiaoHangClientRequest.getGhiChu());
+        hoaDon.setTrangThai(1);
+        hoaDon.setNgayTao(LocalDateTime.now());
+        HoaDon hoaDon1 = hoaDonRepository.save(hoaDon);
+        LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
+        lichSuHoaDon.setId(UUID.randomUUID().toString());
+        lichSuHoaDon.setHoaDon(hoaDon);
+        lichSuHoaDon.setTrangThai(1);
+        lichSuHoaDon.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElse(null));
+        lichSuHoaDon.setNgayTao(LocalDateTime.now());
+        lichSuHoaDon.setHanhDong("Tạo đơn hàng");
+        lichSuHoaDon.setMoTa("");
+        lichSuHoaDonRepository.save(lichSuHoaDon);
 
-    ;
-
+        return hoaDon1;
+    };
     public HoaDon createCartKhachHangDangNhap(String email) {
         Optional<HoaDon> hoaDonPending = hoaDonRepository.findHoaDonPending(email);
         if (hoaDonPending.isPresent()) {
@@ -80,6 +105,13 @@ public class HoaDonClientService {
         hoaDon.setMaHoaDon("HDO" + System.currentTimeMillis());
 
         return hoaDonRepository.save(hoaDon);
+    }
+    public HoaDon findHoaDonDangNhap(String email){
+        Optional<HoaDon> hoaDon=hoaDonRepository.findHoaDonPending(email);
+        if(hoaDon.isPresent()){
+            hoaDon.get().setHoaDonChiTiets(null);
+        }
+        return hoaDon.orElseThrow(()->new RuntimeException("Không có hóa đơn pending để thanh toán"));
     }
 
     public void addSanPhamVaoHoaDonChiTiet(CartProductRequest cartProductRequest) {

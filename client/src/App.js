@@ -34,6 +34,7 @@ import Checkout from './components/Client/pages/Checkout';
 import OrderSuccessPage from './components/Client/pages/OrderSuccess';
 import ThongkeList from './components/Thongke/ThongkeList';
 import SearchOrder from './components/Client/pages/SearchOrder';
+import ThongTinTaiKhoan from './components/Client/pages/thongtintaikhoan/OrderDetail';
 import Chatbot from './components/Client/Chat/Chatbot';
 import { checkTokenValidity } from './components/Client/pages/checkTokenValidity';
 const { Header, Content, Footer, Sider } = Layout;
@@ -237,6 +238,7 @@ const CustomerLayout = () => {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success" element={<OrderSuccessPage />} />
           <Route path="/searchOrder" element={<SearchOrder />} />
+          <Route path="/profile" element={<ThongTinTaiKhoan />} />
         </Routes>
       </Content>
       <FooterClient />

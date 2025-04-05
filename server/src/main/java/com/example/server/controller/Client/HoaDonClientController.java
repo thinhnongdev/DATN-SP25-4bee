@@ -74,5 +74,16 @@ public class HoaDonClientController {
                     .body("Đã xảy ra lỗi không xác định. Vui lòng thử lại.");
         }
     }
-
+@GetMapping("/order/findHoaDonPending/{email}")
+public ResponseEntity<?> findHoaDonPending(@PathVariable String email) {
+    if (email == null || email.isEmpty()) {
+        return ResponseEntity.badRequest().body("Email khách hàng không được để trống");
+    }
+    try {
+        HoaDon hoaDon = hoaDonClientService.findHoaDonDangNhap(email);
+        return ResponseEntity.ok(hoaDon);
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
+    }
+}
 }

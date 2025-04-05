@@ -213,5 +213,6 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
 
     @Query("select h from HoaDon h where h.trangThai=10 and h.khachHang.email=:email")
     Optional<HoaDon> findHoaDonPending(String email);
-
+    @Query("SELECT h FROM HoaDon h WHERE h.trangThai =10 and h.maHoaDon=:maHoaDon")
+    Optional<HoaDon> findByMaHoaDon(@Param("maHoaDon") String maHoaDon);
 }

@@ -18,6 +18,8 @@ import {
 } from 'antd';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { checkTokenValidity } from './checkTokenValidity';
+import { jwtDecode } from 'jwt-decode';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
@@ -33,7 +35,7 @@ const CheckoutForm = () => {
   const [shippingFee, setShippingFee] = useState(null);
   const [form] = Form.useForm();
   const [formData, setFormData] = useState({
-    idKhachHang:'',
+    idKhachHang: '',
     hoTen: '',
     soDienThoai: '',
     email: '',
@@ -254,7 +256,7 @@ const CheckoutForm = () => {
         if (data) {
           console.log('Setting user info:', data);
           setUserInfo(data);
-          setFormData({...formData, idKhachHang :data.id})
+          setFormData({ ...formData, idKhachHang: data.id });
         }
       });
     } else {
@@ -293,7 +295,7 @@ const CheckoutForm = () => {
 
     if (selected && selected.id !== selectedAddress?.id) {
       setSelectedAddress(selected);
-    
+
       // Cập nhật form với thông tin địa chỉ được chọn
       setFormData({
         id: selected.id || '',
@@ -514,6 +516,22 @@ const CheckoutForm = () => {
       return false;
     }
   };
+  const getOrderCodesByEmail = async (email) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/client/order/findHoaDonPending/${email}`,
+      );
+      if (!response.ok) {
+        throw new Error('Failed to fetch order codes');
+      }
+      const data = await response.json();
+      console.log('Mã hóa đơn của người dùng:', data);
+      return data.maHoaDon;
+    } catch (error) {
+      console.error('Error fetching order codes:', error);
+      return null;
+    }
+  };
 
   const handleSubmitOrder = async () => {
     if (!validateForm()) return;
@@ -524,7 +542,34 @@ const CheckoutForm = () => {
       okText: 'Xác nhận',
       cancelText: 'Hủy',
       onOk: async () => {
-        const uniqueOrderCode = generateUniqueOrderCode();
+        let uniqueOrderCode = null;
+        let apiUrlThanhToan = null;
+        if (token) {
+          const isValid = await checkTokenValidity(token); // ✅ Sửa tại đây
+      
+          if (!isValid) {
+            message.error('Hết phiên đăng nhập, vui lòng đăng nhập lại!');
+            localStorage.removeItem('token');
+            navigate('/login');
+            return;
+          } else {
+            const decodedToken = jwtDecode(token);
+            const email = decodedToken?.sub;
+      
+            if (email) {
+              uniqueOrderCode = await getOrderCodesByEmail(email);
+              console.log('Mã hóa đơn của người dùng:', uniqueOrderCode);
+            }
+      
+            apiUrlThanhToan =
+              'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangDaDangNhap';
+          }
+        }else {
+          uniqueOrderCode = generateUniqueOrderCode();
+          apiUrlThanhToan =
+            'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap';
+        }
+
         const orderData = {
           sanPhamChiTietList: cartProducts,
           thongTinGiaoHang: {
@@ -553,14 +598,12 @@ const CheckoutForm = () => {
               clearInterval(interval);
 
               axios
-                .post(
-                  'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap',
-                  orderData,
-                )
+                .post(apiUrlThanhToan, orderData)
                 .then((res) => {
                   message.success(res.data || 'Đặt hàng thành công!');
                   localStorage.removeItem('cart');
                   localStorage.removeItem('selectedVoucher');
+                  window.dispatchEvent(new Event('cartUpdated'));
                   navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
                 })
                 .catch((err) => {
@@ -580,14 +623,12 @@ const CheckoutForm = () => {
         }
 
         axios
-          .post(
-            'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap',
-            orderData,
-          )
+          .post(apiUrlThanhToan, orderData)
           .then((res) => {
             message.success(res.data || 'Đặt hàng thành công!');
             localStorage.removeItem('cart');
             localStorage.removeItem('selectedVoucher');
+            window.dispatchEvent(new Event('cartUpdated'));
             navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
           })
           .catch((err) => {
@@ -605,7 +646,6 @@ const CheckoutForm = () => {
       const timer = setInterval(() => {
         setCountdown((prev) => prev - 1);
       }, 1000);
-
       return () => clearInterval(timer);
     }
   }, [isModalPaymentQR, countdown]);
@@ -837,7 +877,6 @@ const CheckoutForm = () => {
               <Radio value="BANK">Thanh toán bằng chuyển khoản</Radio>
               <Radio value="MoMo">Thanh toán bằng MoMo</Radio>
               <Radio value="COD">Thanh toán bằng COD</Radio>
-          
             </Radio.Group>
           </Card>
           <Button
@@ -877,7 +916,7 @@ const CheckoutForm = () => {
           </div>
         )}
       </Modal>
-      <Modal title="Chọn địa chỉ giao hàng" open={isAddressList} closable={false} footer={null}>
+      <Modal title="Chọn địa chỉ giao hàng" open={isAddressList} footer={null} onCancel={() => setIsAddressList(false)}>
         <Row gutter={[16, 16]} style={{ flexDirection: 'column', alignItems: 'center' }}>
           {addressList.length > 0 ? (
             addressList.map((address) => (
@@ -925,11 +964,11 @@ const CheckoutForm = () => {
             <Empty description="Không có địa chỉ nào, vui lòng thêm mới!" />
           )}
         </Row>
-        <div style={{ marginTop: '16px', textAlign: 'right' }}>
+        {/* <div style={{ marginTop: '16px', textAlign: 'right' }}>
           <Button type="primary" onClick={() => handleConfirm()} disabled={!selectedAddress}>
             Xác nhận
           </Button>
-        </div>
+        </div> */}
       </Modal>
     </div>
   );
