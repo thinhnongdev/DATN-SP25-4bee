@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layout, Menu, Avatar, Typography } from 'antd';
 import { UserOutlined, ShoppingCartOutlined, TagOutlined } from '@ant-design/icons';
+import { Link } from 'react-router-dom';
 
 const { Sider } = Layout;
 const { Text } = Typography;
@@ -18,11 +19,17 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <Menu mode="vertical" defaultSelectedKeys={['3']}>
-        <Menu.Item key="2" icon={<UserOutlined />}>Tài Khoản Của Tôi</Menu.Item>
-        <Menu.Item key="3" icon={<ShoppingCartOutlined />}>Đơn Mua</Menu.Item>
-        <Menu.Item key="4" icon={<TagOutlined />}>Kho Voucher</Menu.Item>
-      </Menu>
+      <Menu mode="vertical" defaultSelectedKeys={['1']}>
+  <Menu.Item key="1" icon={<UserOutlined />}>
+    <Link to="/myprofile">Tài Khoản Của Tôi</Link>
+  </Menu.Item>
+  <Menu.Item key="2" icon={<ShoppingCartOutlined />}>
+    <Link to="/orderdetail">Đơn Mua</Link>
+  </Menu.Item>
+  <Menu.Item key="3" icon={<TagOutlined />}>
+    <Link to="/danhsachvoucher">Kho Voucher</Link>
+  </Menu.Item>
+</Menu>
     </Sider>
   );
 };

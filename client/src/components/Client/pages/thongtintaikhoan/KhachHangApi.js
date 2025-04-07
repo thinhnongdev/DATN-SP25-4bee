@@ -1,6 +1,7 @@
+import { message } from 'antd';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/admin/khach_hang';
+const API_URL = 'http://localhost:8080/api/client/khach_hang';
 
 // Hàm tạo headers kèm token
 const getAuthHeaders = () => ({
@@ -35,6 +36,7 @@ export const getPutApi = async (id, updateKhachHang) => {
     const response = await axios.put(`${API_URL}/${id}`, updateKhachHang, {
       headers: getAuthHeaders(),
     });
+    // message.success('Cập nhật thành công');
     return response;
   } catch (error) {
     console.error('Error in getPutApi:', error);

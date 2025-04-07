@@ -78,17 +78,15 @@ const Navbar = () => {
         try {
           const token = localStorage.getItem('token');
           if (token) {
-            await axios.post(
-              'http://localhost:8080/api/auth/logout',
-              JSON.stringify({ token }),
-              { headers: { 'Content-Type': 'application/json' } }
-            );
+            await axios.post('http://localhost:8080/api/auth/logout', JSON.stringify({ token }), {
+              headers: { 'Content-Type': 'application/json' },
+            });
           }
           localStorage.removeItem('token');
           setIsLoggedIn(false);
           setUserInfo(null);
           message.success('Đăng xuất thành công!');
-  
+
           navigate('/'); // Chuyển về trang chủ
         } catch (error) {
           console.error('Logout failed:', error.response?.data || error.message);
@@ -96,7 +94,7 @@ const Navbar = () => {
       },
     });
   };
-  
+
   const menuItems = [
     { key: '/', label: 'Trang chủ' },
     { key: '/products', label: 'Sản phẩm' },
@@ -109,7 +107,7 @@ const Navbar = () => {
   const userMenu = (
     <Menu>
       <Menu.Item key="profile">
-        <Link to="/profile">Thông tin cá nhân</Link>
+        <Link to="/myprofile">Thông tin cá nhân</Link>
       </Menu.Item>
       <Menu.Item
         key="logout"

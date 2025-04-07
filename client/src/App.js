@@ -34,7 +34,9 @@ import Checkout from './components/Client/pages/Checkout';
 import OrderSuccessPage from './components/Client/pages/OrderSuccess';
 import ThongkeList from './components/Thongke/ThongkeList';
 import SearchOrder from './components/Client/pages/SearchOrder';
-import ThongTinTaiKhoan from './components/Client/pages/thongtintaikhoan/OrderDetail';
+import OrderDetail from './components/Client/pages/thongtintaikhoan/OrderDetail';
+import TaiKhoanCuaToi from './components/Client/pages/thongtintaikhoan/TaiKhoanCuaToi';
+import DanhSachVoucher from './components/Client/pages/thongtintaikhoan/DanhSachVoucher';
 import Chatbot from './components/Client/Chat/Chatbot';
 import { checkTokenValidity } from './components/Client/pages/checkTokenValidity';
 const { Header, Content, Footer, Sider } = Layout;
@@ -238,7 +240,9 @@ const CustomerLayout = () => {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success" element={<OrderSuccessPage />} />
           <Route path="/searchOrder" element={<SearchOrder />} />
-          <Route path="/profile" element={<ThongTinTaiKhoan />} />
+          <Route path="/orderdetail" element={<OrderDetail />} />
+          <Route path="/myprofile" element={<TaiKhoanCuaToi />} />
+          <Route path="/danhsachvoucher" element={<DanhSachVoucher />} />
         </Routes>
       </Content>
       <FooterClient />

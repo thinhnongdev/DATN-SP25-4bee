@@ -1,4 +1,4 @@
-package com.example.server.controller.NhanVien_Khachhang;
+package com.example.server.controller.Client;
 
 import com.example.server.dto.NhanVien_KhachHang.KhachHangCreationRequest;
 import com.example.server.entity.DiaChi;
@@ -12,16 +12,11 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/admin/khach_hang")
-
-public class KhachHangController {
+@RequestMapping("/api/client/khach_hang")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+public class KhachHangClientController {
     @Autowired
     KhachHangService khachHangService;
-
-    @GetMapping
-    public ResponseEntity<List<KhachHang>> getAllKhachHang() {
-        return ResponseEntity.ok(khachHangService.getAllKhachHang());
-    }
 
     @GetMapping("/diaChi/{idKhachHang}")
     public List<DiaChi> getDiaChiByIdKhachHang(@PathVariable("idKhachHang") String idKhachHang) {
@@ -33,11 +28,6 @@ public class KhachHangController {
         return ResponseEntity.ok(khachHangService.getKhachHangById(id));
     }
 
-    @PostMapping
-    public ResponseEntity<KhachHang> createKhachHang(@RequestBody KhachHangCreationRequest khachHangRequest) {
-        System.out.println(khachHangRequest.getDiaChi());
-        return ResponseEntity.ok(khachHangService.createKhachHang(khachHangRequest));
-    }
 
     @PutMapping("/{id}")
     public ResponseEntity<KhachHang> updateKhachHang(@PathVariable String id, @RequestBody KhachHangCreationRequest khachHang) {
@@ -67,5 +57,4 @@ public class KhachHangController {
         DiaChi savedAddress = khachHangService.addAddressForCustomer(khachHangId, diaChi);
         return ResponseEntity.ok(savedAddress);
     }
-
 }
