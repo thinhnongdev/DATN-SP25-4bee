@@ -162,6 +162,11 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         return repository.findAllCongKhai();
     }
 
+    @Override
+    public List<PhieuGiamGia> getAllPhieuCaNhan(String email) {
+        return repository.findAllCaNhan(email);
+    }
+
 
     @Override
     @Transactional

@@ -22,6 +22,7 @@ public interface PhieuGiamGiaService {
     String getDiscountInfo(String maPhieuGiamGia);
     double applyDiscount(String maPhieuGiamGia, double tongGiaTriDonHang);
     List<PhieuGiamGia> getAllPhieuCongKhai();
+    List<PhieuGiamGia> getAllPhieuCaNhan(String email);
     List<PhieuGiamGiaDTO> getActivePhieuGiamGia();
 
     // Thêm phương thức lấy danh sách khách hàng theo mã phiếu giảm giá

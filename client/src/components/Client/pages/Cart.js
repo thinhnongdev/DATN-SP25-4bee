@@ -82,113 +82,143 @@ const Cart = () => {
 
     fetchProduct();
   }, []);
+  const getEmailFromToken = () => {
+    const token = localStorage.getItem('token'); // Hoặc lấy từ cookie nếu bạn lưu ở đó
+    if (!token) return null;
 
+    try {
+      const decoded = jwtDecode(token);
+      return decoded.sub || decoded.email || null; // Tùy theo bạn lưu email ở claim nào
+    } catch (error) {
+      console.error('Invalid token', error);
+      return null;
+    }
+  };
   useEffect(() => {
     const fetchVoucherCongKhai = async () => {
       try {
         const response = await axios.get('http://localhost:8080/api/client/phieugiamgia/congkhai');
-        setVoucherList(response.data);
-        console.log('Voucher:', response.data);
+        console.log('Voucher công khai:', response.data);
+        setVoucherList((prev) => [...prev, ...response.data]);
       } catch (error) {
-        console.error('Error fetching voucher:', error);
+        console.error('Error fetching voucher công khai:', error);
       }
     };
+
+    const fetchVoucherCaNhan = async (email) => {
+      try {
+        const response = await axios.get(
+          `http://localhost:8080/api/client/phieugiamgia/canhan/${email}`,
+        );
+        console.log('Voucher cá nhân:', response.data);
+        setVoucherList((prev) => [...prev, ...response.data]);
+      } catch (error) {
+        console.error('Error fetching voucher cá nhân:', error);
+      }
+    };
+
+    const email = getEmailFromToken();
+    if (!email) {
+      message.warning('Không tìm thấy email từ token');
+    } else {
+      fetchVoucherCaNhan(email);
+    }
+
     fetchVoucherCongKhai();
   }, []);
 
   const handleQuantityChange = (id, value) => {
     if (isNaN(value) || value < 1) {
-      message.warning("Số lượng phải lớn hơn 0!");
+      message.warning('Số lượng phải lớn hơn 0!');
       return;
     }
-  
+
     const updatedCart = cartProducts.map((item) =>
-      item.id === id ? { ...item, quantity: value } : item
+      item.id === id ? { ...item, quantity: value } : item,
     );
-  
+
     setCartProducts(updatedCart);
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
-    window.dispatchEvent(new Event("cartUpdated"));
-  
+    localStorage.setItem('cart', JSON.stringify(updatedCart));
+    window.dispatchEvent(new Event('cartUpdated'));
+
     // Nếu số lượng = 0, gọi hàm xóa
     if (value === 0) {
       handleRemoveItem(id);
       return;
     }
-  
+
     // Kiểm tra và gửi API cập nhật database
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem('token');
     if (token) {
       checkTokenValidity(token).then((isValid) => {
         if (!isValid) {
-          message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
-          localStorage.removeItem("token");
-          localStorage.removeItem("cart");
-          window.dispatchEvent(new Event("cartUpdated"));
-          window.location.href = "/login";
+          message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+          localStorage.removeItem('token');
+          localStorage.removeItem('cart');
+          window.dispatchEvent(new Event('cartUpdated'));
+          window.location.href = '/login';
         } else {
           const decodedToken = jwtDecode(token);
           const email = decodedToken?.sub;
-          const cartItem = updatedCart.find(item => item.id === id);
-  
+          const cartItem = updatedCart.find((item) => item.id === id);
+
           const cartData = {
             sanPhamChiTiet: cartItem,
             email: email,
           };
           axios
-            .post("http://localhost:8080/api/client/order/addHoaDonChiTiet", cartData)
+            .post('http://localhost:8080/api/client/order/addHoaDonChiTiet', cartData)
             .then((response) => {
-              console.log("Cập nhật số lượng trong database:", response.data);
+              console.log('Cập nhật số lượng trong database:', response.data);
             })
             .catch((error) => {
-              console.error("Có lỗi khi cập nhật số lượng:", error);
+              console.error('Có lỗi khi cập nhật số lượng:', error);
             });
         }
       });
     }
   };
-  
 
   const handleRemoveItem = (id) => {
     Modal.confirm({
-      title: "Xác nhận xóa",
-      content: "Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?",
-      okText: "Xóa",
-      cancelText: "Hủy",
+      title: 'Xác nhận xóa',
+      content: 'Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?',
+      okText: 'Xóa',
+      cancelText: 'Hủy',
       onOk: () => {
         const updatedCart = cartProducts.filter((item) => item.id !== id);
         setCartProducts(updatedCart);
-        localStorage.setItem("cart", JSON.stringify(updatedCart));
-        window.dispatchEvent(new Event("cartUpdated"));
-        message.success("Đã xóa sản phẩm khỏi giỏ hàng!");
-  
+        localStorage.setItem('cart', JSON.stringify(updatedCart));
+        window.dispatchEvent(new Event('cartUpdated'));
+        message.success('Đã xóa sản phẩm khỏi giỏ hàng!');
+
         // Gửi API xóa sản phẩm khỏi database
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem('token');
         if (token) {
           checkTokenValidity(token).then((isValid) => {
             if (!isValid) {
-              message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
-              localStorage.removeItem("token");
-              localStorage.removeItem("cart");
-              window.dispatchEvent(new Event("cartUpdated"));
-              window.location.href = "/login";
+              message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
+              localStorage.removeItem('token');
+              localStorage.removeItem('cart');
+              window.dispatchEvent(new Event('cartUpdated'));
+              window.location.href = '/login';
             } else {
               const decodedToken = jwtDecode(token);
               const email = decodedToken?.sub;
-              const cartItem = cartProducts.find(item => item.id === id);
-  
+              const cartItem = cartProducts.find((item) => item.id === id);
+
               const cartData = {
                 sanPhamChiTiet: { ...cartItem, quantity: 0 }, // Đặt quantity = 0 để backend biết cần xóa
                 email: email,
               };
-  
+
               axios
-                .post("http://localhost:8080/api/client/order/addHoaDonChiTiet", cartData)
+                .post('http://localhost:8080/api/client/order/addHoaDonChiTiet', cartData)
                 .then((response) => {
-                  console.log("Sản phẩm đã bị xóa khỏi database:", response.data);
+                  console.log('Sản phẩm đã bị xóa khỏi database:', response.data);
                 })
                 .catch((error) => {
-                  console.error("Có lỗi khi xóa sản phẩm khỏi database:", error);
+                  console.error('Có lỗi khi xóa sản phẩm khỏi database:', error);
                 });
             }
           });
@@ -196,7 +226,7 @@ const Cart = () => {
       },
     });
   };
-  
+
   const handleCheckout = async () => {
     try {
       console.log('Đang chuyển hướng đến trang checkout...');
@@ -241,7 +271,7 @@ const Cart = () => {
       title: 'Đơn giá',
       dataIndex: 'gia',
       key: 'gia',
-      render: (price) => `${price.toLocaleString('vi-VN')}đ`,
+      render: (price) => `${price.toLocaleString('vi-VN')}₫`,
     },
     {
       title: 'Số lượng',
@@ -278,7 +308,7 @@ const Cart = () => {
     {
       title: 'Thành tiền',
       key: 'total',
-      render: (record) => `${(record.gia * record.quantity).toLocaleString('vi-VN')}đ`,
+      render: (record) => `${(record.gia * record.quantity).toLocaleString('vi-VN')}₫`,
     },
     {
       title: 'Hành động',
@@ -336,32 +366,30 @@ const Cart = () => {
   useEffect(() => {
     if (voucherList.length > 0) {
       const bestVoucher = getBestVoucher(voucherList, subtotal);
-  
+
       // Chỉ set selectedVoucher nếu thay đổi
       if (!selectedVoucher || selectedVoucher.id !== bestVoucher?.id) {
         setSelectedVoucher(bestVoucher);
         console.log('Voucher tốt nhất:', bestVoucher);
       }
-  
+
       // Tạo danh sách voucher mới
       const sortedVouchers = bestVoucher
         ? [bestVoucher, ...voucherList.filter((v) => v.id !== bestVoucher.id)]
         : [...voucherList];
-  
+
       const updatedList = sortedVouchers.map((voucher) => ({
         ...voucher,
         isBest: voucher.id === bestVoucher?.id,
       }));
-  
+
       // Chỉ set nếu danh sách mới khác danh sách cũ
       if (!isEqual(updatedList, voucherList)) {
         setVoucherList(updatedList);
       }
     }
   }, [subtotal]); // CHỈ cần subtotal thôi!
-  
 
-  
   console.log('voucher được chọn', selectedVoucher);
 
   const handleSelectVoucher = (voucher) => {
@@ -401,7 +429,7 @@ const Cart = () => {
                   <Col>Tạm tính:</Col>
                   <Col>
                     {subtotal.toLocaleString('vi-VN')}
-                    <Text>đ</Text>
+                    <Text>₫</Text>
                   </Col>
                 </Row>
                 <Row style={{ marginTop: '16px' }} justify="space-between">
@@ -422,7 +450,7 @@ const Cart = () => {
                   <Col>Giảm giá:</Col>
                   <Col>
                     {voucherDiscount.toLocaleString('vi-VN')}
-                    <Text>đ</Text>
+                    <Text>₫</Text>
                   </Col>
                 </Row>
 
@@ -434,7 +462,7 @@ const Cart = () => {
                   <Col>
                     <Text strong style={{ fontSize: '24px', color: 'red' }}>
                       {total.toLocaleString('vi-VN')}
-                      <Text>đ</Text>
+                      <Text>₫</Text>
                     </Text>
                   </Col>
                 </Row>
@@ -509,12 +537,12 @@ const Cart = () => {
                       {voucher.tenPhieuGiamGia}
                     </Text>
                     <Text strong style={{ color: 'red', display: 'block', marginBottom: 2 }}>
-                      Giảm {voucher.giaTriGiam.toLocaleString('vi-VN')}{' '}
-                      {voucher.loaiPhieuGiamGia === 1 ? '%' : 'đ'}
+                      Giảm {voucher.giaTriGiam.toLocaleString('vi-VN')}
+                      {voucher.loaiPhieuGiamGia === 1 ? '%' : '₫'}
                     </Text>
                     <Text type="secondary" style={{ display: 'block' }}>
-                      Giảm tối đa: {voucher.soTienGiamToiDa.toLocaleString('vi-VN')}đ - Cho đơn tối
-                      thiểu: {voucher.giaTriToiThieu.toLocaleString('vi-VN')}đ
+                      Giảm tối đa: {voucher.soTienGiamToiDa.toLocaleString('vi-VN')}₫ - Cho đơn tối
+                      thiểu: {voucher.giaTriToiThieu.toLocaleString('vi-VN')}₫
                     </Text>
                   </div>
                 </div>
@@ -558,7 +586,7 @@ const Cart = () => {
           >
             <Text style={{ fontSize: '16px' }}>Giảm giá áp dụng: </Text>
             <Text strong style={{ fontSize: '16px', color: 'red' }}>
-              {voucherDiscount.toLocaleString('vi-VN')}đ
+              {voucherDiscount.toLocaleString('vi-VN')}₫
             </Text>
           </div>
         )}

@@ -264,7 +264,7 @@ const DetailForm = () => {
           padding: '15px',
           borderRadius: '8px',
           marginBottom: '20px',
-          width: '80%',
+          width: '100%',
         }}
       >
         {/* Customer Info Fields */}
@@ -275,7 +275,7 @@ const DetailForm = () => {
           <Input />
         </Form.Item>
         <Form.Item name="email" label="Email">
-          <Input />
+          <Input disabled style={{ backgroundColor: '#f5f5f5' }}/>
         </Form.Item>
         <Form.Item name="soDienThoai" label="Số điện thoại">
           <Input />

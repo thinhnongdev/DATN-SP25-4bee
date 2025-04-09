@@ -8,10 +8,10 @@ const { TabPane } = Tabs;
 
 const OrderPage = () => {
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+   <Layout style={{ width:'80%', background: '#fff',justifyContent: 'center', margin: '0 auto' }}>
       <Sidebar />  {/* Use Sidebar component here */}
-      <Layout style={{ padding: '24px' }}>
-        <Content>
+      <Layout style={{ padding: '24px',backgroundColor:'#fff' }}>
+        <Content style={{backgroundColor:'#fff'}}>
           <Title level={4}>Đơn Mua</Title>
           <Tabs defaultActiveKey="1">
             <TabPane tab="Tất cả" key="1" />
