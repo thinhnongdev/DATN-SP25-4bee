@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, Button, Select, DatePicker, Radio, Layout, message } from 'antd';
+import {
+  Form,
+  Input,
+  Button,
+  Select,
+  DatePicker,
+  Radio,
+  Layout,
+  message,
+  Col,
+  Row,
+  Card,
+  Divider,
+} from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { getDiaChiByIdKhachHang, getKhachHangById, getPutApi } from './KhachHangApi';
@@ -249,8 +262,10 @@ const DetailForm = () => {
   };
   console.log('address sau khi thay đổi:', addresses);
   return (
-    <Layout style={{ width:'80%', background: '#f0f2f5',justifyContent: 'center', margin: '0 auto' }}>
-      <Sidebar /> {/* Use Sidebar component here */}
+    <Layout
+      style={{ maxWidth: '80%', minHeight: '700px', background: '#f0f2f5', margin: '0 auto' }}
+    >
+      <Sidebar />
       <Form
         form={form}
         layout="vertical"
@@ -261,142 +276,171 @@ const DetailForm = () => {
         }}
         style={{
           background: '#fff',
-          padding: '15px',
-          borderRadius: '8px',
-          marginBottom: '20px',
+          padding: '24px',
+          // borderTopRightRadius: '12px',
+          // borderBottomRightRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
           width: '100%',
         }}
       >
-        {/* Customer Info Fields */}
-        <Form.Item name="maKhachHang" label="Mã khách hàng">
-          <Input disabled style={{ backgroundColor: '#f5f5f5' }} />
-        </Form.Item>
-        <Form.Item name="tenKhachHang" label="Tên khách hàng">
-          <Input />
-        </Form.Item>
-        <Form.Item name="email" label="Email">
-          <Input disabled style={{ backgroundColor: '#f5f5f5' }}/>
-        </Form.Item>
-        <Form.Item name="soDienThoai" label="Số điện thoại">
-          <Input />
-        </Form.Item>
-        <Form.Item name="ngaySinh" label="Ngày sinh">
-          <DatePicker format="DD-MM-YYYY" />
-        </Form.Item>
-        <Form.Item name="gioiTinh" label="Giới tính">
-          <Radio.Group>
-            <Radio value="true">Nam</Radio>
-            <Radio value="false">Nữ</Radio>
-          </Radio.Group>
-        </Form.Item>
+        <Row>
+          <h1 style={{ marginBottom: 0 }}>Hồ sơ của tôi</h1>
+        </Row>
+        <Divider style={{ borderColor: '#f0f2f5', margin: '12px 0 24px 0' }} />
 
-        {/* Address List */}
-        <h3>Danh sách địa chỉ</h3>
-        <Form.List name="addresses">
-          {(fields, { add, remove }) => (
-            <>
-              {fields.map(({ key, name, ...restField }, index) => (
-                <div key={key} style={{ marginBottom: 20, position: 'relative' }}>
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'tinh']}
-                    label="Tỉnh/Thành phố"
-                    rules={[{ required: true, message: 'Vui lòng chọn tỉnh/thành phố' }]}
+        {/* <Row style={{borderBottom:'#17a2b8'}}><h1>Hồ sơ của tôi</h1></Row> */}
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item name="maKhachHang" label="Mã khách hàng">
+              <Input disabled style={{ backgroundColor: '#f5f5f5' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="tenKhachHang" label="Tên khách hàng">
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="email" label="Email">
+              <Input disabled style={{ backgroundColor: '#f5f5f5' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="soDienThoai" label="Số điện thoại">
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="ngaySinh" label="Ngày sinh">
+              <DatePicker format="DD-MM-YYYY" style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="gioiTinh" label="Giới tính">
+              <Radio.Group style={{ display: 'flex', gap: '16px' }}>
+                <Radio value="true">Nam</Radio>
+                <Radio value="false">Nữ</Radio>
+              </Radio.Group>
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <div style={{ marginTop: 32 }}>
+          <h3 style={{ marginBottom: 16 }}>Danh sách địa chỉ</h3>
+          <Form.List name="addresses">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }, index) => (
+                  <Card
+                    key={key}
+                    title={`Địa chỉ ${index + 1}`}
+                    style={{ marginBottom: 20 }}
+                    extra={
+                      fields.length > 1 && (
+                        <Button
+                          type="text"
+                          danger
+                          icon={<MinusCircleOutlined />}
+                          onClick={() => {
+                            remove(name);
+                            setAddresses((prev) => prev.filter((_, i) => i !== index));
+                          }}
+                        >
+                          Xóa
+                        </Button>
+                      )
+                    }
                   >
-                    <Select
-                      placeholder="Chọn tỉnh/thành phố"
-                      onChange={(value) => handleProvinceChange(value, index)}
-                      value={addresses[index]?.tinh}
-                    >
-                      {tinhThanhList.map((item) => (
-                        <Option key={item.ProvinceID} value={item.ProvinceID.toString()}>
-                          {item.ProvinceName}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
+                    <Row gutter={16}>
+                      <Col span={8}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'tinh']}
+                          label="Tỉnh/Thành phố"
+                          rules={[{ required: true, message: 'Vui lòng chọn tỉnh/thành phố' }]}
+                        >
+                          <Select
+                            placeholder="Chọn tỉnh"
+                            onChange={(value) => handleProvinceChange(value, index)}
+                          >
+                            {tinhThanhList.map((item) => (
+                              <Option key={item.ProvinceID} value={item.ProvinceID.toString()}>
+                                {item.ProvinceName}
+                              </Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Col>
 
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'huyen']}
-                    label="Quận/Huyện"
-                    rules={[{ required: true, message: 'Vui lòng chọn quận/huyện' }]}
-                  >
-                    <Select
-                      placeholder="Chọn quận/huyện"
-                      disabled={!addresses[index]?.tinh}
-                      onChange={(value) => handleDistrictChange(value, index)}
-                      value={addresses[index]?.huyen} // DistrictID as the value
-                    >
-                      {addresses[index]?.quanHuyenList?.map((item) => (
-                        <Option key={item.DistrictID} value={item.DistrictID.toString()}>
-                          {item.DistrictName} {/* Display name */}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
+                      <Col span={8}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'huyen']}
+                          label="Quận/Huyện"
+                          rules={[{ required: true, message: 'Vui lòng chọn quận/huyện' }]}
+                        >
+                          <Select
+                            placeholder="Chọn quận"
+                            disabled={!addresses[index]?.tinh}
+                            onChange={(value) => handleDistrictChange(value, index)}
+                          >
+                            {addresses[index]?.quanHuyenList?.map((item) => (
+                              <Option key={item.DistrictID} value={item.DistrictID.toString()}>
+                                {item.DistrictName}
+                              </Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Col>
 
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'xa']}
-                    label="Phường/Xã"
-                    rules={[{ required: true, message: 'Vui lòng chọn phường/xã' }]}
-                  >
-                    <Select
-                      placeholder="Chọn phường/xã"
-                      disabled={!addresses[index]?.huyen}
-                      onChange={(value) => handleWardChange(value, index)}
-                      value={addresses[index]?.xa}
-                    >
-                      {addresses[index]?.xaPhuongList?.map((item) => (
-                        <Option key={item.WardCode} value={item.WardCode.toString()}>
-                          {item.WardName}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
+                      <Col span={8}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'xa']}
+                          label="Phường/Xã"
+                          rules={[{ required: true, message: 'Vui lòng chọn phường/xã' }]}
+                        >
+                          <Select
+                            placeholder="Chọn phường"
+                            disabled={!addresses[index]?.huyen}
+                            onChange={(value) => handleWardChange(value, index)}
+                          >
+                            {addresses[index]?.xaPhuongList?.map((item) => (
+                              <Option key={item.WardCode} value={item.WardCode.toString()}>
+                                {item.WardName}
+                              </Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
 
-                  <Form.Item {...restField} name={[name, 'diaChiCuThe']} label="Địa chỉ cụ thể">
-                    <Input
-                      placeholder="Nhập địa chỉ cụ thể"
-                      value={addresses[index]?.diaChiCuThe || ''}
-                      onChange={(e) => handleInputChange(e, index, 'diaChiCuThe')}
-                    />
-                  </Form.Item>
+                    <Form.Item {...restField} name={[name, 'diaChiCuThe']} label="Địa chỉ cụ thể">
+                      <Input
+                        placeholder="Nhập địa chỉ cụ thể"
+                        onChange={(e) => handleInputChange(e, index, 'diaChiCuThe')}
+                      />
+                    </Form.Item>
+                  </Card>
+                ))}
 
-                  {fields.length > 1 && (
-                    <Button
-                      type="link"
-                      danger
-                      icon={<MinusCircleOutlined />}
-                      onClick={() => {
-                        remove(name);
-                        setAddresses((prev) => prev.filter((_, i) => i !== index));
-                      }}
-                      style={{ position: 'absolute', right: 0, top: 0 }}
-                    >
-                      Xóa địa chỉ
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button
-                type="dashed"
-                onClick={() => {
-                  add();
-                  handleAddAddress();
-                }}
-                block
-                icon={<PlusOutlined />}
-                style={{ marginBottom: 20 }}
-              >
-                Thêm địa chỉ mới
-              </Button>
-            </>
-          )}
-        </Form.List>
+                <Button
+                  type="dashed"
+                  onClick={() => {
+                    add();
+                    handleAddAddress();
+                  }}
+                  block
+                  icon={<PlusOutlined />}
+                >
+                  Thêm địa chỉ mới
+                </Button>
+              </>
+            )}
+          </Form.List>
+        </div>
 
-        <Form.Item>
+        <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
           <Button type="primary" htmlType="submit">
             Cập nhật khách hàng
           </Button>

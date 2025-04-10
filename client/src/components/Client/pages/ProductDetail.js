@@ -36,15 +36,37 @@ const ProductDetail = () => {
     const grouped = {};
 
     data.forEach((item) => {
-      const { sanPham, gia, thuongHieu, soLuong, kichThuoc, mauSac, chatLieu } = item;
+      const {
+        sanPham,
+        gia,
+        thuongHieu,
+        soLuong,
+        kichThuoc,
+        mauSac,
+        chatLieu,
+        danhMuc,
+        hoaTiet,
+        kieuDang,
+        tuiAo,
+        kieuTayAo,
+        kieuCuc,
+        kieuCoAo,
+      } = item;
 
       if (!grouped[sanPham.tenSanPham]) {
         grouped[sanPham.tenSanPham] = {
           tenSanPham: sanPham.tenSanPham,
           soLuongTong: 0,
-          chatLieu: chatLieu.tenChatLieu,
-          thuongHieu: thuongHieu.tenThuongHieu,
-          moTa: sanPham.moTa,
+          danhMuc: danhMuc?.tenDanhMuc,
+          thuongHieu: thuongHieu?.tenThuongHieu,
+          coAo: kieuCoAo?.tenKieuCoAo,
+          hoaTiet: hoaTiet?.tenHoaTiet,
+          chatLieu: chatLieu?.tenChatLieu,
+          kieuDang: kieuDang?.tenKieuDang,
+          tuiAo: tuiAo?.tenKieuTuiAo,
+          kieuTayAo: kieuTayAo?.tenKieuTayAo,
+          kieuCuc: kieuCuc?.tenKieuCuc,
+          moTa: sanPham?.moTa,
           bienThe: [],
         };
       }
@@ -134,7 +156,9 @@ const ProductDetail = () => {
     if (selectedVariant) {
       console.log('Biến thể được chọn:', selectedVariant);
     } else {
+      message.warning('Sản phẩm đang tạm thời hết hàng');
       console.log('Không tìm thấy biến thể phù hợp');
+      return;
     }
     const cartItem = {
       id: selectedVariant.idSPCT,
@@ -230,181 +254,209 @@ const ProductDetail = () => {
   // Render giao diện
   if (loading) return <p>Đang tải sản phẩm...</p>;
   if (!sanPhamGopNhom) return <p>Không tìm thấy sản phẩm!</p>;
+
   return (
     <div className="container" style={{ margin: '32px auto' }}>
-      <Row gutter={[48, 32]}>
-        {/* Hình ảnh sản phẩm */}
-        <Col xs={24} md={12}>
-          <Card>
+      <div style={{ backgroundColor: '#fff', padding: '32px', borderRadius: '12px' }}>
+        <Row gutter={[48, 32]}>
+          {/* Hình ảnh sản phẩm */}
+          <Col xs={24} md={12}>
             {productImages.length > 0 && (
               <Carousel autoplay>
                 {productImages.map((img, index) => (
                   <div key={index}>
-                    <div style={{ height: '500px', overflow: 'hidden' }}>
+                    <div style={{ height: '500px', overflow: 'hidden', borderRadius: '12px' }}>
                       <img
                         src={img}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          borderRadius: '12px',
+                        }}
                       />
                     </div>
                   </div>
                 ))}
               </Carousel>
             )}
-          </Card>
-        </Col>
+          </Col>
 
-        {/* Thông tin sản phẩm */}
-        <Col xs={24} md={12}>
-          <Title level={2}>{sanPhamGopNhom?.tenSanPham || 'Đang tải sản phẩm...'}</Title>
+          {/* Thông tin sản phẩm */}
+          <Col xs={24} md={12}>
+            <Title level={2} style={{ fontWeight: 700 }}>
+              {sanPhamGopNhom?.tenSanPham || 'Đang tải sản phẩm...'}
+            </Title>
 
-          <div style={{ marginBottom: '24px' }}>
-            <Title level={3} style={{ margin: 0, color: 'red' }}>
+            <Title level={3} style={{ color: '#ff4d4f', marginBottom: '24px' }}>
               {displayPrice}
             </Title>
-          </div>
 
-          <Text style={{ fontSize: '16px' }}>{sanPhamGopNhom?.moTa}</Text>
+            <Text style={{ fontSize: '16px', display: 'block', marginBottom: '24px' }}>
+              {sanPhamGopNhom?.moTa}
+            </Text>
 
-          <Divider />
+            {/* Màu sắc */}
+            <div style={{ marginBottom: '24px' }}>
+              <Text strong style={{ marginRight: '8px' }}>
+                Màu sắc:
+              </Text>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {Array.from(new Set(sanPhamGopNhom.bienThe.map((bt) => bt.mau))).map(
+                  (mau, index) => {
+                    const variant = sanPhamGopNhom.bienThe.find((bt) => bt.mau === mau);
+                    return (
+                      <Button
+                        key={index}
+                        onClick={() => handleColorClick(mau)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          border: selectedColor === mau ? '2px solid #1890ff' : '1px solid #ccc',
+                          borderRadius: '8px',
+                          backgroundColor: '#f9f9f9',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            backgroundColor: variant.maMau,
+                          }}
+                        />
+                        {mau}
+                      </Button>
+                    );
+                  },
+                )}
+              </div>
+            </div>
 
-          {/* Màu sắc */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-            <strong style={{ marginRight: '6px' }}>Màu sắc:</strong>
-            {Array.from(new Set(sanPhamGopNhom.bienThe.map((bt) => bt.mau))).map((mau, index) => {
-              const variant = sanPhamGopNhom.bienThe.find((bt) => bt.mau === mau);
-              return (
-                <Button
-                  key={index}
-                  onClick={() => handleColorClick(mau)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px',
-                    border: selectedColor === mau ? '2px solid #1890ff' : '1px solid #ddd',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      backgroundColor: variant.maMau,
-                    }}
-                  ></div>
-                  - {mau}
-                </Button>
-              );
-            })}
-          </div>
+            {/* Size */}
+            <div style={{ marginBottom: '24px' }}>
+              <Text strong style={{ marginRight: '8px' }}>
+                Kích thước:
+              </Text>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {[...new Set(sanPhamGopNhom?.bienThe.map((variant) => variant.size))].map(
+                  (size, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSizeClick(size)}
+                      style={{
+                        padding: '6px 16px',
+                        border: selectedSize === size ? '2px solid #1890ff' : '1px solid #ccc',
+                        borderRadius: '8px',
+                        background: '#fff',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {size}
+                    </button>
+                  ),
+                )}
+              </div>
+            </div>
 
-          {/* Kích thước */}
+            {/* Số lượng */}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}
+            >
+              <Text strong>Số lượng:</Text>
+              <Button
+                onClick={decreaseQuantity}
+                disabled={!selectedSize || !selectedColor || quantity <= 1}
+              >
+                -
+              </Button>
+              <Input
+                type="text"
+                value={quantity}
+                readOnly
+                style={{ width: '50px', textAlign: 'center' }}
+              />
+              <Button
+                onClick={increaseQuantity}
+                disabled={!selectedSize || !selectedColor || quantity >= availableQuantity}
+              >
+                +
+              </Button>
+              <span style={{ marginLeft: 10 }}>{availableQuantity} sản phẩm có sẵn</span>
+            </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-            <strong style={{ marginRight: '33px' }}>Size:</strong>
-            {[...new Set(sanPhamGopNhom?.bienThe.map((variant) => variant.size))].map(
-              (size, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSizeClick(size)}
-                  style={{
-                    padding: '8px 16px',
-                    border: selectedSize === size ? '2px solid #1890ff' : '1px solid #ddd',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    background: '#fff',
-                  }}
-                >
-                  {size}
-                </button>
-              ),
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <strong>Số lượng:</strong>
-            <Button
-              onClick={decreaseQuantity}
-              disabled={!selectedSize || !selectedColor || quantity <= 1}
+            {/* Nút thêm vào giỏ */}
+            <div>
+              <Button
+                type="primary"
+                icon={<ShoppingCartOutlined />}
+                size="large"
+                onClick={handleAddToCart}
+                style={{ width: '100%', borderRadius: '8px' }}
+              >
+                Thêm vào giỏ hàng
+              </Button>
+            </div>
+          </Col>
+        </Row>
+      </div>
+
+      {/* Chi tiết sản phẩm */}
+      <Row style={{ marginTop: 20 }}>
+        <Col span={24}>
+          <Card title="Chi tiết sản phẩm" style={{ borderRadius: 12 }}>
+            {[
+              { label: 'Tên sản phẩm', value: sanPhamGopNhom?.tenSanPham },
+              { label: 'Danh mục', value: sanPhamGopNhom?.danhMuc },
+              { label: 'Thương hiệu', value: sanPhamGopNhom?.thuongHieu },
+              { label: 'Cổ áo', value: sanPhamGopNhom?.coAo },
+              { label: 'Họa tiết', value: sanPhamGopNhom?.hoaTiet },
+              { label: 'Chất liệu', value: sanPhamGopNhom?.chatLieu },
+              { label: 'Kiểu dáng', value: sanPhamGopNhom?.kieuDang },
+              { label: 'Túi áo', value: sanPhamGopNhom?.tuiAo },
+              { label: 'Kiểu tay áo', value: sanPhamGopNhom?.kieuTayAo },
+              { label: 'Kiểu cúc', value: sanPhamGopNhom?.kieuCuc },
+              { label: 'Mô tả', value: sanPhamGopNhom?.moTa },
+              { label: 'Tổng số lượng', value: sanPhamGopNhom?.soLuongTong },
+              { label: 'Gửi từ', value: 'Hà Nội' },
+            ].map((item, idx) => (
+              <Row key={idx} style={{ marginBottom: 12 }}>
+                <Col span={6}>
+                  <Text strong>{item.label}</Text>
+                </Col>
+                <Col span={18}>
+                  <Text>{item.value || '—'}</Text>
+                </Col>
+              </Row>
+            ))}
+            <div
               style={{
-                padding: '8px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                opacity: !selectedSize || !selectedColor ? 0.5 : 1,
+                marginTop: '48px',
+                backgroundColor: '#fff',
+                borderRadius: '12px',
               }}
             >
-              -
-            </Button>
-            <Input
-              type="text"
-              value={quantity}
-              readOnly
-              style={{ width: '40px', textAlign: 'center', padding: '4px' }}
-            />
-            <Button
-              onClick={increaseQuantity}
-              disabled={!selectedSize || !selectedColor || quantity >= availableQuantity}
-              style={{
-                padding: '8px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                opacity: !selectedSize || !selectedColor ? 0.5 : 1,
-              }}
-            >
-              +
-            </Button>
-            {availableQuantity} <span>Sản phẩm có sẵn</span>
-          </div>
+              <Title level={4} style={{ borderBottom: '2px solid #eee', paddingBottom: '12px', paddingTop: '12px' ,backgroundColor: '#f9f9f9'}}>
+                MÔ TẢ SẢN PHẨM
+              </Title>
 
-          {/* Nút thêm vào giỏ hàng */}
-          <div>
-            <Button
-              color="primary"
-              variant="outlined"
-              size="large"
-              icon={<ShoppingCartOutlined />}
-              onClick={handleAddToCart}
-              style={{
-                width: '40%',
-                marginBottom: '24px',
-                marginTop: '24px',
-                marginRight: '10px',
-              }}
-            >
-              Thêm vào giỏ hàng
-            </Button>
-            {/* <Button
-              type="primary"
-              size="large"
-              onClick={handleAddToCart}
-              style={{ width: '50%', marginBottom: '24px', marginTop: '24px' }}
-            >
-              Mua ngay
-            </Button> */}
-          </div>
-
-          {/* Hướng dẫn chăm sóc */}
-          {/* <Card title="Hướng dẫn chăm sóc">
-            <ul style={{ paddingLeft: "20px" }}>
-              {product.care.map((instruction, index) => (
-                <li key={index}>{instruction}</li>
-              ))}
-            </ul>
-          </Card> */}
+              <div
+                style={{
+                  marginTop: '16px',
+                  backgroundColor: '#fff',
+                  borderRadius: '8px',
+                }}
+              >
+                <p>
+                   {sanPhamGopNhom?.moTa || '—'}
+                </p>
+              </div>
+            </div>
+          </Card>
         </Col>
-      </Row>
-      <Row>
-        {/* Chi tiết sản phẩm */}
-        <div>
-          <Row>
-            <Col>
-              <Text strong>Chất liệu:</Text>
-            </Col>
-            <Col>
-              <Text>{sanPhamGopNhom?.chatLieu}</Text>
-            </Col>
-          </Row>
-        </div>
       </Row>
     </div>
   );

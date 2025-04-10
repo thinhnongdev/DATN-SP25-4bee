@@ -18,7 +18,9 @@ public class HoaDonChiTietClientResponse {
     String idHoaDon;
 
     String id;
-String idHoaDonChiTiet;
+
+    String idHoaDonChiTiet;
+
     Integer quantity;
 
     Integer trangThai;

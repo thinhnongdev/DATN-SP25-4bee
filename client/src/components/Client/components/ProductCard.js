@@ -30,10 +30,10 @@ const ProductCard = ({ id, ten, ma, anhUrl, gia }) => {
           description={
             <>
               <Text strong style={{ fontSize: '16px', color: 'red' }}>
-                {gia} đ
+                {gia.toLocaleString('vi-VN')}₫
               </Text>
               <div style={{ marginTop: '8px' }}>
-                <Rate disabled defaultValue={gia} style={{ fontSize: '14px' }} />
+                <Text>Đã bán 200</Text>
               </div>
             </>
           }

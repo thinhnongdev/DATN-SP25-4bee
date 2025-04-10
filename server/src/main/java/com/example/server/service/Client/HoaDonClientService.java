@@ -3,6 +3,7 @@ package com.example.server.service.Client;
 import com.example.server.dto.Client.request.CartProductRequest;
 import com.example.server.dto.Client.request.ThongTinGiaoHangClientRequest;
 import com.example.server.dto.Client.response.HoaDonChiTietClientResponse;
+import com.example.server.dto.Client.response.HoaDonClientResponse;
 import com.example.server.entity.*;
 import com.example.server.repository.HoaDon.HoaDonChiTietRepository;
 import com.example.server.repository.HoaDon.HoaDonRepository;
@@ -62,9 +63,12 @@ public class HoaDonClientService {
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
         return hoaDon1;
-    };
+    }
+
+    ;
+
     public HoaDon ThanhToanHoaDonPending(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, PhieuGiamGia phieuGiamGia) {
-        HoaDon hoaDon = hoaDonRepository.findByMaHoaDon(thongTinGiaoHangClientRequest.getMaHoaDon()).orElseThrow(()->new RuntimeException("Không tìm thấy hóa đơn pending cần thanh toán"));
+        HoaDon hoaDon = hoaDonRepository.findByMaHoaDon(thongTinGiaoHangClientRequest.getMaHoaDon()).orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn pending cần thanh toán"));
         hoaDon.setPhieuGiamGia(phieuGiamGia);
         hoaDon.setNhanVien(null);
         hoaDon.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElse(null));
@@ -90,7 +94,10 @@ public class HoaDonClientService {
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
         return hoaDon1;
-    };
+    }
+
+    ;
+
     public HoaDon createCartKhachHangDangNhap(String email) {
         Optional<HoaDon> hoaDonPending = hoaDonRepository.findHoaDonPending(email);
         if (hoaDonPending.isPresent()) {
@@ -106,12 +113,18 @@ public class HoaDonClientService {
 
         return hoaDonRepository.save(hoaDon);
     }
-    public HoaDon findHoaDonDangNhap(String email){
-        Optional<HoaDon> hoaDon=hoaDonRepository.findHoaDonPending(email);
-        if(hoaDon.isPresent()){
+
+    public HoaDon findHoaDonDangNhap(String email) {
+        Optional<HoaDon> hoaDon = hoaDonRepository.findHoaDonPending(email);
+        if (hoaDon.isPresent()) {
             hoaDon.get().setHoaDonChiTiets(null);
         }
-        return hoaDon.orElseThrow(()->new RuntimeException("Không có hóa đơn pending để thanh toán"));
+        return hoaDon.orElseThrow(() -> new RuntimeException("Không có hóa đơn pending để thanh toán"));
+    }
+
+    public List<HoaDonClientResponse> findHoaDonClient(String email) {
+        List<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonClient(email);
+        return hoaDonList;
     }
 
     public void addSanPhamVaoHoaDonChiTiet(CartProductRequest cartProductRequest) {

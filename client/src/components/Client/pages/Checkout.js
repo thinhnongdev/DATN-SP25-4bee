@@ -875,7 +875,7 @@ const CheckoutForm = () => {
               onChange={(e) => setFormData({ ...formData, phuongThucThanhToan: e.target.value })}
             >
               <Radio value="BANK">Thanh toán bằng chuyển khoản</Radio>
-              <Radio value="MoMo">Thanh toán bằng MoMo</Radio>
+              <Radio value="MoMo">Thanh toán bằng VNPay</Radio>
               <Radio value="COD">Thanh toán bằng COD</Radio>
             </Radio.Group>
           </Card>

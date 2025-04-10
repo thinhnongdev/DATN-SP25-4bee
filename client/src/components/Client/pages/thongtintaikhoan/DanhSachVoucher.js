@@ -190,7 +190,7 @@ const VoucherPage = () => {
       style={{
         width: '80%',
         background: '#fff',
-        justifyContent: 'center',
+        justifyContent: 'center',minHeight:'700px',
         margin: '0 auto',
         display: 'flex', // thêm dòng này
       }}

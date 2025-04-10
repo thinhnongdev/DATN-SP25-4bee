@@ -1,5 +1,7 @@
 package com.example.server.repository.HoaDon;
 
+import com.example.server.dto.Client.response.HoaDonChiTietClientResponse;
+import com.example.server.dto.Client.response.HoaDonClientResponse;
 import com.example.server.dto.HoaDon.response.HoaDonResponse;
 import com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO;
 import com.example.server.entity.HoaDon;
@@ -215,4 +217,15 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
     Optional<HoaDon> findHoaDonPending(String email);
     @Query("SELECT h FROM HoaDon h WHERE h.trangThai =10 and h.maHoaDon=:maHoaDon")
     Optional<HoaDon> findByMaHoaDon(@Param("maHoaDon") String maHoaDon);
+    @Query("select new com.example.server.dto.Client.response.HoaDonClientResponse(" +
+            "h.id,h.maHoaDon,h.phieuGiamGia.id,h.khachHang.id," +
+            "h.loaiHoaDon,h.tenNguoiNhan,h.soDienThoai,h.emailNguoiNhan,h.diaChi," +
+            "h.trangThaiGiaoHang,h.thoiGianGiaoHang,h.thoiGianNhanHang,h.tongTien,h.phiVanChuyen" +
+            ",h.ghiChu,h.trangThai,h.ngayTao,h.ngaySua,h.nguoiTao,h.nguoiSua)" +
+            " from HoaDon h where h.loaiHoaDon=1 and  h.trangThai <> 10  and h.khachHang.email=:email") //bỏ hóa đơn có trang thái là pendding
+    List<HoaDonClientResponse> findHoaDonClient(String email);
+    @Query("SELECT new com.example.server.dto.Client.response.HoaDonChiTietClientResponse( " +
+            " h.hoaDon.id, h.sanPhamChiTiet.id,h.id, h.soLuong, h.trangThai, h.giaTaiThoiDiemThem, h.ngayThemVaoGio) " +
+            "FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.trangThai = 1")
+    List<HoaDonChiTietClientResponse> findByHoaDonId(@Param("hoaDonId") String hoaDonId);
 }

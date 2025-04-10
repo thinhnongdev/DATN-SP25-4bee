@@ -2,6 +2,7 @@ package com.example.server.controller.Client;
 
 import com.example.server.dto.Client.request.CartProductRequest;
 import com.example.server.dto.Client.request.OrderRequest;
+import com.example.server.dto.Client.response.HoaDonClientResponse;
 import com.example.server.entity.HoaDon;
 import com.example.server.service.Client.HoaDonChiTietClientService;
 import com.example.server.service.Client.HoaDonClientService;
@@ -9,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/client")
@@ -86,4 +89,16 @@ public ResponseEntity<?> findHoaDonPending(@PathVariable String email) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
     }
 }
+    @GetMapping("/order/findHoaDon/{email}")
+    public ResponseEntity<?> findHoaDon(@PathVariable String email) {
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body("Email khách hàng không được để trống");
+        }
+        try {
+            List<HoaDonClientResponse> hoaDon = hoaDonClientService.findHoaDonClient(email);
+            return ResponseEntity.ok(hoaDon);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
+        }
+    }
 }

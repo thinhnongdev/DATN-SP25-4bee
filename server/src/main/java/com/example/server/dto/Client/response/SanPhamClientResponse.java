@@ -16,5 +16,16 @@ public class SanPhamClientResponse {
     String ten;
     String anhUrl;
     BigDecimal gia;
-
+    String tenChatLieu;
+    String tenDanhMuc;
+    String tenHoaTiet;
+    String[] tenKichThuoc;
+    String[] tenMauSac;
+    String tenKieuCoAo;
+    String tenKieuCoTayAo;
+    String tenKieuCuc;
+    String tenKieuDang;
+    String tenKieuTayAo;
+    String tenKieuTuiAo;
+    String tenThuongHieu;
 }
