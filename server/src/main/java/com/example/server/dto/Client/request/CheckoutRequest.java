@@ -17,5 +17,6 @@ public class CheckoutRequest {
     private ThongTinGiaoHangClientRequest thongTinGiaoHang;
     private BigDecimal tongTienThanhToan;
     private BigDecimal tongTienHang;
+    private BigDecimal phiVanChuyen;
     private PhieuGiamGia phieuGiamGia;
 }

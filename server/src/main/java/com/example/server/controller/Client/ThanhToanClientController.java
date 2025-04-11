@@ -74,7 +74,7 @@ public class ThanhToanClientController {
         try {
             HoaDon hoaDon = hoaDonClientService.createHoaDonClient(
                     request.getThongTinGiaoHang(),
-                    request.getTongTienHang(),
+                    request.getTongTienHang(),request.getPhiVanChuyen(),
                     request.getPhieuGiamGia()
             );
             System.out.println(request.getThongTinGiaoHang().getPhuongThucThanhToan());
@@ -103,7 +103,7 @@ public class ThanhToanClientController {
         try {
             HoaDon hoaDon = hoaDonClientService.ThanhToanHoaDonPending(
                     request.getThongTinGiaoHang(),
-                    request.getTongTienHang(),
+                    request.getTongTienHang(),request.getPhiVanChuyen(),
                     request.getPhieuGiamGia()
             );
             System.out.println(request.getThongTinGiaoHang().getPhuongThucThanhToan());

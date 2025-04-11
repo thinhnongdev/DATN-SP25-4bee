@@ -32,6 +32,7 @@ import CartClient from './components/Client/pages/Cart';
 import ContactClient from './components/Client/pages/Contact';
 import Checkout from './components/Client/pages/Checkout';
 import OrderSuccessPage from './components/Client/pages/OrderSuccess';
+import PaymentSuccessByVnPay from './components/Client/pages/PaymentSuccessByVnPay';
 import ThongkeList from './components/Thongke/ThongkeList';
 import SearchOrder from './components/Client/pages/SearchOrder';
 import OrderDetail from './components/Client/pages/thongtintaikhoan/OrderDetail';
@@ -239,6 +240,7 @@ const CustomerLayout = () => {
           <Route path="/contact" element={<ContactClient />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success" element={<OrderSuccessPage />} />
+          <Route path="/vnpay/payment-success" element={<PaymentSuccessByVnPay />} />
           <Route path="/searchOrder" element={<SearchOrder />} />
           <Route path="/orderdetail" element={<OrderDetail />} />
           <Route path="/myprofile" element={<TaiKhoanCuaToi />} />

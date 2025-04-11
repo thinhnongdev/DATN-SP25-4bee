@@ -119,7 +119,7 @@ const Cart = () => {
 
     const email = getEmailFromToken();
     if (!email) {
-      message.warning('Không tìm thấy email từ token');
+      console.log('Không tìm thấy email từ token');
     } else {
       fetchVoucherCaNhan(email);
     }

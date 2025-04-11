@@ -44,7 +44,7 @@ public class ThanhToanClientService {
         thanhToanHoaDon.setPhuongThucThanhToan(phuongThucThanhToanHoaDonRepository.findByMaPhuongThucThanhToan(phuongThucThanhToan).orElseThrow());
         thanhToanHoaDon.setHoaDon(hoaDon);
         thanhToanHoaDon.setSoTien(tienThanhToan);
-        thanhToanHoaDon.setTrangThai(phuongThucThanhToan.equalsIgnoreCase("BANK") ? 1 : 3); //1 đã thanh toán, 3 là trả sau
+        thanhToanHoaDon.setTrangThai(phuongThucThanhToan.equalsIgnoreCase("COD") ? 3 : 1); //1 đã thanh toán, 3 là trả sau
         thanhToanHoaDon.setNgayTao(LocalDateTime.now());
         LichSuHoaDon lichSuHoaDon=new LichSuHoaDon();
         lichSuHoaDon.setId(UUID.randomUUID().toString());

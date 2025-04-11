@@ -153,7 +153,7 @@ const ProductDetail = () => {
     }
     const selectedVariant = findProductVariant(sanPhamGopNhom.bienThe, selectedSize, selectedColor);
 
-    if (selectedVariant) {
+    if (selectedVariant&& selectedVariant.soLuong > 0) {
       console.log('Biến thể được chọn:', selectedVariant);
     } else {
       message.warning('Sản phẩm đang tạm thời hết hàng');

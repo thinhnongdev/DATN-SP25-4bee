@@ -33,7 +33,7 @@ public class HoaDonClientService {
     @Autowired
     private SanPhamChiTietRepository sanPhamChiTietRepository;
 
-    public HoaDon createHoaDonClient(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, PhieuGiamGia phieuGiamGia) {
+    public HoaDon createHoaDonClient(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang,BigDecimal phiVanChuyen, PhieuGiamGia phieuGiamGia) {
         HoaDon hoaDon = new HoaDon();
         hoaDon.setId(UUID.randomUUID().toString());
         hoaDon.setMaHoaDon(thongTinGiaoHangClientRequest.getMaHoaDon());
@@ -51,6 +51,7 @@ public class HoaDonClientService {
         hoaDon.setGhiChu(thongTinGiaoHangClientRequest.getGhiChu());
         hoaDon.setTrangThai(1);
         hoaDon.setNgayTao(LocalDateTime.now());
+        hoaDon.setPhiVanChuyen(phiVanChuyen);
         HoaDon hoaDon1 = hoaDonRepository.save(hoaDon);
         LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
         lichSuHoaDon.setId(UUID.randomUUID().toString());
@@ -67,7 +68,7 @@ public class HoaDonClientService {
 
     ;
 
-    public HoaDon ThanhToanHoaDonPending(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, PhieuGiamGia phieuGiamGia) {
+    public HoaDon ThanhToanHoaDonPending(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, BigDecimal phiVanChuyen, PhieuGiamGia phieuGiamGia) {
         HoaDon hoaDon = hoaDonRepository.findByMaHoaDon(thongTinGiaoHangClientRequest.getMaHoaDon()).orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn pending cần thanh toán"));
         hoaDon.setPhieuGiamGia(phieuGiamGia);
         hoaDon.setNhanVien(null);
@@ -82,6 +83,7 @@ public class HoaDonClientService {
         hoaDon.setGhiChu(thongTinGiaoHangClientRequest.getGhiChu());
         hoaDon.setTrangThai(1);
         hoaDon.setNgayTao(LocalDateTime.now());
+        hoaDon.setPhiVanChuyen(phiVanChuyen);
         HoaDon hoaDon1 = hoaDonRepository.save(hoaDon);
         LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
         lichSuHoaDon.setId(UUID.randomUUID().toString());

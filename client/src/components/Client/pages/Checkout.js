@@ -532,6 +532,14 @@ const CheckoutForm = () => {
       return null;
     }
   };
+  const createPendingOrder = async (email) => {
+    try {
+      await axios.post('http://localhost:8080/api/client/order/createPending', { email });
+      console.log('✅ Tạo lại hóa đơn pending thành công!');
+    } catch (error) {
+      console.error('❌ Lỗi khi tạo lại hóa đơn pending:', error);
+    }
+  };
 
   const handleSubmitOrder = async () => {
     if (!validateForm()) return;
@@ -546,7 +554,7 @@ const CheckoutForm = () => {
         let apiUrlThanhToan = null;
         if (token) {
           const isValid = await checkTokenValidity(token); // ✅ Sửa tại đây
-      
+
           if (!isValid) {
             message.error('Hết phiên đăng nhập, vui lòng đăng nhập lại!');
             localStorage.removeItem('token');
@@ -555,16 +563,16 @@ const CheckoutForm = () => {
           } else {
             const decodedToken = jwtDecode(token);
             const email = decodedToken?.sub;
-      
+
             if (email) {
               uniqueOrderCode = await getOrderCodesByEmail(email);
               console.log('Mã hóa đơn của người dùng:', uniqueOrderCode);
             }
-      
+
             apiUrlThanhToan =
               'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangDaDangNhap';
           }
-        }else {
+        } else {
           uniqueOrderCode = generateUniqueOrderCode();
           apiUrlThanhToan =
             'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap';
@@ -577,9 +585,23 @@ const CheckoutForm = () => {
             maHoaDon: uniqueOrderCode,
           },
           tongTienThanhToan: totalPayMent,
+          phiVanChuyen: shippingFee,
           tongTienHang: totalAmount,
           phieuGiamGia: selectedVoucher,
         };
+        if (formData.phuongThucThanhToan === 'VNPAY') {
+          if (formData.phuongThucThanhToan === 'VNPAY') {
+            sessionStorage.setItem('pendingOrderData', JSON.stringify(orderData));
+            sessionStorage.setItem('apiUrlThanhToan', apiUrlThanhToan);
+
+            const response = await fetch(
+              `http://localhost:8080/api/client/vnpay/create-payment?amount=${orderData.tongTienThanhToan}&orderCode=${uniqueOrderCode}`,
+            );
+            const paymentUrl = await response.text();
+            window.location.href = paymentUrl;
+            return;
+          }
+        }
 
         if (formData.phuongThucThanhToan === 'BANK') {
           generateQR(uniqueOrderCode);
@@ -604,6 +626,30 @@ const CheckoutForm = () => {
                   localStorage.removeItem('cart');
                   localStorage.removeItem('selectedVoucher');
                   window.dispatchEvent(new Event('cartUpdated'));
+                  axios.post(apiUrlThanhToan, orderData).then(async (res) => {
+                    message.success(res.data || 'Đặt hàng thành công!');
+                    localStorage.removeItem('cart');
+                    localStorage.removeItem('selectedVoucher');
+                    window.dispatchEvent(new Event('cartUpdated'));
+                    // Gọi lại tạo hóa đơn nếu đã đăng nhập
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                      const isValid = await checkTokenValidity(token); // ✅ Sửa tại đây
+                      if (!isValid) {
+                        message.error('Hết phiên đăng nhập, vui lòng đăng nhập lại!');
+                        localStorage.removeItem('token');
+                        navigate('/login');
+                        return;
+                      } else {
+                        const decoded = jwtDecode(token);
+                        const email = decoded?.sub;
+                        if (email) await createPendingOrder(email);
+                      }
+                    }
+
+                    navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
+                  });
+
                   navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
                 })
                 .catch((err) => {
@@ -622,19 +668,34 @@ const CheckoutForm = () => {
           return;
         }
 
-        axios
-          .post(apiUrlThanhToan, orderData)
-          .then((res) => {
-            message.success(res.data || 'Đặt hàng thành công!');
-            localStorage.removeItem('cart');
-            localStorage.removeItem('selectedVoucher');
-            window.dispatchEvent(new Event('cartUpdated'));
-            navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
-          })
-          .catch((err) => {
-            const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
-            message.error(errorMessage);
-          });
+        try {
+          const res = await axios.post(apiUrlThanhToan, orderData);
+          message.success(res.data || 'Đặt hàng thành công!');
+          localStorage.removeItem('cart');
+          localStorage.removeItem('selectedVoucher');
+          window.dispatchEvent(new Event('cartUpdated'));
+
+          if (token) {
+            const isValid = await checkTokenValidity(token);
+            if (!isValid) {
+              message.error('Hết phiên đăng nhập, vui lòng đăng nhập lại!');
+              localStorage.removeItem('token');
+              navigate('/login');
+              return;
+            } else {
+              const decoded = jwtDecode(token);
+              const email = decoded?.sub;
+              if (email) {
+                await createPendingOrder(email);
+              }
+            }
+          }
+
+          navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
+        } catch (err) {
+          const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
+          message.error(errorMessage);
+        }
       },
     });
   };
@@ -875,7 +936,7 @@ const CheckoutForm = () => {
               onChange={(e) => setFormData({ ...formData, phuongThucThanhToan: e.target.value })}
             >
               <Radio value="BANK">Thanh toán bằng chuyển khoản</Radio>
-              <Radio value="MoMo">Thanh toán bằng VNPay</Radio>
+              <Radio value="VNPAY">Thanh toán bằng VNPay</Radio>
               <Radio value="COD">Thanh toán bằng COD</Radio>
             </Radio.Group>
           </Card>
@@ -916,7 +977,12 @@ const CheckoutForm = () => {
           </div>
         )}
       </Modal>
-      <Modal title="Chọn địa chỉ giao hàng" open={isAddressList} footer={null} onCancel={() => setIsAddressList(false)}>
+      <Modal
+        title="Chọn địa chỉ giao hàng"
+        open={isAddressList}
+        footer={null}
+        onCancel={() => setIsAddressList(false)}
+      >
         <Row gutter={[16, 16]} style={{ flexDirection: 'column', alignItems: 'center' }}>
           {addressList.length > 0 ? (
             addressList.map((address) => (
