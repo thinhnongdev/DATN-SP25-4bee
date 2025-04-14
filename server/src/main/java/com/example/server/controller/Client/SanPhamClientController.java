@@ -1,5 +1,7 @@
 package com.example.server.controller.Client;
 
+import com.example.server.dto.Client.response.HoaDonClientResponse;
+import com.example.server.dto.Client.response.SanPhamChiTietClientResponse;
 import com.example.server.dto.Client.response.SanPhamClientResponse;
 import com.example.server.dto.SanPham.response.SanPhamResponse;
 import com.example.server.entity.AnhSanPham;
@@ -56,6 +58,18 @@ public class SanPhamClientController {
             return ResponseEntity.ok(sanPham);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi hệ thống: " + e.getMessage());
+        }
+    }
+    @GetMapping("/findDanhSachSPCTbyIdHoaDon/{id}")
+    public ResponseEntity<?> findDanhSachSPCTbyIdHoaDon(@PathVariable String id) {
+        if (id == null || id.isEmpty()) {
+            return ResponseEntity.badRequest().body("ID không được để trống");
+        }
+        try {
+            List<SanPhamChiTietClientResponse> sanPhamChiTietClientResponses = sanPhamClientService.findDanhSachSPCTbyIdHoaDon(id);
+            return ResponseEntity.ok(sanPhamChiTietClientResponses);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm danh sách sản phẩm cho hóa đơn" + e.getMessage());
         }
     }
 }

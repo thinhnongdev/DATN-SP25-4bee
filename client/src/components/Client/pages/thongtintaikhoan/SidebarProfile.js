@@ -68,7 +68,7 @@ const Sidebar = () => {
           <Link to="/myprofile">Tài Khoản Của Tôi</Link>
         </Menu.Item>
         <Menu.Item key="2" icon={<ShoppingCartOutlined />}>
-          <Link to="/orderdetail">Đơn Mua</Link>
+          <Link to="/danhsachdonhang">Đơn Mua</Link>
         </Menu.Item>
         <Menu.Item key="3" icon={<TagOutlined />}>
           <Link to="/danhsachvoucher">Kho Voucher</Link>

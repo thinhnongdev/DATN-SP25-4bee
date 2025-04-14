@@ -33,7 +33,7 @@ public class HoaDonClientService {
     @Autowired
     private SanPhamChiTietRepository sanPhamChiTietRepository;
 
-    public HoaDon createHoaDonClient(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang,BigDecimal phiVanChuyen, PhieuGiamGia phieuGiamGia) {
+    public HoaDon createHoaDonClient(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, BigDecimal phiVanChuyen, PhieuGiamGia phieuGiamGia) {
         HoaDon hoaDon = new HoaDon();
         hoaDon.setId(UUID.randomUUID().toString());
         hoaDon.setMaHoaDon(thongTinGiaoHangClientRequest.getMaHoaDon());
@@ -127,6 +127,11 @@ public class HoaDonClientService {
     public List<HoaDonClientResponse> findHoaDonClient(String email) {
         List<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonClient(email);
         return hoaDonList;
+    }
+
+    public HoaDonClientResponse findHoaDonClientById(String idHoaDon) {
+        Optional<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonClientByIdHoaDon(idHoaDon);
+        return hoaDonList.orElse(null);
     }
 
     public void addSanPhamVaoHoaDonChiTiet(CartProductRequest cartProductRequest) {

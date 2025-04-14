@@ -3,9 +3,11 @@ package com.example.server.controller.Client;
 import com.example.server.dto.Client.request.CheckoutRequest;
 import com.example.server.dto.Client.request.SanPhamChiTietClientRequest;
 import com.example.server.dto.Client.request.ThongTinGiaoHangClientRequest;
+import com.example.server.dto.Client.response.ThanhToanHoaDonClientResponse;
 import com.example.server.entity.HoaDon;
 import com.example.server.entity.PhieuGiamGia;
 import com.example.server.entity.SanPhamChiTiet;
+import com.example.server.entity.ThanhToanHoaDon;
 import com.example.server.service.Client.HoaDonChiTietClientService;
 import com.example.server.service.Client.HoaDonClientService;
 import com.example.server.service.Client.ThanhToanClientService;
@@ -125,4 +127,14 @@ public class ThanhToanClientController {
                     .body("Đặt hàng thất bại: " + e.getClass().getName() + " - " + e.getMessage());
         }
     }
+    @GetMapping("/findThanhToanHoaDonByIdHoaDon/{id}")
+    public ResponseEntity<?> findThanhToanHoaDon(@PathVariable String id) {
+        try {
+            List<ThanhToanHoaDonClientResponse> thanhToanHoaDons=thanhToanClientService.findThanhToanHoaDon(id);
+            return ResponseEntity.ok(thanhToanHoaDons);
+        } catch (Exception e) {
+            e.printStackTrace(); // In ra log chi tiết lỗi ở terminal backend
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Không tìm thấy thanh toán hóa đơn: " + e.getClass().getName() + " - " + e.getMessage());
+        }}
 }

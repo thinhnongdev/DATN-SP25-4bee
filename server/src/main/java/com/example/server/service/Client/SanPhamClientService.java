@@ -1,11 +1,14 @@
 package com.example.server.service.Client;
 
+import com.example.server.dto.Client.response.SanPhamChiTietClientResponse;
 import com.example.server.dto.Client.response.SanPhamClientResponse;
 import com.example.server.entity.AnhSanPham;
 import com.example.server.entity.SanPham;
 import com.example.server.entity.SanPhamChiTiet;
+import com.example.server.repository.HoaDon.HoaDonChiTietRepository;
 import com.example.server.repository.SanPham.AnhSanPhamRepository;
 import com.example.server.repository.SanPham.SanPhamChiTietRepository;
+import jakarta.persistence.Id;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +22,8 @@ public class SanPhamClientService {
     SanPhamChiTietRepository sanPhamChiTietRepository;
     @Autowired
     AnhSanPhamRepository anhSanPhamRepository;
+    @Autowired
+    HoaDonChiTietRepository hoaDonChiTietRepository;
 
     public List<SanPhamClientResponse> getAll() {
         List<SanPhamClientResponse> sanPhamClientResponseList = new ArrayList<>();
@@ -78,5 +83,11 @@ public class SanPhamClientService {
         return sanPhamClientResponseList;
     }
 
-
+    public List<SanPhamChiTietClientResponse> findDanhSachSPCTbyIdHoaDon(String idHoaDon) {
+        List<SanPhamChiTietClientResponse> sanPhamChiTietClientResponses = hoaDonChiTietRepository.findDanhSachSanPhamDaMuaByHoaDonId(idHoaDon);
+        if (sanPhamChiTietClientResponses.isEmpty()) {
+            return null;
+        }
+        return sanPhamChiTietClientResponses;
+    }
 }

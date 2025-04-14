@@ -35,6 +35,7 @@ import OrderSuccessPage from './components/Client/pages/OrderSuccess';
 import PaymentSuccessByVnPay from './components/Client/pages/PaymentSuccessByVnPay';
 import ThongkeList from './components/Thongke/ThongkeList';
 import SearchOrder from './components/Client/pages/SearchOrder';
+import ListOrder from './components/Client/pages/thongtintaikhoan/ListOrder';
 import OrderDetail from './components/Client/pages/thongtintaikhoan/OrderDetail';
 import TaiKhoanCuaToi from './components/Client/pages/thongtintaikhoan/TaiKhoanCuaToi';
 import DanhSachVoucher from './components/Client/pages/thongtintaikhoan/DanhSachVoucher';
@@ -242,7 +243,8 @@ const CustomerLayout = () => {
           <Route path="/order-success" element={<OrderSuccessPage />} />
           <Route path="/vnpay/payment-success" element={<PaymentSuccessByVnPay />} />
           <Route path="/searchOrder" element={<SearchOrder />} />
-          <Route path="/orderdetail" element={<OrderDetail />} />
+          <Route path="/danhsachdonhang" element={<ListOrder />} />
+          <Route path="/orders/:orderId" element={<OrderDetail />} />
           <Route path="/myprofile" element={<TaiKhoanCuaToi />} />
           <Route path="/danhsachvoucher" element={<DanhSachVoucher />} />
         </Routes>

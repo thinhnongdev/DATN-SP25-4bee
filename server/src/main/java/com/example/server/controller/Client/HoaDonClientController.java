@@ -48,6 +48,7 @@ public class HoaDonClientController {
 //        }
         return ResponseEntity.ok(hoaDonChiTietClientService.getHoaDonChiTietList(hoaDonId));
     }
+
     @PostMapping("/order/addHoaDonChiTiet")
     public ResponseEntity<?> addHoaDonChiTiet(@RequestBody CartProductRequest cartProductRequest) {
         if (cartProductRequest == null) {
@@ -77,18 +78,20 @@ public class HoaDonClientController {
                     .body("Đã xảy ra lỗi không xác định. Vui lòng thử lại.");
         }
     }
-@GetMapping("/order/findHoaDonPending/{email}")
-public ResponseEntity<?> findHoaDonPending(@PathVariable String email) {
-    if (email == null || email.isEmpty()) {
-        return ResponseEntity.badRequest().body("Email khách hàng không được để trống");
+
+    @GetMapping("/order/findHoaDonPending/{email}")
+    public ResponseEntity<?> findHoaDonPending(@PathVariable String email) {
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body("Email khách hàng không được để trống");
+        }
+        try {
+            HoaDon hoaDon = hoaDonClientService.findHoaDonDangNhap(email);
+            return ResponseEntity.ok(hoaDon);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
+        }
     }
-    try {
-        HoaDon hoaDon = hoaDonClientService.findHoaDonDangNhap(email);
-        return ResponseEntity.ok(hoaDon);
-    } catch (Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
-    }
-}
+
     @GetMapping("/order/findHoaDon/{email}")
     public ResponseEntity<?> findHoaDon(@PathVariable String email) {
         if (email == null || email.isEmpty()) {
@@ -101,4 +104,17 @@ public ResponseEntity<?> findHoaDonPending(@PathVariable String email) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
         }
     }
+    @GetMapping("/order/findHoaDonById/{id}")
+    public ResponseEntity<?> findHoaDoById(@PathVariable String id) {
+        if (id == null || id.isEmpty()) {
+            return ResponseEntity.badRequest().body("Id không được để trống");
+        }
+        try {
+            HoaDonClientResponse hoaDon = hoaDonClientService.findHoaDonClientById(id);
+            return ResponseEntity.ok(hoaDon);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
+        }
+    }
+
 }

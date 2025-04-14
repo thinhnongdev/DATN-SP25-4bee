@@ -224,6 +224,13 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
             ",h.ghiChu,h.trangThai,h.ngayTao,h.ngaySua,h.nguoiTao,h.nguoiSua)" +
             " from HoaDon h where h.loaiHoaDon=1 and  h.trangThai <> 10  and h.khachHang.email=:email") //bỏ hóa đơn có trang thái là pendding
     List<HoaDonClientResponse> findHoaDonClient(String email);
+    @Query("select new com.example.server.dto.Client.response.HoaDonClientResponse(" +
+            "h.id,h.maHoaDon,h.phieuGiamGia.id,h.khachHang.id," +
+            "h.loaiHoaDon,h.tenNguoiNhan,h.soDienThoai,h.emailNguoiNhan,h.diaChi," +
+            "h.trangThaiGiaoHang,h.thoiGianGiaoHang,h.thoiGianNhanHang,h.tongTien,h.phiVanChuyen" +
+            ",h.ghiChu,h.trangThai,h.ngayTao,h.ngaySua,h.nguoiTao,h.nguoiSua)" +
+            " from HoaDon h where h.loaiHoaDon=1 and  h.trangThai <> 10  and h.id=:idHoaDon") //bỏ hóa đơn có trang thái là pendding
+    Optional<HoaDonClientResponse> findHoaDonClientByIdHoaDon(String idHoaDon);
     @Query("SELECT new com.example.server.dto.Client.response.HoaDonChiTietClientResponse( " +
             " h.hoaDon.id, h.sanPhamChiTiet.id,h.id, h.soLuong, h.trangThai, h.giaTaiThoiDiemThem, h.ngayThemVaoGio) " +
             "FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.trangThai = 1")

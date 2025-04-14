@@ -2,6 +2,7 @@ package com.example.server.service.Client;
 
 import com.example.server.dto.Client.request.SanPhamChiTietClientRequest;
 import com.example.server.dto.Client.request.ThongTinGiaoHangClientRequest;
+import com.example.server.dto.Client.response.ThanhToanHoaDonClientResponse;
 import com.example.server.entity.*;
 import com.example.server.repository.HoaDon.LichSuHoaDonRepository;
 import com.example.server.repository.HoaDon.PhuongThucThanhToanRepository;
@@ -37,7 +38,11 @@ public class ThanhToanClientService {
     private JavaMailSender mailSender;
     @Autowired
     private KhachHangRepository khachHangRepository;
+    public List<ThanhToanHoaDonClientResponse> findThanhToanHoaDon(String idHoaDon) {
+        List<ThanhToanHoaDonClientResponse> thanhToanHoaDons=thanhToanHoaDonRepository.findByHoaDonIdForClient(idHoaDon);
 
+        return thanhToanHoaDons;
+    }
     public ThanhToanHoaDon createThanhToanHoaDon(String phuongThucThanhToan, HoaDon hoaDon, BigDecimal tienThanhToan,ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest) {
         ThanhToanHoaDon thanhToanHoaDon = new ThanhToanHoaDon();
         thanhToanHoaDon.setId(UUID.randomUUID().toString());

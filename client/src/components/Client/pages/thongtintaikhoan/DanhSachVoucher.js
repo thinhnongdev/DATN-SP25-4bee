@@ -67,7 +67,9 @@ const VoucherCard = ({ data }) => {
 
       {/* Bên phải (nội dung chính) */}
       <div style={{ flex: 1, padding: 16 }}>
-        <div style={{ fontWeight: 'bold', fontSize: 16 }}>{data.title}</div>
+        <div style={{ fontWeight: 'bold', fontSize: 16 }}>
+          {data.title}_{data.maPhieuGiamGia}
+        </div>
         <div style={{ margin: '4px 0' }}>Đơn Tối Thiểu {data.minOrder}</div>
         <div style={{ color: 'red', fontWeight: 'bold' }}>{data.discountText}</div>
         <div style={{ color: 'gray', fontSize: 12, marginTop: 8 }}>
@@ -190,7 +192,8 @@ const VoucherPage = () => {
       style={{
         width: '80%',
         background: '#fff',
-        justifyContent: 'center',minHeight:'700px',
+        justifyContent: 'center',
+        minHeight: '700px',
         margin: '0 auto',
         display: 'flex', // thêm dòng này
       }}
@@ -220,6 +223,11 @@ const VoucherPage = () => {
 
         {loading ? (
           <Spin size="large" style={{ display: 'block', margin: '50px auto' }} />
+        ) : vouchers.length === 0 ? (
+          <div style={{ textAlign: 'center', marginTop: 50 }}>
+            <WalletOutlined style={{ fontSize: 48, color: '#999' }} />
+            <p style={{ marginTop: 16, fontSize: 18, color: '#666' }}>Không có voucher nào.</p>
+          </div>
         ) : (
           <Row
             gutter={[16, 16]}
