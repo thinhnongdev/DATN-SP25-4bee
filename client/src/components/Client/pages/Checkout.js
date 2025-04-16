@@ -480,7 +480,8 @@ const CheckoutForm = () => {
       .catch((err) => console.error('Lỗi tính phí ship:', err));
   };
 
-  const totalPayMent = totalAmount + shippingFee - voucherDiscount;
+  const totalPayMent = Math.max(totalAmount + shippingFee - voucherDiscount, 0);
+
   console.log('formData:', formData);
   console.log('selectedVoucher:', selectedVoucher);
   console.log('totalAmount:', totalAmount);
@@ -898,11 +899,11 @@ const CheckoutForm = () => {
               <Text>
                 Phí vận chuyển{''}
                 <Image
-                  src="/logo/Logo-GHN-Blue-Orange.webp"
+                  src="/logo/GHNLogo.png"
                   preview={false}
                   style={{
                     width: '50px',
-                    height: '20px',
+                    height: '40px',
                     marginLeft: '5px',
                     verticalAlign: 'middle',
                   }}
@@ -911,10 +912,10 @@ const CheckoutForm = () => {
               <div
                 style={{
                   float: 'right',
-                  color: (shippingFee === 0) & selectedDistrict ? '#52c41a' : 'inherit', // Màu xanh thành công nếu miễn phí
+                  color: shippingFee === 0 ? '#52c41a' : 'inherit', // Màu xanh thành công nếu miễn phí
                 }}
               >
-                {(shippingFee === 0) & selectedDistrict
+                {shippingFee === 0
                   ? 'Miễn phí (Từ 2 triệu)'
                   : `+ ${shippingFee ? shippingFee.toLocaleString() : 0}₫`}
               </div>

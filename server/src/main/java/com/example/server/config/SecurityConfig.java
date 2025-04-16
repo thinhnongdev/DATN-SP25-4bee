@@ -31,6 +31,20 @@ public class SecurityConfig {
             "/ws/info/**",  // Add WebSocket info endpoint
             "/topic/**"     // Add STOMP destination prefix
     };
+
+    private final String[] adminAndStaffEndpoints={
+            "/api/admin/hoa-don/**",
+            "/api/admin/ban-hang/**",
+            "/api/admin/sanpham/**",
+            "/api/admin/khach_hang",
+            "/api/admin/khach_hang/diaChi/**",
+    };
+    private final String[] adminOnlyEndpoints={
+            "/api/admin/nhan_vien/**",
+            "/api/admin/thong-ke/**",
+            "/api/admin/khach_hang/**",
+            "/api/admin/nhan_vien/**"
+    };
     @Autowired
     CustomJwtDecoder customJwtDecoder;
     @Bean
@@ -76,10 +90,12 @@ public class SecurityConfig {
 //                );
         httpSecurity.authorizeHttpRequests(request ->
                 request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/admin/**")
-                        .hasRole("ADMIN") //vai trò ADMIN
                         .requestMatchers(HttpMethod.GET,"/api/client/**").permitAll()
                         .requestMatchers(HttpMethod.POST,"/api/client/**").permitAll()
+
+                        .requestMatchers(adminAndStaffEndpoints).hasAnyRole("ADMIN", "NHAN_VIEN")
+                        .requestMatchers(adminOnlyEndpoints).hasRole("ADMIN")
+
                         .anyRequest().authenticated());
 
         httpSecurity.csrf(AbstractHttpConfigurer::disable);// Vô hiệu hóa CSRF

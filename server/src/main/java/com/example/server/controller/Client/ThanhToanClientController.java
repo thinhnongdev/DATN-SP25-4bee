@@ -76,7 +76,7 @@ public class ThanhToanClientController {
         try {
             HoaDon hoaDon = hoaDonClientService.createHoaDonClient(
                     request.getThongTinGiaoHang(),
-                    request.getTongTienHang(),request.getPhiVanChuyen(),
+                    request.getTongTienHang(), request.getPhiVanChuyen(),
                     request.getPhieuGiamGia()
             );
             System.out.println(request.getThongTinGiaoHang().getPhuongThucThanhToan());
@@ -105,7 +105,7 @@ public class ThanhToanClientController {
         try {
             HoaDon hoaDon = hoaDonClientService.ThanhToanHoaDonPending(
                     request.getThongTinGiaoHang(),
-                    request.getTongTienHang(),request.getPhiVanChuyen(),
+                    request.getTongTienHang(), request.getPhiVanChuyen(),
                     request.getPhieuGiamGia()
             );
             System.out.println(request.getThongTinGiaoHang().getPhuongThucThanhToan());
@@ -127,14 +127,16 @@ public class ThanhToanClientController {
                     .body("Đặt hàng thất bại: " + e.getClass().getName() + " - " + e.getMessage());
         }
     }
+
     @GetMapping("/findThanhToanHoaDonByIdHoaDon/{id}")
     public ResponseEntity<?> findThanhToanHoaDon(@PathVariable String id) {
         try {
-            List<ThanhToanHoaDonClientResponse> thanhToanHoaDons=thanhToanClientService.findThanhToanHoaDon(id);
+            List<ThanhToanHoaDonClientResponse> thanhToanHoaDons = thanhToanClientService.findThanhToanHoaDon(id);
             return ResponseEntity.ok(thanhToanHoaDons);
         } catch (Exception e) {
             e.printStackTrace(); // In ra log chi tiết lỗi ở terminal backend
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Không tìm thấy thanh toán hóa đơn: " + e.getClass().getName() + " - " + e.getMessage());
-        }}
+        }
+    }
 }

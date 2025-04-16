@@ -16,31 +16,22 @@ import {
 } from '@ant-design/icons';
 
 // Các component trang
-import HoaDonRoutes from './routes/HoaDon';
-import PhieuGiamGiaRoutes from './routes/PhieuGiamGia';
-import SanPhamRoutes from './routes/SanPham';
-import NhanVienRoute from './routes/NhanVien';
-import KhachHangRoute from './routes/KhachHang';
+import HoaDonRoutes from './routes/HoaDonRoutes';
+import PhieuGiamGiaRoutes from './routes/PhieuGiamGiaRoutes';
+import SanPhamRoutes from './routes/SanPhamRoutes';
+import NhanVienRoutes from './routes/NhanVienRoutes';
+import KhachHangRoutes from './routes/KhachHangRoutes';
+import ClientRoute from './routes/ClientRoutes';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import NavClient from './components/Client/components/Navbar';
 import FooterClient from './components/Client/components/Footer';
-import HomeClient from './components/Client/pages/Home';
-import ProductsClient from './components/Client/pages/Products';
-import ProductDetailClient from './components/Client/pages/ProductDetail';
-import CartClient from './components/Client/pages/Cart';
-import ContactClient from './components/Client/pages/Contact';
-import Checkout from './components/Client/pages/Checkout';
-import OrderSuccessPage from './components/Client/pages/OrderSuccess';
-import PaymentSuccessByVnPay from './components/Client/pages/PaymentSuccessByVnPay';
-import ThongkeList from './components/Thongke/ThongkeList';
-import SearchOrder from './components/Client/pages/SearchOrder';
-import ListOrder from './components/Client/pages/thongtintaikhoan/ListOrder';
-import OrderDetail from './components/Client/pages/thongtintaikhoan/OrderDetail';
-import TaiKhoanCuaToi from './components/Client/pages/thongtintaikhoan/TaiKhoanCuaToi';
-import DanhSachVoucher from './components/Client/pages/thongtintaikhoan/DanhSachVoucher';
 import Chatbot from './components/Client/Chat/Chatbot';
+
 import { checkTokenValidity } from './components/Client/pages/checkTokenValidity';
+import ThongkeRoutes from './routes/ThongKeRoutes';
+import Forbidden403 from './components/Auth/Forbidden403';
+import ProtectedRoutes from './routes/ProtectedRoutes';
 const { Header, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
@@ -49,7 +40,7 @@ const breadcrumbMap = {
   '/add-p': 'Thêm Phiếu Giảm Giá',
 };
 const menuItems = [
-  { key: '1', icon: <BarChartOutlined />, label: 'Thống kê', path: '/admin' },
+  { key: '1', icon: <BarChartOutlined />, label: 'Thống kê', path: '/admin/thongke' },
   { key: '2', icon: <ShoppingCartOutlined />, label: 'Bán hàng', path: '/admin/ban-hang' },
   { key: '3', icon: <FileTextOutlined />, label: 'Hóa đơn', path: '/admin/hoa-don' },
   { key: '15', icon: <TagsOutlined />, label: 'Phiếu Giảm Giá', path: '/admin/phieu-giam-gia' },
@@ -77,6 +68,26 @@ const productSubMenu = [
   Các route admin được hiển thị trong layout này.
 */
 const AdminLayout = () => {
+  const token = localStorage.getItem('token');
+  const getRoleFromToken = (token) => {
+    try {
+      return jwtDecode(token)?.scope || null;
+    } catch (error) {
+      console.error('Lỗi giải mã token:', error);
+      return null;
+    }
+  };
+  const role = token ? getRoleFromToken(token) : null;
+  const filteredMenuItems = menuItems.filter((item) => {
+    // Nếu là nhân viên, chỉ cho phép Hóa đơn và Bán hàng
+    if (role === 'NHAN_VIEN') {
+      return ['2', '3'].includes(item.key); // Bán hàng, Hóa đơn
+    }
+    return true; // ADMIN thì thấy hết
+  });
+
+  const filteredProductSubMenu = role === 'NHAN_VIEN' ? [] : productSubMenu;
+
   const [collapsed, setCollapsed] = useState(false);
   const {
     token: { colorBgContainer },
@@ -125,7 +136,7 @@ const AdminLayout = () => {
   };
   const [userInfo, setUserInfo] = useState(null);
   const [error, setError] = useState(null);
-  const token = localStorage.getItem('token');
+
   useEffect(() => {
     if (token) {
       fetchUserInfo(token)
@@ -160,22 +171,26 @@ const AdminLayout = () => {
           mode="inline"
           style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
         >
-          {menuItems.map((item) => (
+          {filteredMenuItems.map((item) => (
             <Menu.Item key={item.key} icon={item.icon}>
               <Link to={item.path} style={{ textDecoration: 'none' }}>
                 {item.label}
               </Link>
             </Menu.Item>
           ))}
-          <Menu.SubMenu key="sub1" icon={<ShopOutlined />} title="Quản lý sản phẩm">
-            {productSubMenu.map((item) => (
-              <Menu.Item key={item.key}>
-                <Link to={item.path} style={{ textDecoration: 'none' }}>
-                  {item.label}
-                </Link>
-              </Menu.Item>
-            ))}
-          </Menu.SubMenu>
+
+          {filteredProductSubMenu.length > 0 && (
+            <Menu.SubMenu key="sub1" icon={<ShopOutlined />} title="Quản lý sản phẩm">
+              {filteredProductSubMenu.map((item) => (
+                <Menu.Item key={item.key}>
+                  <Link to={item.path} style={{ textDecoration: 'none' }}>
+                    {item.label}
+                  </Link>
+                </Menu.Item>
+              ))}
+            </Menu.SubMenu>
+          )}
+
           <Menu.Item
             key="logout"
             icon={<LogoutOutlined />}
@@ -207,17 +222,17 @@ const AdminLayout = () => {
             />
           </div>
         </Header>
-        <Content style={{ margin: "16px", padding: 24, minHeight: 360 }}>
-            <Routes>
-              <Route path="/" element={<ThongkeList />} /> {/* Hiển thị ThongkeList ở /admin */}
-              {HoaDonRoutes()}
-              {PhieuGiamGiaRoutes()}
-              {SanPhamRoutes()}
-              {NhanVienRoute()}
-              {KhachHangRoute()}
-            </Routes>
-          </Content>
-          <Chatbot />
+        <Content style={{ margin: '16px', padding: 24, minHeight: 360 }}>
+          <Routes>
+            {ThongkeRoutes()}
+            {HoaDonRoutes()}
+            {PhieuGiamGiaRoutes()}
+            {SanPhamRoutes()}
+            {NhanVienRoutes()}
+            {KhachHangRoutes()}
+          </Routes>
+        </Content>
+        <Chatbot />
       </Layout>
     </Layout>
   );
@@ -233,21 +248,7 @@ const CustomerLayout = () => {
     <Layout className="layout">
       <NavClient />
       <Content key={location.pathname}>
-        <Routes>
-          <Route path="/" element={<HomeClient />} />
-          <Route path="/products" element={<ProductsClient />} />
-          <Route path="/product/:id" element={<ProductDetailClient />} />
-          <Route path="/cart" element={<CartClient />} />
-          <Route path="/contact" element={<ContactClient />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/order-success" element={<OrderSuccessPage />} />
-          <Route path="/vnpay/payment-success" element={<PaymentSuccessByVnPay />} />
-          <Route path="/searchOrder" element={<SearchOrder />} />
-          <Route path="/danhsachdonhang" element={<ListOrder />} />
-          <Route path="/orders/:orderId" element={<OrderDetail />} />
-          <Route path="/myprofile" element={<TaiKhoanCuaToi />} />
-          <Route path="/danhsachvoucher" element={<DanhSachVoucher />} />
-        </Routes>
+        <Routes>{ClientRoute()}</Routes>
       </Content>
       <FooterClient />
       <Chatbot />
@@ -269,13 +270,13 @@ const getRoleFromToken = (token) => {
 
 const App = () => {
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem('token');
     if (token) {
       checkTokenValidity(token).then((isValid) => {
         if (!isValid) {
-          message.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+          message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!');
           window.dispatchEvent(new Event('cartUpdated'));
-          window.location.href = "/login"; // Điều hướng đến trang đăng nhập
+          window.location.href = '/login'; // Điều hướng đến trang đăng nhập
         }
       });
     }
@@ -292,31 +293,28 @@ const App = () => {
   console.log('Token:', token);
   console.log('Role từ token:', userRole);
 
-
-  if (location.pathname === '/login' || location.pathname === '/register') {
+  if (
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/403'
+  ) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/403" element={<Forbidden403 />} /> {/* thêm route này ở cấp App */}
       </Routes>
     );
   }
-
   // Với vai trò ADMIN hoặc NHAN_VIEN thì cho phép truy cập cả giao diện quản trị và giao diện khách hàng
   // Ngược lại (KHÁCH_HÀNG hoặc chưa đăng nhập) thì chỉ cho phép truy cập giao diện khách hàng.
-  return token !== null && (userRole === 'ADMIN' || userRole === 'NHAN_VIEN') ? (
+  return token !== null ? (
     <Routes>
-      <Route
-        path="/admin/*"
-        element={
-          token && (userRole === 'ADMIN' || userRole === 'NHAN_VIEN') ? (
-            <AdminLayout />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      {/* Ngoài giao diện admin, admin/nhân viên cũng có thể truy cập giao diện khách hàng nếu cần */}
+      {/* Bọc admin route bằng ProtectedRoutes */}
+      <Route element={<ProtectedRoutes allowedRoles={['ADMIN', 'NHAN_VIEN']} />}>
+        <Route path="/admin/*" element={<AdminLayout />} />
+      </Route>
+      {/* Route giao diện khách hàng (ai cũng truy cập được) */}
       <Route path="/*" element={<CustomerLayout />} />
     </Routes>
   ) : (

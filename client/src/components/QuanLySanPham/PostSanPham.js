@@ -26,7 +26,7 @@ import {
   SaveOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { toast } from 'react-toastify';
+
 import { Link, useNavigate } from 'react-router-dom';
 const { Option } = Select;
 const DemoForm = () => {
@@ -88,11 +88,11 @@ const DemoForm = () => {
   const [isModalVisibleColor, setIsModalVisibleColor] = useState(false);
   const [isModalVisibleSizes, setIsModalVisibleSizes] = useState(false);
   const [isModalVisibleImage, setIsModalVisibleImage] = useState(false);
-  const [isModalEditSanPhamVisible, setIsModalEditSanPhamVisible] = useState(false); 
+  const [isModalEditSanPhamVisible, setIsModalEditSanPhamVisible] = useState(false);
   const [colors, setColors] = useState([]);
   const [sizes, setSizes] = useState([]);
   const [images, setImages] = useState([]);
-  const [selectedColorForEdit, setSelectedColorColorForEdit] = useState("");
+  const [selectedColorForEdit, setSelectedColorColorForEdit] = useState('');
   // State để lưu màu sắc và kích thước đã chọn
   const [selectedColors, setSelectedColors] = useState([]);
   const [selectedSizes, setSelectedSizes] = useState([]);
@@ -114,12 +114,12 @@ const DemoForm = () => {
   };
   const handleUploadImage = async (files) => {
     if (!files || files.length === 0) {
-      toast.error('Vui lòng chọn ít nhất một ảnh!');
+      message.error('Vui lòng chọn ít nhất một ảnh!');
       return;
     }
 
     try {
-      toast.info('Đang tải ảnh lên...');
+      message.info('Đang tải ảnh lên...');
 
       const uploadedImages = await Promise.all(
         Array.from(files).map(async (file) => {
@@ -138,10 +138,10 @@ const DemoForm = () => {
 
       setImages((prevImageUrls) => [...uploadedImages, ...prevImageUrls]);
 
-      toast.success('Upload ảnh thành công!');
+      message.success('Upload ảnh thành công!');
     } catch (error) {
       console.error('Upload failed:', error);
-      toast.error('Không thể tải ảnh lên, vui lòng thử lại.');
+      message.error('Không thể tải ảnh lên, vui lòng thử lại.');
     }
   };
 
@@ -156,7 +156,7 @@ const DemoForm = () => {
         // Kiểm tra giới hạn 3 ảnh cùng màu
         const imagesOfColor = prev.filter((item) => item.color === currentColor);
         if (imagesOfColor.length >= 3) {
-          toast.warning(`Chỉ được chọn tối đa 3 ảnh cho màu ${currentColor}!`);
+          message.warning(`Chỉ được chọn tối đa 3 ảnh cho màu ${currentColor}!`);
           return prev;
         }
 
@@ -171,12 +171,11 @@ const DemoForm = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/imagesSanPham',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }); // Gọi API từ backend
+        const response = await axios.get('http://localhost:8080/api/imagesSanPham', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }); // Gọi API từ backend
         setImages(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách ảnh:', error);
@@ -189,12 +188,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingSanPham(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/sanpham',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/sanpham', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setSanPham(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách sản phẩm:', error);
@@ -211,12 +209,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingChatLieu(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/chatlieu',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/chatlieu', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setChatLieu(response.data);
         // Tự động chọn phần tử đầu tiên nếu có dữ liệu
         if (response.data.length > 0) {
@@ -238,12 +235,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuDang(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieudang',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/kieudang', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuDang(response.data);
         if (response.data.length > 0) {
           const firstKieuDang = response.data[0];
@@ -264,12 +260,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingThuongHieu(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setThuongHieu(response.data);
         if (response.data.length > 0) {
           const firstThuongHieu = response.data[0];
@@ -290,12 +285,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCuc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucuc',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/kieucuc', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCuc(response.data);
         if (response.data.length > 0) {
           const firstKieuCuc = response.data[0];
@@ -316,12 +310,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCoAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucoao',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/kieucoao', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCoAo(response.data);
         if (response.data.length > 0) {
           const firstKieuCoAo = response.data[0];
@@ -342,12 +335,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCoTayAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCoTayAo(response.data);
         if (response.data.length > 0) {
           const firstKieuCoTayAo = response.data[0];
@@ -368,12 +360,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuTuiAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuTuiAo(response.data);
         if (response.data.length > 0) {
           const firstKieuTuiAo = response.data[0];
@@ -394,12 +385,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuTayAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutayao',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/kieutayao', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuTayAo(response.data);
         if (response.data.length > 0) {
           const firstKieuTayAo = response.data[0];
@@ -420,12 +410,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingDanhMuc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/danhmuc',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/danhmuc', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setDanhMuc(response.data);
         if (response.data.length > 0) {
           const firstDanhMuc = response.data[0];
@@ -446,12 +435,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingHoaTiet(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/hoatiet',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/hoatiet', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setHoaTiet(response.data);
         if (response.data.length > 0) {
           const firstHoaTiet = response.data[0];
@@ -472,12 +460,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingMauSac(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/mausac',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/mausac', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setColors(response.data);
       } catch (error) {
         console.error('Lỗi khi lấy danh sách màu sắc:', error);
@@ -493,12 +480,11 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKichThuoc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setSizes(response.data);
         console.log(response.data);
       } catch (error) {
@@ -530,22 +516,22 @@ const DemoForm = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
       console.log('Dữ liệu đã gửi thành công:', response.data);
       console.log('Dữ liệu gửi đi thành công:', dataToSend);
       navigate('/admin/sanpham');
-      toast.success('Thêm sản phẩm thành công');
+      message.success('Thêm sản phẩm thành công');
     } catch (error) {
       console.log('Dữ liệu thất bại:', dataToSend);
       console.error('Lỗi khi gửi dữ liệu:', error);
-      toast.error('Thêm sản phẩm thất bại');
+      message.error('Thêm sản phẩm thất bại');
     }
   };
   const handleSendVariants = () => {
     // Kiểm tra nếu danh sách biến thể trống
     if (!danhSachBienThe || danhSachBienThe.length === 0) {
-      toast.error('Danh sách biến thể trống! Vui lòng thêm sản phẩm.');
+      message.error('Danh sách biến thể trống! Vui lòng thêm sản phẩm.');
       return;
     }
 
@@ -555,7 +541,7 @@ const DemoForm = () => {
     );
 
     if (missingFields) {
-      toast.error('Có biến thể thiếu dữ liệu! Vui lòng kiểm tra lại.');
+      message.error('Có biến thể thiếu dữ liệu! Vui lòng kiểm tra lại.');
       return;
     }
 
@@ -565,7 +551,7 @@ const DemoForm = () => {
     );
 
     if (missingImages) {
-      toast.error('Có biến thể chưa có ảnh! Vui lòng chọn ảnh cho từng màu.');
+      message.error('Có biến thể chưa có ảnh! Vui lòng chọn ảnh cho từng màu.');
       return;
     }
     sendProductVariantsToServer(danhSachBienThe);
@@ -597,15 +583,15 @@ const DemoForm = () => {
   const showModalEditSoLuongVaGia = (color) => {
     formEditSLGia.resetFields();
     setSelectedColorColorForEdit(color); // Lưu màu sắc đang chỉnh sửa
-  // const selectedVariant = danhSachBienThe.find((item) => item.mauSac.name === color);
+    // const selectedVariant = danhSachBienThe.find((item) => item.mauSac.name === color);
 
-  // formEditSLGia.setFieldsValue({
-  //   soLuong: selectedVariant?.soLuong || 0,
-  //   gia: selectedVariant?.gia || 0,
-  // });
-  setIsModalEditSanPhamVisible(true);
+    // formEditSLGia.setFieldsValue({
+    //   soLuong: selectedVariant?.soLuong || 0,
+    //   gia: selectedVariant?.gia || 0,
+    // });
+    setIsModalEditSanPhamVisible(true);
   };
-  
+
   const handleSaveSoLuongVaGia = () => {
     formEditSLGia
       .validateFields()
@@ -619,32 +605,28 @@ const DemoForm = () => {
           message.error('Giá phải là số không âm');
           return;
         }
-  
+
         // Nếu dữ liệu hợp lệ, cập nhật danhSachBienThe
         setDanhSachBienThe((prev) =>
           prev.map((bienThe) =>
             bienThe.mauSac.name === selectedColorForEdit
               ? { ...bienThe, soLuong: values.soLuong, gia: values.gia }
-              : bienThe
-          )
+              : bienThe,
+          ),
         );
-  
+
         setIsModalEditSanPhamVisible(false);
       })
       .catch((error) => {
         console.error('Validation failed:', error);
       });
   };
-  
-  
+
   // Kiểm tra danhSachBienThe sau khi cập nhật
   useEffect(() => {
     console.log('🔄 danhSachBienThe đã cập nhật:', danhSachBienThe);
   }, [danhSachBienThe]);
-  
- 
-  
-  
+
   const handleCancelSoLuongVaGia = () => {
     setIsModalEditSanPhamVisible(false);
   };
@@ -687,24 +669,22 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/sanpham/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/sanpham/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setSanPham((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addsanpham',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setSanPham((prev) => [ response.data, ...prev]);
+        const response = await axios.post('http://localhost:8080/api/admin/addsanpham', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setSanPham((prev) => [response.data, ...prev]);
       }
 
       handleModalSanPhamClose(); // Đóng modal sau khi lưu
@@ -749,26 +729,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setChatLieu((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa chất liệu thành công');
+        message.success('Sửa chất liệu thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setChatLieu((prev) => [response.data, ...prev]);
-        toast.success('Thêm chất liệu thành công');
+        message.success('Thêm chất liệu thành công');
       }
 
       handleModalChatLieuClose(); // Đóng modal sau khi lưu
@@ -813,26 +791,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieudang/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/kieudang/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuDang((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa kiểu dáng thành công');
+        message.success('Sửa kiểu dáng thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieudang',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/addkieudang', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuDang((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu dáng thành công');
+        message.success('Thêm kiểu dáng thành công');
       }
 
       handleModalKieuDangClose(); // Đóng modal sau khi lưu
@@ -877,26 +853,28 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/thuonghieu/${editingRecord.id}`,  values,
+        await axios.patch(
+          `http://localhost:8080/api/admin/thuonghieu/${editingRecord.id}`,
+          values,
           {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          });
+          },
+        );
         setThuongHieu((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa thương hiệu thành công');
+        message.success('Sửa thương hiệu thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addthuonghieu',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/addthuonghieu', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setThuongHieu((prev) => [response.data, ...prev]);
-        toast.success('Thêm thương hiệu thành công');
+        message.success('Thêm thương hiệu thành công');
       }
 
       handleModalThuongHieuClose(); // Đóng modal sau khi lưu
@@ -941,26 +919,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCuc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa kiểu cúc thành công');
+        message.success('Sửa kiểu cúc thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucuc',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/addkieucuc', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCuc((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu cúc thành công');
+        message.success('Thêm kiểu cúc thành công');
       }
 
       handleModalKieuCucClose(); // Đóng modal sau khi lưu
@@ -1005,26 +981,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucoao/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/kieucoao/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCoAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa kiểu cổ áo thành công');
+        message.success('Sửa kiểu cổ áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucoao',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/addkieucoao', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuCoAo((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu cổ áo thành công');
+        message.success('Thêm kiểu cổ áo thành công');
       }
 
       handleModalKieuCoAoClose(); // Đóng modal sau khi lưu
@@ -1080,17 +1054,20 @@ const DemoForm = () => {
         setKieuCoTayAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa kiểu cổ tay áo thành công');
+        message.success('Sửa kiểu cổ tay áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucotayao',  values,
+        const response = await axios.post(
+          'http://localhost:8080/api/admin/addkieucotayao',
+          values,
           {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          });
+          },
+        );
         setKieuCoTayAo((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu cổ tay áo thành công');
+        message.success('Thêm kiểu cổ tay áo thành công');
       }
 
       handleModalKieuCoTayAoClose(); // Đóng modal sau khi lưu
@@ -1134,26 +1111,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieutuiao/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/kieutuiao/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuTuiAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa kiểu túi áo thành công');
+        message.success('Sửa kiểu túi áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieutuiao',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/addkieutuiao', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuTuiAo((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu túi áo thành công');
+        message.success('Thêm kiểu túi áo thành công');
       }
 
       handleModalKieuTuiAoClose(); // Đóng modal sau khi lưu
@@ -1195,26 +1170,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieutayao/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/kieutayao/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuTayAo((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa kiểu tay áo thành công');
+        message.success('Sửa kiểu tay áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieutayao',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/addkieutayao', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setKieuTayAo((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu tay áo thành công');
+        message.success('Thêm kiểu tay áo thành công');
       }
 
       handleModalKieuTayAoClose(); // Đóng modal sau khi lưu
@@ -1257,26 +1230,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setHoaTiet((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa họa tiết thành công');
+        message.success('Sửa họa tiết thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setHoaTiet((prev) => [response.data, ...prev]);
-        toast.success('Thêm họa tiết thành công');
+        message.success('Thêm họa tiết thành công');
       }
 
       handleModalHoaTietClose(); // Đóng modal sau khi lưu
@@ -1318,26 +1289,24 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`, values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setDanhMuc((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        toast.success('Sửa danh mục thành công');
+        message.success('Sửa danh mục thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc', values, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setDanhMuc((prev) => [response.data, ...prev]);
-        toast.success('Thêm danh mục thành công');
+        message.success('Thêm danh mục thành công');
       }
 
       handleModalDanhMucClose(); // Đóng modal sau khi lưu
@@ -1483,17 +1452,16 @@ const DemoForm = () => {
       key: 'gia',
       render: (text, record) => (
         <InputNumber
-        value={record.gia} // Controlled: lấy từ state
-        min={0}
-        max={999999999999999}
-        formatter={(value) =>
-          value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " đ" : ""
-        }
-        parser={(value) => value.replace(/\D/g, "")} // Xóa tất cả ký tự không phải số
-        onChange={(value) => handlePriceChange(value, record)}
-        style={{ width: "200px" }}
-      />
-      
+          value={record.gia} // Controlled: lấy từ state
+          min={0}
+          max={999999999999999}
+          formatter={(value) =>
+            value ? `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' đ' : ''
+          }
+          parser={(value) => value.replace(/\D/g, '')} // Xóa tất cả ký tự không phải số
+          onChange={(value) => handlePriceChange(value, record)}
+          style={{ width: '200px' }}
+        />
       ),
     },
     {
@@ -1532,21 +1500,19 @@ const DemoForm = () => {
   };
   console.log(danhSachBienThe);
 
-  const [filteredData, setFilteredData] = useState({}); 
+  const [filteredData, setFilteredData] = useState({});
 
   useEffect(() => {
     const newFilteredData = selectedColors.reduce((acc, color) => {
       const filteredItems = danhSachBienThe
         .filter((bienThe) => bienThe.mauSac.name === color.name)
         .filter((bienThe) => bienThe.tenSanPham);
-  
+
       return { ...acc, [color.name]: filteredItems };
     }, {});
-  
+
     setFilteredData(newFilteredData);
   }, [danhSachBienThe, selectedColors]); // Cập nhật khi danh sách biến thể hoặc màu sắc thay đổi
-  
-
 
   const showConfirm = () => {
     Modal.confirm({
@@ -1616,7 +1582,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddSanPhamModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddSanPhamModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1644,7 +1614,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddChatLieuModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddChatLieuModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1670,7 +1644,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddKieuDangModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddKieuDangModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1698,7 +1676,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddThuongHieuModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddThuongHieuModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1724,7 +1706,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddKieuCucModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddKieuCucModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1752,7 +1738,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddKieuCoAoModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddKieuCoAoModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1778,7 +1768,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddKieuCoTayAoModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddKieuCoTayAoModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1806,7 +1800,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddKieuTuiAoModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddKieuTuiAoModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1832,7 +1830,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddKieuTayAoModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddKieuTayAoModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1860,7 +1862,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddDanhMucModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddDanhMucModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -1886,7 +1892,11 @@ const DemoForm = () => {
                     </Option>
                   ))}
                 </Select>
-                <Button type="default" style={{ border: '2px solid #1890ff', color: '#1890ff' }} onClick={() => showAddHoaTietModal()}>
+                <Button
+                  type="default"
+                  style={{ border: '2px solid #1890ff', color: '#1890ff' }}
+                  onClick={() => showAddHoaTietModal()}
+                >
                   +
                 </Button>
               </Input.Group>
@@ -2043,9 +2053,13 @@ const DemoForm = () => {
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
                   <span>{`Danh sách các sản phẩm màu: ${color.name}`}</span>
-                  <Button type="primary" icon={<EditOutlined />} onClick={() =>showModalEditSoLuongVaGia(color.name)}>
+                  <Button
+                    type="primary"
+                    icon={<EditOutlined />}
+                    onClick={() => showModalEditSoLuongVaGia(color.name)}
+                  >
                     Chỉnh sửa tất cả
-                  </Button> 
+                  </Button>
                 </div>
               }
               key={color.name}
@@ -2199,7 +2213,7 @@ const DemoForm = () => {
               },
             ]}
           >
-            <Input placeholder="Nhập tên chất liệu"/>
+            <Input placeholder="Nhập tên chất liệu" />
           </Form.Item>
           {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
           <Form.Item name="moTa" label="Mô tả">
@@ -2584,7 +2598,7 @@ const DemoForm = () => {
               },
             ]}
           >
-            <Input placeholder="Nhập tên họa tiết"/>
+            <Input placeholder="Nhập tên họa tiết" />
           </Form.Item>
           {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
           <Form.Item name="moTa" label="Mô tả">
@@ -2633,7 +2647,7 @@ const DemoForm = () => {
               },
             ]}
           >
-            <Input placeholder="Nhập tên danh mục"/>
+            <Input placeholder="Nhập tên danh mục" />
           </Form.Item>
           {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
           <Form.Item name="moTa" label="Mô tả">
@@ -2815,41 +2829,46 @@ const DemoForm = () => {
         </div>
       </Modal>
       <Modal
-      title="Chỉnh sửa sản phẩm"
-      open={isModalEditSanPhamVisible}
-       onCancel={handleCancelSoLuongVaGia}
-       onOk={handleSaveSoLuongVaGia}
-      okText="Lưu thay đổi"
-      cancelText="Hủy"
-    >
-      <Form form={formEditSLGia} layout="vertical">
-        <Form.Item
-          label="Số lượng"
-          name="soLuong"
-          rules={[{ required: true, message: "Vui lòng nhập số lượng!" }]}
-        >
-          <InputNumber min={0} style={{ width: "100%" }} />
-        </Form.Item>
+        title="Chỉnh sửa sản phẩm"
+        open={isModalEditSanPhamVisible}
+        onCancel={handleCancelSoLuongVaGia}
+        onOk={handleSaveSoLuongVaGia}
+        okText="Lưu thay đổi"
+        cancelText="Hủy"
+      >
+        <Form form={formEditSLGia} layout="vertical">
+          <Form.Item
+            label="Số lượng"
+            name="soLuong"
+            rules={[{ required: true, message: 'Vui lòng nhập số lượng!' }]}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
 
-        <Form.Item
-          label="Giá"
-          name="gia"
-          rules={[{ required: true, message: "Vui lòng nhập giá!" }]}
-        >
-          <InputNumber
-            min={0}
-            style={{ width: "100%" }}
-            formatter={(value) => ` ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-            parser={(value) => value.replace(/,/g, "")}
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
+          <Form.Item
+            label="Giá"
+            name="gia"
+            rules={[{ required: true, message: 'Vui lòng nhập giá!' }]}
+          >
+            <InputNumber
+              min={0}
+              style={{ width: '100%' }}
+              formatter={(value) => ` ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              parser={(value) => value.replace(/,/g, '')}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Row style={{ justifyContent: 'end' }}>
         <Button
-        style={{ border: '3px solid #1890ff', color: '#1890ff',marginTop: '6px',fontSize: '12px',fontWeight: 'bold',}}
-       
+          style={{
+            border: '3px solid #1890ff',
+            color: '#1890ff',
+            marginTop: '6px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+          }}
           type="submit"
           onClick={showConfirm}
         >

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import Container from 'react-bootstrap/Container';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { SearchOutlined, FileExcelOutlined } from '@ant-design/icons';
@@ -144,7 +143,7 @@ const SanPham = () => {
   };
   return (
     <>
-      <Container className="mt-5 relative">
+
         <Breadcrumb
           style={{
             marginBottom: '10px',
@@ -207,7 +206,7 @@ const SanPham = () => {
             rowKey="id"
           />
         </div>
-      </Container>
+  
     </>
   );
 };

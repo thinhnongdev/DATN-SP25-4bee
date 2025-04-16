@@ -1,5 +1,4 @@
 import { use, useEffect, useRef, useState } from 'react';
-import Container from 'react-bootstrap/Container';
 import { Link, useParams } from 'react-router-dom';
 import {
   Button,
@@ -939,7 +938,7 @@ const SanPhamChiTiet = () => {
       <div>
         <Breadcrumb style={{ marginBottom: '10px', fontSize: '15px', fontWeight: 'bold' }}>
           <Breadcrumb.Item>
-            <Link to="/sanpham">Sản phẩm</Link>
+            <Link to="/admin/sanpham">Sản phẩm</Link>
           </Breadcrumb.Item>
           <Breadcrumb.Item>{tenSanPham || ''}</Breadcrumb.Item>
         </Breadcrumb>
