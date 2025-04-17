@@ -1,7 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Typography, Card, Divider, Steps, Button, Row, Col, Layout, message } from 'antd';
+import {
+  Typography,
+  Card,
+  Divider,
+  Steps,
+  Button,
+  Row,
+  Col,
+  Layout,
+  message,
+  Modal,
+  Checkbox,
+  Empty,
+} from 'antd';
 import moment from 'moment';
 import Sidebar from './SidebarProfile';
 
@@ -16,6 +29,9 @@ const OrderDetailPage = () => {
   const [districtFormatData, setDistrictFormatData] = useState([]);
   const [wardCache, setWardCache] = useState({});
   const API_TOKEN = '4f7fc40f-023f-11f0-aff4-822fc4284d92';
+  const [isAddressList, setIsAddressList] = useState(false);
+  const [addressList, setAddressList] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
   const fetchLocationData = async () => {
     try {
       const headers = { Token: API_TOKEN, 'Content-Type': 'application/json' };
@@ -86,40 +102,75 @@ const OrderDetailPage = () => {
 
     return ward ? ward.WardName : 'Không xác định';
   };
-  useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const orderRes = await axios.get(
-          `http://localhost:8080/api/client/order/findHoaDonById/${orderId}`,
-        );
-        const paymentRes = await axios.get(
-          `http://localhost:8080/api/client/thanhtoan/findThanhToanHoaDonByIdHoaDon/${orderId}`,
-        );
-        const productRes = await axios.get(
-          `http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${orderId}`,
-        );
-
-        const fullOrder = {
-          ...orderRes.data,
-          payments: paymentRes.data,
-          products: productRes.data,
-        };
-
-        setOrder(fullOrder);
-
-        // Lấy ảnh cho từng sản phẩm
-        const imageMap = {};
-        for (const product of productRes.data) {
-          const img = await fetchProductImage(product.id);
-          if (img && img.length > 0) {
-            imageMap[product.id] = img[0].anhUrl; // lấy ảnh đầu tiên
-          }
+  const fetchAddresses = async (customerId) => {
+    try {
+      const response = await axios.get(`http://localhost:8080/api/client/diaChi/${customerId}`);
+      console.log('Fetched Addresses:', response.data);
+      const addresses = response.data;
+      console.log('Dữ liệu địa chỉ trả về:', response.data);
+      setAddressList((prev) => {
+        if (JSON.stringify(prev) !== JSON.stringify(addresses)) {
+          return addresses;
         }
-        setProductImages(imageMap);
-      } catch (error) {
-        console.error('Lỗi lấy chi tiết đơn hàng:', error);
+        return prev;
+      });
+      console.log('địa chỉ mặc định', addresses);
+      // if (addresses.length > 0) {
+      //   const defaultAddress = addresses.find((addr) => addr.isDefault) || addresses[0];
+      //   console.log('địa chỉ mặc định kp', defaultAddress.huyen);
+      //   setSelectedAddress((prev) => (prev !== defaultAddress ? defaultAddress : prev));
+      //   setSelectedDistrict(defaultAddress.huyen);
+      // }
+    } catch (error) {
+      console.error('Lỗi khi tải địa chỉ:', error);
+      message.error('Không thể tải địa chỉ. Vui lòng thử lại!');
+    }
+  };
+  const handleSelectAddress = (diaChiString) => {
+    const selected = addressList.find((address) => getFormattedAddress(address) === diaChiString);
+
+    if (selected && getFormattedAddress(selectedAddress) !== diaChiString) {
+      setSelectedAddress(diaChiString);
+    }
+  };
+
+  console.log('selectedAddress', selectedAddress);
+
+  const fetchOrder = async () => {
+    try {
+      const orderRes = await axios.get(
+        `http://localhost:8080/api/client/order/findHoaDonById/${orderId}`,
+      );
+      const paymentRes = await axios.get(
+        `http://localhost:8080/api/client/thanhtoan/findThanhToanHoaDonByIdHoaDon/${orderId}`,
+      );
+      const productRes = await axios.get(
+        `http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${orderId}`,
+      );
+
+      const fullOrder = {
+        ...orderRes.data,
+        payments: paymentRes.data,
+        products: productRes.data,
+      };
+
+      setOrder(fullOrder);
+
+      // Lấy ảnh cho từng sản phẩm
+      const imageMap = {};
+      for (const product of productRes.data) {
+        const img = await fetchProductImage(product.id);
+        if (img && img.length > 0) {
+          imageMap[product.id] = img[0].anhUrl; // lấy ảnh đầu tiên
+        }
       }
-    };
+      setProductImages(imageMap);
+    } catch (error) {
+      console.error('Lỗi lấy chi tiết đơn hàng:', error);
+    }
+  };
+  useEffect(() => {
+    
 
     fetchOrder();
   }, [orderId]);
@@ -161,6 +212,73 @@ const OrderDetailPage = () => {
   };
   const address = parseAddress(order.diaChi);
   console.log('currentStep', currentStep);
+
+  const handleQuantityChange = async (productDetailId, newQuantity) => {
+    try {
+      const response = await axios.put(
+        'http://localhost:8080/api/client/hoadonchoxacnhan/update-so-luong',
+        {
+          hoaDonId: orderId,
+          sanPhamChiTietId: productDetailId,
+          soLuong: newQuantity,
+        },
+      );
+
+      // Sau khi cập nhật thành công, cập nhật lại state để re-render
+      const updatedProducts = order.products.map((item) =>
+        item.id === productDetailId ? { ...item, soLuongMua: newQuantity } : item,
+      );
+
+      // Cập nhật tổng tiền nếu cần
+      const newTotal = updatedProducts.reduce(
+        (total, item) => total + item.gia * item.soLuongMua,
+        0,
+      );
+
+      setOrder({
+        ...order,
+        products: updatedProducts,
+        tongTien: newTotal,
+      });
+    } catch (error) {
+      console.error('Lỗi khi cập nhật số lượng:', error);
+      message.error('Không thể cập nhật số lượng. Vui lòng thử lại.');
+    }
+  };
+  const handleEditAddress = () => {
+    setIsAddressList(true);
+    setSelectedAddress(order.diaChi); // Set the selected address to the current address
+    console.log('ID khách hàng', order.idKhachHang);
+    console.log('Thông tin đơn hàng', order);
+    fetchAddresses(order.idKhachHang); // Fetch addresses when modal opens
+  };
+  const getFormattedAddress = (address) => {
+    return `${address.diaChiCuThe}, ${address.xa}, ${address.huyen}, ${address.tinh}`;
+  };
+  const handleConfirm = async () => {
+    if (!orderId || !selectedAddress) {
+      message.warning("Vui lòng chọn địa chỉ");
+      return;
+    }
+  
+    try {
+      const response = await axios.put(`http://localhost:8080/api/client/order/thaydoidiachihoadonchoxacnhan/${orderId}`, selectedAddress, {
+        headers: {
+          'Content-Type': 'text/plain', // vì backend nhận @RequestBody String
+        },
+      });
+  
+      message.success("Cập nhật địa chỉ thành công!");
+      setIsAddressList(false); // đóng modal
+      fetchOrder?.(); // gọi lại dữ liệu đơn hàng nếu có hàm này
+    } catch (error) {
+      if (error.response?.data) {
+        message.error(error.response.data);
+      } else {
+        message.error("Có lỗi xảy ra, vui lòng thử lại!");
+      }
+    }
+  };
   return (
     <Layout
       style={{
@@ -216,6 +334,12 @@ const OrderDetailPage = () => {
           <Text>
             Địa chỉ: {address.diaChiCuThe}, {formatWardName(address.xa, address.huyen)},{' '}
             {formatDistrictName(address.huyen)}, {formatProvinceName(address.tinh)}
+            <a
+              onClick={handleEditAddress} // hàm xử lý khi nhấn "Sửa"
+              style={{ marginLeft: 8, color: '#1677ff', cursor: 'pointer' }}
+            >
+              Sửa
+            </a>
           </Text>
         </Card>
 
@@ -254,7 +378,29 @@ const OrderDetailPage = () => {
                       Màu: {item.mauSac}, Kích thước: {item.kichThuoc}, Chất liệu: {item.chatLieu}
                     </Text>
                     <br />
-                    <Text>Số lượng: x{item.soLuongMua}</Text>
+                    <Row align="middle" gutter={8}>
+                      <Col>
+                        <Button
+                          size="small"
+                          onClick={() => handleQuantityChange(item.id, item.soLuongMua - 1)}
+                          disabled={item.soLuongMua <= 1}
+                        >
+                          -
+                        </Button>
+                      </Col>
+                      <Col>
+                        <Text>{item.soLuongMua}</Text>
+                      </Col>
+                      <Col>
+                        <Button
+                          size="small"
+                          onClick={() => handleQuantityChange(item.id, item.soLuongMua + 1)}
+                        >
+                          +
+                        </Button>
+                      </Col>
+                    </Row>
+
                     <br />
                     <Text style={{ color: 'red', fontWeight: 500 }}>
                       Đơn giá: {item.gia.toLocaleString('vi-VN')}₫
@@ -341,6 +487,70 @@ const OrderDetailPage = () => {
           </Card>
         </Card>
       </div>
+      <Modal
+  title="Chọn địa chỉ giao hàng"
+  open={isAddressList}
+  footer={null}
+  onCancel={() => setIsAddressList(false)}
+  width={600}
+>
+  {addressList.length > 0 ? (
+    <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
+      {addressList.map((address) => {
+        const isSelected = getFormattedAddress(address) === selectedAddress;
+
+        return (
+          <Card
+            key={address.id}
+            hoverable
+            onClick={() => handleSelectAddress(getFormattedAddress(address))}
+            style={{
+              marginBottom: '16px',
+              border: isSelected ? '2px solid #1890ff' : '1px solid #f0f0f0',
+              backgroundColor: isSelected ? '#e6f7ff' : '#fff',
+              borderRadius: '12px',
+              boxShadow: isSelected
+                ? '0 4px 12px rgba(24, 144, 255, 0.15)'
+                : '0 2px 6px rgba(0, 0, 0, 0.05)',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <Checkbox
+                checked={isSelected}
+                onChange={() => handleSelectAddress(getFormattedAddress(address))}
+                style={{ marginTop: 4 }}
+              />
+              <div>
+                <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{address.name}</div>
+                <div style={{ color: '#555', marginTop: 4, wordBreak: 'break-word' }}>
+                  {address.diaChiCuThe}, {formatWardName(address.xa, address.huyen)},
+                  {` `}{formatDistrictName(address.huyen)}, {formatProvinceName(address.tinh)}
+                </div>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  ) : (
+    <Empty description="Không có địa chỉ nào, vui lòng thêm mới!" />
+  )}
+
+  <div style={{ marginTop: '24px', textAlign: 'right' }}>
+    <Button
+      type="primary"
+      onClick={() => handleConfirm()}
+      disabled={!selectedAddress}
+    >
+      Xác nhận
+    </Button>
+  </div>
+</Modal>
+
+
+
     </Layout>
   );
 };

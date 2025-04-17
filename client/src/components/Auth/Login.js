@@ -23,12 +23,12 @@ const LoginForm = () => {
         localStorage.setItem('token', response.data.token); // Lưu token vào localStorage
         const userRole = response.data.token ? getRoleFromToken(response.data.token) : null;
         if (userRole === 'ADMIN') {
-          navigate('/admin');
+          navigate('/admin/thongke');
         } else if (userRole === 'NHAN_VIEN') {
           navigate('/admin/ban-hang');
         } else {
           //nếu là khách hàng thì tạo hóa đơn pending
-          await createPendingOrder(values.email)
+          await createPendingOrder(values.email);
           navigate('/'); // Mặc định cho KHACH_HANG
         }
         message.success('Đăng nhập thành công!');
@@ -41,21 +41,23 @@ const LoginForm = () => {
   //gọi api tạo hóa đơn pending nếu khách hàng đăng nhập
   const createPendingOrder = async (email) => {
     try {
-    const response=  await axios.post('http://localhost:8080/api/client/order/createPending', { email });
-    const hoaDonId =response.data.id;
-    console.log("Hóa đơn",response.data)
-      console.log("ID hóa đơn Pending",hoaDonId);
-    if(response.data&& response.data.id){
-      const hoaDonId =response.data.id;
-      console.log("ID hóa đơn Pending",hoaDonId);
-      //gọi api lấy danh sách hóa đơn chi tiết
-      const orderDetails=await fetchOrderDetail(hoaDonId);
-      console.log("danh sách sản phẩm chi tiết",orderDetails)
-      //lưu giỏ hàng vào localStorage
-      localStorage.setItem("cart",JSON.stringify(orderDetails))
-    }else{
-      console.log("không nhân được ID hóa đơn từ API")
-    }
+      const response = await axios.post('http://localhost:8080/api/client/order/createPending', {
+        email,
+      });
+      const hoaDonId = response.data.id;
+      console.log('Hóa đơn', response.data);
+      console.log('ID hóa đơn Pending', hoaDonId);
+      if (response.data && response.data.id) {
+        const hoaDonId = response.data.id;
+        console.log('ID hóa đơn Pending', hoaDonId);
+        //gọi api lấy danh sách hóa đơn chi tiết
+        const orderDetails = await fetchOrderDetail(hoaDonId);
+        console.log('danh sách sản phẩm chi tiết', orderDetails);
+        //lưu giỏ hàng vào localStorage
+        localStorage.setItem('cart', JSON.stringify(orderDetails));
+      } else {
+        console.log('không nhân được ID hóa đơn từ API');
+      }
     } catch (error) {
       console.log('Lỗi khi tạo hóa đơn Pending:', error);
     }
@@ -63,21 +65,22 @@ const LoginForm = () => {
 
   const fetchOrderDetail = async (hoaDonId) => {
     try {
-        const response = await axios.get(`http://localhost:8080/api/client/order/hoaDonChiTiet/${hoaDonId}`);
-        
-        if (Array.isArray(response.data)) {
-            console.log("Danh sách hóa đơn chi tiết:", response.data);
-            return response.data; // Trả về toàn bộ danh sách
-        } else {
-            console.warn("API không trả về danh sách, kiểm tra lại backend!");
-            return [];
-        }
-    } catch (error) {
-        console.error("Lỗi khi lấy giỏ hàng:", error);
-        return [];
-    }
-};
+      const response = await axios.get(
+        `http://localhost:8080/api/client/order/hoaDonChiTiet/${hoaDonId}`,
+      );
 
+      if (Array.isArray(response.data)) {
+        console.log('Danh sách hóa đơn chi tiết:', response.data);
+        return response.data; // Trả về toàn bộ danh sách
+      } else {
+        console.warn('API không trả về danh sách, kiểm tra lại backend!');
+        return [];
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy giỏ hàng:', error);
+      return [];
+    }
+  };
 
   return (
     <div

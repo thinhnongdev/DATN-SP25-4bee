@@ -49,6 +49,26 @@ public class HoaDonClientController {
         return ResponseEntity.ok(hoaDonChiTietClientService.getHoaDonChiTietList(hoaDonId));
     }
 
+    @PutMapping("/order/thaydoidiachihoadonchoxacnhan/{idHoaDon}")
+    public ResponseEntity<?> updateDiaChiHoaDonChoXacNhan(@PathVariable("idHoaDon") String idHoaDon, @RequestBody String diaChi) {
+        if (idHoaDon == null || idHoaDon.isEmpty()) {
+            return ResponseEntity.badRequest().body("Id hóa đơn không được để trống");
+        }
+        if (diaChi == null || diaChi.isEmpty()) {
+            return ResponseEntity.badRequest().body("địa chỉ cập nhật không được để trống");
+        }
+        try {
+            HoaDon hoaDon = hoaDonClientService.updateDiaChiDonChoXacNhan(idHoaDon, diaChi);
+            if (hoaDon == null) {
+                return ResponseEntity.badRequest().body("Chỉ hóa đơn chờ xác nhận mới được thay đổi địa chỉ");
+            }
+            return ResponseEntity.ok(hoaDon);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Có lỗi xảy ra, vui lòng thử lại!");
+        }
+
+    }
+
     @PostMapping("/order/addHoaDonChiTiet")
     public ResponseEntity<?> addHoaDonChiTiet(@RequestBody CartProductRequest cartProductRequest) {
         if (cartProductRequest == null) {
@@ -104,6 +124,7 @@ public class HoaDonClientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
         }
     }
+
     @GetMapping("/order/findHoaDonById/{id}")
     public ResponseEntity<?> findHoaDoById(@PathVariable String id) {
         if (id == null || id.isEmpty()) {

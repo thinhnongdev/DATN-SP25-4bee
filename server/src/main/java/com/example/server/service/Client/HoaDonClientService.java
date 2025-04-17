@@ -2,6 +2,7 @@ package com.example.server.service.Client;
 
 import com.example.server.dto.Client.request.CartProductRequest;
 import com.example.server.dto.Client.request.ThongTinGiaoHangClientRequest;
+import com.example.server.dto.Client.request.UpdateSoLuongSPCThoaDonCho;
 import com.example.server.dto.Client.response.HoaDonChiTietClientResponse;
 import com.example.server.dto.Client.response.HoaDonClientResponse;
 import com.example.server.entity.*;
@@ -68,6 +69,16 @@ public class HoaDonClientService {
 
     ;
 
+    public HoaDon updateDiaChiDonChoXacNhan(String id, String diaChi) {
+        HoaDon hoaDon = hoaDonRepository.findById(id).orElseThrow();
+        if (hoaDon.getTrangThai() == 1) {
+            hoaDon.setDiaChi(diaChi);
+            // hoaDon.setPhiVanChuyen();
+            return hoaDonRepository.save(hoaDon);
+        }
+        return null;
+    }
+
     public HoaDon ThanhToanHoaDonPending(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, BigDecimal phiVanChuyen, PhieuGiamGia phieuGiamGia) {
         HoaDon hoaDon = hoaDonRepository.findByMaHoaDon(thongTinGiaoHangClientRequest.getMaHoaDon()).orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn pending cần thanh toán"));
         hoaDon.setPhieuGiamGia(phieuGiamGia);
@@ -94,7 +105,6 @@ public class HoaDonClientService {
         lichSuHoaDon.setHanhDong("Tạo đơn hàng");
         lichSuHoaDon.setMoTa("");
         lichSuHoaDonRepository.save(lichSuHoaDon);
-
         return hoaDon1;
     }
 
@@ -116,6 +126,8 @@ public class HoaDonClientService {
         return hoaDonRepository.save(hoaDon);
     }
 
+    ;
+
     public HoaDon findHoaDonDangNhap(String email) {
         Optional<HoaDon> hoaDon = hoaDonRepository.findHoaDonPending(email);
         if (hoaDon.isPresent()) {
@@ -123,6 +135,8 @@ public class HoaDonClientService {
         }
         return hoaDon.orElseThrow(() -> new RuntimeException("Không có hóa đơn pending để thanh toán"));
     }
+
+    ;
 
     public List<HoaDonClientResponse> findHoaDonClient(String email) {
         List<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonClient(email);
@@ -145,6 +159,7 @@ public class HoaDonClientService {
                         System.out.println("Xóa hóa đơn chi tiết thành cong");
                         return;
                     }
+
                     if ((!hoaDonChiTietClientResponseList.get(i).getQuantity().equals(cartProductRequest.getSanPhamChiTiet().getQuantity())) && cartProductRequest.getSanPhamChiTiet().getQuantity() != 0) { //nếu số lượng của sản phẩm trong hóa đơn chi tiết khác số lượng sản phẩm gửi về
                         HoaDonChiTiet hoaDonChiTiet = hoaDonChiTietRepository.findById(hoaDonChiTietClientResponseList.get(i).getIdHoaDonChiTiet()).orElseThrow(() -> new RuntimeException("không tìm thấy hóa đơn chi tiết!!!"));
                         hoaDonChiTiet.setSoLuong(cartProductRequest.getSanPhamChiTiet().getQuantity());
@@ -155,15 +170,21 @@ public class HoaDonClientService {
                 }
             }
             if (cartProductRequest.getSanPhamChiTiet().getQuantity() > 0) {
+                SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietRepository.findById(cartProductRequest.getSanPhamChiTiet().getId()).orElseThrow();
                 HoaDonChiTiet hoaDonChiTiet = new HoaDonChiTiet();
                 hoaDonChiTiet.setSoLuong(cartProductRequest.getSanPhamChiTiet().getQuantity());
                 hoaDonChiTiet.setTrangThai(1);
                 hoaDonChiTiet.setId(UUID.randomUUID().toString());
                 hoaDonChiTiet.setNgayThemVaoGio(LocalDateTime.now());
                 hoaDonChiTiet.setHoaDon(hoaDon);
-                hoaDonChiTiet.setSanPhamChiTiet(sanPhamChiTietRepository.findById(cartProductRequest.getSanPhamChiTiet().getId()).orElseThrow());
+                hoaDonChiTiet.setGiaTaiThoiDiemThem(sanPhamChiTiet.getGia());
+                hoaDonChiTiet.setSanPhamChiTiet(sanPhamChiTiet);
                 hoaDonChiTietRepository.save(hoaDonChiTiet);
             }
         }
     }
+//    public void ChangeSoLuongSanPhamTrongHoaDonChoXacNhan(UpdateSoLuongSPCThoaDonCho updateSoLuongSPCThoaDonCho){
+//        List<HoaDonChiTiet> hoaDonChiTietList=hoaDonChiTietRepository.findByHoaDonId(updateSoLuongSPCThoaDonCho.getHoaDonId());
+//
+//    }
 }

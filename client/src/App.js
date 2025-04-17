@@ -32,6 +32,7 @@ import { checkTokenValidity } from './components/Client/pages/checkTokenValidity
 import ThongkeRoutes from './routes/ThongKeRoutes';
 import Forbidden403 from './components/Auth/Forbidden403';
 import ProtectedRoutes from './routes/ProtectedRoutes';
+import NotFoundPage from './components/Auth/NotFoundPage';
 const { Header, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
@@ -230,6 +231,8 @@ const AdminLayout = () => {
             {SanPhamRoutes()}
             {NhanVienRoutes()}
             {KhachHangRoutes()}
+            {/* THÊM 404 bên trong Routes của ClientLayout */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Content>
         <Chatbot />
@@ -248,7 +251,11 @@ const CustomerLayout = () => {
     <Layout className="layout">
       <NavClient />
       <Content key={location.pathname}>
-        <Routes>{ClientRoute()}</Routes>
+        <Routes>
+          {ClientRoute()}
+          {/* THÊM 404 bên trong Routes của ClientLayout */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
       </Content>
       <FooterClient />
       <Chatbot />
@@ -293,35 +300,44 @@ const App = () => {
   console.log('Token:', token);
   console.log('Role từ token:', userRole);
 
-  if (
-    location.pathname === '/login' ||
-    location.pathname === '/register' ||
-    location.pathname === '/403'
-  ) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/403" element={<Forbidden403 />} /> {/* thêm route này ở cấp App */}
-      </Routes>
-    );
-  }
-  // Với vai trò ADMIN hoặc NHAN_VIEN thì cho phép truy cập cả giao diện quản trị và giao diện khách hàng
-  // Ngược lại (KHÁCH_HÀNG hoặc chưa đăng nhập) thì chỉ cho phép truy cập giao diện khách hàng.
-  return token !== null ? (
+  // if (
+  //   location.pathname === '/login' ||
+  //   location.pathname === '/register' ||
+  //   location.pathname === '/403'||
+  //   location.pathname === '*'
+  // ) {
+  return (
     <Routes>
-      {/* Bọc admin route bằng ProtectedRoutes */}
+      {/* Auth pages */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/403" element={<Forbidden403 />} />
+
+      {/* Admin (protected) */}
       <Route element={<ProtectedRoutes allowedRoles={['ADMIN', 'NHAN_VIEN']} />}>
         <Route path="/admin/*" element={<AdminLayout />} />
       </Route>
-      {/* Route giao diện khách hàng (ai cũng truy cập được) */}
+
+      {/* Client */}
       <Route path="/*" element={<CustomerLayout />} />
-    </Routes>
-  ) : (
-    <Routes>
-      <Route path="/*" element={<CustomerLayout />} />
+
+      {/* Not found - đặt cuối cùng */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
+  //}
+  // Với vai trò ADMIN hoặc NHAN_VIEN thì cho phép truy cập cả giao diện quản trị và giao diện khách hàng
+  // Ngược lại (KHÁCH_HÀNG hoặc chưa đăng nhập) thì chỉ cho phép truy cập giao diện khách hàng.
+  // return  (
+  //   <Routes>
+  //     {/* Bọc admin route bằng ProtectedRoutes */}
+  //     <Route element={<ProtectedRoutes allowedRoles={['ADMIN', 'NHAN_VIEN']} />}>
+  //       <Route path="/admin/*" element={<AdminLayout />} />
+  //     </Route>
+  //     {/* Route giao diện khách hàng (ai cũng truy cập được) */}
+  //     <Route path="/*" element={<CustomerLayout />} />
+  //   </Routes>
+  // )
 };
 
 export default App;

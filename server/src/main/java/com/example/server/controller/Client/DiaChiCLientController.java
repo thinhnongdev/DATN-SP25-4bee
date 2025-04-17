@@ -18,4 +18,5 @@ public class DiaChiClientController {
     public List<DiaChi> getDiaChiByIdKhachHang(@PathVariable("idKhachHang") String idKhachHang) {
         return khachHangService.findDiaChiByIdKhachHang(idKhachHang);
     }
+
 }

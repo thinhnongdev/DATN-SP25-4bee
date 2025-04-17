@@ -90,8 +90,7 @@ public class SecurityConfig {
 //                );
         httpSecurity.authorizeHttpRequests(request ->
                 request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers(HttpMethod.GET,"/api/client/**").permitAll()
-                        .requestMatchers(HttpMethod.POST,"/api/client/**").permitAll()
+                        .requestMatchers("/api/client/**").permitAll()
 
                         .requestMatchers(adminAndStaffEndpoints).hasAnyRole("ADMIN", "NHAN_VIEN")
                         .requestMatchers(adminOnlyEndpoints).hasRole("ADMIN")
