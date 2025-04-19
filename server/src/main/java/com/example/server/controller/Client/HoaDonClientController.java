@@ -2,6 +2,7 @@ package com.example.server.controller.Client;
 
 import com.example.server.dto.Client.request.CartProductRequest;
 import com.example.server.dto.Client.request.OrderRequest;
+import com.example.server.dto.Client.request.OrderUpdateRequest;
 import com.example.server.dto.Client.request.UpdateDiaChiClientRequest;
 import com.example.server.dto.Client.response.HoaDonClientResponse;
 import com.example.server.entity.HoaDon;
@@ -51,27 +52,27 @@ public class HoaDonClientController {
         return ResponseEntity.ok(hoaDonChiTietClientService.getHoaDonChiTietList(hoaDonId));
     }
 
-    @PutMapping("/order/thaydoidiachihoadonchoxacnhan/{idHoaDon}")
-    public ResponseEntity<?> updateDiaChiHoaDonChoXacNhan(@PathVariable("idHoaDon") String idHoaDon, @RequestBody UpdateDiaChiClientRequest request) {
-        if (idHoaDon == null || idHoaDon.isEmpty()) {
-            return ResponseEntity.badRequest().body("Id hóa đơn không được để trống");
-        }
-        if (request.getDiaChi() == null || request.getDiaChi().isEmpty()) {
-            return ResponseEntity.badRequest().body("địa chỉ cập nhật không được để trống");
-        }if (request.getShippingFee() == null) {
-            return ResponseEntity.badRequest().body("phí ship cập nhật không được để trống");
-        }
-        try {
-            HoaDon hoaDon = hoaDonClientService.updateDiaChiDonChoXacNhan(idHoaDon, request.getDiaChi(), request.getShippingFee(),request.getTotalPayment(), request.getDiaChi());
-            if (hoaDon == null) {
-                return ResponseEntity.badRequest().body("Chỉ hóa đơn chờ xác nhận mới được thay đổi địa chỉ");
-            }
-            return ResponseEntity.ok(hoaDon);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body("Có lỗi xảy ra, vui lòng thử lại!");
-        }
-
-    }
+//    @PutMapping("/order/thaydoidiachihoadonchoxacnhan/{idHoaDon}")
+//    public ResponseEntity<?> updateDiaChiHoaDonChoXacNhan(@PathVariable("idHoaDon") String idHoaDon, @RequestBody UpdateDiaChiClientRequest request) {
+//        if (idHoaDon == null || idHoaDon.isEmpty()) {
+//            return ResponseEntity.badRequest().body("Id hóa đơn không được để trống");
+//        }
+//        if (request.getDiaChi() == null || request.getDiaChi().isEmpty()) {
+//            return ResponseEntity.badRequest().body("địa chỉ cập nhật không được để trống");
+//        }if (request.getShippingFee() == null) {
+//            return ResponseEntity.badRequest().body("phí ship cập nhật không được để trống");
+//        }
+//        try {
+//            HoaDon hoaDon = hoaDonClientService.updateDiaChiDonChoXacNhan(idHoaDon, request.getDiaChi(), request.getShippingFee(),request.getTotalPayment(), request.getDiaChi());
+//            if (hoaDon == null) {
+//                return ResponseEntity.badRequest().body("Chỉ hóa đơn chờ xác nhận mới được thay đổi địa chỉ");
+//            }
+//            return ResponseEntity.ok(hoaDon);
+//        } catch (RuntimeException e) {
+//            return ResponseEntity.badRequest().body("Có lỗi xảy ra, vui lòng thử lại!");
+//        }
+//
+//    }
 
     @PostMapping("/order/addHoaDonChiTiet")
     public ResponseEntity<?> addHoaDonChiTiet(@RequestBody CartProductRequest cartProductRequest) {
@@ -140,5 +141,20 @@ public class HoaDonClientController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
         }
+    }
+    @PutMapping("/order/updatehoadoncho/{id}")
+    public ResponseEntity<?> updateHoaDonChoXacNhan(@PathVariable("id") String idHoaDon, @RequestBody OrderUpdateRequest request) {
+        if (idHoaDon == null || idHoaDon.isEmpty()) {
+            return ResponseEntity.badRequest().body("Id hóa đơn không được để trống");
+        }
+        try {
+            hoaDonClientService.updateDiaChiHoaDonChoXacNhan(request);
+            hoaDonClientService.updateHoaDonChiTiet(request);
+            hoaDonClientService.handleChenhLechThanhToan(request);
+            return ResponseEntity.ok("Cập nhật hóa đơn thành công");
+        }catch (RuntimeException e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi cập nhật hóa đơn" + e.getMessage());
+        }
+
     }
 }

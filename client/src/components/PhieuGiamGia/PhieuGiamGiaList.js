@@ -231,6 +231,7 @@ const PhieuGiamGiaList = () => {
     { 
       title: "Mã", 
       dataIndex: "maPhieuGiamGia", 
+      align:"center",
       key: "maPhieuGiamGia", 
       width: "8%" 
     },
@@ -267,7 +268,7 @@ const PhieuGiamGiaList = () => {
       align: "center"
     },
     {
-      title: "Tối thiểu",
+      title: "Đơn tối thiểu",
       dataIndex: "giaTriToiThieu",
       key: "giaTriToiThieu",
       render: value => value ? `${value.toLocaleString()} VND` : "Không",
@@ -275,7 +276,7 @@ const PhieuGiamGiaList = () => {
      align: "center"
     },
     {
-      title: "Tối đa",
+      title: "Giảm tối đa",
       dataIndex: "soTienGiamToiDa",
       key: "soTienGiamToiDa",
       render: value => value ? `${value.toLocaleString()} VND` : "Không",

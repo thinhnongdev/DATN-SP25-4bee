@@ -1,6 +1,8 @@
 package com.example.server.dto.Client.response;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 @Getter
 @Setter
@@ -8,6 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class SanPhamChiTietClientResponse {
+    String idHoaDonChiTiet;
     String id;
 
     String maSanPhamChiTiet;
@@ -19,6 +22,7 @@ public class SanPhamChiTietClientResponse {
     Integer trangThai;
 
     java.math.BigDecimal gia;
+    BigDecimal giaTaiThoiDiemThem;
 
     String mauSac;
 

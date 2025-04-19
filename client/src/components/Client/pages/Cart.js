@@ -541,8 +541,13 @@ const Cart = () => {
                       {voucher.loaiPhieuGiamGia === 1 ? '%' : '₫'}
                     </Text>
                     <Text type="secondary" style={{ display: 'block' }}>
-                      Giảm tối đa: {voucher.soTienGiamToiDa.toLocaleString('vi-VN')}₫ - Cho đơn tối
-                      thiểu: {voucher.giaTriToiThieu.toLocaleString('vi-VN')}₫
+                      {voucher.soTienGiamToiDa
+                        ? `Giảm tối đa: ${voucher.soTienGiamToiDa.toLocaleString(
+                            'vi-VN',
+                          )}₫ - Cho đơn tối thiểu: ${voucher.giaTriToiThieu.toLocaleString(
+                            'vi-VN',
+                          )}₫`
+                        : `Cho đơn tối thiểu: ${voucher.giaTriToiThieu.toLocaleString('vi-VN')}₫`}
                     </Text>
                   </div>
                 </div>

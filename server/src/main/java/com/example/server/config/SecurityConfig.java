@@ -29,17 +29,26 @@ public class SecurityConfig {
             "/api/chat", // Thêm /api/chat vào đây
             "/ws/**",       // Add WebSocket endpoint
             "/ws/info/**",  // Add WebSocket info endpoint
-            "/topic/**"     // Add STOMP destination prefix
+            "/topic/**",     // Add STOMP destination prefix
+            "api/admin/chatlieu",
+            "api/admin/kieutuiao",
+            "api/admin/kieutuiao",
+            "api/admin/kieutuiao",
+            "api/admin/kieutuiao",
+            "api/admin/kieutuiao",
+            "api/admin/kieutuiao",
+            "api/admin/kieutuiao",
+            "api/admin/kieutuiao",
+            "/api/admin/sanpham/**",
     };
 
-    private final String[] adminAndStaffEndpoints={
+    private final String[] adminAndStaffEndpoints = {
             "/api/admin/hoa-don/**",
             "/api/admin/ban-hang/**",
-            "/api/admin/sanpham/**",
             "/api/admin/khach_hang",
             "/api/admin/khach_hang/diaChi/**",
     };
-    private final String[] adminOnlyEndpoints={
+    private final String[] adminOnlyEndpoints = {
             "/api/admin/nhan_vien/**",
             "/api/admin/thong-ke/**",
             "/api/admin/khach_hang/**",
@@ -47,6 +56,7 @@ public class SecurityConfig {
     };
     @Autowired
     CustomJwtDecoder customJwtDecoder;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
