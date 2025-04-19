@@ -3,8 +3,13 @@ import { Form, Input, Button, DatePicker, Select, Table, notification, Row, Col 
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+// time
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
 const { Option } = Select;
+
 
 const PhieuGiamGiaAdd = () => {
   const [form] = Form.useForm();
@@ -60,7 +65,7 @@ const PhieuGiamGiaAdd = () => {
   const handleDiscountTypeChange = (value) => {
     setDiscountType(value);
     setSelectedCustomers([]);
-    form.setFieldsValue({ soLuong: value === 2 ? 0 : null });
+    form.setFieldsValue({ soLuong: value === 2 ? 1 : null });
   };
 
   const handleCustomerSelect = (selectedRowKeys) => {
@@ -89,9 +94,7 @@ const PhieuGiamGiaAdd = () => {
     }
 
     const requestData = {
-      ...values,
-      ngayBatDau: dayjs(values.ngayBatDau).format("YYYY-MM-DDTHH:mm:ss"), // Sử dụng định dạng ISO-8601
-      ngayKetThuc: dayjs(values.ngayKetThuc).format("YYYY-MM-DDTHH:mm:ss"), // Sử dụng định dạng ISO-8601
+      ...values, // Giữ nguyên giá trị gốc từ DatePicker
       loaiPhieuGiamGia: discountType,
       idKhachHang: discountType === 2 ? selectedCustomers : [],
       trangThai: 1,
@@ -155,7 +158,7 @@ const PhieuGiamGiaAdd = () => {
                       if (!value || parseFloat(value) <= 0) {
                         return Promise.reject(new Error("Giá trị giảm phải lớn hơn 0"));
                       }
-                      if (getFieldValue("loaiGiaTriGiam") === 1 && parseFloat(value) > 100) {
+                      if (getFieldValue("loaiPhieuGiamGia") === 1 && parseFloat(value) > 100) {
                         return Promise.reject(new Error("Giá trị giảm phần trăm không được vượt quá 100%"));
                       }
                       return Promise.resolve();
@@ -167,7 +170,7 @@ const PhieuGiamGiaAdd = () => {
                   type="number"
                   placeholder="Nhập giá trị"
                   addonAfter={
-                    <Form.Item name="loaiGiaTriGiam" noStyle>
+                    <Form.Item name="loaiPhieuGiamGia" noStyle>
                       <Select>
                         <Option value={1}>%</Option>
                         <Option value={2}>VND</Option>

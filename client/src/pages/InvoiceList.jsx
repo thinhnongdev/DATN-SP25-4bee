@@ -482,13 +482,21 @@ function InvoiceList() {
       align: "center",
       render: (text) => <StatusChip status={text} />,
     },
-    {
-      title: "Tổng tiền",
-      dataIndex: "tongTien",
-      key: "tongTien",
-      align: "center",
-      render: (text, record) => formatCurrency(text),
-    },
+      {
+          title: "Tổng tiền",
+          key: "tongTien",
+          align: "center",
+          render: (text, record) => (
+            <div>
+              <div>{formatCurrency(record.tongTien)}</div>
+              {record.tongThanhToan > 0 && (
+                <div style={{ fontSize: '12px', color: record.tongThanhToan >= record.tongTien ? '#52c41a' : '#faad14' }}>
+                  Đã thanh toán: {formatCurrency(record.tongThanhToan)}
+                </div>
+              )}
+            </div>
+          ),
+        },
     
     {
       title: "Thao tác",

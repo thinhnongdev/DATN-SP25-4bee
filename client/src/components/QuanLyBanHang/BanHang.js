@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
-import './BanHangCss.css';
-import CreateForm from '../KhachHang/CreateForm';
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useLocation } from "react-router-dom";
+import "./BanHangCss.css";
+import CreateForm from "../KhachHang/CreateForm";
 import {
   Layout,
   Button,
@@ -28,7 +29,8 @@ import {
   Collapse, // Add this import
   Empty,
   Tooltip,
-} from 'antd';
+  Checkbox,
+} from "antd";
 import {
   PlusOutlined,
   CloseOutlined,
@@ -49,38 +51,41 @@ import {
   ShoppingOutlined,
   AppstoreOutlined,
   CheckCircleOutlined,
+  CreditCardOutlined,
+  BankOutlined,
+  WarningOutlined,
   ExclamationCircleOutlined,
-} from '@ant-design/icons';
-import { IoIosAddCircle, IoIosAddCircleOutline } from 'react-icons/io';
-import { BiQrScan } from 'react-icons/bi';
-import { AiOutlineSelect } from 'react-icons/ai';
-import { Option } from 'antd/es/mentions';
-import axios from 'axios';
-import { message, notification } from 'antd';
-import api from '../../utils/api';
-import { formatCurrency } from '../../utils/format';
-import ProductTable from '../HoaDon/ProductTable';
-import { Client } from '@stomp/stompjs';
-import { MenuItem, FormControl, InputLabel } from '@mui/material';
-import { checkPayment } from './checkPayment'; // Import hàm checkPayment
-import GiaoHang from './GiaoHang';
-import QrScanner from '../QrScanner';
+} from "@ant-design/icons";
+import { IoIosAddCircle, IoIosAddCircleOutline } from "react-icons/io";
+import { BiQrScan } from "react-icons/bi";
+import { AiOutlineSelect } from "react-icons/ai";
+import { Option } from "antd/es/mentions";
+import axios from "axios";
+import { message, notification } from "antd";
+import api from "../../utils/api";
+import { formatCurrency } from "../../utils/format";
+import ProductTable from "../HoaDon/ProductTable";
+import { Client } from "@stomp/stompjs";
+import { MenuItem, FormControl, InputLabel } from "@mui/material";
+import { checkPayment } from "./checkPayment"; // Import hàm checkPayment
+import GiaoHang from "./GiaoHang";
+import QrScanner from "../QrScanner";
 const { Content, Sider } = Layout;
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 
 // Add near the top of the file with other constants
 const PAYMENT_METHOD = {
-  CASH: 'CASH',
-  QR: 'BANK',
-  // Add other payment methods as needed
+  CASH: "CASH",
+  QR: "BANK",
+  VNPAY: "VNPAY",
 };
 
 // Di chuyển các hàm helper ra ngoài component
 const calculateDiscountAmount = (voucher, total) => {
   // Kiểm tra điều kiện áp dụng voucher
   if (!voucher || !total || total < voucher.giaTriToiThieu) {
-    console.log('Không đủ điều kiện áp dụng voucher:', {
+    console.log("Không đủ điều kiện áp dụng voucher:", {
       total,
       minRequired: voucher?.giaTriToiThieu,
     });
@@ -113,12 +118,11 @@ const calculateDiscountAmount = (voucher, total) => {
 const BanHang = () => {
   const socket = useRef(null);
   const [isModalPaymentQR, setIsModalVisiblePaymentQR] = useState(false); // Trạng thái hiển thị Modal
-  const [isModalVisibleListSPCT, setIsModalVisibleListSPCT] = useState(false); // Trạng thái hiển thị Modal
-  const [sanPhamChiTiet, setSanPhamChiTiet] = useState([]);
+  const [priceChangesConfirmed, setPriceChangesConfirmed] = useState({});
   const [tabs, setTabs] = useState([]); // Bắt đầu không có tab
   const [activeTab, setActiveTab] = useState(null);
   const [products, setProducts] = useState([]); // Danh sách sản phẩm trong tab
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 3 });
   const [activeKey, setActiveKey] = useState(null); // Giữ tab đang mở
   const [orderProducts, setOrderProducts] = useState({}); // Products in each order tab
@@ -144,14 +148,16 @@ const BanHang = () => {
   const [suggestedVoucher, setSuggestedVoucher] = useState(null);
   const [additionalAmount, setAdditionalAmount] = useState(0);
   const [suggestedProducts, setSuggestedProducts] = useState([]);
-  const [qrUrl, setQrUrl] = useState('');
+  const [qrUrl, setQrUrl] = useState("");
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedLoaiHoaDon, setSelectedLoaiHoaDon] = useState(2); // 2 = Tại quầy
-  const [isLoaiHoaDonModalVisible, setIsLoaiHoaDonModalVisible] = useState(false);
-  const [isCreateCustomerModalVisible, setIsCreateCustomerModalVisible] = useState(false);
-  const [qrCode, setQrCode] = useState(''); // Thêm state này để lưu mã QR
-  const token = localStorage.getItem('token'); // Lấy token từ localStorage
+  const [isLoaiHoaDonModalVisible, setIsLoaiHoaDonModalVisible] =
+    useState(false);
+  const [isCreateCustomerModalVisible, setIsCreateCustomerModalVisible] =
+    useState(false);
+  const [qrCode, setQrCode] = useState(""); // Thêm state này để lưu mã QR
+  const token = localStorage.getItem("token"); // Lấy token từ localStorage
   const [calculatingShippingFee, setCalculatingShippingFee] = useState(false);
   const [isQrScannerVisible, setIsQrScannerVisible] = useState(false);
   const [scanningForHoaDonId, setScanningForHoaDonId] = useState(null);
@@ -160,53 +166,505 @@ const BanHang = () => {
     onOk: () => setIsModalVisiblePaymentQR(false),
   });
   const [hoaDonId, setHoaDonId] = useState(null); // Thêm state để lưu trữ hoaDonId hiện tại
-
+  const [changedProducts, setChangedProducts] = useState([]);
+  const [priceNeedsConfirmation, setPriceNeedsConfirmation] = useState(false);
+  const [openPriceChangeDialog, setOpenPriceChangeDialog] = useState(false);
+  const [priceChangeAmount, setPriceChangeAmount] = useState(0);
+  const [updateAllPrices, setUpdateAllPrices] = useState(false);
+  const [checkingPrice, setCheckingPrice] = useState(false);
   // Thêm state để quản lý interval
   const [pollingInterval, setPollingInterval] = useState(null);
-
-  // Hàm fetch dữ liệu mới
-  const fetchLatestData = async () => {
+  // Thêm vào khai báo state ở đầu component BanHang
+  const [processingVnpay, setProcessingVnpay] = useState(false);
+  
+  // Thêm hàm xử lý thanh toán VNPAY
+  const handleVnpayPayment = async (hoaDonId) => {
     try {
-      if (hoaDonId) {
-        await fetchInvoiceProducts(hoaDonId);
-        await fetchPaymentHistory();
+      setProcessingVnpay(true);
+      message.loading({ content: "Đang xử lý thanh toán VNPAY...", key: "vnpayProcessing", duration: 0 });
+      
+      // Lấy thông tin order hiện tại
+      const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
+      
+      // Tìm thanh toán VNPAY trong danh sách thanh toán
+      const vnpayPayment = currentOrder?.thanhToans?.find(
+        (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+      );
+      
+      if (!vnpayPayment || vnpayPayment.soTien <= 0) {
+        message.error({ content: "Vui lòng nhập số tiền thanh toán VNPAY", key: "vnpayProcessing" });
+        setProcessingVnpay(false);
+        return;
+      }
+      
+      // Gọi API để tạo URL thanh toán VNPAY
+      const response = await api.post(
+        `/api/admin/hoa-don/${hoaDonId}/create-vnpay-payment`,
+        {
+          // Thêm thông tin thanh toán vào body request
+          paymentAmount: vnpayPayment.soTien,
+          paymentId: vnpayPayment.id || `${hoaDonId}_VNPAY`
+        },
+        {
+          params: {
+            returnUrl: window.location.origin + "/admin/ban-hang"
+          },
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      if (response.data) {
+        // Mở cửa sổ mới cho thanh toán VNPAY
+        window.open(response.data, "_blank");
+        
+        // Lưu ID hóa đơn vào localStorage để kiểm tra khi quay lại
+        localStorage.setItem("vnpayHoaDonId", hoaDonId);
+        
+        message.success({ 
+          content: "Đã chuyển hướng đến trang thanh toán VNPAY. Vui lòng hoàn tất thanh toán trước khi xác nhận đơn hàng.", 
+          key: "vnpayProcessing" 
+        });
+        
+        setProcessingVnpay(false);
+      } else {
+        message.error({ 
+          content: "Không thể tạo liên kết thanh toán VNPAY", 
+          key: "vnpayProcessing" 
+        });
+        setProcessingVnpay(false);
       }
     } catch (error) {
-      console.error('Lỗi khi cập nhật dữ liệu:', error);
+      console.error("Lỗi khi xử lý thanh toán VNPAY:", error);
+      message.error({ 
+        content: "Lỗi khi xử lý thanh toán VNPAY: " + (error.response?.data || error.message), 
+        key: "vnpayProcessing" 
+      });
+      setProcessingVnpay(false);
+    }
+  };
+  
+  // Thêm hàm xác nhận thanh toán VNPAY
+  const confirmVnpayPayment = async (hoaDonId) => {
+    try {
+      setProcessingVnpay(true);
+      message.loading({ content: "Đang xác nhận thanh toán VNPAY...", key: "vnpayConfirm", duration: 0 });
+      
+      // Lấy tất cả tham số từ URL trả về từ VNPAY
+      const urlParams = new URLSearchParams(window.location.search);
+      const vnpParams = {};
+      
+      // Chuyển tất cả tham số vnp_ từ URL vào đối tượng để gửi đến server
+      urlParams.forEach((value, key) => {
+        if (key.startsWith('vnp_')) {
+          vnpParams[key] = value;
+        }
+      });
+      
+      console.log("VNPAY response params:", vnpParams);
+      
+      // Gửi tất cả tham số vnp_ lên server để xác nhận thanh toán
+      const response = await api.post(
+        `/api/admin/hoa-don/${hoaDonId}/confirm-vnpay-payment`,
+        vnpParams,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data) {
+        message.success({ 
+          content: "Thanh toán VNPAY đã được xác nhận thành công!", 
+          key: "vnpayConfirm" 
+        });
+        
+        // Cập nhật lại thông tin đơn hàng
+        await fetchInvoiceById(hoaDonId);
+        localStorage.removeItem("vnpayHoaDonId");
+      }
+    } catch (error) {
+      console.error("Lỗi khi xác nhận thanh toán VNPAY:", error);
+      message.error({ 
+        content: "Không thể xác nhận thanh toán VNPAY: " + (error.response?.data || error.message), 
+        key: "vnpayConfirm" 
+      });
+    } finally {
+      setProcessingVnpay(false);
+    }
+  };
+  
+  // Thêm useEffect để kiểm tra trạng thái VNPAY khi quay lại trang
+  useEffect(() => {
+    const checkVnpayPayment = async () => {
+      try {
+        const hoaDonId = localStorage.getItem("vnpayHoaDonId");
+        const urlParams = new URLSearchParams(window.location.search);
+        const vnpResponseCode = urlParams.get("vnp_ResponseCode");
+        const vnpOrderInfo = urlParams.get("vnp_OrderInfo");
+        
+        console.log("VNPAY params check:", { 
+          hoaDonId, 
+          vnpResponseCode, 
+          vnpOrderInfo,
+          hasParams: urlParams.toString().includes("vnp_")
+        });
+        
+        if (hoaDonId && urlParams.toString().includes("vnp_")) {
+          // Thu thập tất cả tham số vnp_
+          const vnpParams = {};
+          urlParams.forEach((value, key) => {
+            if (key.startsWith('vnp_')) {
+              vnpParams[key] = value;
+            }
+          });
+          
+          if (vnpResponseCode === "00") {
+            // Thanh toán thành công
+            message.loading({ content: "Đang xác nhận thanh toán VNPAY...", key: "vnpayConfirm" });
+            
+            // Gửi tất cả tham số từ VNPAY để backend xử lý
+            const response = await api.post(
+              `/api/admin/hoa-don/${hoaDonId}/confirm-vnpay-payment`,
+              vnpParams,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            if (response.data) {
+              message.success({ 
+                content: "Đã xác nhận thanh toán VNPAY thành công!", 
+                key: "vnpayConfirm" 
+              });
+              
+              // Fetch lại hóa đơn để cập nhật thông tin mới
+              await fetchInvoiceById(hoaDonId);
+              
+              // THÊM MỚI: Hoàn tất đơn hàng
+              Modal.confirm({
+                title: "Thanh toán VNPAY thành công",
+                content: "Đơn hàng đã được thanh toán qua VNPAY. Bạn có muốn hoàn tất đơn hàng ngay bây giờ?",
+                okText: "Hoàn tất đơn hàng",
+                cancelText: "Để sau",
+                onOk: async () => {
+                  try {
+                    // Get the current order to extract payment information
+                    const order = tabs.find((tab) => tab.key === hoaDonId)?.order;
+                    if (!order || !order.thanhToans) {
+                      message.error("Không thể tìm thấy thông tin thanh toán");
+                      return;
+                    }
+                      
+                    // Filter valid payments (only those with amount > 0)
+                    const validPayments = order.thanhToans
+                      .filter(p => p && p.soTien > 0)
+                      .map(payment => ({
+                        id: payment.id || `${hoaDonId}_${payment.maPhuongThucThanhToan}`,
+                        maPhuongThucThanhToan: payment.maPhuongThucThanhToan,
+                        soTien: payment.soTien
+                      }));
+                      
+                    // Gọi API để hoàn tất đơn hàng với thông tin thanh toán
+                    await api.post(
+                      `/api/admin/ban-hang/${hoaDonId}/complete`,
+                      {
+                        thanhToans: validPayments,
+                      },
+                      {
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      }
+                    );
+                      
+                    // Hoàn tất quy trình đơn hàng và in hóa đơn
+                    await completeOrderProcess(hoaDonId);
+                  } catch (error) {
+                    console.error("Lỗi khi hoàn tất đơn hàng sau thanh toán VNPAY:", error);
+                    message.error("Không thể hoàn tất đơn hàng. Vui lòng thử lại.");
+                  }
+                },
+              });
+            }
+          } else {
+            message.error("Thanh toán VNPAY không thành công hoặc đã bị hủy");
+          }
+          
+          // Xóa dữ liệu trong localStorage và URL param để tránh xác nhận lại
+          localStorage.removeItem("vnpayHoaDonId");
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch (error) {
+        console.error("Lỗi khi kiểm tra kết quả thanh toán VNPAY:", error);
+        message.error("Không thể xác nhận thanh toán VNPAY: " + (error.response?.data || error.message));
+      }
+    };
+    
+    checkVnpayPayment();
+  }, []);
+  
+  // Thêm hàm hiển thị nút thanh toán VNPAY
+  const renderVnpaySection = (order, payment) => {
+    if (!payment || payment.soTien <= 0) return null;
+    
+    return (
+      <div style={{ textAlign: "center", marginTop: 12 }}>
+        <Button
+          type="primary"
+          icon={<CreditCardOutlined />}
+          onClick={() => handleVnpayPayment(order.id)}
+          loading={processingVnpay}
+          style={{ 
+            width: "100%",
+            background: "#2a5ada", 
+            borderColor: "#2a5ada"
+          }}
+        >
+          Thanh toán qua VNPAY
+        </Button>
+        <div style={{ marginTop: 8, fontSize: "12px", color: "#888" }}>
+          Thanh toán trực tuyến qua cổng VNPAY
+        </div>
+      </div>
+    );
+  };
+
+  const fetchLatestData = useCallback(async () => {
+    try {
+      if (!hoaDonId || loading) {
+        return; // Không fetch nếu đang loading hoặc không có hoaDonId
+      }
+
+      // Dùng cờ hiệu để tránh nhiều cập nhật giao diện liên tiếp
+      setLoading(true);
+
+      // Chỉ fetch sản phẩm, không gọi các hàm khác
+      await fetchInvoiceProducts(hoaDonId, true); // true = skipUIUpdate
+    } catch (error) {
+      console.error("Lỗi khi cập nhật dữ liệu:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [hoaDonId, loading]);
+  
+  useEffect(() => {
+    // Chỉ tạo polling interval khi có hoaDonId active
+    if (hoaDonId) {
+      console.log("Setting up polling interval for hoaDonId:", hoaDonId);
+
+      // THAY ĐỔI: Tăng thời gian polling lên 15 giây để giảm tải server
+      const interval = setInterval(fetchLatestData, 15000);
+      setPollingInterval(interval);
+
+      // Cleanup khi component unmount hoặc khi hoaDonId thay đổi
+      return () => {
+        console.log("Clearing polling interval for hoaDonId:", hoaDonId);
+        if (interval) {
+          clearInterval(interval);
+          setPollingInterval(null);
+        }
+      };
+    }
+  }, [hoaDonId]);
+  const checkPriceChanges = async (showLoading = true) => {
+    try {
+      if (showLoading) {
+        setCheckingPrice(true);
+        setLoading(true);
+      }
+
+      if (!activeKey) {
+        message.error("Không có đơn hàng được chọn");
+        return false;
+      }
+
+      // Sử dụng endpoint chính xác: /api/admin/hoa-don/{id}/kiem-tra-gia
+      const response = await api.get(
+        `/api/admin/hoa-don/${activeKey}/kiem-tra-gia`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Sửa lỗi: Kiểm tra cấu trúc dữ liệu trả về đúng như trong InvoiceDetail.jsx
+      const hasPriceChanges =
+        response.data &&
+        response.data.hasPriceChanges === true &&
+        response.data.changedItems &&
+        response.data.changedItems.length > 0;
+
+      // Lưu trạng thái có thay đổi giá để hiển thị cảnh báo
+      setPriceNeedsConfirmation(hasPriceChanges);
+
+      if (hasPriceChanges) {
+        // Định dạng lại dữ liệu cho phù hợp với frontend
+        const formattedItems = response.data.changedItems.map((item) => ({
+          id: item.id,
+          tenSanPham: item.tenSanPham || "Không có tên",
+          giaTaiThoiDiemThem: item.giaCu || 0,
+          giaHienTai: item.giaMoi || 0,
+          soLuong: item.soLuong || 1,
+          hinhAnh: item.anhUrl ? [item.anhUrl] : [],
+          maSanPhamChiTiet: item.maSanPhamChiTiet || "",
+          mauSac: item.mauSac || "---",
+          maMauSac: item.maMauSac || "#FFFFFF",
+          kichThuoc: item.kichThuoc || "---",
+          chatLieu: item.chatLieu || "---",
+          chenhLech: item.chenhLech || 0,
+        }));
+
+        setChangedProducts(formattedItems);
+
+        // Tính tổng thay đổi giá
+        const totalChange = formattedItems.reduce(
+          (sum, item) => sum + item.chenhLech * item.soLuong,
+          0
+        );
+        setPriceChangeAmount(totalChange);
+
+        setOpenPriceChangeDialog(true);
+        message.warning(`Có ${formattedItems.length} sản phẩm thay đổi giá`);
+        await fetchInvoiceProducts(activeKey, false);
+        return true;
+      } else {
+        setPriceNeedsConfirmation(false);
+        if (showLoading) {
+          message.success("Giá sản phẩm không có thay đổi");
+        }
+        return false;
+      }
+    } catch (error) {
+      console.error("Lỗi khi kiểm tra thay đổi giá:", error);
+      if (showLoading) {
+        message.error("Không thể kiểm tra thay đổi giá sản phẩm");
+      }
+      return false;
+    } finally {
+      if (showLoading) {
+        setCheckingPrice(false);
+        setLoading(false);
+      }
+    }
+  };
+  // 3. Hàm cập nhật giá một sản phẩm - sử dụng query param
+  const handleUpdateProductPrice = async (hoaDonChiTietId, useCurrentPrice) => {
+    try {
+      setLoading(true);
+
+      // Sử dụng endpoint chính xác: /api/admin/hoa-don/{id}/chi-tiet/{chiTietId}/gia
+      await api.put(
+        `/api/admin/hoa-don/${activeKey}/chi-tiet/${hoaDonChiTietId}/gia?useCurrentPrice=${useCurrentPrice}`,
+        {}, // Body rỗng vì tham số truyền qua query param
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Cập nhật danh sách sản phẩm đã thay đổi - loại bỏ sản phẩm đã xử lý
+      const updatedChangedProducts = changedProducts.filter(
+        (p) => p.id !== hoaDonChiTietId
+      );
+      setChangedProducts(updatedChangedProducts);
+
+      // Nếu không còn sản phẩm nào thay đổi giá, đặt lại trạng thái
+      if (updatedChangedProducts.length === 0) {
+        setPriceNeedsConfirmation(false);
+        setOpenPriceChangeDialog(false);
+
+        // Đánh dấu là đã xác nhận thay đổi giá cho đơn hàng này
+        setPriceChangesConfirmed((prev) => ({
+          ...prev,
+          [activeKey]: true,
+        }));
+      }
+
+      // Tính toán lại tổng số tiền thay đổi
+      const totalChange = updatedChangedProducts.reduce(
+        (sum, item) => sum + item.chenhLech * item.soLuong,
+        0
+      );
+      setPriceChangeAmount(totalChange);
+
+      // Tải lại sản phẩm để cập nhật UI
+      await fetchInvoiceProducts(activeKey);
+      message.success(
+        `Đã ${useCurrentPrice ? "áp dụng giá mới" : "giữ giá cũ"} cho sản phẩm`
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Lỗi khi cập nhật giá sản phẩm:", error);
+      message.error("Không thể cập nhật giá sản phẩm");
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Khởi tạo polling khi component mount
+  // 4. Hàm cập nhật tất cả giá sản phẩm
+  const handleUpdateAllPrices = async (useCurrentPrices = null) => {
+    // Nếu không truyền tham số, sử dụng giá trị từ state
+    const shouldUseCurrentPrices =
+      useCurrentPrices !== null ? useCurrentPrices : updateAllPrices;
+
+    try {
+      setLoading(true);
+
+      // Sử dụng endpoint chính xác: /api/admin/hoa-don/{id}/cap-nhat-gia
+      await api.put(
+        `/api/admin/hoa-don/${activeKey}/cap-nhat-gia`,
+        {}, // Empty body
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          params: { useCurrentPrices: shouldUseCurrentPrices },
+        }
+      );
+
+      // Đặt lại trạng thái
+      setPriceNeedsConfirmation(false);
+      setChangedProducts([]);
+      setOpenPriceChangeDialog(false);
+      setPriceChangeAmount(0);
+
+      setPriceChangesConfirmed((prev) => ({
+        ...prev,
+        [activeKey]: true,
+      }));
+      // Tải lại sản phẩm và tính toán lại tổng tiền
+      await fetchInvoiceProducts(activeKey);
+
+      // Hiển thị thông báo thành công
+      message.success(
+        shouldUseCurrentPrices
+          ? "Đã cập nhật tất cả sản phẩm sang giá mới"
+          : "Đã giữ nguyên giá ban đầu cho tất cả sản phẩm"
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Lỗi khi cập nhật giá sản phẩm:", error);
+      message.error("Không thể cập nhật giá sản phẩm");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    // Bắt đầu polling mỗi 5 giây
-    const interval = setInterval(fetchLatestData, 5000);
-    setPollingInterval(interval);
-
-    // Cleanup khi component unmount
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [hoaDonId]);
-
-  // Dừng polling khi component unmount hoặc khi hoaDonId thay đổi
-  useEffect(() => {
-    return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
-    };
-  }, [hoaDonId]);
-
-  // Add function to calculate all totals for an order
+    if (activeKey) {
+      // Kiểm tra thay đổi giá mà không hiển thị loading
+      checkPriceChanges(false);
+    }
+  }, [activeKey]);
   const calculateOrderTotals = (hoaDonId, productsOverride, orderOverride) => {
     // Use override data if provided, otherwise get from state
     const products = productsOverride || orderProducts[hoaDonId] || [];
-    const order = orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
+    const order =
+      orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
 
     if (!order) {
-      console.warn('No order found for totals calculation');
+      console.warn("No order found for totals calculation");
       return {
         subtotal: 0,
         shippingFee: 0,
@@ -221,8 +679,42 @@ const BanHang = () => {
     // Calculate product subtotal
     const subtotal = calculateTotalBeforeDiscount(products);
 
-    // Get shipping fee from order
-    const shippingFee = order.phiVanChuyen || 0;
+    // Apply free shipping for orders >= 2 million VND
+    let shippingFee = order.phiVanChuyen || 0;
+    // Only apply free shipping for delivery orders (loaiHoaDon === 3)
+    if (subtotal >= 2000000 && order.loaiHoaDon === 3) {
+      shippingFee = 0;
+
+      // Update the order shipping fee in API if needed
+      if (order.phiVanChuyen > 0) {
+        // Use setTimeout to avoid blocking rendering
+        setTimeout(async () => {
+          try {
+            await axios.post(
+              `http://localhost:8080/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
+              { fee: 0 },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+            console.log("Đã áp dụng miễn phí vận chuyển (đơn > 2 triệu)");
+
+            // Update order in tabs with free shipping
+            setTabs((prev) =>
+              prev.map((tab) =>
+                tab.key === hoaDonId
+                  ? { ...tab, order: { ...tab.order, phiVanChuyen: 0 } }
+                  : tab
+              )
+            );
+          } catch (error) {
+            console.error("Lỗi khi cập nhật phí vận chuyển miễn phí:", error);
+          }
+        }, 0);
+      }
+    }
 
     // IMPORTANT: Use discount amount directly from the server (giamGia)
     // This ensures we're using the same calculation logic as the backend
@@ -238,7 +730,7 @@ const BanHang = () => {
           ...order.phieuGiamGia,
           loaiPhieuGiamGia: voucherType,
         },
-        subtotal,
+        subtotal
       );
     }
 
@@ -251,8 +743,11 @@ const BanHang = () => {
       totalBeforeVoucher: subtotal, // For voucher calculation purposes
       discountAmount,
       finalTotal,
-      voucherType: order.phieuGiamGia ? Number(order.phieuGiamGia.loaiPhieuGiamGia) : null,
+      voucherType: order.phieuGiamGia
+        ? Number(order.phieuGiamGia.loaiPhieuGiamGia)
+        : null,
       voucherValue: order.phieuGiamGia ? order.phieuGiamGia.giaTriGiam : null,
+      freeShipping: subtotal >= 2000000 && order.loaiHoaDon === 3,
     };
   };
 
@@ -288,7 +783,10 @@ const BanHang = () => {
               if (tab.key === activeKey) {
                 // Chỉ cập nhật nếu phí vận chuyển đã thay đổi
                 if (tab.order.phiVanChuyen !== currentShippingFee) {
-                  console.log('Cập nhật phí vận chuyển từ GiaoHang:', currentShippingFee);
+                  console.log(
+                    "Cập nhật phí vận chuyển từ GiaoHang:",
+                    currentShippingFee
+                  );
                   return {
                     ...tab,
                     order: {
@@ -299,7 +797,7 @@ const BanHang = () => {
                 }
               }
               return tab;
-            }),
+            })
           );
 
           // Cập nhật totals với phí vận chuyển mới
@@ -332,17 +830,17 @@ const BanHang = () => {
   }, [activeKey]);
   // Update generateQR function to set qrUrl as well
   const generateQR = (hoaDonId, amount) => {
-    const account = '102876619993'; // Số tài khoản nhận
-    const bank = 'VietinBank'; // Ngân hàng (Vietinbank)
+    const account = "102876619993"; // Số tài khoản nhận
+    const bank = "VietinBank"; // Ngân hàng (Vietinbank)
     // Lấy mã hóa đơn từ đối tượng order của tab hiện tại
     // const currentOrder = tabs.find(tab => tab.key === hoaDonId)?.order;
     // const maHoaDon = currentOrder?.maHoaDon || hoaDonId;
     const description = `SEVQR thanh toan don hang ${hoaDonId}`; // Nội dung thanh toán
-    const template = 'compact'; // Kiểu hiển thị QR
+    const template = "compact"; // Kiểu hiển thị QR
 
     // Tạo URL QR Code
     const qrLink = `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${amount}&des=${encodeURIComponent(
-      description,
+      description
     )}&template=${template}&download=false`;
 
     setQrCode(qrLink); // Lưu mã QR vào state
@@ -376,7 +874,10 @@ const BanHang = () => {
     if (!order || !order.thanhToans) return { change: 0, remaining: 0 };
 
     // Tính tổng số tiền đã nhập qua tất cả phương thức thanh toán
-    const totalPaid = order.thanhToans.reduce((sum, payment) => sum + (payment.soTien || 0), 0);
+    const totalPaid = order.thanhToans.reduce(
+      (sum, payment) => sum + (payment.soTien || 0),
+      0
+    );
 
     if (totalPaid >= finalTotal) {
       return {
@@ -393,15 +894,15 @@ const BanHang = () => {
   // Địa chỉ
   const handleAddressSelect = async (address) => {
     if (!address || !address.id) {
-      message.error('Vui lòng chọn một địa chỉ hợp lệ.');
+      message.error("Vui lòng chọn một địa chỉ hợp lệ.");
       return;
     }
 
     setSelectedAddress(address);
-    console.log('Đã chọn địa chỉ giao hàng:', address);
+    console.log("Đã chọn địa chỉ giao hàng:", address);
 
     if (!activeKey) {
-      message.warning('Không tìm thấy hóa đơn để cập nhật địa chỉ.');
+      message.warning("Không tìm thấy hóa đơn để cập nhật địa chỉ.");
       return;
     }
 
@@ -413,7 +914,7 @@ const BanHang = () => {
       tinh: address.tinh,
     };
 
-    console.log('Gửi request cập nhật địa chỉ:', payload);
+    console.log("Gửi request cập nhật địa chỉ:", payload);
 
     try {
       await axios.put(
@@ -423,16 +924,18 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
+        }
       );
 
       setTabs((prev) =>
         prev.map((tab) =>
-          tab.key === activeKey ? { ...tab, order: { ...tab.order, diaChi: address } } : tab,
-        ),
+          tab.key === activeKey
+            ? { ...tab, order: { ...tab.order, diaChi: address } }
+            : tab
+        )
       );
     } catch (error) {
-      console.error('Lỗi khi cập nhật địa chỉ vào hóa đơn:', error);
+      console.error("Lỗi khi cập nhật địa chỉ vào hóa đơn:", error);
       // message.error("Không thể cập nhật địa chỉ giao hàng, vui lòng thử lại.");
     }
   };
@@ -440,10 +943,10 @@ const BanHang = () => {
   // Cấu hình cột cho bảng
   const columns = [
     {
-      title: 'STT',
-      key: 'index',
+      title: "STT",
+      key: "index",
       width: 60,
-      align: 'center',
+      align: "center",
       //render: (_, __, index) => index + 1,
       render: (_, __, index) => {
         // Tính toán lại index khi chuyển trang
@@ -451,14 +954,14 @@ const BanHang = () => {
       },
     },
     {
-      title: 'Hình ảnh',
-      dataIndex: 'hinhAnh',
-      key: 'hinhAnh',
-      align: 'center',
+      title: "Hình ảnh",
+      dataIndex: "hinhAnh",
+      key: "hinhAnh",
+      align: "center",
       width: 180,
       render: (hinhAnh) => {
         return (
-          <div style={{ width: 150, height: 120, overflow: 'hidden' }}>
+          <div style={{ width: 150, height: 120, overflow: "hidden" }}>
             {Array.isArray(hinhAnh) && hinhAnh.length > 0 ? (
               <Carousel autoplay dots={false} effect="fade">
                 {hinhAnh.map((url, index) => (
@@ -467,11 +970,11 @@ const BanHang = () => {
                     src={url}
                     alt={`Sản phẩm ${index}`}
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
                       borderRadius: 5,
-                      display: 'block',
+                      display: "block",
                     }}
                   />
                 ))}
@@ -481,11 +984,11 @@ const BanHang = () => {
                 src="https://via.placeholder.com/50"
                 alt="Không có ảnh"
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
                   borderRadius: 5,
-                  display: 'block',
+                  display: "block",
                 }}
               />
             )}
@@ -494,36 +997,42 @@ const BanHang = () => {
       },
     },
     {
-      title: 'Thông tin',
-      key: 'thongTin',
-      align: 'center',
+      title: "Thông tin",
+      key: "thongTin",
+      align: "center",
       width: 180,
       render: (_, record) => (
         <Space direction="vertical" size={0}>
           <Typography.Text strong>{record.tenSanPham}</Typography.Text>
-          <Typography.Text type="secondary">Mã: {record.maSanPhamChiTiet}</Typography.Text>
-          <Typography.Text type="secondary">Chất liệu: {record.chatLieu}</Typography.Text>
-          <Typography.Text type="secondary">Kiểu tay áo: {record.kieuTayAo}</Typography.Text>
+          <Typography.Text type="secondary">
+            Mã: {record.maSanPhamChiTiet}
+          </Typography.Text>
+          <Typography.Text type="secondary">
+            Chất liệu: {record.chatLieu}
+          </Typography.Text>
+          <Typography.Text type="secondary">
+            Kiểu tay áo: {record.kieuTayAo}
+          </Typography.Text>
         </Space>
       ),
     },
     {
-      title: 'Màu sắc',
-      key: 'mauSac',
-      align: 'center',
+      title: "Màu sắc",
+      key: "mauSac",
+      align: "center",
       width: 180,
       render: (_, record) => (
         <Space size="middle">
           <Typography.Text>{record.mauSac}</Typography.Text>
           <div
             style={{
-              display: 'inline-block',
+              display: "inline-block",
               width: 50, // Chiều rộng
               height: 20, // Chiều cao
               borderRadius: 6, // Bo góc mềm mại
-              backgroundColor: record.maMauSac || '#FFFFFF',
-              border: '1px solid rgba(0, 0, 0, 0.2)', // Viền tinh tế
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)', // Hiệu ứng bóng đổ nhẹ
+              backgroundColor: record.maMauSac || "#FFFFFF",
+              border: "1px solid rgba(0, 0, 0, 0.2)", // Viền tinh tế
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)", // Hiệu ứng bóng đổ nhẹ
             }}
           ></div>
         </Space>
@@ -531,47 +1040,92 @@ const BanHang = () => {
     },
 
     {
-      title: 'Kích thước',
-      key: 'kichThuoc',
-      align: 'center',
+      title: "Kích thước",
+      key: "kichThuoc",
+      align: "center",
       width: 100,
-      render: (_, record) => <Typography.Text>{record.kichThuoc}</Typography.Text>,
+      render: (_, record) => (
+        <Typography.Text>{record.kichThuoc}</Typography.Text>
+      ),
     },
 
     {
-      title: 'Đơn giá',
-      key: 'gia',
+      title: "Đơn giá",
+      key: "gia",
       width: 140,
-      align: 'center',
-      render: (_, record) => formatCurrency(record.gia),
-    },
-    {
-      title: 'Số lượng',
-      key: 'soLuong',
-      width: 120,
-      align: 'center',
+      align: "center",
       render: (_, record) => (
-        <InputNumber
-          min={1}
-          max={record.soLuongTonKho}
-          value={record.soLuong}
-          onChange={(value) => handleUpdateQuantity(activeKey, record.id, value)}
-          style={{ width: 80 }}
-        />
+        <div>
+          {record.giaThayDoi ? (
+            <>
+              <Text delete type="secondary">
+                {formatCurrency(record.giaTaiThoiDiemThem || 0)}
+              </Text>
+              <br />
+              <Text type="danger" strong>
+                {formatCurrency(record.giaHienTai || 0)}
+                <Tooltip title="Giá đã thay đổi so với khi thêm vào đơn hàng">
+                  <Tag
+                    color={record.chenhLech > 0 ? "red" : "green"}
+                    style={{ marginLeft: 4 }}
+                  >
+                    {record.chenhLech > 0 ? "+" : "-"}
+                    {formatCurrency(Math.abs(record.chenhLech))}
+                  </Tag>
+                </Tooltip>
+              </Text>
+            </>
+          ) : (
+            formatCurrency(record.gia || 0)
+          )}
+        </div>
       ),
     },
     {
-      title: 'Thành tiền',
-      key: 'thanhTien',
+      title: "Số lượng",
+      key: "soLuong",
       width: 140,
-      align: 'center',
+      align: "center",
+      render: (_, record) => {
+        // Nếu sản phẩm có thay đổi giá, giới hạn số lượng tối đa là số lượng hiện tại
+        const maxValue = record.giaThayDoi
+          ? record.soLuong
+          : record.soLuongTonKho;
+
+        return (
+          <div>
+            <InputNumber
+              min={1}
+              max={maxValue}
+              value={record.soLuong}
+              onChange={(value) =>
+                handleUpdateQuantity(activeKey, record.id, value)
+              }
+              style={{ width: 80 }}
+            />
+            {record.giaThayDoi && (
+              <div style={{ marginTop: 4 }}>
+                <Tag color="orange" style={{ fontSize: "11px" }}>
+                  Chỉ được giảm số lượng
+                </Tag>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: "Thành tiền",
+      key: "thanhTien",
+      width: 140,
+      align: "center",
       render: (_, record) => formatCurrency(record.gia * record.soLuong),
     },
     {
-      title: 'Hành động',
-      key: 'action',
+      title: "Hành động",
+      key: "action",
       width: 80,
-      align: 'center',
+      align: "center",
       render: (_, record) => (
         <Button
           type="link"
@@ -583,20 +1137,10 @@ const BanHang = () => {
     },
   ];
 
-  const handleTableChange = (pagination) => {
-    setPagination(pagination);
-    if (activeKey) {
-      fetchInvoiceProducts(activeKey);
-    }
-  };
-  // Hàm đóng modal
-  const handleCancelListSanPhamChiTiet = () => {
-    setIsModalVisibleListSPCT(false);
-  };
   // 1. Load pending orders
   const fetchPendingOrders = async (isInitializing = false) => {
     try {
-      const response = await api.get('/api/admin/ban-hang/hoadontaiquay', {
+      const response = await api.get("/api/admin/ban-hang/hoadontaiquay", {
         headers: {
           Authorization: `Bearer ${token}`, // Thêm token vào header
         },
@@ -630,7 +1174,10 @@ const BanHang = () => {
             const orderTotals = calculateOrderTotals(order.id, products, order);
             totalsMap[order.id] = orderTotals;
           } catch (error) {
-            console.error(`Lỗi khi tải dữ liệu cho hóa đơn ${order.id}:`, error);
+            console.error(
+              `Lỗi khi tải dữ liệu cho hóa đơn ${order.id}:`,
+              error
+            );
           }
         }
 
@@ -645,9 +1192,9 @@ const BanHang = () => {
         }
 
         // Lưu vào localStorage
-        localStorage.setItem('pendingOrders', JSON.stringify(newTabs));
-        localStorage.setItem('orderProducts', JSON.stringify(productsMap));
-        localStorage.setItem('orderTotals', JSON.stringify(totalsMap));
+        localStorage.setItem("pendingOrders", JSON.stringify(newTabs));
+        localStorage.setItem("orderProducts", JSON.stringify(productsMap));
+        localStorage.setItem("orderTotals", JSON.stringify(totalsMap));
       } else {
         // Nếu không có đơn hàng, xóa dữ liệu cũ
         setTabs([]);
@@ -656,13 +1203,13 @@ const BanHang = () => {
         setActiveKey(null);
         setTotalBeforeDiscount(0);
         setTotalAmount(0);
-        localStorage.removeItem('pendingOrders');
-        localStorage.removeItem('orderProducts');
-        localStorage.removeItem('orderTotals');
+        localStorage.removeItem("pendingOrders");
+        localStorage.removeItem("orderProducts");
+        localStorage.removeItem("orderTotals");
       }
     } catch (error) {
-      console.error('Lỗi khi tải danh sách hóa đơn:', error);
-      message.error('Lỗi khi tải danh sách hóa đơn');
+      console.error("Lỗi khi tải danh sách hóa đơn:", error);
+      message.error("Lỗi khi tải danh sách hóa đơn");
     }
   };
 
@@ -670,12 +1217,18 @@ const BanHang = () => {
     const initializeData = async () => {
       try {
         await fetchProducts();
-        await fetchPendingOrders();
+        // When fetchPendingOrders is called for the first time, pass true to indicate initialization
+        await fetchPendingOrders(true);
         await fetchPaymentMethods();
         await loadCustomers();
+
+        // If activeKey exists, refresh the invoice data to ensure totals are calculated correctly
+        if (activeKey) {
+          await refreshInvoiceData(activeKey);
+        }
       } catch (error) {
-        console.error('Lỗi khi khởi tạo dữ liệu:', error);
-        message.error('Không thể tải dữ liệu ban đầu');
+        console.error("Lỗi khi khởi tạo dữ liệu:", error);
+        message.error("Không thể tải dữ liệu ban đầu");
       }
     };
 
@@ -685,7 +1238,7 @@ const BanHang = () => {
   // Cập nhật useEffect cho việc chọn tab để tải lại dữ liệu chính xác
   useEffect(() => {
     if (activeKey) {
-      console.log('Tab changed to:', activeKey);
+      console.log("Tab changed to:", activeKey);
 
       const currentOrder = tabs.find((tab) => tab.key === activeKey)?.order;
 
@@ -699,9 +1252,12 @@ const BanHang = () => {
           // Đảm bảo loaiPhieuGiamGia là số nguyên
           currentOrder.phieuGiamGia.loaiPhieuGiamGia = parseInt(
             currentOrder.phieuGiamGia.loaiPhieuGiamGia,
-            10,
+            10
           );
-          console.log('Loại voucher sau chuyển đổi:', currentOrder.phieuGiamGia.loaiPhieuGiamGia);
+          console.log(
+            "Loại voucher sau chuyển đổi:",
+            currentOrder.phieuGiamGia.loaiPhieuGiamGia
+          );
         }
       } else {
         setSelectedCustomer(null);
@@ -730,49 +1286,49 @@ const BanHang = () => {
     }
   }, [activeKey]);
 
-  // Add this useEffect for initialization
-  useEffect(() => {
-    setOrderProducts({});
-    setTotalBeforeDiscount(0);
-    fetchPendingOrders();
-  }, []);
-
   // 2. Create new order
   const addTab = async () => {
     try {
-      // Check if there are already 5 pending orders
-      const pendingOrdersCount = tabs.filter((tab) => tab.order.trangThai === 1).length;
+      const pendingOrdersCount = tabs.filter(
+        (tab) => tab.order.trangThai === 1
+      ).length;
       if (pendingOrdersCount >= 10) {
-        message.error('Bạn chỉ có thể tạo tối đa 10 đơn hàng chờ xác nhận');
+        message.error("Bạn chỉ có thể tạo tối đa 10 đơn hàng chờ xác nhận");
         return;
       }
 
       setLoading(true);
       const response = await api.post(
-        '/api/admin/ban-hang/create',
+        "/api/admin/ban-hang/create",
         {
-          emailNhanVien: 'vnv@gmail.com', // Replace with actual logged-in user
+          emailNhanVien: "vnv@gmail.com",
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`, // Headers go here as third parameter
+            Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
 
       const newOrder = response.data;
       // Use id instead of maHoaDon for API calls
       const newOrderKey = newOrder.id;
 
-      // Reset selectedAddress khi tạo đơn hàng mới
+      // Reset selectedAddress và selectedCustomer khi tạo đơn hàng mới
       setSelectedAddress(null);
       setSelectedCustomer(null);
+
+      // Đánh dấu đây là đơn hàng mới trong sessionStorage
+      sessionStorage.setItem(`new_order_${newOrderKey}`, "true");
+
+      // Đặt hoaDonId mới để component GiaoHang biết đơn hàng đã thay đổi
+      setHoaDonId(newOrderKey);
 
       setTabs((prev) => [
         ...prev,
         {
           key: newOrderKey,
-          title: `Đơn hàng ${prev.length + 1} - ${newOrder.maHoaDon}`, // Display maHoaDon
+          title: `Đơn hàng ${prev.length + 1} - ${newOrder.maHoaDon}`,
           order: newOrder,
         },
       ]);
@@ -783,7 +1339,7 @@ const BanHang = () => {
       }));
 
       setActiveKey(newOrderKey);
-      message.success('Tạo đơn hàng mới thành công');
+      message.success("Tạo đơn hàng mới thành công");
 
       // After successful tab creation, subscribe to its updates
       if (socket.current) {
@@ -797,69 +1353,151 @@ const BanHang = () => {
         });
       }
     } catch (error) {
-      message.error('Lỗi khi tạo đơn hàng mới');
+      message.error("Lỗi khi tạo đơn hàng mới");
     } finally {
       setLoading(false);
     }
   };
+  const ProductImage = ({ sanPhamChiTietId }) => {
+    const [image, setImage] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const token = localStorage.getItem("token");
 
+    useEffect(() => {
+      const fetchProductImage = async () => {
+        try {
+          const response = await axios.get(
+            `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          // Lấy URL của ảnh đầu tiên nếu có
+          if (response.data && response.data.length > 0) {
+            setImage(response.data[0].anhUrl);
+          }
+          setLoading(false);
+        } catch (error) {
+          console.error("Lỗi khi lấy ảnh sản phẩm:", error);
+          setLoading(false);
+        }
+      };
+
+      if (sanPhamChiTietId) {
+        fetchProductImage();
+      }
+    }, [sanPhamChiTietId, token]);
+
+    if (loading) {
+      return <Spin size="small" />;
+    }
+
+    return image ? (
+      <img
+        src={image}
+        alt={`Ảnh sản phẩm`}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = "https://via.placeholder.com/140x140?text=No+Image";
+        }}
+      />
+    ) : (
+      <AppstoreOutlined style={{ fontSize: 28, color: "#bfbfbf" }} />
+    );
+  };
   // 3. Add product to order
   const handleAddProductToOrder = async (product) => {
     if (!activeKey) {
-      message.error('Vui lòng chọn hoặc tạo đơn hàng trước');
+      message.error("Vui lòng chọn hoặc tạo đơn hàng trước");
       return;
     }
 
     try {
-      setLoading(true);
+      const addToastId = message.loading("Đang thêm sản phẩm...");
 
-      // Lưu ID sản phẩm trước khi gọi API
-      const productId = product.id;
-      const quantity = product.quantity || 1;
+      // Gọi API để thêm sản phẩm vào hóa đơn
+      const response = await api.post(
+        `/api/admin/hoa-don/${activeKey}/san-pham`,
+        {
+          sanPhamChiTietId: product.id,
+          soLuong: product.quantity || 1,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      // Chuẩn bị payload để gửi lên API
-      const payload = {
-        sanPhamChiTietId: productId,
-        soLuong: quantity,
+      // Lấy ID mới của chi tiết hóa đơn từ response
+      const hoaDonChiTietId = response.data?.id;
+
+      // Tạo đối tượng sản phẩm đầy đủ để thêm vào state
+      let newProduct = {
+        ...response.data,
+        id: hoaDonChiTietId, // Sử dụng id từ API trả về
+        sanPhamChiTietId: product.id,
+        tenSanPham: product.tenSanPham,
+        maSanPham: product.maSanPham,
+        maSanPhamChiTiet: product.maSanPhamChiTiet || "",
+        chatLieu: product.chatLieu || "---",
+        mauSac: product.mauSac || "---",
+        maMauSac: product.maMauSac || "#FFFFFF",
+        kichThuoc: product.kichThuoc || "---",
+        danhMuc: product.danhMuc || "---",
+        thuongHieu: product.thuongHieu || "---",
+        kieuDang: product.kieuDang || "---",
+        kieuCoAo: product.kieuCoAo || "---",
+        kieuTayAo: product.kieuTayAo || "---",
+        hoaTiet: product.hoaTiet || "---",
+        gia: product.gia,
+        soLuong: product.quantity || 1,
+        thanhTien: product.gia * (product.quantity || 1),
+        hinhAnh: [],
       };
 
-      // Gọi API để thêm sản phẩm vào đơn hàng
-      const response = await api.post(`/api/admin/ban-hang/${activeKey}/add-product`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
+      // Cố gắng lấy hình ảnh nếu có
+      try {
+        const imgResponse = await api.get(
+          `/api/admin/sanphamchitiet/${product.id}/hinhanh`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-      if (!response || !response.data) {
-        throw new Error('Dữ liệu API không hợp lệ');
+        if (imgResponse.data && Array.isArray(imgResponse.data)) {
+          newProduct.hinhAnh = imgResponse.data.map((img) => img.anhUrl);
+        }
+      } catch (imageError) {
+        console.error("Không thể lấy hình ảnh sản phẩm:", imageError);
       }
 
-      console.log('Sản phẩm đã thêm vào đơn hàng:', response.data);
-
       // Cập nhật tồn kho trong cache
-      updateProductInventoryInCache(productId, -quantity);
+      updateProductInventoryInCache(product.id, -(product.quantity || 1));
 
-      // Tải lại danh sách sản phẩm của đơn hàng
-      const updatedProducts = await fetchInvoiceProducts(activeKey);
+      // Tải lại danh sách sản phẩm để đảm bảo thông tin nhất quán với server
+      await fetchInvoiceProducts(activeKey);
 
-      // Cập nhật state
-      setOrderProducts((prev) => ({ ...prev, [activeKey]: updatedProducts }));
+      // Tải lại thông tin hóa đơn
+      await fetchInvoiceById(activeKey);
 
       // Tính toán lại tổng tiền sau khi thêm sản phẩm
-      const newTotals = calculateOrderTotals(activeKey, updatedProducts);
+      const newTotals = calculateOrderTotals(activeKey);
       setTotals((prev) => ({
         ...prev,
         [activeKey]: newTotals,
       }));
 
       // Cập nhật UI hiển thị
-      if (activeKey) {
-        setTotalBeforeDiscount(newTotals.subtotal);
-        setTotalAmount(newTotals.finalTotal);
-      }
-
-      // Tải lại thông tin hóa đơn từ server
-      await fetchInvoiceById(activeKey);
+      setTotalBeforeDiscount(newTotals.subtotal);
+      setTotalAmount(newTotals.finalTotal);
 
       // Tự động áp dụng voucher tốt nhất nếu có thể
       await autoApplyBestVoucher(activeKey);
@@ -869,41 +1507,146 @@ const BanHang = () => {
         findBestVoucherAndSuggest(activeKey);
       }, 300);
 
-      message.success(`Đã thêm ${product.tenSanPham || 'sản phẩm'} vào đơn hàng`);
+      message.destroy(addToastId);
+      message.success(
+        `Đã thêm ${product.tenSanPham || "sản phẩm"} vào đơn hàng`
+      );
+
+      // Đặt lại pagination để hiển thị trang chứa sản phẩm mới
+      setPagination({ current: 1, pageSize: 3 });
 
       // Fetch dữ liệu mới ngay lập tức sau khi thêm sản phẩm
       await fetchLatestData();
     } catch (error) {
-      console.error('Lỗi khi thêm sản phẩm:', error);
-      let errorMessage = 'Lỗi khi thêm sản phẩm';
-
-      if (error.response && error.response.data) {
-        errorMessage = error.response.data.message || errorMessage;
-      }
-
-      message.error(errorMessage);
+      console.error("Lỗi khi thêm sản phẩm:", error);
+      message.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
 
       // Tải lại dữ liệu từ server để đảm bảo tính nhất quán
       await fetchInvoiceProducts(activeKey);
-    } finally {
-      setLoading(false);
     }
   };
+  const handleAddMultipleProducts = async (products) => {
+    if (!products || products.length === 0) {
+      message.error("Không có sản phẩm nào được chọn");
+      return;
+    }
 
+    if (!activeKey) {
+      message.error("Vui lòng chọn hoặc tạo đơn hàng trước");
+      return;
+    }
+
+    try {
+      const addToastId = message.loading("Đang thêm sản phẩm...");
+
+      // Chuẩn bị dữ liệu
+      const productList = products.map((product) => ({
+        sanPhamChiTietId: product.id,
+        soLuong: 1, // Mặc định số lượng là 1 cho mỗi sản phẩm
+      }));
+
+      // Gọi API để thêm nhiều sản phẩm cùng lúc
+      await api.post(
+        `/api/admin/hoa-don/${activeKey}/san-pham`,
+        {
+          productList: productList,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Cập nhật cache tồn kho cho tất cả sản phẩm
+      products.forEach((product) => {
+        updateProductInventoryInCache(product.id, -1);
+      });
+
+      // Làm mới danh sách sản phẩm và thông tin hóa đơn
+      await fetchInvoiceProducts(activeKey);
+      await fetchInvoiceById(activeKey);
+
+      // Tính toán lại tổng tiền
+      const newTotals = calculateOrderTotals(activeKey);
+      setTotals((prev) => ({
+        ...prev,
+        [activeKey]: newTotals,
+      }));
+
+      // Cập nhật UI hiển thị
+      setTotalBeforeDiscount(newTotals.subtotal);
+      setTotalAmount(newTotals.finalTotal);
+
+      // Tự động áp dụng voucher tốt nhất
+      await autoApplyBestVoucher(activeKey);
+
+      // Cập nhật gợi ý voucher và sản phẩm
+      setTimeout(() => {
+        findBestVoucherAndSuggest(activeKey);
+      }, 300);
+
+      message.destroy(addToastId);
+      message.success(`Đã thêm ${products.length} sản phẩm vào đơn hàng`);
+      setOpenProductTable(false);
+
+      // Đặt lại pagination
+      setPagination({ current: 1, pageSize: 3 });
+
+      // Fetch dữ liệu mới
+      await fetchLatestData();
+    } catch (error) {
+      console.error("Lỗi khi thêm sản phẩm:", error);
+      message.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
+
+      // Tải lại dữ liệu từ server
+      await fetchInvoiceProducts(activeKey);
+    }
+  };
   // 4. Update product quantity
-  const handleUpdateQuantity = async (hoaDonId, hoaDonChiTietId, newQuantity) => {
-    if (newQuantity < 1) return message.error('Số lượng phải lớn hơn 0');
+  const handleUpdateQuantity = async (
+    hoaDonId,
+    hoaDonChiTietId,
+    newQuantity
+  ) => {
+    if (newQuantity < 1) {
+      return message.error("Số lượng phải lớn hơn 0");
+    }
+
+    // Tìm sản phẩm hiện tại trong danh sách sản phẩm của đơn hàng
+    const currentProduct = orderProducts[hoaDonId]?.find(
+      (product) => product.id === hoaDonChiTietId
+    );
+
+    if (!currentProduct) {
+      return message.error("Không tìm thấy thông tin sản phẩm");
+    }
+
+    const currentQuantity = currentProduct.soLuong || 0;
+
+    // Kiểm tra nếu sản phẩm có thay đổi giá VÀ số lượng mới lớn hơn số lượng hiện tại
+    if (currentProduct.giaThayDoi === true && newQuantity > currentQuantity) {
+      message.warning(
+        "Không thể tăng số lượng sản phẩm đã thay đổi giá. Chỉ có thể giảm số lượng hoặc xóa sản phẩm."
+      );
+      return;
+    }
 
     try {
       setOrderProducts((prev) => ({
         ...prev,
         [hoaDonId]: prev[hoaDonId].map((product) =>
-          product.id === hoaDonChiTietId ? { ...product, soLuong: newQuantity } : product,
+          product.id === hoaDonChiTietId
+            ? { ...product, soLuong: newQuantity }
+            : product
         ),
       }));
 
       const updatedProducts = orderProducts[hoaDonId].map((product) =>
-        product.id === hoaDonChiTietId ? { ...product, soLuong: newQuantity } : product,
+        product.id === hoaDonChiTietId
+          ? { ...product, soLuong: newQuantity }
+          : product
       );
 
       const newTotals = calculateOrderTotals(hoaDonId, updatedProducts);
@@ -916,16 +1659,15 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
+        }
       );
 
-      // 🟢 Tự động áp dụng mã giảm giá tốt nhất
       await autoApplyBestVoucher(hoaDonId);
       await fetchLatestData();
       await findBestVoucherAndSuggest(hoaDonId);
     } catch (error) {
-      console.error('Lỗi khi cập nhật số lượng:', error);
-      message.error('Lỗi khi cập nhật số lượng!');
+      console.error("Lỗi khi cập nhật số lượng:", error);
+      message.error("Lỗi khi cập nhật số lượng!");
       await fetchInvoiceProducts(hoaDonId);
     }
   };
@@ -934,10 +1676,12 @@ const BanHang = () => {
   const handleRemoveProduct = async (hoaDonId, hoaDonChiTietId) => {
     try {
       // Lấy thông tin sản phẩm trước khi xóa để biết số lượng và ID sản phẩm
-      const productToRemove = orderProducts[hoaDonId]?.find((p) => p.id === hoaDonChiTietId);
+      const productToRemove = orderProducts[hoaDonId]?.find(
+        (p) => p.id === hoaDonChiTietId
+      );
 
       if (!productToRemove) {
-        message.error('Không tìm thấy thông tin sản phẩm cần xóa');
+        message.error("Không tìm thấy thông tin sản phẩm cần xóa");
         return;
       }
 
@@ -946,17 +1690,20 @@ const BanHang = () => {
 
       // Cập nhật UI trước để tạo trải nghiệm người dùng mượt mà
       const updatedProducts = orderProducts[hoaDonId].filter(
-        (product) => product.id !== hoaDonChiTietId,
+        (product) => product.id !== hoaDonChiTietId
       );
 
       setOrderProducts((prev) => ({ ...prev, [hoaDonId]: updatedProducts }));
 
       // Gọi API để xóa sản phẩm khỏi hóa đơn
-      await api.delete(`/api/admin/ban-hang/${hoaDonId}/chi-tiet/${hoaDonChiTietId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
+      await api.delete(
+        `/api/admin/ban-hang/${hoaDonId}/chi-tiet/${hoaDonChiTietId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          },
+        }
+      );
 
       // Cập nhật tồn kho trong cache (cộng lại số lượng đã xóa)
       if (productId && quantity > 0) {
@@ -968,7 +1715,8 @@ const BanHang = () => {
 
       // Tính lại tổng tiền trước khi áp dụng voucher
       const newTotalBeforeVoucher =
-        calculateTotalBeforeDiscount(updatedProducts) + (currentOrder?.phiVanChuyen || 0);
+        calculateTotalBeforeDiscount(updatedProducts) +
+        (currentOrder?.phiVanChuyen || 0);
 
       // Kiểm tra nếu voucher hiện tại không còn hợp lệ (dưới mức tối thiểu)
       if (
@@ -976,7 +1724,7 @@ const BanHang = () => {
         newTotalBeforeVoucher < currentOrder.phieuGiamGia.giaTriToiThieu
       ) {
         await handleRemoveVoucher(hoaDonId);
-        message.info('Mã giảm giá cũ không còn hợp lệ và đã bị xóa.');
+        message.info("Mã giảm giá cũ không còn hợp lệ và đã bị xóa.");
       }
 
       // Cập nhật tổng tiền sau khi xóa sản phẩm
@@ -999,15 +1747,15 @@ const BanHang = () => {
       await fetchInvoiceProducts(hoaDonId);
       await findBestVoucherAndSuggest(hoaDonId);
 
-      message.success('Đã xóa sản phẩm khỏi đơn hàng');
+      message.success("Đã xóa sản phẩm khỏi đơn hàng");
 
       // Fetch dữ liệu mới sau khi xóa
       await fetchLatestData();
     } catch (error) {
-      console.error('Lỗi khi xóa sản phẩm:', error);
+      console.error("Lỗi khi xóa sản phẩm:", error);
 
       // Hiển thị thông báo lỗi chi tiết nếu có
-      let errorMessage = 'Lỗi khi xóa sản phẩm';
+      let errorMessage = "Lỗi khi xóa sản phẩm";
       if (error.response && error.response.data) {
         errorMessage = error.response.data.message || errorMessage;
       }
@@ -1022,10 +1770,10 @@ const BanHang = () => {
   // 6. Apply voucher
   const handleVoucherSelected = async (hoaDonId, voucherId) => {
     try {
-      console.log(' Áp dụng voucher:', { hoaDonId, voucherId });
+      console.log(" Áp dụng voucher:", { hoaDonId, voucherId });
 
       if (!hoaDonId || !voucherId) {
-        message.error('Không thể áp dụng voucher');
+        message.error("Không thể áp dụng voucher");
         return;
       }
 
@@ -1036,11 +1784,11 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
+        }
       );
 
       if (!response.data) {
-        throw new Error(' Dữ liệu trả về từ API không hợp lệ.');
+        throw new Error(" Dữ liệu trả về từ API không hợp lệ.");
       }
 
       const updatedOrder = response.data;
@@ -1048,13 +1796,19 @@ const BanHang = () => {
       const updatedProducts = await fetchInvoiceProducts(hoaDonId, true);
 
       // Tính toán tổng tiền chính xác sau khi áp dụng voucher
-      const newTotals = calculateOrderTotals(hoaDonId, updatedProducts, updatedOrder);
+      const newTotals = calculateOrderTotals(
+        hoaDonId,
+        updatedProducts,
+        updatedOrder
+      );
 
-      console.log('📌 Debug - Tổng tiền sau khi áp dụng voucher:', newTotals);
+      console.log("📌 Debug - Tổng tiền sau khi áp dụng voucher:", newTotals);
 
       //  Cập nhật state theo đúng trình tự
       setTabs((prev) =>
-        prev.map((tab) => (tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab)),
+        prev.map((tab) =>
+          tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
+        )
       );
 
       setTotals((prev) => ({
@@ -1068,10 +1822,10 @@ const BanHang = () => {
       }
 
       setOpenVoucherDialog(false);
-      message.success('🎉 Áp dụng voucher thành công!');
+      message.success("🎉 Áp dụng voucher thành công!");
     } catch (error) {
-      console.error(' Lỗi khi áp dụng voucher:', error);
-      message.error('Lỗi khi áp dụng voucher, vui lòng thử lại.');
+      console.error(" Lỗi khi áp dụng voucher:", error);
+      message.error("Lỗi khi áp dụng voucher, vui lòng thử lại.");
     }
   };
 
@@ -1100,8 +1854,8 @@ const BanHang = () => {
                   phieuGiamGia: null, // Xóa voucher khỏi state
                 },
               }
-            : tab,
-        ),
+            : tab
+        )
       );
 
       setTotals((prev) => ({
@@ -1122,11 +1876,11 @@ const BanHang = () => {
         },
       });
 
-      message.success('Đã xóa voucher');
+      message.success("Đã xóa voucher");
       await fetchInvoiceProducts(hoaDonId);
     } catch (error) {
-      console.error('Lỗi khi xóa voucher:', error);
-      message.error('Lỗi khi xóa voucher!');
+      console.error("Lỗi khi xóa voucher:", error);
+      message.error("Lỗi khi xóa voucher!");
       await fetchInvoiceProducts(hoaDonId);
     }
   };
@@ -1135,7 +1889,7 @@ const BanHang = () => {
     try {
       // Get the current order to extract customer information
       const currentOrder = tabs.find((tab) => tab.key === activeKey)?.order;
-      const customerId = currentOrder?.khachHang?.id || ''; // Default to empty string if no customer
+      const customerId = currentOrder?.khachHang?.id || ""; // Default to empty string if no customer
 
       const response = await api.get(
         `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeDiscount}&customerId=${customerId}`,
@@ -1143,11 +1897,11 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
+        }
       );
       setVouchers(response.data);
     } catch (error) {
-      message.error('Lỗi khi tải danh sách voucher');
+      message.error("Lỗi khi tải danh sách voucher");
     }
   };
 
@@ -1156,7 +1910,7 @@ const BanHang = () => {
     try {
       await fetchAvailableVouchers();
     } catch (error) {
-      message.error('Lỗi khi tải danh sách voucher');
+      message.error("Lỗi khi tải danh sách voucher");
     }
   };
 
@@ -1165,23 +1919,33 @@ const BanHang = () => {
     try {
       const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
       const currentProducts = orderProducts[hoaDonId] || [];
-
+  
       // Kiểm tra có sản phẩm trong đơn hàng hay không
       if (!currentProducts || currentProducts.length === 0) {
-        message.error('Vui lòng thêm sản phẩm vào đơn hàng trước khi xác nhận!');
+        message.error("Vui lòng thêm sản phẩm vào đơn hàng trước khi xác nhận!");
         return;
       }
-
+  
+      // Kiểm tra có sản phẩm nào đã thay đổi giá hay không
+      // CHỈ kiểm tra nếu chưa được xác nhận trước đó
+      if (!priceChangesConfirmed[hoaDonId]) {
+        const hasPriceChanges = await checkPriceChanges(false);
+        if (hasPriceChanges) {
+          message.warning("Có sản phẩm thay đổi giá, vui lòng xác nhận thay đổi giá trước!");
+          setOpenPriceChangeDialog(true);
+          return;
+        }
+      }
+  
+      // Kiểm tra phương thức thanh toán
       if (!currentOrder || !currentOrder.thanhToans || currentOrder.thanhToans.length === 0) {
-        message.error('Vui lòng chọn phương thức thanh toán trước khi xác nhận đơn hàng!');
+        message.error("Vui lòng chọn phương thức thanh toán trước khi xác nhận đơn hàng!");
         return;
       }
-
-      // Trong hàm handleConfirmOrder
+  
+      // Kiểm tra địa chỉ giao hàng nếu là đơn giao hàng
       if (currentOrder.loaiHoaDon === 3) {
-        // Giao hàng
         if (!selectedAddress) {
-          // Kiểm tra xem có địa chỉ trong hóa đơn không
           try {
             const addressDetailsResponse = await axios.get(
               `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
@@ -1189,71 +1953,123 @@ const BanHang = () => {
                 headers: {
                   Authorization: `Bearer ${token}`,
                 },
-              },
+              }
             );
-
+  
             const addressDetails = addressDetailsResponse.data;
-            if (
-              !addressDetails ||
-              !addressDetails.tinh ||
-              !addressDetails.huyen ||
-              !addressDetails.xa
-            ) {
-              message.error('Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục.');
+            if (!addressDetails || !addressDetails.tinh || !addressDetails.huyen || !addressDetails.xa) {
+              message.error("Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục.");
               return;
             }
           } catch (error) {
-            console.error('Lỗi khi kiểm tra địa chỉ hóa đơn:', error);
-            message.error('Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục.');
+            console.error("Lỗi khi kiểm tra địa chỉ hóa đơn:", error);
+            message.error("Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục.");
             return;
           }
         }
       }
-
+  
       // Kiểm tra tổng số tiền thanh toán có khớp không
       const totalNeeded = totals[hoaDonId]?.finalTotal || 0;
       const { remaining } = calculateChange(hoaDonId);
-
+  
       // Nếu còn thiếu tiền, thông báo lỗi
       if (remaining > 0) {
         message.error(`Số tiền thanh toán chưa đủ. Còn thiếu ${formatCurrency(remaining)}`);
         return;
       }
-
+  
       // Lọc danh sách thanh toán chỉ lấy những cái có số tiền > 0
-      const validPayments = currentOrder.thanhToans.filter((p) => p && p.soTien > 0);
-
+      const validPayments = currentOrder.thanhToans.filter(
+        (p) => p && p.soTien > 0
+      );
+  
       const cashPayment = validPayments.find(
-        (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH,
+        (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
       );
+      
       const transferPayment = validPayments.find(
-        (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.QR,
+        (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
       );
-
+      
+      const vnpayPayment = validPayments.find(
+        (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+      );
+  
+      // Bước 0: Xử lý thanh toán VNPAY trước (nếu có) vì cần chuyển hướng tới cổng thanh toán
+      if (vnpayPayment && vnpayPayment.soTien > 0) {
+        try {
+          setProcessingVnpay(true);
+          message.loading({ content: "Đang xử lý thanh toán VNPAY...", key: "vnpayProcessing", duration: 0 });
+          
+          // Gọi API để tạo URL thanh toán VNPAY
+          const response = await api.post(
+            `/api/admin/hoa-don/${hoaDonId}/create-vnpay-payment`,
+            {},
+            {
+              params: {
+                returnUrl: window.location.origin + "/admin/ban-hang"
+              },
+              headers: { Authorization: `Bearer ${token}` }
+            }
+          );
+          
+          if (response.data) {
+            // Mở cửa sổ mới cho thanh toán VNPAY
+            window.open(response.data, "_blank");
+            
+            // Lưu ID hóa đơn vào localStorage để kiểm tra khi quay lại
+            localStorage.setItem("vnpayHoaDonId", hoaDonId);
+            
+            message.success({ 
+              content: "Đã chuyển hướng đến trang thanh toán VNPAY. Vui lòng hoàn tất thanh toán trước khi xác nhận đơn hàng.", 
+              key: "vnpayProcessing" 
+            });
+            
+            setProcessingVnpay(false);
+            return; // Kết thúc hàm, đợi người dùng quay lại từ VNPAY
+          } else {
+            message.error({ 
+              content: "Không thể tạo liên kết thanh toán VNPAY", 
+              key: "vnpayProcessing" 
+            });
+            setProcessingVnpay(false);
+            return;
+          }
+        } catch (error) {
+          console.error("Lỗi khi xử lý thanh toán VNPAY:", error);
+          message.error("Lỗi khi xử lý thanh toán VNPAY: " + (error.response?.data || error.message));
+          setProcessingVnpay(false);
+          return;
+        }
+      }
+  
       // Bước 1: Xử lý thanh toán QR trước (nếu có)
       let qrPaymentSuccess = true;
       if (transferPayment && transferPayment.soTien > 0) {
         // Tạo mã QR với số tiền cần chuyển khoản
         generateQR(hoaDonId, transferPayment.soTien);
-
+  
         try {
           // Chờ người dùng quét mã và thanh toán
-          const loadingMsg = message.loading('Vui lòng quét mã QR và hoàn tất thanh toán', 0);
-
+          const loadingMsg = message.loading(
+            "Vui lòng quét mã QR và hoàn tất thanh toán", 0
+          );
+  
           // Tạo một biến để lưu hàm cancel bên ngoài promise
           let cancelPaymentCheck = null;
-
+  
           // Tạo một Promise có thể cancel
           const paymentPromise = new Promise(async (resolve, reject) => {
             let isPaid = false;
             let attempts = 0;
             const maxAttempts = 60; // Chờ tối đa 60 giây
-
+  
             // Lưu trữ function để có thể cancel check payment loop
             cancelPaymentCheck = () => {
-              reject(new Error('Payment cancelled'));
+              reject(new Error("Payment cancelled"));
             };
-
+  
             while (!isPaid && attempts < maxAttempts) {
               isPaid = await checkPayment(hoaDonId, transferPayment.soTien);
               if (isPaid) {
@@ -1263,22 +2079,22 @@ const BanHang = () => {
               await new Promise((r) => setTimeout(r, 2000));
               attempts++;
             }
-
+  
             if (!isPaid) {
-              reject(new Error('Payment timeout'));
+              reject(new Error("Payment timeout"));
             }
           });
-
+  
           // Hiển thị QR code trong modal hiện có thay vì sử dụng Modal.info
           setIsModalVisiblePaymentQR(true);
-
+  
           // Bổ sung xử lý hủy thanh toán cho modal
           const handleQrModalCancel = () => {
             if (cancelPaymentCheck) cancelPaymentCheck();
             setIsModalVisiblePaymentQR(false);
             loadingMsg(); // Hủy thông báo loading
           };
-
+  
           setModalHandlers({
             onCancel: handleQrModalCancel,
             onOk: () => {
@@ -1286,61 +2102,49 @@ const BanHang = () => {
               loadingMsg();
             },
           });
-
+  
           await paymentPromise;
-
+  
           loadingMsg();
           setIsModalVisiblePaymentQR(false);
-          message.success('Đã nhận được thanh toán chuyển khoản!');
+          message.success("Đã nhận được thanh toán chuyển khoản!");
         } catch (error) {
           setIsModalVisiblePaymentQR(false);
-          message.error('Chưa nhận được thanh toán chuyển khoản, vui lòng thử lại!');
+          message.error("Chưa nhận được thanh toán chuyển khoản, vui lòng thử lại!");
           qrPaymentSuccess = false;
           return;
         }
       }
-
+  
       // Bước 2: Nếu thanh toán QR thành công (hoặc không có QR), hiển thị hộp thoại xác nhận
       if (qrPaymentSuccess) {
         Modal.confirm({
-          title: 'Xác nhận đơn hàng',
+          title: "Xác nhận đơn hàng",
           content: (
             <div>
               <p>Bạn có chắc chắn muốn xác nhận đơn hàng này?</p>
-              <p>
-                Mã đơn: <strong>{currentOrder.maHoaDon}</strong>
-              </p>
-              <p>
-                Số lượng sản phẩm: <strong>{currentProducts.length}</strong>
-              </p>
-              <p>
-                Tổng tiền thanh toán:{' '}
-                <strong style={{ color: '#ff4d4f' }}>{formatCurrency(totalNeeded)}</strong>
-              </p>
-              <p>
-                Hình thức:{' '}
-                <strong>{currentOrder.loaiHoaDon === 3 ? 'Giao hàng' : 'Tại quầy'}</strong>
-              </p>
+              <p>Mã đơn: <strong>{currentOrder.maHoaDon}</strong></p>
+              <p>Số lượng sản phẩm: <strong>{currentProducts.length}</strong></p>
+              <p>Tổng tiền thanh toán: <strong style={{ color: "#ff4d4f" }}>{formatCurrency(totalNeeded)}</strong></p>
+              <p>Hình thức: <strong>{currentOrder.loaiHoaDon === 3 ? "Giao hàng" : "Tại quầy"}</strong></p>
               {currentOrder.khachHang && (
-                <p>
-                  Khách hàng: <strong>{currentOrder.khachHang.tenKhachHang}</strong>
-                </p>
+                <p>Khách hàng: <strong>{currentOrder.khachHang.tenKhachHang}</strong></p>
               )}
             </div>
           ),
-          okText: 'Xác nhận',
-          cancelText: 'Hủy',
+          okText: "Xác nhận",
+          cancelText: "Hủy",
           onOk: async () => {
             // Điều chỉnh số tiền thanh toán trước khi gửi API
             const adjustedPayments = validPayments.map((p, index) => {
               let adjustedAmount = p.soTien;
-
+  
               // Nếu là phương thức thanh toán cuối và tổng thanh toán vượt quá
               if (index === validPayments.length - 1) {
                 const previousTotal = validPayments
                   .slice(0, -1)
                   .reduce((sum, payment) => sum + payment.soTien, 0);
-
+  
                 // Điều chỉnh số tiền của phương thức cuối để tổng bằng đúng giá trị đơn hàng
                 if (previousTotal < totalNeeded) {
                   adjustedAmount = totalNeeded - previousTotal;
@@ -1352,14 +2156,14 @@ const BanHang = () => {
               else {
                 adjustedAmount = Math.min(p.soTien, totalNeeded);
               }
-
+  
               return {
                 id: p.id || `${hoaDonId}_${p.maPhuongThucThanhToan}`,
                 maPhuongThucThanhToan: p.maPhuongThucThanhToan,
                 soTien: adjustedAmount,
               };
             });
-
+  
             // Gửi API hoàn tất thanh toán với số tiền đã điều chỉnh
             await api.post(
               `/api/admin/ban-hang/${hoaDonId}/complete`,
@@ -1370,25 +2174,25 @@ const BanHang = () => {
                 headers: {
                   Authorization: `Bearer ${token}`,
                 },
-              },
+              }
             );
-
+  
             // Xử lý tiền thừa nếu có
             const { change } = calculateChange(hoaDonId);
             if (change > 0) {
               message.success(`Tiền thừa: ${formatCurrency(change)}`);
             }
-
+  
             await completeOrderProcess(hoaDonId);
           },
         });
       }
-
+  
       // Fetch dữ liệu mới sau khi xác nhận
       await fetchLatestData();
     } catch (error) {
-      console.error('Lỗi khi xác nhận đơn hàng:', error);
-      message.error('Không thể xác nhận đơn hàng');
+      console.error("Lỗi khi xác nhận đơn hàng:", error);
+      message.error("Không thể xác nhận đơn hàng");
     }
   };
 
@@ -1397,25 +2201,25 @@ const BanHang = () => {
     try {
       // Lấy hóa đơn PDF để in
       const response = await api.get(`/api/admin/hoa-don/${hoaDonId}/print`, {
-        responseType: 'blob',
+        responseType: "blob",
         headers: {
           Authorization: `Bearer ${token}`, // Thêm token vào header
-          Accept: 'application/pdf, application/json',
+          Accept: "application/pdf, application/json",
         },
       });
 
       if (!response || !response.data) {
-        message.error('Không nhận được dữ liệu từ máy chủ!');
+        message.error("Không nhận được dữ liệu từ máy chủ!");
         return;
       }
 
-      const contentType = response.headers['content-type'];
-      if (!contentType || !contentType.includes('application/pdf')) {
-        message.error('Dữ liệu trả về không hợp lệ!');
+      const contentType = response.headers["content-type"];
+      if (!contentType || !contentType.includes("application/pdf")) {
+        message.error("Dữ liệu trả về không hợp lệ!");
         return;
       }
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
 
       setPdfUrl(url);
@@ -1423,15 +2227,15 @@ const BanHang = () => {
 
       // Đóng tab đơn hàng sau khi hoàn tất
       setTabs((prev) => prev.filter((tab) => tab.key !== hoaDonId));
-      message.success('Xác nhận đơn hàng thành công');
+      message.success("Xác nhận đơn hàng thành công");
     } catch (error) {
-      console.error('Lỗi khi hoàn tất thanh toán:', error);
-      message.error('Có lỗi xảy ra khi in hóa đơn');
+      console.error("Lỗi khi hoàn tất thanh toán:", error);
+      message.error("Có lỗi xảy ra khi in hóa đơn");
     }
   };
 
   const handleDirectPrint = () => {
-    const iframe = document.getElementById('pdf-preview');
+    const iframe = document.getElementById("pdf-preview");
     iframe.contentWindow.print();
   };
 
@@ -1439,17 +2243,17 @@ const BanHang = () => {
   const handlePrintInvoice = async (hoaDonId) => {
     try {
       const response = await api.get(`/api/admin/hoa-don/${hoaDonId}/print`, {
-        responseType: 'blob',
+        responseType: "blob",
         headers: {
           Authorization: `Bearer ${token}`, // Thêm token vào header
         },
       });
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       window.open(url);
     } catch (error) {
-      message.error('Lỗi khi in hóa đơn');
+      message.error("Lỗi khi in hóa đơn");
     }
   };
 
@@ -1458,18 +2262,22 @@ const BanHang = () => {
     try {
       const order = tabs.find((tab) => tab.key === hoaDonId)?.order;
       if (!order) {
-        console.warn('⚠️ Không tìm thấy đơn hàng');
         return;
       }
 
+      // Tính toán trực tiếp tổng tiền hiện tại từ các sản phẩm
       const currentProducts = orderProducts[hoaDonId] || [];
-      const currentTotal = totals[hoaDonId]?.totalBeforeVoucher || 0;
+
+      // Tính toán lại tổng tiền trực tiếp thay vì lấy từ totals
+      const subtotal = calculateTotalBeforeDiscount(currentProducts);
+      const shippingFee = order.phiVanChuyen || 0;
+      const currentTotal = subtotal + shippingFee;
 
       // Get customer ID from order
-      const customerId = order.khachHang?.id || '';
+      const customerId = order.khachHang?.id || "";
 
       // Kiểm tra nếu tổng tiền quá nhỏ, không cần tìm voucher
-      if (currentTotal < 10000) {
+      if (subtotal < 10000) {
         setVoucherSuggestions({
           show: false,
           betterVouchers: [],
@@ -1478,7 +2286,9 @@ const BanHang = () => {
       }
 
       // Sử dụng cache để tránh gọi API liên tục
-      const cacheKey = `active_vouchers_${Math.floor(currentTotal / 10000)}_${customerId}`;
+      const cacheKey = `active_vouchers_${Math.floor(
+        subtotal / 10000
+      )}_${customerId}`;
       let allVouchers = sessionStorage.getItem(cacheKey);
 
       if (!allVouchers) {
@@ -1487,61 +2297,61 @@ const BanHang = () => {
           `/api/admin/phieu-giam-gia/active?customerId=${customerId}`,
           {
             headers: {
-              Authorization: `Bearer ${token}`, // Thêm token vào header
+              Authorization: `Bearer ${token}`,
             },
-          },
+          }
         );
         allVouchers = response.data || [];
         sessionStorage.setItem(cacheKey, JSON.stringify(allVouchers));
       } else {
         allVouchers = JSON.parse(allVouchers);
       }
-      // THÊM: Lọc voucher còn số lượng
-      allVouchers = allVouchers.filter((voucher) => {
-        // Chỉ kiểm tra số lượng còn lại
-        if (voucher.soLuong !== undefined && voucher.soLuong <= 0) {
-          console.log(`🎫 Bỏ qua voucher ${voucher.maPhieuGiamGia} - Hết số lượng`);
-          return false;
-        }
-        return true;
-      });
+
+      // Lọc voucher còn số lượng
+      allVouchers = allVouchers.filter(
+        (voucher) => voucher.soLuong === undefined || voucher.soLuong > 0
+      );
+
       // Tính giảm giá hiện tại
       const currentDiscount = order.phieuGiamGia
         ? calculateDiscountAmount(order.phieuGiamGia, currentTotal)
         : 0;
 
-      // Lọc voucher có giá trị giảm tốt hơn voucher hiện tại
+      // Đảm bảo các voucher được xử lý chính xác
       const betterVouchers = allVouchers
         .filter((voucher) => {
           if (voucher.id === order.phieuGiamGia?.id) return false;
 
           // Kiểm tra điều kiện áp dụng voucher
-          const amountNeeded = Math.max(0, voucher.giaTriToiThieu - currentTotal);
           const potentialDiscount = calculateDiscountAmount(
             voucher,
-            Math.max(currentTotal, voucher.giaTriToiThieu),
+            Math.max(currentTotal, voucher.giaTriToiThieu)
           );
 
           return potentialDiscount > currentDiscount;
         })
-        .map((voucher) => ({
-          ...voucher,
-          amountNeeded: Math.max(0, voucher.giaTriToiThieu - currentTotal),
-          potentialDiscount: calculateDiscountAmount(
-            voucher,
-            Math.max(currentTotal, voucher.giaTriToiThieu),
-          ),
-          additionalSavings:
-            calculateDiscountAmount(voucher, Math.max(currentTotal, voucher.giaTriToiThieu)) -
-            currentDiscount,
-          // Update the canApply condition to use currentTotal directly
-          canApply: currentTotal >= voucher.giaTriToiThieu,
-          debug: {
-            currentTotal,
-            minRequired: voucher.giaTriToiThieu,
-            difference: currentTotal - voucher.giaTriToiThieu,
-          },
-        }))
+        .map((voucher) => {
+          // Tính chính xác số tiền cần thêm - đảm bảo giá trị này luôn đúng
+          const amountNeeded = Math.max(
+            0,
+            voucher.giaTriToiThieu - currentTotal
+          );
+
+          return {
+            ...voucher,
+            amountNeeded: amountNeeded,
+            potentialDiscount: calculateDiscountAmount(
+              voucher,
+              Math.max(currentTotal, voucher.giaTriToiThieu)
+            ),
+            additionalSavings:
+              calculateDiscountAmount(
+                voucher,
+                Math.max(currentTotal, voucher.giaTriToiThieu)
+              ) - currentDiscount,
+            canApply: currentTotal >= voucher.giaTriToiThieu,
+          };
+        })
         .sort((a, b) => b.additionalSavings - a.additionalSavings)
         .slice(0, 3); // Giới hạn chỉ 3 voucher tốt nhất
 
@@ -1552,44 +2362,60 @@ const BanHang = () => {
           amountNeeded: Math.max(0, voucher.giaTriToiThieu - currentTotal),
           potentialDiscount: calculateDiscountAmount(
             voucher,
-            Math.max(currentTotal, voucher.giaTriToiThieu),
+            Math.max(currentTotal, voucher.giaTriToiThieu)
           ),
         }))
         .sort((a, b) => b.potentialDiscount - a.potentialDiscount)
         .slice(0, 3); // Top 3 voucher tốt nhất
 
       if (betterVouchers.length > 0) {
-        // CẤP NHẬT: Lấy tất cả sản phẩm chi tiết từ cửa hàng thay vì chỉ sản phẩm trong đơn hàng
-        let allStoreProducts = sessionStorage.getItem('all_store_products');
-        let storeProductsFetchTime = sessionStorage.getItem('store_products_fetch_time');
+        // CẬP NHẬT: Lấy tất cả sản phẩm chi tiết từ cửa hàng thay vì chỉ sản phẩm trong đơn hàng
+        let allStoreProducts = sessionStorage.getItem("all_store_products");
+        let storeProductsFetchTime = sessionStorage.getItem(
+          "store_products_fetch_time"
+        );
         const now = new Date().getTime();
 
         // Nếu chưa có dữ liệu trong cache hoặc dữ liệu đã cũ (hơn 5 phút)
-        if (!allStoreProducts || !storeProductsFetchTime || now - storeProductsFetchTime > 300000) {
+        if (
+          !allStoreProducts ||
+          !storeProductsFetchTime ||
+          now - storeProductsFetchTime > 300000
+        ) {
           try {
-            const response = await api.get('/api/admin/sanpham/chitietsanpham', {
-              headers: {
-                Authorization: `Bearer ${token}`, // Thêm token vào header
-              },
-            });
+            const response = await api.get(
+              "/api/admin/sanpham/chitietsanpham",
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`, // Thêm token vào header
+                },
+              }
+            );
             allStoreProducts = response.data || [];
 
             // Tiền xử lý sản phẩm để đảm bảo đầy đủ thông tin
             allStoreProducts = allStoreProducts.map((product) => ({
               ...product,
               maSanPham:
-                product.maSanPham || product.sanPhamChiTiet?.maSanPham || `SP${product.id}`,
+                product.maSanPham ||
+                product.sanPhamChiTiet?.maSanPham ||
+                `SP${product.id}`,
               soLuong: product.soLuong || product.soLuongTonKho || 0,
             }));
 
             // Lọc ra những sản phẩm còn số lượng
-            allStoreProducts = allStoreProducts.filter((product) => product.soLuong > 0);
+            allStoreProducts = allStoreProducts.filter(
+              (product) => product.soLuong > 0
+            );
 
             // Lưu vào sessionStorage để tái sử dụng
-            sessionStorage.setItem('all_store_products', JSON.stringify(allStoreProducts));
-            sessionStorage.setItem('store_products_fetch_time', now.toString());
+            sessionStorage.setItem(
+              "all_store_products",
+              JSON.stringify(allStoreProducts)
+            );
+            sessionStorage.setItem("store_products_fetch_time", now.toString());
           } catch (error) {
-            console.error(' Lỗi khi lấy danh sách sản phẩm:', error);
+            console.error(" Lỗi khi lấy danh sách sản phẩm:", error);
             allStoreProducts = [];
           }
         } else {
@@ -1597,86 +2423,151 @@ const BanHang = () => {
         }
 
         // Danh sách ID sản phẩm đã có trong đơn hàng
-        const currentProductIds = currentProducts.map((p) => p.sanPhamChiTietId || p.id);
+        const currentProductIds = currentProducts.map(
+          (p) => p.sanPhamChiTietId || p.id
+        );
 
         // Xử lý gợi ý cho từng voucher
         const suggestedProducts = await Promise.all(
           betterVouchers
             .filter((v) => v.amountNeeded > 0)
             .map(async (voucher) => {
-              // 1. Gợi ý tăng số lượng sản phẩm hiện có
-              const currentProductSuggestions = currentProducts
-                .filter((p) => p.gia > 0)
-                .map((p) => ({
-                  ...p,
-                  quantityNeeded: Math.ceil(voucher.amountNeeded / p.gia),
-                }))
-                .sort((a, b) => a.quantityNeeded - b.quantityNeeded)
-                .slice(0, 2);
-
-              // 2. Gợi ý sản phẩm mới từ toàn bộ cửa hàng
-              // Tìm sản phẩm có giá phù hợp với số tiền cần thêm
               let newProductSuggestions = [];
 
               if (allStoreProducts && allStoreProducts.length > 0) {
                 // Lọc ra những sản phẩm chưa có trong đơn hàng
                 const availableProducts = allStoreProducts.filter(
-                  (p) => !currentProductIds.includes(p.id) && p.soLuong > 0,
+                  (p) => !currentProductIds.includes(p.id) && p.soLuong > 0
                 );
 
                 // Phân tích nhu cầu: tính toán mức giá phù hợp với số tiền cần thêm
                 const amountNeeded = voucher.amountNeeded;
 
-                // Chia thành các nhóm giá để tìm sản phẩm phù hợp
-                // - Sản phẩm giá thấp (khoảng 50-80% số tiền cần thêm)
-                // - Sản phẩm giá vừa (khoảng 80-120% số tiền cần thêm)
-                // - Sản phẩm giá cao (khoảng 120-200% số tiền cần thêm)
+                // THAY ĐỔI: Phân loại sản phẩm thành nhiều nhóm giá hơn để đảm bảo gợi ý đa dạng
+                // Và cung cấp đủ sản phẩm để đạt điều kiện voucher
 
-                const lowerPriceProducts = availableProducts
-                  .filter((p) => p.gia >= amountNeeded * 0.5 && p.gia <= amountNeeded * 0.8)
-                  .sort((a, b) => b.gia - a.gia) // Ưu tiên giá cao hơn
-                  .slice(0, 2);
+                // 1. Nhóm sản phẩm giá thấp (30-70% số tiền cần thêm)
+                const veryLowPriceProducts = availableProducts
+                  .filter(
+                    (p) =>
+                      p.gia >= amountNeeded * 0.3 && p.gia <= amountNeeded * 0.7
+                  )
+                  .sort((a, b) => b.gia - a.gia) // Ưu tiên giá cao hơn trong nhóm này
+                  .slice(0, 4); // Lấy nhiều sản phẩm hơn
 
-                const mediumPriceProducts = availableProducts
-                  .filter((p) => p.gia > amountNeeded * 0.8 && p.gia <= amountNeeded * 1.2)
-                  .sort((a, b) => Math.abs(a.gia - amountNeeded) - Math.abs(b.gia - amountNeeded)) // Ưu tiên gần với số tiền cần thêm
+                // 2. Nhóm sản phẩm giá vừa phải (70-90% số tiền cần thêm)
+                const lowPriceProducts = availableProducts
+                  .filter(
+                    (p) =>
+                      p.gia > amountNeeded * 0.7 && p.gia <= amountNeeded * 0.9
+                  )
+                  .sort((a, b) => b.gia - a.gia)
                   .slice(0, 3);
 
-                const higherPriceProducts = availableProducts
-                  .filter((p) => p.gia > amountNeeded * 1.2 && p.gia <= amountNeeded * 2)
-                  .sort((a, b) => a.gia - b.gia) // Ưu tiên giá thấp hơn
+                // 3. Nhóm sản phẩm giá phù hợp nhất (90-110% số tiền cần thêm)
+                const mediumPriceProducts = availableProducts
+                  .filter(
+                    (p) =>
+                      p.gia > amountNeeded * 0.9 && p.gia <= amountNeeded * 1.1
+                  )
+                  .sort(
+                    (a, b) =>
+                      Math.abs(a.gia - amountNeeded) -
+                      Math.abs(b.gia - amountNeeded)
+                  ) // Ưu tiên gần với số tiền cần thêm
+                  .slice(0, 5); // Lấy nhiều sản phẩm hơn
+
+                // 4. Nhóm sản phẩm giá cao (110-150% số tiền cần thêm)
+                const highPriceProducts = availableProducts
+                  .filter(
+                    (p) =>
+                      p.gia > amountNeeded * 1.1 && p.gia <= amountNeeded * 1.5
+                  )
+                  .sort((a, b) => a.gia - b.gia) // Ưu tiên giá thấp hơn trong nhóm giá cao
+                  .slice(0, 3);
+
+                // 5. Nhóm sản phẩm giá rất cao (>150% số tiền cần thêm)
+                const veryHighPriceProducts = availableProducts
+                  .filter(
+                    (p) =>
+                      p.gia > amountNeeded * 1.5 && p.gia <= amountNeeded * 2
+                  )
+                  .sort((a, b) => a.gia - b.gia)
                   .slice(0, 2);
 
                 // Kết hợp các nhóm sản phẩm và tính điểm phù hợp
                 newProductSuggestions = [
+                  // Ưu tiên hiển thị nhóm giá phù hợp nhất
                   ...mediumPriceProducts.map((p) => ({
                     ...p,
-                    relevanceScore: 100 - (Math.abs(p.gia - amountNeeded) / amountNeeded) * 100,
-                    priceCategory: 'perfect',
+                    relevanceScore:
+                      100 -
+                      (Math.abs(p.gia - amountNeeded) / amountNeeded) * 100,
+                    priceCategory: "perfect",
+                    categoryLabel: "Phù hợp nhất",
+                    categoryColor: "#52c41a",
                   })),
-                  ...lowerPriceProducts.map((p) => ({
+
+                  // Tiếp theo là nhóm giá hơi thấp
+                  ...lowPriceProducts.map((p) => ({
                     ...p,
                     relevanceScore:
-                      80 - (Math.abs(p.gia - amountNeeded * 0.7) / (amountNeeded * 0.7)) * 30,
-                    priceCategory: 'lower',
+                      85 -
+                      (Math.abs(p.gia - amountNeeded * 0.8) /
+                        (amountNeeded * 0.8)) *
+                        30,
+                    priceCategory: "lower",
+                    categoryLabel: "Tiết kiệm",
+                    categoryColor: "#1890ff",
                   })),
-                  ...higherPriceProducts.map((p) => ({
+
+                  // Tiếp theo là nhóm giá rất thấp
+                  ...veryLowPriceProducts.map((p) => ({
                     ...p,
                     relevanceScore:
-                      70 - (Math.abs(p.gia - amountNeeded * 1.5) / (amountNeeded * 1.5)) * 20,
-                    priceCategory: 'higher',
+                      75 -
+                      (Math.abs(p.gia - amountNeeded * 0.5) /
+                        (amountNeeded * 0.5)) *
+                        25,
+                    priceCategory: "veryLow",
+                    categoryLabel: "Tiết kiệm +",
+                    categoryColor: "#13c2c2",
                   })),
-                ]
-                  .sort((a, b) => b.relevanceScore - a.relevanceScore)
-                  .slice(0, 5);
+
+                  // Tiếp theo là nhóm giá cao
+                  ...highPriceProducts.map((p) => ({
+                    ...p,
+                    relevanceScore:
+                      70 -
+                      (Math.abs(p.gia - amountNeeded * 1.3) /
+                        (amountNeeded * 1.3)) *
+                        20,
+                    priceCategory: "higher",
+                    categoryLabel: "Cao cấp",
+                    categoryColor: "#fa8c16",
+                  })),
+
+                  // Cuối cùng là nhóm giá rất cao
+                  ...veryHighPriceProducts.map((p) => ({
+                    ...p,
+                    relevanceScore:
+                      65 -
+                      (Math.abs(p.gia - amountNeeded * 1.75) /
+                        (amountNeeded * 1.75)) *
+                        15,
+                    priceCategory: "veryHigh",
+                    categoryLabel: "Cao cấp +",
+                    categoryColor: "#722ed1",
+                  })),
+                ].sort((a, b) => b.relevanceScore - a.relevanceScore);
+                // Không giới hạn số lượng sản phẩm nữa để hiển thị nhiều gợi ý hơn
               }
 
               return {
                 voucherId: voucher.id,
-                currentProducts: currentProductSuggestions,
                 newProducts: newProductSuggestions,
               };
-            }),
+            })
         );
 
         // Cập nhật state với voucher và sản phẩm gợi ý
@@ -1684,8 +2575,9 @@ const BanHang = () => {
           show: true,
           betterVouchers: betterVouchers.map((voucher) => ({
             ...voucher,
-            suggestions: suggestedProducts.find((s) => s?.voucherId === voucher.id) || {
-              currentProducts: [],
+            suggestions: suggestedProducts.find(
+              (s) => s?.voucherId === voucher.id
+            ) || {
               newProducts: [],
             },
           })),
@@ -1699,7 +2591,7 @@ const BanHang = () => {
         });
       }
     } catch (error) {
-      console.error(' Lỗi khi tìm voucher tốt hơn:', error);
+      console.error(" Lỗi khi tìm voucher tốt hơn:", error);
       setVoucherSuggestions({
         show: false,
         betterVouchers: [],
@@ -1712,7 +2604,7 @@ const BanHang = () => {
   const updateProductInventoryInCache = (productId, quantityChange = -1) => {
     try {
       // Cập nhật trong cache sản phẩm toàn cục
-      const allStoreProductsStr = sessionStorage.getItem('all_store_products');
+      const allStoreProductsStr = sessionStorage.getItem("all_store_products");
       if (allStoreProductsStr) {
         const allStoreProducts = JSON.parse(allStoreProductsStr);
         const updatedProducts = allStoreProducts.map((p) => {
@@ -1724,7 +2616,10 @@ const BanHang = () => {
           }
           return p;
         });
-        sessionStorage.setItem('all_store_products', JSON.stringify(updatedProducts));
+        sessionStorage.setItem(
+          "all_store_products",
+          JSON.stringify(updatedProducts)
+        );
       }
 
       // Cập nhật trong cache voucher suggestion
@@ -1755,13 +2650,13 @@ const BanHang = () => {
         };
       });
     } catch (error) {
-      console.error('Lỗi khi cập nhật tồn kho trong cache:', error);
+      console.error("Lỗi khi cập nhật tồn kho trong cache:", error);
     }
   };
   // Hàm xử lý khi người dùng áp dụng voucher được gợi ý
   const handleApplySuggestedVoucher = async (hoaDonId, voucherId) => {
     try {
-      console.log('Áp dụng voucher gợi ý:', { hoaDonId, voucherId });
+      console.log("Áp dụng voucher gợi ý:", { hoaDonId, voucherId });
 
       // Gọi API để áp dụng voucher
       const response = await api.post(
@@ -1771,11 +2666,11 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
+        }
       );
 
       if (response.data) {
-        message.success('Áp dụng voucher thành công');
+        message.success("Áp dụng voucher thành công");
 
         // Tải lại thông tin hóa đơn từ server
         await fetchInvoiceById(hoaDonId);
@@ -1803,8 +2698,8 @@ const BanHang = () => {
       }
       return false;
     } catch (error) {
-      console.error('Lỗi khi áp dụng voucher gợi ý:', error);
-      message.error('Lỗi khi áp dụng voucher');
+      console.error("Lỗi khi áp dụng voucher gợi ý:", error);
+      message.error("Lỗi khi áp dụng voucher");
       return false;
     }
   };
@@ -1813,7 +2708,7 @@ const BanHang = () => {
   const handleAddSuggestedProduct = async (product) => {
     try {
       if (!activeKey) {
-        message.error('Vui lòng chọn đơn hàng trước khi thêm sản phẩm');
+        message.error("Vui lòng chọn đơn hàng trước khi thêm sản phẩm");
         return;
       }
 
@@ -1829,14 +2724,20 @@ const BanHang = () => {
       };
 
       // Gọi API để thêm sản phẩm vào đơn hàng
-      const response = await api.post(`/api/admin/ban-hang/${activeKey}/add-product`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await api.post(
+        `/api/admin/ban-hang/${activeKey}/add-product`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (response.data) {
-        message.success(`Đã thêm ${product.tenSanPham || 'sản phẩm'} vào đơn hàng`);
+        message.success(
+          `Đã thêm ${product.tenSanPham || "sản phẩm"} vào đơn hàng`
+        );
 
         // Cập nhật danh sách sản phẩm của đơn hàng
         await fetchInvoiceProducts(activeKey);
@@ -1874,7 +2775,7 @@ const BanHang = () => {
         });
 
         // Cập nhật cache sản phẩm toàn cục
-        const allStoreProducts = sessionStorage.getItem('all_store_products');
+        const allStoreProducts = sessionStorage.getItem("all_store_products");
         if (allStoreProducts) {
           const products = JSON.parse(allStoreProducts);
           const updatedProducts = products.map((p) => {
@@ -1886,7 +2787,10 @@ const BanHang = () => {
             }
             return p;
           });
-          sessionStorage.setItem('all_store_products', JSON.stringify(updatedProducts));
+          sessionStorage.setItem(
+            "all_store_products",
+            JSON.stringify(updatedProducts)
+          );
         }
 
         // Tính toán lại tổng tiền
@@ -1909,49 +2813,20 @@ const BanHang = () => {
         }, 500);
       }
     } catch (error) {
-      console.error('Lỗi khi thêm sản phẩm gợi ý:', error);
-      let errorMessage = 'Không thể thêm sản phẩm';
+      console.error("Lỗi khi thêm sản phẩm gợi ý:", error);
+      let errorMessage = "Không thể thêm sản phẩm";
 
-      if (error.response && error.response.data && error.response.data.message) {
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
         errorMessage = error.response.data.message;
       }
 
       message.error(errorMessage);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Hàm xử lý khi người dùng tăng số lượng sản phẩm từ gợi ý
-  const handleUpdateQuantityForSuggestion = async (hoaDonId, productId, newQuantity) => {
-    try {
-      // Cập nhật số lượng sản phẩm
-      await handleUpdateQuantity(hoaDonId, productId, newQuantity);
-      message.success('Đã cập nhật số lượng sản phẩm');
-
-      // Tải lại thông tin hóa đơn từ server
-      await fetchInvoiceById(hoaDonId);
-
-      // Tính toán lại tổng tiền
-      const newTotals = calculateOrderTotals(hoaDonId);
-      setTotals((prev) => ({
-        ...prev,
-        [hoaDonId]: newTotals,
-      }));
-
-      // Cập nhật UI nếu đang ở tab này
-      if (hoaDonId === activeKey) {
-        setTotalBeforeDiscount(newTotals.subtotal);
-        setTotalAmount(newTotals.finalTotal);
-      }
-
-      // Cập nhật lại gợi ý sau khi cập nhật số lượng
-      setTimeout(() => {
-        findBestVoucherAndSuggest(hoaDonId);
-      }, 500);
-    } catch (error) {
-      console.error('Lỗi khi cập nhật số lượng:', error);
-      message.error('Lỗi khi cập nhật số lượng sản phẩm');
     }
   };
 
@@ -1962,7 +2837,7 @@ const BanHang = () => {
   // Gợi ý mua thêm tiền để áp dụng mã giảm giá tốt hơn
   useEffect(() => {
     if (activeKey && orderProducts[activeKey]) {
-      // 🟢 Tính tổng tiền trước khi cập nhật vào `totals`
+      //Tính tổng tiền trước khi cập nhật vào `totals`
       const newTotals = calculateOrderTotals(activeKey);
       setTotals((prev) => ({ ...prev, [activeKey]: newTotals }));
       setTotalAmount(newTotals.finalTotal);
@@ -1970,20 +2845,36 @@ const BanHang = () => {
   }, [orderProducts, activeKey]);
 
   useEffect(() => {
-    if (activeKey && totals[activeKey] && totals[activeKey].totalBeforeVoucher > 0) {
+    if (
+      activeKey &&
+      totals[activeKey] &&
+      totals[activeKey].totalBeforeVoucher > 0
+    ) {
       findBestVoucherAndSuggest(activeKey);
     }
   }, [totals, activeKey]); // Chỉ chạy khi tổng tiền thay đổi
   // Thêm hàm này để cập nhật phí vận chuyển từ component GiaoHang
+  // Update handleShippingFeeUpdate to apply free shipping rule
   const handleShippingFeeUpdate = (fee) => {
     if (activeKey) {
       console.log(`Cập nhật phí vận chuyển ${fee} cho tab ${activeKey}`);
 
+      // Check if order qualifies for free shipping
+      const subtotal = totals[activeKey]?.subtotal || 0;
+      const order = tabs.find((tab) => tab.key === activeKey)?.order;
+
+      // Apply free shipping for orders >= 2 million and delivery orders
+      if (subtotal >= 2000000 && order?.loaiHoaDon === 3) {
+        fee = 0;
+      }
+
       // Cập nhật state tabs
       setTabs((prevTabs) =>
         prevTabs.map((tab) =>
-          tab.key === activeKey ? { ...tab, order: { ...tab.order, phiVanChuyen: fee } } : tab,
-        ),
+          tab.key === activeKey
+            ? { ...tab, order: { ...tab.order, phiVanChuyen: fee } }
+            : tab
+        )
       );
 
       // Cập nhật totals để hiển thị đúng tổng tiền
@@ -1994,7 +2885,11 @@ const BanHang = () => {
           [activeKey]: {
             ...currentTotal,
             shippingFee: fee,
-            finalTotal: (currentTotal.subtotal || 0) - (currentTotal.discountAmount || 0) + fee,
+            finalTotal:
+              (currentTotal.subtotal || 0) -
+              (currentTotal.discountAmount || 0) +
+              fee,
+            freeShipping: subtotal >= 2000000 && order?.loaiHoaDon === 3,
           },
         };
       });
@@ -2006,18 +2901,29 @@ const BanHang = () => {
       <Col
         span={17}
         style={{
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          padding: '16px',
-          maxHeight: 'calc(100vh - 180px)',
-          overflowY: 'auto',
+          border: "1px solid #ccc",
+          borderRadius: "8px",
+          padding: "16px",
+          maxHeight: "calc(100vh - 180px)",
+          overflowY: "auto",
         }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Button onClick={() => openQrScanner(order.id)}>
               <BiQrScan />
               Quét mã QR
+            </Button>
+            <Button
+              onClick={() => checkPriceChanges(true)}
+              icon={<SyncOutlined />}
+              danger={priceNeedsConfirmation}
+              loading={checkingPrice}
+              style={{ marginRight: 8, marginLeft: 8 }}
+            >
+              {priceNeedsConfirmation
+                ? "Xác nhận thay đổi giá!"
+                : "Kiểm tra thay đổi giá"}
             </Button>
             <Button
               type="primary"
@@ -2037,8 +2943,8 @@ const BanHang = () => {
               showSizeChanger: false,
               total: orderProducts[order.id]?.length || 0,
               showTotal: (total) => `Tổng ${total} sản phẩm`,
-              size: 'small',
-              position: ['bottomCenter'],
+              size: "small",
+              position: ["bottomCenter"],
               onChange: (page) => {
                 setPagination({ current: page, pageSize: 3 });
               },
@@ -2047,31 +2953,31 @@ const BanHang = () => {
             bordered
             size="small"
             style={{
-              marginTop: '10px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              marginTop: "10px",
+              borderRadius: "8px",
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
             }}
-            scroll={{ y: 'calc(100vh - 350px)' }}
+            scroll={{ y: "calc(100vh - 350px)" }}
           />
         </Space>
       </Col>
       <Col span={7}>
         <div
           style={{
-            border: '1px solid #ccc',
-            borderRadius: '8px',
-            padding: '10px',
-            maxHeight: 'calc(100vh - 180px)',
-            overflowY: 'auto',
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+            padding: "10px",
+            maxHeight: "calc(100vh - 180px)",
+            overflowY: "auto",
           }}
         >
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space direction="vertical" style={{ width: "100%" }}>
             <Text strong>Thông tin khách hàng</Text>
             <div
               style={{
-                border: '1px solid #ccc',
-                borderRadius: '8px',
-                padding: '10px',
+                border: "1px solid #ccc",
+                borderRadius: "8px",
+                padding: "10px",
               }}
             >
               {/* Phần chọn khách hàng - đưa lên trước Radio.Group */}
@@ -2080,8 +2986,11 @@ const BanHang = () => {
                   <Text>Khách hàng</Text>
                 </Col>
                 <Col span={14}>
-                  <Row style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button size="small" onClick={() => handleSelectCustomer(order.id)}>
+                  <Row style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <Button
+                      size="small"
+                      onClick={() => handleSelectCustomer(order.id)}
+                    >
                       <AiOutlineSelect />
                       Chọn
                     </Button>
@@ -2098,19 +3007,26 @@ const BanHang = () => {
                 </Col>
               </Row>
               <Row style={{ marginTop: 8 }}>
-                <Col span={24} style={{ display: 'flex', alignItems: 'center' }}>
+                <Col
+                  span={24}
+                  style={{ display: "flex", alignItems: "center" }}
+                >
                   <Avatar size={40} style={{ marginRight: 8 }} />
-                  <Text>{order.khachHang?.tenKhachHang || 'Khách lẻ'}</Text>
+                  <Text>{order.khachHang?.tenKhachHang || "Khách lẻ"}</Text>
                 </Col>
               </Row>
-              <div style={{ margin: '16px 0', borderBottom: '1px solid #ccc' }}></div>
+              <div
+                style={{ margin: "16px 0", borderBottom: "1px solid #ccc" }}
+              ></div>
 
               {/* Phần chọn loại hóa đơn */}
               <Row>
                 <Col span={24}>
                   <Radio.Group
-                    value={order.loaiHoaDon === 3 ? 'giaoHang' : 'taiQuay'}
-                    onChange={(e) => handleDeliveryMethodChange(order.id, e.target.value)}
+                    value={order.loaiHoaDon === 3 ? "giaoHang" : "taiQuay"}
+                    onChange={(e) =>
+                      handleDeliveryMethodChange(order.id, e.target.value)
+                    }
                   >
                     <Radio value="taiQuay">Tại quầy</Radio>
                     <Radio value="giaoHang">Giao hàng</Radio>
@@ -2135,15 +3051,19 @@ const BanHang = () => {
             </div>
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
               <Text strong>Voucher giảm giá:</Text>
               <div>
                 {order.phieuGiamGia ? (
-                  <Tag closable onClose={() => handleRemoveVoucher(order.id)} color="black">
+                  <Tag
+                    closable
+                    onClose={() => handleRemoveVoucher(order.id)}
+                    color="black"
+                  >
                     {order.phieuGiamGia.maPhieuGiamGia}
                   </Tag>
                 ) : (
@@ -2158,7 +3078,10 @@ const BanHang = () => {
                     >
                       Chọn mã
                     </Button>
-                    <Button type="primary" onClick={() => autoApplyBestVoucher(order.id)}>
+                    <Button
+                      type="primary"
+                      onClick={() => autoApplyBestVoucher(order.id)}
+                    >
                       Áp dụng tốt nhất
                     </Button>
                   </Space>
@@ -2168,10 +3091,10 @@ const BanHang = () => {
             <Text strong>Thông tin thanh toán</Text>
             <div
               style={{
-                border: '1px solid #ccc',
-                borderRadius: '8px',
-                padding: '16px',
-                background: '#f9f9f9',
+                border: "1px solid #ccc",
+                borderRadius: "8px",
+                padding: "16px",
+                background: "#f9f9f9",
               }}
             >
               <Row gutter={[0, 12]}>
@@ -2179,9 +3102,12 @@ const BanHang = () => {
                   <Text strong>Chọn phương thức thanh toán:</Text>
                   <Select
                     mode="multiple"
-                    style={{ width: '100%', marginTop: 8 }}
+                    style={{ width: "100%", marginTop: 8 }}
                     placeholder="Chọn phương thức thanh toán"
-                    value={order.thanhToans?.map((p) => p.maPhuongThucThanhToan) || []}
+                    value={
+                      order.thanhToans?.map((p) => p.maPhuongThucThanhToan) ||
+                      []
+                    }
                     onChange={(selectedMethods) =>
                       handlePaymentMethodChange(order.id, selectedMethods)
                     }
@@ -2193,12 +3119,18 @@ const BanHang = () => {
                         value={method.maPhuongThucThanhToan}
                         label={method.tenPhuongThucThanhToan}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          {method.maPhuongThucThanhToan === PAYMENT_METHOD.CASH && (
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          {method.maPhuongThucThanhToan ===
+                            PAYMENT_METHOD.CASH && (
                             <WalletOutlined style={{ marginRight: 8 }} />
                           )}
-                          {method.maPhuongThucThanhToan === PAYMENT_METHOD.QR && (
+                          {method.maPhuongThucThanhToan ===
+                            PAYMENT_METHOD.QR && (
                             <QrcodeOutlined style={{ marginRight: 8 }} />
+                          )}
+                          {method.maPhuongThucThanhToan ===
+                            PAYMENT_METHOD.VNPAY && (
+                            <CreditCardOutlined style={{ marginRight: 8 }} />
                           )}
                           {method.tenPhuongThucThanhToan}
                         </div>
@@ -2210,16 +3142,21 @@ const BanHang = () => {
 
               {/* Hiển thị ô nhập số tiền cho từng phương thức */}
               {(order.thanhToans || []).map((payment) => {
-                // Xác định xem đơn hàng có cả 2 phương thức thanh toán không
+                // Biến để kiểm tra có nhiều phương thức thanh toán không
                 const hasBothPaymentMethods =
                   order.thanhToans &&
-                  order.thanhToans.some((p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) &&
-                  order.thanhToans.some((p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR);
-
+                  order.thanhToans.some(
+                    (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
+                  ) &&
+                  order.thanhToans.some(
+                    (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
+                  );
+              
                 // Nếu là chuyển khoản và có cả 2 phương thức, không hiển thị ô nhập mà sẽ tự động tính
                 const isAutoCalculated =
-                  payment.maPhuongThucThanhToan === PAYMENT_METHOD.QR && hasBothPaymentMethods;
-
+                  payment.maPhuongThucThanhToan === PAYMENT_METHOD.QR &&
+                  hasBothPaymentMethods;
+              
                 return (
                   <Card
                     key={payment.maPhuongThucThanhToan}
@@ -2228,21 +3165,29 @@ const BanHang = () => {
                       marginTop: 12,
                       borderLeft: `4px solid ${
                         payment.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
-                          ? '#52c41a'
-                          : '#1890ff'
+                          ? "#52c41a"
+                          : payment.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                          ? "#2a5ada"
+                          : "#1890ff"
                       }`,
-                      backgroundColor: '#fff',
+                      backgroundColor: "#fff",
                     }}
-                    bodyStyle={{ padding: '12px 16px' }}
+                    bodyStyle={{ padding: "12px 16px" }}
                   >
                     <Row align="middle">
                       <Col span={12}>
                         <Space>
-                          {payment.maPhuongThucThanhToan === PAYMENT_METHOD.CASH && (
-                            <WalletOutlined style={{ color: '#52c41a' }} />
+                          {payment.maPhuongThucThanhToan ===
+                            PAYMENT_METHOD.CASH && (
+                            <WalletOutlined style={{ color: "#52c41a" }} />
                           )}
-                          {payment.maPhuongThucThanhToan === PAYMENT_METHOD.QR && (
-                            <QrcodeOutlined style={{ color: '#1890ff' }} />
+                          {payment.maPhuongThucThanhToan ===
+                            PAYMENT_METHOD.QR && (
+                            <QrcodeOutlined style={{ color: "#1890ff" }} />
+                          )}
+                          {payment.maPhuongThucThanhToan ===
+                            PAYMENT_METHOD.VNPAY && (
+                            <CreditCardOutlined style={{ color: "#2a5ada" }} />
                           )}
                           <Text strong>{payment.tenPhuongThucThanhToan}</Text>
                         </Space>
@@ -2252,11 +3197,11 @@ const BanHang = () => {
                           // Hiển thị số tiền chuyển khoản (tự động tính) dưới dạng text
                           <div
                             style={{
-                              padding: '4px 11px',
-                              border: '1px solid #d9d9d9',
-                              borderRadius: '2px',
-                              backgroundColor: '#f5f5f5',
-                              textAlign: 'right',
+                              padding: "4px 11px",
+                              border: "1px solid #d9d9d9",
+                              borderRadius: "2px",
+                              backgroundColor: "#f5f5f5",
+                              textAlign: "right",
                             }}
                           >
                             {formatCurrency(payment.soTien || 0)}
@@ -2264,18 +3209,20 @@ const BanHang = () => {
                         ) : (
                           // Input nhập số tiền cho tiền mặt hoặc chuyển khoản (nếu chỉ có 1 phương thức)
                           <InputNumber
-                            style={{ width: '100%' }}
+                            style={{ width: "100%" }}
                             value={payment.soTien}
                             onChange={(value) => {
                               // Xử lý khi người dùng nhập số tiền
                               handlePaymentAmountChange(
                                 order.id,
                                 payment.maPhuongThucThanhToan,
-                                value,
+                                value
                               );
                             }}
-                            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                            formatter={(value) =>
+                              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                            }
+                            parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
                             min={0}
                             step={1000}
                             placeholder="Nhập số tiền"
@@ -2285,30 +3232,35 @@ const BanHang = () => {
                         )}
                       </Col>
                     </Row>
-
+              
                     {/* Hiển thị mã QR nếu là phương thức chuyển khoản và có số tiền */}
-                    {payment.maPhuongThucThanhToan === PAYMENT_METHOD.QR && payment.soTien > 0 && (
-                      <div style={{ marginTop: 12, textAlign: 'center' }}>
-                        <Button
-                          type="primary"
-                          icon={<QrcodeOutlined />}
-                          onClick={() => {
-                            generateQR(order.id, payment.soTien);
-                            setIsModalVisiblePaymentQR(true);
-                          }}
-                          style={{
-                            backgroundColor: '#1890ff',
-                            borderColor: '#1890ff',
-                            boxShadow: '0 2px 0 rgba(0,0,0,0.045)',
-                            margin: '0 auto',
-                          }}
-                        >
-                          <Space>
-                            <span>Quét mã thanh toán</span>
-                          </Space>
-                        </Button>
-                      </div>
-                    )}
+                    {payment.maPhuongThucThanhToan === PAYMENT_METHOD.QR &&
+                      payment.soTien > 0 && (
+                        <div style={{ marginTop: 12, textAlign: "center" }}>
+                          <Button
+                            type="primary"
+                            icon={<QrcodeOutlined />}
+                            onClick={() => {
+                              generateQR(order.id, payment.soTien);
+                              setIsModalVisiblePaymentQR(true);
+                            }}
+                            style={{
+                              backgroundColor: "#1890ff",
+                              borderColor: "#1890ff",
+                              boxShadow: "0 2px 0 rgba(0,0,0,0.045)",
+                              margin: "0 auto",
+                            }}
+                          >
+                            <Space>
+                              <span>Quét mã thanh toán</span>
+                            </Space>
+                          </Button>
+                        </div>
+                      )}
+              
+                    {/* Hiển thị nút thanh toán VNPAY nếu là phương thức VNPAY và có số tiền */}
+                    {payment.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY &&
+                      payment.soTien > 0 && renderVnpaySection(order, payment)}
                   </Card>
                 );
               })}
@@ -2317,122 +3269,147 @@ const BanHang = () => {
               <div
                 style={{
                   marginTop: 16,
-                  padding: '12px',
-                  background: '#f0f7ff',
-                  borderRadius: '8px',
-                  border: '1px solid #d6e4ff',
+                  padding: "12px",
+                  background: "#f0f7ff",
+                  borderRadius: "8px",
+                  border: "1px solid #d6e4ff",
                 }}
               >
                 <Row gutter={[0, 8]}>
                   <Col span={12}>
                     <Text>Tổng tiền hàng:</Text>
                   </Col>
-                  <Col span={12} style={{ textAlign: 'right' }}>
-                    <Text>{formatCurrency(totals[order.id]?.subtotal || 0)}</Text>
+                  <Col span={12} style={{ textAlign: "right" }}>
+                    <Text>
+                      {formatCurrency(totals[order.id]?.subtotal || 0)}
+                    </Text>
                   </Col>
                   {/* Phí vận chuyển */}
                   <Col span={12}>
                     <Text>
-                      Phí vận chuyển{' '}
+                      Phí vận chuyển{" "}
                       <Image
                         src="/logo/GHNLogo.png"
                         preview={false}
                         style={{
-                          width: '50px',
-                          height: '30px',
-                          marginLeft: '5px',
-                          verticalAlign: 'middle',
+                          width: "50px",
+                          height: "30px",
+                          marginLeft: "5px",
+                          verticalAlign: "middle",
                         }}
                       />
                     </Text>
                   </Col>
-                  <Col span={12} style={{ textAlign: 'right' }}>
+                  <Col span={12} style={{ textAlign: "right" }}>
                     {order.loaiHoaDon === 3 ? (
                       <>
                         {calculatingShippingFee ? (
                           <div
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'flex-end',
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
                             }}
                           >
-                            <Spin size="small" style={{ marginRight: '8px' }} />
+                            <Spin size="small" style={{ marginRight: "8px" }} />
                             <Text type="secondary">Đang tính...</Text>
                           </div>
                         ) : (
                           <div
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'flex-end',
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
                             }}
                           >
-                            <InputNumber
-                              value={order.phiVanChuyen || 0}
-                              onChange={(value) => {
-                                const fee = value || 0;
-                                // Cập nhật phí vận chuyển
-                                handleShippingFeeChange(activeKey, fee);
-                              }}
-                              formatter={(value) =>
-                                `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                              }
-                              parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                              min={0}
-                              step={1000}
-                              style={{ width: 120 }}
-                            />
-                            <Button
-                              type="link"
-                              size="small"
-                              icon={<SyncOutlined />}
-                              onClick={async () => {
-                                if (selectedAddress && giaoHangRef.current) {
-                                  const fee = await giaoHangRef.current.calculateShippingFee();
-
-                                  // Cập nhật trực tiếp state của BanHang.js
-                                  if (fee > 0) {
-                                    // Cập nhật tabs
-                                    setTabs((prevTabs) =>
-                                      prevTabs.map((tab) => {
-                                        if (tab.key === activeKey) {
-                                          return {
-                                            ...tab,
-                                            order: {
-                                              ...tab.order,
-                                              phiVanChuyen: fee,
-                                            },
-                                          };
-                                        }
-                                        return tab;
-                                      }),
-                                    );
-
-                                    // Cập nhật totals
-                                    setTotals((prevTotals) => {
-                                      const currentTotal = prevTotals[activeKey] || {};
-                                      return {
-                                        ...prevTotals,
-                                        [activeKey]: {
-                                          ...currentTotal,
-                                          shippingFee: fee,
-                                          finalTotal:
-                                            (currentTotal.subtotal || 0) -
-                                            (currentTotal.discountAmount || 0) +
-                                            fee,
-                                        },
-                                      };
-                                    });
-                                  }
+                            {/* Show free shipping text for eligible orders */}
+                            {totals[order.id]?.subtotal >= 2000000 ? (
+                              <Text
+                                style={{ color: "#52c41a", fontWeight: "bold" }}
+                              >
+                                Miễn phí (đơn ≥ 2 triệu)
+                              </Text>
+                            ) : (
+                              <InputNumber
+                                value={order.phiVanChuyen || 0}
+                                onChange={(value) => {
+                                  const fee = value || 0;
+                                  // Cập nhật phí vận chuyển
+                                  handleShippingFeeChange(activeKey, fee);
+                                }}
+                                formatter={(value) =>
+                                  `${value}`.replace(
+                                    /\B(?=(\d{3})+(?!\d))/g,
+                                    ","
+                                  )
                                 }
-                              }}
-                              disabled={!selectedAddress}
-                              title={
-                                !selectedAddress ? 'Vui lòng chọn địa chỉ trước' : 'Tính lại phí'
-                              }
-                              style={{ padding: 0, marginLeft: 8 }}
-                            />
+                                parser={(value) =>
+                                  value.replace(/\$\s?|(,*)/g, "")
+                                }
+                                min={0}
+                                step={1000}
+                                style={{ width: 120 }}
+                              />
+                            )}
+
+                            {/* Only show recalculate button for non-eligible orders */}
+                            {totals[order.id]?.subtotal < 2000000 && (
+                              <Button
+                                type="link"
+                                size="small"
+                                icon={<SyncOutlined />}
+                                onClick={async () => {
+                                  if (selectedAddress && giaoHangRef.current) {
+                                    const fee =
+                                      await giaoHangRef.current.calculateShippingFee();
+
+                                    // Cập nhật trực tiếp state của BanHang.js
+                                    if (fee > 0) {
+                                      // Cập nhật tabs
+                                      setTabs((prevTabs) =>
+                                        prevTabs.map((tab) => {
+                                          if (tab.key === activeKey) {
+                                            return {
+                                              ...tab,
+                                              order: {
+                                                ...tab.order,
+                                                phiVanChuyen: fee,
+                                              },
+                                            };
+                                          }
+                                          return tab;
+                                        })
+                                      );
+
+                                      // Cập nhật totals
+                                      setTotals((prevTotals) => {
+                                        const currentTotal =
+                                          prevTotals[activeKey] || {};
+                                        return {
+                                          ...prevTotals,
+                                          [activeKey]: {
+                                            ...currentTotal,
+                                            shippingFee: fee,
+                                            finalTotal:
+                                              (currentTotal.subtotal || 0) -
+                                              (currentTotal.discountAmount ||
+                                                0) +
+                                              fee,
+                                          },
+                                        };
+                                      });
+                                    }
+                                  }
+                                }}
+                                disabled={!selectedAddress}
+                                title={
+                                  !selectedAddress
+                                    ? "Vui lòng chọn địa chỉ trước"
+                                    : "Tính lại phí"
+                                }
+                                style={{ padding: 0, marginLeft: 8 }}
+                              />
+                            )}
                           </div>
                         )}
                       </>
@@ -2444,28 +3421,38 @@ const BanHang = () => {
                   <Col span={12}>
                     <Text>Giảm giá: </Text>
                   </Col>
-                  <Col span={12} style={{ textAlign: 'right' }}>
+                  <Col span={12} style={{ textAlign: "right" }}>
                     {order.phieuGiamGia ? (
-                      <Text strong style={{ color: '#f50' }}>
+                      <Text strong style={{ color: "#f50" }}>
                         {Number(order.phieuGiamGia.loaiPhieuGiamGia) === 1 ? (
                           <>
                             {order.phieuGiamGia.giaTriGiam}% (
-                            {formatCurrency(order.giamGia || totals[order.id]?.discountAmount || 0)}
+                            {formatCurrency(
+                              order.giamGia ||
+                                totals[order.id]?.discountAmount ||
+                                0
+                            )}
                             )
                           </>
                         ) : (
-                          formatCurrency(order.giamGia || totals[order.id]?.discountAmount || 0)
+                          formatCurrency(
+                            order.giamGia ||
+                              totals[order.id]?.discountAmount ||
+                              0
+                          )
                         )}
                       </Text>
                     ) : (
                       <Text>
-                        {formatCurrency(order.giamGia || totals[order.id]?.discountAmount || 0)}
+                        {formatCurrency(
+                          order.giamGia || totals[order.id]?.discountAmount || 0
+                        )}
                       </Text>
                     )}
                   </Col>
                 </Row>
 
-                <Divider style={{ margin: '12px 0' }} />
+                <Divider style={{ margin: "12px 0" }} />
 
                 {/* Tổng thanh toán */}
                 <Row align="middle">
@@ -2474,8 +3461,8 @@ const BanHang = () => {
                       Tổng thanh toán:
                     </Text>
                   </Col>
-                  <Col span={12} style={{ textAlign: 'right' }}>
-                    <Text strong style={{ color: 'red', fontSize: 16 }}>
+                  <Col span={12} style={{ textAlign: "right" }}>
+                    <Text strong style={{ color: "red", fontSize: 16 }}>
                       {formatCurrency(totals[order.id]?.finalTotal || 0)}
                     </Text>
                   </Col>
@@ -2484,23 +3471,34 @@ const BanHang = () => {
                 {/* Thông tin số tiền đã nhập cho các phương thức */}
                 {order.thanhToans && order.thanhToans.length > 0 && (
                   <>
-                    <Divider dashed style={{ margin: '12px 0' }} />
+                    <Divider dashed style={{ margin: "12px 0" }} />
 
                     {/* Hiển thị từng phương thức thanh toán */}
                     {order.thanhToans.map((payment) => (
-                      <Row key={payment.maPhuongThucThanhToan} style={{ marginBottom: 4 }}>
+                      <Row
+                        key={payment.maPhuongThucThanhToan}
+                        style={{ marginBottom: 4 }}
+                      >
                         <Col span={12}>
                           <Space>
-                            {payment.maPhuongThucThanhToan === PAYMENT_METHOD.CASH && (
-                              <WalletOutlined style={{ color: '#52c41a' }} />
+                            {payment.maPhuongThucThanhToan ===
+                              PAYMENT_METHOD.CASH && (
+                              <WalletOutlined style={{ color: "#52c41a" }} />
                             )}
-                            {payment.maPhuongThucThanhToan === PAYMENT_METHOD.QR && (
-                              <QrcodeOutlined style={{ color: '#1890ff' }} />
+                            {payment.maPhuongThucThanhToan ===
+                              PAYMENT_METHOD.QR && (
+                              <QrcodeOutlined style={{ color: "#1890ff" }} />
+                            )}
+                            {payment.maPhuongThucThanhToan ===
+                              PAYMENT_METHOD.VNPAY && (
+                              <CreditCardOutlined
+                                style={{ color: "#2a5ada" }}
+                              />
                             )}
                             <Text>{payment.tenPhuongThucThanhToan}:</Text>
                           </Space>
                         </Col>
-                        <Col span={12} style={{ textAlign: 'right' }}>
+                        <Col span={12} style={{ textAlign: "right" }}>
                           <Text>{formatCurrency(payment.soTien || 0)}</Text>
                         </Col>
                       </Row>
@@ -2510,10 +3508,13 @@ const BanHang = () => {
                       <Col span={12}>
                         <Text strong>Tổng đã nhập:</Text>
                       </Col>
-                      <Col span={12} style={{ textAlign: 'right' }}>
+                      <Col span={12} style={{ textAlign: "right" }}>
                         <Text strong>
                           {formatCurrency(
-                            order.thanhToans.reduce((sum, p) => sum + (p.soTien || 0), 0),
+                            order.thanhToans.reduce(
+                              (sum, p) => sum + (p.soTien || 0),
+                              0
+                            )
                           )}
                         </Text>
                       </Col>
@@ -2524,22 +3525,27 @@ const BanHang = () => {
                       <Row
                         style={{
                           marginTop: 8,
-                          background: '#fff1f0',
-                          padding: '4px 8px',
+                          background: "#fff1f0",
+                          padding: "4px 8px",
                           borderRadius: 4,
-                          border: '1px solid #ffccc7',
+                          border: "1px solid #ffccc7",
                         }}
                       >
                         <Col span={12}>
                           <Text type="danger" strong>
-                            <span style={{ display: 'flex', alignItems: 'center' }}>
-                              <span style={{ marginRight: 4 }}>⚠️</span> Còn thiếu:
+                            <span
+                              style={{ display: "flex", alignItems: "center" }}
+                            >
+                              <span style={{ marginRight: 4 }}>⚠️</span> Còn
+                              thiếu:
                             </span>
                           </Text>
                         </Col>
-                        <Col span={12} style={{ textAlign: 'right' }}>
+                        <Col span={12} style={{ textAlign: "right" }}>
                           <Text type="danger" strong>
-                            {formatCurrency(calculateChange(order.id).remaining)}
+                            {formatCurrency(
+                              calculateChange(order.id).remaining
+                            )}
                           </Text>
                         </Col>
                       </Row>
@@ -2549,20 +3555,23 @@ const BanHang = () => {
                       <Row
                         style={{
                           marginTop: 8,
-                          background: '#f6ffed',
-                          padding: '4px 8px',
+                          background: "#f6ffed",
+                          padding: "4px 8px",
                           borderRadius: 4,
-                          border: '1px solid #b7eb8f',
+                          border: "1px solid #b7eb8f",
                         }}
                       >
                         <Col span={12}>
                           <Text type="success" strong>
-                            <span style={{ display: 'flex', alignItems: 'center' }}>
-                              <span style={{ marginRight: 4 }}>💰</span> Tiền thừa:
+                            <span
+                              style={{ display: "flex", alignItems: "center" }}
+                            >
+                              <span style={{ marginRight: 4 }}>💰</span> Tiền
+                              thừa:
                             </span>
                           </Text>
                         </Col>
-                        <Col span={12} style={{ textAlign: 'right' }}>
+                        <Col span={12} style={{ textAlign: "right" }}>
                           <Text type="success" strong>
                             {formatCurrency(calculateChange(order.id).change)}
                           </Text>
@@ -2574,477 +3583,561 @@ const BanHang = () => {
               </div>
             </div>
             {/* Phần hiển thị gợi ý voucher */}
-            {voucherSuggestions.show && voucherSuggestions.betterVouchers?.length > 0 && (
-              <div
-                className="voucher-suggestions"
-                style={{
-                  margin: '16px 0',
-                  padding: '12px',
-                  background: '#f6ffed',
-                  border: '1px solid #b7eb8f',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  maxHeight: '300px',
-                  overflowY: 'auto',
-                }}
-              >
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                  <Text strong style={{ fontSize: '14px', color: '#52c41a' }}>
-                    <InfoCircleOutlined style={{ marginRight: 8 }} />
-                    Có {voucherSuggestions.betterVouchers.length} voucher tốt hơn cho đơn hàng
-                  </Text>
+            {voucherSuggestions.show &&
+              voucherSuggestions.betterVouchers?.length > 0 && (
+                <div
+                  className="voucher-suggestions"
+                  style={{
+                    margin: "16px 0",
+                    padding: "16px",
+                    background: "#f6ffed",
+                    border: "1px solid #b7eb8f",
+                    borderRadius: "8px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    maxHeight: "500px", // Tăng chiều cao tối đa từ 300px lên 500px
+                    overflowY: "auto",
+                  }}
+                >
+                  <Space
+                    direction="vertical"
+                    size="small"
+                    style={{ width: "100%" }}
+                  >
+                    <Text strong style={{ fontSize: "16px", color: "#52c41a" }}>
+                      <InfoCircleOutlined style={{ marginRight: 8 }} />
+                      Có {voucherSuggestions.betterVouchers.length} voucher tốt
+                      hơn cho đơn hàng
+                    </Text>
 
-                  {voucherSuggestions.betterVouchers.map((voucher, index) => {
-                    const currentDiscount = order.phieuGiamGia
-                      ? calculateDiscountAmount(
-                          order.phieuGiamGia,
-                          totals[order.id]?.totalBeforeVoucher || 0,
-                        )
-                      : 0;
-                    // Đảm bảo totals đã được tính toán
-                    if (!totals[order.id]) {
-                      const initialTotals = calculateOrderTotals(order.id);
-                      // Khi component mới render lần đầu và chưa có totals
-                      if (initialTotals) {
-                        // Tính toán ngay tại chỗ để render đúng
-                        setTimeout(() => {
-                          setTotals((prev) => ({
-                            ...prev,
-                            [order.id]: initialTotals,
-                          }));
-                        }, 0);
-                      }
-                    }
-
-                    // Sử dụng giá trị totals đã tính hoặc tính ngay tại chỗ
-                    const orderTotals = totals[order.id] || calculateOrderTotals(order.id);
-                    return (
-                      <Card
-                        key={voucher.id}
-                        size="small"
-                        bordered={true}
-                        style={{ background: '#fff', marginBottom: 8 }}
-                        title={
-                          <Space>
-                            <TagOutlined style={{ color: '#1890ff' }} />
-                            <Text strong style={{ fontSize: '12px' }}>
-                              {voucher.maPhieuGiamGia}
-                            </Text>
-                            <Tag color="green" style={{ fontSize: '11px' }}>
-                              +{formatCurrency(voucher.additionalSavings)}
-                            </Tag>
-                          </Space>
-                        }
-                        extra={
-                          <Button
-                            type="primary"
-                            size="small"
-                            onClick={() => handleApplySuggestedVoucher(order.id, voucher.id)}
-                            disabled={totals[order.id]?.totalBeforeVoucher < voucher.giaTriToiThieu}
-                          >
-                            {totals[order.id]?.totalBeforeVoucher >= voucher.giaTriToiThieu
-                              ? 'Áp dụng'
-                              : 'Chưa đủ'}
-                          </Button>
-                        }
-                      >
-                        <Space direction="vertical" style={{ width: '100%' }} size="small">
-                          <div>
-                            <Text style={{ fontSize: '12px' }}>
-                              {voucher.loaiPhieuGiamGia === 1
-                                ? `Giảm ${voucher.giaTriGiam}% (tối đa ${formatCurrency(
-                                    voucher.soTienGiamToiDa,
-                                  )})`
-                                : `Giảm ${formatCurrency(voucher.giaTriGiam)}`}
-                            </Text>
-                            <br />
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              Đơn tối thiểu: {formatCurrency(voucher.giaTriToiThieu)}
-                            </Text>
-                          </div>
-                          {voucher.amountNeeded > 0 && (
-                            <Alert
-                              type="warning"
-                              message={
-                                <Space>
-                                  <InfoCircleOutlined />
-                                  <Text>
-                                    {totals[order.id]?.totalBeforeVoucher >=
-                                    voucher.giaTriToiThieu ? (
-                                      'Đã đủ điều kiện áp dụng'
-                                    ) : (
-                                      <>
-                                        Cần mua thêm{' '}
-                                        <Text strong style={{ color: '#ff4d4f' }}>
-                                          {formatCurrency(
-                                            voucher.giaTriToiThieu -
-                                              (totals[order.id]?.totalBeforeVoucher || 0),
-                                          )}
-                                        </Text>{' '}
-                                        để áp dụng mã
-                                      </>
-                                    )}
-                                  </Text>
-                                </Space>
+                    {voucherSuggestions.betterVouchers.map((voucher, index) => {
+                      return (
+                        <Card
+                          key={voucher.id}
+                          size="small"
+                          bordered={true}
+                          style={{ background: "#fff", marginBottom: 12 }} // Tăng khoảng cách giữa các card
+                          title={
+                            <Space>
+                              <TagOutlined style={{ color: "#1890ff" }} />
+                              <Text strong style={{ fontSize: "14px" }}>
+                                {" "}
+                                {/* Tăng kích thước font */}
+                                {voucher.maPhieuGiamGia}
+                              </Text>
+                              <Tag color="green" style={{ fontSize: "12px" }}>
+                                {" "}
+                                {/* Tăng kích thước font */}+
+                                {formatCurrency(voucher.additionalSavings)}
+                              </Tag>
+                            </Space>
+                          }
+                          extra={
+                            <Button
+                              type="primary"
+                              size="middle" // Tăng kích thước nút
+                              onClick={() =>
+                                handleApplySuggestedVoucher(
+                                  order.id,
+                                  voucher.id
+                                )
                               }
-                              style={{
-                                marginBottom: 8,
-                                fontSize: '12px',
-                                padding: '4px 8px',
-                              }}
-                            />
-                          )}
-
-                          {/* Hiển thị gợi ý sản phẩm thu gọn */}
-                          {(voucher.suggestions?.currentProducts?.length > 0 ||
-                            voucher.suggestions?.newProducts?.length > 0) && (
-                            <Collapse ghost size="small">
-                              <Collapse.Panel
-                                header={
-                                  <Text style={{ fontSize: '12px' }}>Xem gợi ý sản phẩm</Text>
-                                }
-                                key="1"
+                              disabled={
+                                totals[order.id]?.totalBeforeVoucher <
+                                voucher.giaTriToiThieu
+                              }
+                            >
+                              {totals[order.id]?.totalBeforeVoucher >=
+                              voucher.giaTriToiThieu
+                                ? "Áp dụng"
+                                : "Chưa đủ"}
+                            </Button>
+                          }
+                        >
+                          <Space
+                            direction="vertical"
+                            style={{ width: "100%" }}
+                            size="middle" // Tăng khoảng cách
+                          >
+                            <div>
+                              <Text style={{ fontSize: "14px" }}>
+                                {" "}
+                                {/* Tăng kích thước font */}
+                                {voucher.loaiPhieuGiamGia === 1
+                                  ? `Giảm ${
+                                      voucher.giaTriGiam
+                                    }% (tối đa ${formatCurrency(
+                                      voucher.soTienGiamToiDa
+                                    )})`
+                                  : `Giảm ${formatCurrency(
+                                      voucher.giaTriGiam
+                                    )}`}
+                              </Text>
+                              <br />
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: "13px" }} // Tăng kích thước font
                               >
-                                {voucher.suggestions?.currentProducts?.length > 0 && (
-                                  <div style={{ marginTop: 4 }}>
-                                    <Text strong style={{ fontSize: '12px' }}>
-                                      Mua thêm sản phẩm đã chọn:
+                                Đơn tối thiểu:{" "}
+                                {formatCurrency(voucher.giaTriToiThieu)}
+                              </Text>
+                            </div>
+                            {voucher.amountNeeded > 0 && (
+                              <Alert
+                                type="warning"
+                                message={
+                                  <Space>
+                                    <InfoCircleOutlined />
+                                    <Text style={{ fontSize: "13px" }}>
+                                      Cần mua thêm{" "}
+                                      <Text strong style={{ color: "#ff4d4f" }}>
+                                        {formatCurrency(voucher.amountNeeded)}
+                                      </Text>{" "}
+                                      để áp dụng mã
                                     </Text>
-                                    <List
-                                      size="small"
-                                      dataSource={voucher.suggestions.currentProducts}
-                                      renderItem={(product) => (
-                                        <List.Item
-                                          extra={
-                                            <Button
-                                              type="primary"
-                                              size="small"
-                                              onClick={() =>
-                                                handleUpdateQuantityForSuggestion(
-                                                  order.id,
-                                                  product.id,
-                                                  product.soLuong + product.quantityNeeded,
-                                                )
-                                              }
-                                            >
-                                              +{product.quantityNeeded}
-                                            </Button>
-                                          }
-                                        >
-                                          <List.Item.Meta
-                                            avatar={
-                                              <Avatar
-                                                src={product.hinhAnh?.[0]}
-                                                shape="square"
-                                                size="small"
-                                              />
-                                            }
-                                            title={
-                                              <Text style={{ fontSize: '12px' }}>
-                                                {product.tenSanPham}
-                                              </Text>
-                                            }
-                                            description={
-                                              <Text type="secondary" style={{ fontSize: '11px' }}>
-                                                {formatCurrency(product.gia)} x{product.soLuong}
-                                              </Text>
-                                            }
-                                          />
-                                        </List.Item>
-                                      )}
-                                    />
-                                  </div>
-                                )}
+                                  </Space>
+                                }
+                                style={{
+                                  marginBottom: 8,
+                                  fontSize: "13px",
+                                  padding: "8px 12px", // Tăng padding
+                                }}
+                              />
+                            )}
 
-                                {voucher.suggestions?.newProducts?.length > 0 && (
-                                  <Collapse ghost>
-                                    <Collapse.Panel
-                                      header={
-                                        <Text
+                            {voucher.amountNeeded === 0 && (
+                              <Alert
+                                type="success"
+                                message={
+                                  <Space>
+                                    <CheckCircleOutlined />
+                                    <Text style={{ fontSize: "13px" }}>
+                                      Đã đủ điều kiện áp dụng
+                                    </Text>
+                                  </Space>
+                                }
+                                style={{
+                                  marginBottom: 8,
+                                  fontSize: "13px",
+                                  padding: "8px 12px",
+                                }}
+                              />
+                            )}
+
+                            {/* Hiển thị gợi ý sản phẩm thu gọn */}
+                            {voucher.suggestions?.newProducts?.length > 0 && (
+                              <Collapse ghost>
+                                <Collapse.Panel
+                                  header={
+                                    <Text
+                                      style={{
+                                        fontSize: "15px",
+                                        color: "#003a8c",
+                                      }}
+                                    >
+                                      <ShoppingOutlined
+                                        style={{ marginRight: 6 }}
+                                      />
+                                      {/* Thay đổi nội dung header để không hiển thị thông tin dư thừa */}
+                                      Gợi ý{" "}
+                                      {voucher.suggestions.newProducts.length}{" "}
+                                      sản phẩm phù hợp
+                                    </Text>
+                                  }
+                                  key={`product-suggestions-${voucher.id}`}
+                                >
+                                  {/* Phần hiển thị các nhóm sản phẩm gợi ý - sửa lại cho đồng đều */}
+                                  {[
+                                    "perfect",
+                                    "lower",
+                                    "veryLow",
+                                    "higher",
+                                    "veryHigh",
+                                  ].map((category) => {
+                                    const productsInCategory =
+                                      voucher.suggestions.newProducts.filter(
+                                        (p) => p.priceCategory === category
+                                      );
+                                    if (productsInCategory.length === 0)
+                                      return null;
+
+                                    // Lấy thông tin phân loại từ sản phẩm đầu tiên
+                                    const categoryInfo = productsInCategory[0];
+
+                                    return (
+                                      <div
+                                        key={category}
+                                        style={{ marginBottom: 24 }}
+                                      >
+                                        <div
                                           style={{
-                                            fontSize: '14px',
-                                            color: '#003a8c',
+                                            margin: "12px 0",
+                                            borderBottom: "1px solid #f0f0f0",
+                                            paddingBottom: 12,
                                           }}
                                         >
-                                          <ShoppingOutlined style={{ marginRight: 6 }} />
-                                          Gợi ý {voucher.suggestions.newProducts.length} sản phẩm
-                                          phù hợp
-                                        </Text>
-                                      }
-                                      key={`product-suggestions-${voucher.id}`}
-                                    >
-                                      <List
-                                        grid={{
-                                          gutter: 8,
-                                          xs: 1,
-                                          sm: 1,
-                                          md: 2,
-                                          lg: 2,
-                                          xl: 2,
-                                          xxl: 2,
-                                        }}
-                                        dataSource={voucher.suggestions.newProducts}
-                                        renderItem={(product) => (
-                                          <List.Item>
-                                            <Card
-                                              size="small"
-                                              hoverable
-                                              style={{
-                                                marginBottom: 10,
-                                                boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                                                border: '1px solid #eee',
-                                              }}
-                                              cover={
+                                          <Tag
+                                            color={categoryInfo.categoryColor}
+                                            style={{
+                                              marginRight: 8,
+                                              fontSize: "13px",
+                                              padding: "2px 8px",
+                                            }}
+                                          >
+                                            {categoryInfo.categoryLabel}
+                                          </Tag>
+                                          <Text
+                                            type="secondary"
+                                            style={{ fontSize: 13 }}
+                                          >
+                                            {category === "perfect"
+                                              ? "Đạt yêu cầu voucher sau khi thêm 1 sản phẩm"
+                                              : category === "lower" ||
+                                                category === "veryLow"
+                                              ? "Cần thêm nhiều sản phẩm để đạt yêu cầu voucher"
+                                              : "Vượt yêu cầu voucher sau khi thêm 1 sản phẩm"}
+                                          </Text>
+                                        </div>
+                                        <List
+                                          grid={{
+                                            gutter: [16, 16], // Khoảng cách đồng đều giữa các item
+                                            column: 2, // Cố định 2 cột cho tất cả các trường hợp
+                                            xs: 1, // Mobile: 1 cột
+                                            sm: 1, // Small screens: 1 cột
+                                            md: 2, // Medium+: 2 cột
+                                            lg: 2,
+                                            xl: 2,
+                                            xxl: 2,
+                                          }}
+                                          dataSource={productsInCategory.slice(
+                                            0,
+                                            category === "perfect" ? 4 : 3
+                                          )} // Giới hạn số lượng để tránh quá dài
+                                          renderItem={(product) => (
+                                            <List.Item
+                                              style={{ margin: 0, padding: 0 }}
+                                            >
+                                              <Card
+                                                size="small"
+                                                hoverable
+                                                bodyStyle={{ padding: "12px" }}
+                                                style={{
+                                                  width: "100%", // Đảm bảo card chiếm toàn bộ độ rộng của List.Item
+                                                  height: "100%", // Đảm bảo chiều cao đồng đều
+                                                  boxShadow:
+                                                    "0 2px 6px rgba(0,0,0,0.15)",
+                                                  border: "1px solid #eee",
+                                                  borderLeft: `4px solid ${categoryInfo.categoryColor}`,
+                                                  display: "flex",
+                                                  flexDirection: "column", // Sắp xếp nội dung theo chiều dọc
+                                                }}
+                                                cover={
+                                                  <div
+                                                    style={{
+                                                      height: 140,
+                                                      overflow: "hidden",
+                                                      display: "flex",
+                                                      alignItems: "center",
+                                                      justifyContent: "center",
+                                                      backgroundColor:
+                                                        "#f5f5f5",
+                                                    }}
+                                                  >
+                                                    {/* Thay đổi ở đây - sử dụng component ProductImage */}
+                                                    <ProductImage
+                                                      sanPhamChiTietId={
+                                                        product.id
+                                                      }
+                                                    />
+                                                  </div>
+                                                }
+                                                actions={[
+                                                  <Button
+                                                    type="primary"
+                                                    size="middle"
+                                                    icon={<PlusOutlined />}
+                                                    onClick={() =>
+                                                      handleAddSuggestedProduct(
+                                                        product
+                                                      )
+                                                    }
+                                                    style={{
+                                                      backgroundColor:
+                                                        categoryInfo.categoryColor,
+                                                      borderColor:
+                                                        categoryInfo.categoryColor,
+                                                      width: "90%",
+                                                    }}
+                                                    loading={loading}
+                                                  >
+                                                    Thêm vào đơn
+                                                  </Button>,
+                                                ]}
+                                              >
                                                 <div
                                                   style={{
-                                                    height: 120,
-                                                    overflow: 'hidden',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    backgroundColor: '#f5f5f5',
+                                                    flexGrow: 1,
+                                                    display: "flex",
+                                                    flexDirection: "column",
                                                   }}
                                                 >
-                                                  {product.hinhAnh &&
-                                                  Array.isArray(product.hinhAnh) &&
-                                                  product.hinhAnh.length > 0 ? (
-                                                    <img
-                                                      alt={product.tenSanPham}
-                                                      src={product.hinhAnh[0]}
-                                                      style={{
-                                                        width: '100%',
-                                                        height: '100%',
-                                                        objectFit: 'cover',
-                                                      }}
-                                                      onError={(e) => {
-                                                        e.target.onerror = null;
-                                                        e.target.src =
-                                                          'https://via.placeholder.com/120x120?text=No+Image';
-                                                      }}
-                                                    />
-                                                  ) : (
-                                                    <AppstoreOutlined
-                                                      style={{
-                                                        fontSize: 24,
-                                                        color: '#bfbfbf',
-                                                      }}
-                                                    />
-                                                  )}
-                                                </div>
-                                              }
-                                              actions={[
-                                                <Button
-                                                  type="primary"
-                                                  size="small"
-                                                  icon={<PlusOutlined />}
-                                                  onClick={() => handleAddSuggestedProduct(product)}
-                                                  style={{
-                                                    backgroundColor: '#002140',
-                                                    borderColor: '#002140',
-                                                  }}
-                                                  loading={loading}
-                                                >
-                                                  Thêm
-                                                </Button>,
-                                              ]}
-                                            >
-                                              <Card.Meta
-                                                title={
-                                                  <Tooltip title={product.tenSanPham}>
+                                                  <Tooltip
+                                                    title={
+                                                      product.tenSanPham ||
+                                                      product.sanPham
+                                                        ?.tenSanPham
+                                                    }
+                                                  >
                                                     <div
                                                       style={{
-                                                        fontSize: '13px',
-                                                        fontWeight: 'bold',
-                                                        overflow: 'hidden',
-                                                        textOverflow: 'ellipsis',
-                                                        whiteSpace: 'nowrap',
-                                                        marginBottom: 4,
-                                                        color: '#1f1f1f',
+                                                        fontSize: "15px",
+                                                        fontWeight: "bold",
+                                                        overflow: "hidden",
+                                                        textOverflow:
+                                                          "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        marginBottom: 8,
+                                                        color: "#1f1f1f",
+                                                        height: "22px", // Chiều cao cố định cho tiêu đề
                                                       }}
                                                     >
-                                                      {product.sanPham.tenSanPham || 'Không có tên'}
+                                                      {product.sanPham
+                                                        ?.tenSanPham ||
+                                                        product.tenSanPham ||
+                                                        "Không có tên"}
                                                     </div>
                                                   </Tooltip>
-                                                }
-                                                description={
-                                                  <>
-                                                    <Space
-                                                      direction="vertical"
-                                                      size={0}
+
+                                                  <Space
+                                                    direction="vertical"
+                                                    size={4}
+                                                    style={{
+                                                      width: "100%",
+                                                    }}
+                                                  >
+                                                    {/* Hiển thị giá và % đáp ứng nhu cầu voucher */}
+                                                    <div
                                                       style={{
-                                                        width: '100%',
+                                                        display: "flex",
+                                                        justifyContent:
+                                                          "space-between",
+                                                        alignItems: "center",
+                                                        marginBottom: 6,
                                                       }}
                                                     >
-                                                      {/* Hiển thị giá sản phẩm */}
-                                                      <div
+                                                      <Text
+                                                        type="danger"
+                                                        strong
                                                         style={{
-                                                          marginBottom: 8,
+                                                          fontSize: "15px",
                                                         }}
                                                       >
-                                                        <Text
-                                                          type="danger"
-                                                          strong
-                                                          style={{
-                                                            fontSize: '14px',
-                                                          }}
-                                                        >
-                                                          {formatCurrency(product.gia)}
-                                                        </Text>
-                                                      </div>
+                                                        {formatCurrency(
+                                                          product.gia
+                                                        )}
+                                                      </Text>
+                                                      <Tag
+                                                        color={
+                                                          categoryInfo.categoryColor
+                                                        }
+                                                        style={{
+                                                          fontSize: "11px",
+                                                          padding: "1px 6px",
+                                                        }}
+                                                      >
+                                                        {Math.round(
+                                                          (product.gia /
+                                                            voucher.amountNeeded) *
+                                                            100
+                                                        )}
+                                                        % yêu cầu
+                                                      </Tag>
+                                                    </div>
 
-                                                      {/* Mã sản phẩm - Thêm kiểm tra chi tiết */}
-                                                      <Typography.Text
-                                                        type="secondary"
-                                                        style={{
-                                                          fontSize: '12px',
-                                                        }}
-                                                      >
-                                                        Mã:{' '}
-                                                        <Typography.Text
-                                                          strong
-                                                          style={{
-                                                            fontSize: '12px',
-                                                          }}
-                                                        >
-                                                          {product.maSanPhamChiTiet || '---'}
-                                                        </Typography.Text>
-                                                      </Typography.Text>
-
-                                                      {/* Chất liệu */}
-                                                      <Typography.Text
-                                                        type="secondary"
-                                                        style={{
-                                                          fontSize: '12px',
-                                                        }}
-                                                      >
-                                                        Chất liệu:{' '}
-                                                        <Typography.Text
-                                                          strong
-                                                          style={{
-                                                            fontSize: '12px',
-                                                          }}
-                                                        >
-                                                          {typeof product.chatLieu === 'object'
-                                                            ? product.chatLieu?.tenChatLieu || 'N/A'
-                                                            : product.chatLieu || 'N/A'}
-                                                        </Typography.Text>
-                                                      </Typography.Text>
-
-                                                      {/* Màu sắc và kích thước */}
-                                                      <div
-                                                        style={{
-                                                          display: 'flex',
-                                                          justifyContent: 'space-between',
-                                                          marginTop: 2,
-                                                        }}
-                                                      >
-                                                        <div>
-                                                          <Typography.Text
-                                                            type="secondary"
-                                                            style={{
-                                                              fontSize: '12px',
-                                                            }}
-                                                          >
-                                                            Màu:{' '}
-                                                            <Typography.Text
-                                                              strong
-                                                              style={{
-                                                                fontSize: '12px',
-                                                              }}
-                                                            >
-                                                              {typeof product.mauSac === 'object'
-                                                                ? product.mauSac?.tenMau || 'N/A'
-                                                                : product.mauSac || 'N/A'}
-                                                            </Typography.Text>
-                                                            {product.maMauSac && (
-                                                              <div
-                                                                style={{
-                                                                  display: 'inline-block',
-                                                                  width: 16,
-                                                                  height: 12,
-                                                                  borderRadius: 4,
-                                                                  backgroundColor:
-                                                                    product.maMauSac || '#FFFFFF',
-                                                                  border:
-                                                                    '1px solid rgba(0, 0, 0, 0.1)',
-                                                                  verticalAlign: 'middle',
-                                                                  marginLeft: 5,
-                                                                }}
-                                                              />
-                                                            )}
-                                                          </Typography.Text>
-                                                        </div>
+                                                    {/* Thông tin sản phẩm */}
+                                                    <Row gutter={[8, 4]}>
+                                                      <Col span={12}>
                                                         <Typography.Text
                                                           type="secondary"
                                                           style={{
-                                                            fontSize: '12px',
+                                                            fontSize: "13px",
                                                           }}
                                                         >
-                                                          Size:{' '}
+                                                          <span
+                                                            style={{
+                                                              display:
+                                                                "inline-block",
+                                                              width: 36,
+                                                            }}
+                                                          >
+                                                            Mã:
+                                                          </span>
                                                           <Typography.Text
                                                             strong
                                                             style={{
-                                                              fontSize: '12px',
+                                                              fontSize: "13px",
                                                             }}
                                                           >
-                                                            {typeof product.kichThuoc === 'object'
-                                                              ? product.kichThuoc?.tenKichThuoc ||
-                                                                'N/A'
-                                                              : product.kichThuoc || 'N/A'}
+                                                            {product.maSanPhamChiTiet ||
+                                                              "---"}
                                                           </Typography.Text>
                                                         </Typography.Text>
-                                                      </div>
-
-                                                      {/* Tồn kho - Kiểm tra nhiều cách hiển thị số lượng */}
-                                                      <Typography.Text
-                                                        type="secondary"
-                                                        style={{
-                                                          fontSize: '12px',
-                                                          marginTop: 2,
-                                                        }}
-                                                      >
-                                                        Tồn kho:{' '}
+                                                      </Col>
+                                                      <Col span={12}>
                                                         <Typography.Text
-                                                          strong
+                                                          type="secondary"
                                                           style={{
-                                                            fontSize: '12px',
-                                                            color:
-                                                              (product.soLuong ||
-                                                                product.soLuongTonKho ||
-                                                                0) > 0
-                                                                ? '#52c41a'
-                                                                : '#f5222d',
+                                                            fontSize: "13px",
                                                           }}
                                                         >
-                                                          {product.soLuong ||
-                                                            product.soLuongTonKho ||
-                                                            0}
+                                                          <span
+                                                            style={{
+                                                              display:
+                                                                "inline-block",
+                                                              width: 36,
+                                                            }}
+                                                          >
+                                                            Size:
+                                                          </span>
+                                                          <Typography.Text
+                                                            strong
+                                                            style={{
+                                                              fontSize: "13px",
+                                                            }}
+                                                          >
+                                                            {typeof product.kichThuoc ===
+                                                            "object"
+                                                              ? product
+                                                                  .kichThuoc
+                                                                  ?.tenKichThuoc ||
+                                                                "N/A"
+                                                              : product.kichThuoc ||
+                                                                "N/A"}
+                                                          </Typography.Text>
                                                         </Typography.Text>
-                                                      </Typography.Text>
-                                                    </Space>
-                                                  </>
-                                                }
-                                              />
-                                            </Card>
-                                          </List.Item>
-                                        )}
-                                      />
-                                    </Collapse.Panel>
-                                  </Collapse>
-                                )}
-                              </Collapse.Panel>
-                            </Collapse>
-                          )}
-                        </Space>
-                      </Card>
-                    );
-                  })}
-                </Space>
-              </div>
-            )}
+                                                      </Col>
+                                                      <Col span={24}>
+                                                        <Typography.Text
+                                                          type="secondary"
+                                                          style={{
+                                                            fontSize: "13px",
+                                                          }}
+                                                        >
+                                                          <span
+                                                            style={{
+                                                              display:
+                                                                "inline-block",
+                                                              width: 36,
+                                                            }}
+                                                          >
+                                                            Màu:
+                                                          </span>
+                                                          <Typography.Text
+                                                            strong
+                                                            style={{
+                                                              fontSize: "13px",
+                                                            }}
+                                                          >
+                                                            {typeof product.mauSac ===
+                                                            "object"
+                                                              ? product.mauSac
+                                                                  ?.tenMau ||
+                                                                "N/A"
+                                                              : product.mauSac ||
+                                                                "N/A"}
+                                                          </Typography.Text>
+                                                          {product.maMauSac && (
+                                                            <div
+                                                              style={{
+                                                                display:
+                                                                  "inline-block",
+                                                                width: 20,
+                                                                height: 14,
+                                                                borderRadius: 4,
+                                                                backgroundColor:
+                                                                  product.maMauSac ||
+                                                                  "#FFFFFF",
+                                                                border:
+                                                                  "1px solid rgba(0, 0, 0, 0.1)",
+                                                                verticalAlign:
+                                                                  "middle",
+                                                                marginLeft: 5,
+                                                              }}
+                                                            />
+                                                          )}
+                                                        </Typography.Text>
+                                                      </Col>
+                                                      <Col span={24}>
+                                                        <Typography.Text
+                                                          type="secondary"
+                                                          style={{
+                                                            fontSize: "13px",
+                                                          }}
+                                                        >
+                                                          <span
+                                                            style={{
+                                                              display:
+                                                                "inline-block",
+                                                              width: 36,
+                                                            }}
+                                                          >
+                                                            Kho:
+                                                          </span>
+                                                          <Typography.Text
+                                                            strong
+                                                            style={{
+                                                              fontSize: "13px",
+                                                              color:
+                                                                (product.soLuong ||
+                                                                  product.soLuongTonKho ||
+                                                                  0) > 0
+                                                                  ? "#52c41a"
+                                                                  : "#f5222d",
+                                                            }}
+                                                          >
+                                                            {product.soLuong ||
+                                                              product.soLuongTonKho ||
+                                                              0}
+                                                          </Typography.Text>
+                                                        </Typography.Text>
+                                                      </Col>
+                                                    </Row>
+                                                  </Space>
+                                                </div>
+                                              </Card>
+                                            </List.Item>
+                                          )}
+                                        />
+                                      </div>
+                                    );
+                                  })}
 
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Button type="primary" block onClick={() => handleConfirmOrder(order.id)}>
+                                  {/* Thêm thông tin hướng dẫn */}
+                                  <Alert
+                                    message="Gợi ý: Bạn có thể chọn sản phẩm phù hợp từ các gợi ý trên để đạt điều kiện áp dụng voucher"
+                                    type="success"
+                                    showIcon
+                                    style={{
+                                      marginTop: 16,
+                                      padding: "10px 12px",
+                                    }}
+                                  />
+                                </Collapse.Panel>
+                              </Collapse>
+                            )}
+                          </Space>
+                        </Card>
+                      );
+                    })}
+                  </Space>
+                </div>
+              )}
+
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Button
+                type="primary"
+                block
+                onClick={() => handleConfirmOrder(order.id)}
+              >
                 Xác nhận đơn hàng
               </Button>
             </Space>
@@ -3057,7 +4150,7 @@ const BanHang = () => {
   const handleAddNewCustomer = () => {
     // Kiểm tra xem có đơn hàng active không
     if (!activeKey) {
-      message.error('Vui lòng tạo hoặc chọn đơn hàng trước');
+      message.error("Vui lòng tạo hoặc chọn đơn hàng trước");
       return;
     }
 
@@ -3073,7 +4166,10 @@ const BanHang = () => {
     try {
       // Nếu có dữ liệu khách hàng mới được truyền trực tiếp từ form
       if (newCustomerData) {
-        console.log('Sử dụng dữ liệu khách hàng mới từ CreateForm:', newCustomerData);
+        console.log(
+          "Sử dụng dữ liệu khách hàng mới từ CreateForm:",
+          newCustomerData
+        );
 
         // Cập nhật danh sách khách hàng
         setCustomers((prev) => [newCustomerData, ...prev]);
@@ -3088,7 +4184,7 @@ const BanHang = () => {
               headers: {
                 Authorization: `Bearer ${token}`, // Headers go here as third parameter
               },
-            },
+            }
           );
 
           // Cập nhật UI
@@ -3103,15 +4199,17 @@ const BanHang = () => {
                       khachHang: newCustomerData,
                     },
                   }
-                : tab,
-            ),
+                : tab
+            )
           );
 
-          message.success(`Đã tạo và chọn khách hàng: ${newCustomerData.tenKhachHang}`);
+          message.success(
+            `Đã tạo và chọn khách hàng: ${newCustomerData.tenKhachHang}`
+          );
         } catch (error) {
-          console.error('Lỗi khi liên kết khách hàng với hóa đơn:', error);
-          console.error('Chi tiết:', error.response?.data);
-          message.error('Không thể liên kết khách hàng mới với hóa đơn');
+          console.error("Lỗi khi liên kết khách hàng với hóa đơn:", error);
+          console.error("Chi tiết:", error.response?.data);
+          message.error("Không thể liên kết khách hàng mới với hóa đơn");
         }
 
         // Đóng modal
@@ -3120,17 +4218,21 @@ const BanHang = () => {
       }
 
       // Nếu không có dữ liệu trực tiếp, tải lại danh sách
-      const response = await axios.get('http://localhost:8080/api/admin/khach_hang', {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
+      const response = await axios.get(
+        "http://localhost:8080/api/admin/khach_hang",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          },
+        }
+      );
       setCustomers(response.data);
     } catch (error) {
-      console.error('Lỗi khi làm mới danh sách khách hàng:', error);
-      message.error('Không thể cập nhật thông tin khách hàng mới');
+      console.error("Lỗi khi làm mới danh sách khách hàng:", error);
+      message.error("Không thể cập nhật thông tin khách hàng mới");
     }
   };
+
   // Thêm component wrapper để tương thích với CreateForm
   const CustomerFormWrapper = ({ onCustomerCreated }) => {
     const [customersList, setCustomersList] = useState([]);
@@ -3141,14 +4243,17 @@ const BanHang = () => {
       const loadAllCustomers = async () => {
         try {
           setIsLoading(true);
-          const response = await axios.get('http://localhost:8080/api/admin/khach_hang', {
-            headers: {
-              Authorization: `Bearer ${token}`, // Thêm token vào header
-            },
-          });
+          const response = await axios.get(
+            "http://localhost:8080/api/admin/khach_hang",
+            {
+              headers: {
+                Authorization: `Bearer ${token}`, // Thêm token vào header
+              },
+            }
+          );
           setCustomersList(response.data || []);
         } catch (error) {
-          console.error('Lỗi khi tải danh sách khách hàng:', error);
+          console.error("Lỗi khi tải danh sách khách hàng:", error);
         } finally {
           setIsLoading(false);
         }
@@ -3164,7 +4269,7 @@ const BanHang = () => {
 
     // Xử lý khi khách hàng mới được tạo từ CreateForm
     const handleCustomerCreated = (newCustomerData) => {
-      console.log('Khách hàng mới được tạo:', newCustomerData);
+      console.log("Khách hàng mới được tạo:", newCustomerData);
       if (newCustomerData && onCustomerCreated) {
         onCustomerCreated(newCustomerData);
       }
@@ -3172,7 +4277,7 @@ const BanHang = () => {
 
     if (isLoading) {
       return (
-        <div style={{ textAlign: 'center', margin: '20px 0' }}>
+        <div style={{ textAlign: "center", margin: "20px 0" }}>
           <Spin tip="Đang tải..." />
         </div>
       );
@@ -3181,13 +4286,15 @@ const BanHang = () => {
     return (
       <CreateForm
         getAllKhachHang={getCustomerList}
-        handleClose={(newCustomerData) => handleCustomerCreated(newCustomerData)}
+        handleClose={(newCustomerData) =>
+          handleCustomerCreated(newCustomerData)
+        }
       />
     );
   };
 
   const handleDeliveryMethodChange = async (hoaDonId, method) => {
-    const isDelivery = method === 'giaoHang';
+    const isDelivery = method === "giaoHang";
     const loaiHoaDon = isDelivery ? 3 : 2; // 3 là giao hàng, 2 là tại quầy
 
     try {
@@ -3198,7 +4305,7 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
+        }
       );
 
       // Cập nhật tabs state với loại hóa đơn mới
@@ -3208,7 +4315,7 @@ const BanHang = () => {
             return { ...tab, order: { ...tab.order, loaiHoaDon: loaiHoaDon } };
           }
           return tab;
-        }),
+        })
       );
 
       // Nếu chuyển sang giao hàng và có khách hàng, tự động chọn địa chỉ đầu tiên
@@ -3228,14 +4335,17 @@ const BanHang = () => {
         setSelectedAddress(null);
       }
 
-      message.success(`Đã chuyển sang ${isDelivery ? 'Giao hàng' : 'Tại quầy'}`);
+      message.success(
+        `Đã chuyển sang ${isDelivery ? "Giao hàng" : "Tại quầy"}`
+      );
 
       // Sau khi chuyển sang giao hàng và chọn địa chỉ, tự động tính phí vận chuyển
       if (isDelivery && selectedAddress && giaoHangRef.current) {
         // Đợi lâu hơn một chút để đảm bảo địa chỉ đã được chọn
         setTimeout(async () => {
           try {
-            const shippingFee = await giaoHangRef.current.calculateShippingFee();
+            const shippingFee =
+              await giaoHangRef.current.calculateShippingFee();
 
             // Cập nhật tổng tiền sau khi có phí vận chuyển
             if (shippingFee) {
@@ -3255,46 +4365,65 @@ const BanHang = () => {
               });
             }
           } catch (error) {
-            console.error('Lỗi khi tính phí vận chuyển:', error);
+            console.error("Lỗi khi tính phí vận chuyển:", error);
           }
         }, 800); // Đợi lâu hơn để đảm bảo quy trình chọn địa chỉ đã hoàn tất
       }
     } catch (error) {
-      console.error('Lỗi khi thay đổi loại hóa đơn:', error);
-      message.error('Không thể thay đổi loại hóa đơn');
+      console.error("Lỗi khi thay đổi loại hóa đơn:", error);
+      message.error("Không thể thay đổi loại hóa đơn");
     }
   };
   // Update handlePaymentMethodChange to include IDs for payment methods
   const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
     const orderTotal = totals[hoaDonId]?.finalTotal || 0;
-    const hasBothMethods =
-      selectedMethods.includes(PAYMENT_METHOD.CASH) && selectedMethods.includes(PAYMENT_METHOD.QR);
-
+    
+    // Kiểm tra xem có chọn cả VNPAY và QR không
+    const hasVnpayAndQr = selectedMethods.includes(PAYMENT_METHOD.VNPAY) && 
+                          selectedMethods.includes(PAYMENT_METHOD.QR);
+                          
+    // Nếu đồng thời chọn cả VNPAY và QR, ưu tiên giữ lại VNPAY và loại bỏ QR
+    if (hasVnpayAndQr) {
+      selectedMethods = selectedMethods.filter(method => method !== PAYMENT_METHOD.QR);
+      message.info("Chỉ được chọn một trong hai phương thức VNPAY hoặc QR. Đã tự động chọn VNPAY.");
+    }
+    
+    const hasCash = selectedMethods.includes(PAYMENT_METHOD.CASH);
+  
     // Map selected methods to payment objects with proper structure
     const selectedPayments = selectedMethods
       .map((methodCode) => {
         // Find the full payment method object from paymentMethods array
-        const method = paymentMethods.find((m) => m.maPhuongThucThanhToan === methodCode);
-
+        const method = paymentMethods.find(
+          (m) => m.maPhuongThucThanhToan === methodCode
+        );
+  
         if (!method) {
-          console.error('Payment method not found:', methodCode);
+          console.error("Payment method not found:", methodCode);
           return null;
         }
-
+  
         // Calculate default amount based on payment method
         let defaultAmount = 0;
-        if (hasBothMethods) {
-          if (methodCode === PAYMENT_METHOD.QR) {
-            defaultAmount = orderTotal; // Default bank transfer to total amount
+        
+        if (selectedMethods.length === 1) {
+          // Nếu chỉ có một phương thức thanh toán, gán toàn bộ số tiền vào đó
+          defaultAmount = orderTotal;
+        } 
+        else if (hasCash) {
+          // Nếu có tiền mặt và có phương thức khác
+          if (methodCode === PAYMENT_METHOD.CASH) {
+            // Nếu là tiền mặt, mặc định là 0
+            defaultAmount = 0;
+          } else {
+            // Nếu là phương thức khác (QR hoặc VNPAY), mặc định là toàn bộ
+            defaultAmount = orderTotal;
           }
-          // Cash amount starts at 0 when both methods are selected
-        } else if (selectedMethods.length === 1) {
-          defaultAmount = orderTotal; // Single payment method gets full amount
         }
-
+  
         // Create payment object with unique ID
         const paymentId = `${hoaDonId}_${methodCode}`;
-
+  
         return {
           id: paymentId,
           maPhuongThucThanhToan: method.maPhuongThucThanhToan,
@@ -3303,7 +4432,7 @@ const BanHang = () => {
         };
       })
       .filter(Boolean); // Remove any null values
-
+  
     // Update tabs state with new payments
     setTabs((prev) =>
       prev.map((tab) =>
@@ -3315,32 +4444,42 @@ const BanHang = () => {
                 thanhToans: selectedPayments,
               },
             }
-          : tab,
-      ),
+          : tab
+      )
     );
-
-    // Generate QR code if bank transfer is selected
+  
+    // Generate QR code if QR payment is selected
     if (selectedMethods.includes(PAYMENT_METHOD.QR)) {
-      const qrAmount = hasBothMethods ? orderTotal : orderTotal;
-      generateQR(hoaDonId, qrAmount);
+      generateQR(hoaDonId, orderTotal);
     }
   };
 
   // Update the payment input handler for better experience when using both payment methods
-  // Update handlePaymentAmountChange to maintain payment IDs
   const handlePaymentAmountChange = (hoaDonId, methodCode, amount) => {
     const orderTotal = totals[hoaDonId]?.finalTotal || 0;
     const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
-
+  
     if (!currentOrder?.thanhToans) return;
-
-    const hasBothMethods =
-      currentOrder.thanhToans.some((p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) &&
-      currentOrder.thanhToans.some((p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR);
-
+  
+    // Kiểm tra có cả phương thức tiền mặt và phương thức khác không
+    const hasCashMethod = currentOrder.thanhToans.some(
+      (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
+    );
+  
+    const hasVnpayMethod = currentOrder.thanhToans.some(
+      (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+    );
+  
+    const hasQrMethod = currentOrder.thanhToans.some(
+      (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
+    );
+  
+    const hasNonCashMethods = hasVnpayMethod || hasQrMethod;
+    const hasBothMethods = hasCashMethod && hasNonCashMethods;
+  
     // Nếu là thanh toán tiền mặt và số tiền vượt quá tổng đơn hàng
     if (methodCode === PAYMENT_METHOD.CASH && amount > orderTotal) {
-      // Người dùng đưa tiền nhiều hơn, chỉ dùng phương thức tiền mặt
+      // Người dùng đưa tiền nhiều hơn, chỉ dùng phương thức tiền mặt và vô hiệu hóa các phương thức khác
       if (hasBothMethods) {
         setTabs((prev) =>
           prev.map((tab) =>
@@ -3349,21 +4488,19 @@ const BanHang = () => {
                   ...tab,
                   order: {
                     ...tab.order,
-                    thanhToans: tab.order.thanhToans.map((p) =>
-                      p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
-                        ? { ...p, soTien: amount } // Giữ nguyên số tiền người dùng nhập vào
-                        : p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
-                        ? { ...p, soTien: 0 } // Đặt số tiền chuyển khoản về 0
-                        : p,
+                    thanhToans: tab.order.thanhToans.map(
+                      (p) =>
+                        p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
+                          ? { ...p, soTien: amount } // Giữ nguyên số tiền người dùng nhập vào
+                          : { ...p, soTien: 0 } // Đặt số tiền các phương thức khác về 0
                     ),
                   },
                 }
-              : tab,
-          ),
+              : tab
+          )
         );
-
-        // Thông báo cho người dùng
-        message.info('Đơn hàng sẽ thanh toán bằng tiền mặt và có tiền thừa');
+  
+        message.info("Đơn hàng sẽ thanh toán bằng tiền mặt và có tiền thừa");
       } else {
         // Nếu chỉ có một phương thức thanh toán tiền mặt, cập nhật bình thường
         setTabs((prev) =>
@@ -3374,45 +4511,98 @@ const BanHang = () => {
                   order: {
                     ...tab.order,
                     thanhToans: tab.order.thanhToans.map((p) =>
-                      p.maPhuongThucThanhToan === methodCode ? { ...p, soTien: amount } : p,
+                      p.maPhuongThucThanhToan === methodCode
+                        ? { ...p, soTien: amount }
+                        : p
                     ),
                   },
                 }
-              : tab,
-          ),
+              : tab
+          )
         );
       }
     }
     // Xử lý thanh toán tiền mặt bình thường khi số tiền <= tổng đơn hàng
     else if (methodCode === PAYMENT_METHOD.CASH) {
-      // Nếu có cả hai phương thức thanh toán, tự động điều chỉnh số tiền chuyển khoản
+      // Nếu có cả hai phương thức thanh toán, tự động điều chỉnh số tiền các phương thức khác
       if (hasBothMethods) {
         const cashAmount = amount || 0;
-        const transferAmount = Math.max(0, orderTotal - cashAmount);
-
-        setTabs((prev) =>
-          prev.map((tab) =>
-            tab.key === hoaDonId
-              ? {
-                  ...tab,
-                  order: {
-                    ...tab.order,
-                    thanhToans: tab.order.thanhToans.map((p) =>
-                      p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
-                        ? { ...p, soTien: cashAmount }
-                        : p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
-                        ? { ...p, soTien: transferAmount }
-                        : p,
-                    ),
-                  },
-                }
-              : tab,
-          ),
-        );
-
-        // Cập nhật QR code với số tiền chuyển khoản mới
-        if (transferAmount > 0) {
-          generateQR(hoaDonId, transferAmount);
+        const remainingAmount = Math.max(0, orderTotal - cashAmount);
+  
+        // Ưu tiên thanh toán cho phương thức thanh toán hiện có
+        // Ưu tiên cho VNPAY nếu có, sau đó đến QR
+        if (hasVnpayMethod && !hasQrMethod) {
+          // Nếu chỉ có VNPAY, toàn bộ số còn lại cho VNPAY
+          setTabs((prev) =>
+            prev.map((tab) =>
+              tab.key === hoaDonId
+                ? {
+                    ...tab,
+                    order: {
+                      ...tab.order,
+                      thanhToans: tab.order.thanhToans.map((p) => {
+                        if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
+                          return { ...p, soTien: cashAmount };
+                        } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY) {
+                          return { ...p, soTien: remainingAmount };
+                        }
+                        return p;
+                      }),
+                    },
+                  }
+                : tab
+            )
+          );
+        } else if (!hasVnpayMethod && hasQrMethod) {
+          // Nếu chỉ có QR, toàn bộ số còn lại cho QR
+          setTabs((prev) =>
+            prev.map((tab) =>
+              tab.key === hoaDonId
+                ? {
+                    ...tab,
+                    order: {
+                      ...tab.order,
+                      thanhToans: tab.order.thanhToans.map((p) => {
+                        if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
+                          return { ...p, soTien: cashAmount };
+                        } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR) {
+                          return { ...p, soTien: remainingAmount };
+                        }
+                        return p;
+                      }),
+                    },
+                  }
+                : tab
+            )
+          );
+          // Cập nhật QR code nếu có QR payment
+          if (remainingAmount > 0) {
+            generateQR(hoaDonId, remainingAmount);
+          }
+        } else if (hasVnpayMethod && hasQrMethod) {
+          // Nếu cả hai VNPAY và QR đều có, ưu tiên VNPAY và set QR về 0
+          setTabs((prev) =>
+            prev.map((tab) =>
+              tab.key === hoaDonId
+                ? {
+                    ...tab,
+                    order: {
+                      ...tab.order,
+                      thanhToans: tab.order.thanhToans.map((p) => {
+                        if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
+                          return { ...p, soTien: cashAmount };
+                        } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY) {
+                          return { ...p, soTien: remainingAmount };
+                        } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR) {
+                          return { ...p, soTien: 0 };
+                        }
+                        return p;
+                      }),
+                    },
+                  }
+                : tab
+            )
+          );
         }
       }
       // Nếu chỉ có phương thức tiền mặt
@@ -3425,78 +4615,50 @@ const BanHang = () => {
                   order: {
                     ...tab.order,
                     thanhToans: tab.order.thanhToans.map((p) =>
-                      p.maPhuongThucThanhToan === methodCode ? { ...p, soTien: amount } : p,
+                      p.maPhuongThucThanhToan === methodCode
+                        ? { ...p, soTien: amount }
+                        : p
                     ),
                   },
                 }
-              : tab,
-          ),
+              : tab
+          )
         );
       }
     }
-    // Xử lý khi người dùng nhập số tiền cho chuyển khoản
-    else if (methodCode === PAYMENT_METHOD.QR) {
-      // Nếu có cả hai phương thức thanh toán, tự động điều chỉnh số tiền tiền mặt
-      if (hasBothMethods) {
-        const transferAmount = amount || 0;
-
-        // Nếu số tiền chuyển khoản vượt quá tổng đơn hàng
-        if (transferAmount > orderTotal) {
-          message.warning('Số tiền chuyển khoản không nên vượt quá tổng đơn hàng');
-          // Giới hạn số tiền chuyển khoản bằng tổng đơn hàng và đặt tiền mặt về 0
-          setTabs((prev) =>
-            prev.map((tab) =>
-              tab.key === hoaDonId
-                ? {
-                    ...tab,
-                    order: {
-                      ...tab.order,
-                      thanhToans: tab.order.thanhToans.map((p) =>
-                        p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
-                          ? { ...p, soTien: orderTotal }
-                          : p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
-                          ? { ...p, soTien: 0 }
-                          : p,
-                      ),
-                    },
-                  }
-                : tab,
-            ),
-          );
-
-          // Cập nhật QR code với số tiền đúng bằng tổng đơn hàng
-          generateQR(hoaDonId, orderTotal);
-        }
-        // Xử lý bình thường nếu số tiền chuyển khoản không vượt quá tổng đơn hàng
-        else {
-          const cashAmount = Math.max(0, orderTotal - transferAmount);
-          setTabs((prev) =>
-            prev.map((tab) =>
-              tab.key === hoaDonId
-                ? {
-                    ...tab,
-                    order: {
-                      ...tab.order,
-                      thanhToans: tab.order.thanhToans.map((p) =>
-                        p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
-                          ? { ...p, soTien: transferAmount }
-                          : p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
-                          ? { ...p, soTien: cashAmount }
-                          : p,
-                      ),
-                    },
-                  }
-                : tab,
-            ),
-          );
-
-          // Cập nhật QR code với số tiền chuyển khoản mới
-          if (transferAmount > 0) {
-            generateQR(hoaDonId, transferAmount);
-          }
-        }
+    // Xử lý khi người dùng nhập số tiền cho VNPAY
+    else if (methodCode === PAYMENT_METHOD.VNPAY) {
+      const vnpayAmount = amount || 0;
+      
+      // Nếu có tiền mặt, tự động điều chỉnh số tiền tiền mặt
+      if (hasCashMethod) {
+        const remainingForCash = Math.max(0, orderTotal - vnpayAmount);
+        
+        setTabs((prev) =>
+          prev.map((tab) =>
+            tab.key === hoaDonId
+              ? {
+                  ...tab,
+                  order: {
+                    ...tab.order,
+                    thanhToans: tab.order.thanhToans.map((p) => {
+                      if (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY) {
+                        return { ...p, soTien: vnpayAmount };
+                      } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
+                        return { ...p, soTien: remainingForCash };
+                      } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR) {
+                        // Nếu có QR, set về 0
+                        return { ...p, soTien: 0 };
+                      }
+                      return p;
+                    }),
+                  },
+                }
+              : tab
+          )
+        );
       }
-      // Nếu chỉ có phương thức chuyển khoản
+      // Nếu không có tiền mặt, chỉ cập nhật số tiền VNPAY
       else {
         setTabs((prev) =>
           prev.map((tab) =>
@@ -3506,17 +4668,77 @@ const BanHang = () => {
                   order: {
                     ...tab.order,
                     thanhToans: tab.order.thanhToans.map((p) =>
-                      p.maPhuongThucThanhToan === methodCode ? { ...p, soTien: amount } : p,
+                      p.maPhuongThucThanhToan === methodCode
+                        ? { ...p, soTien: vnpayAmount }
+                        : (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR ? { ...p, soTien: 0 } : p)
                     ),
                   },
                 }
-              : tab,
-          ),
+              : tab
+          )
         );
-
-        // Cập nhật QR code nếu là phương thức chuyển khoản
-        if (amount > 0) {
-          generateQR(hoaDonId, amount);
+      }
+    }
+    // Xử lý khi người dùng nhập số tiền cho QR
+    else if (methodCode === PAYMENT_METHOD.QR) {
+      const qrAmount = amount || 0;
+      
+      // Nếu có tiền mặt, tự động điều chỉnh số tiền tiền mặt
+      if (hasCashMethod) {
+        const remainingForCash = Math.max(0, orderTotal - qrAmount);
+        
+        setTabs((prev) =>
+          prev.map((tab) =>
+            tab.key === hoaDonId
+              ? {
+                  ...tab,
+                  order: {
+                    ...tab.order,
+                    thanhToans: tab.order.thanhToans.map((p) => {
+                      if (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR) {
+                        return { ...p, soTien: qrAmount };
+                      } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
+                        return { ...p, soTien: remainingForCash };
+                      } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY) {
+                        // Nếu có VNPAY, set về 0
+                        return { ...p, soTien: 0 };
+                      }
+                      return p;
+                    }),
+                  },
+                }
+              : tab
+          )
+        );
+        
+        // Tạo QR code
+        if (qrAmount > 0) {
+          generateQR(hoaDonId, qrAmount);
+        }
+      }
+      // Nếu không có tiền mặt, chỉ cập nhật số tiền QR
+      else {
+        setTabs((prev) =>
+          prev.map((tab) =>
+            tab.key === hoaDonId
+              ? {
+                  ...tab,
+                  order: {
+                    ...tab.order,
+                    thanhToans: tab.order.thanhToans.map((p) =>
+                      p.maPhuongThucThanhToan === methodCode
+                        ? { ...p, soTien: qrAmount }
+                        : (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY ? { ...p, soTien: 0 } : p)
+                    ),
+                  },
+                }
+              : tab
+          )
+        );
+        
+        // Tạo QR code
+        if (qrAmount > 0) {
+          generateQR(hoaDonId, qrAmount);
         }
       }
     }
@@ -3524,11 +4746,23 @@ const BanHang = () => {
 
   const handleShippingFeeChange = async (hoaDonId, fee) => {
     try {
+      // Check if eligible for free shipping
+      const subtotal = totals[hoaDonId]?.subtotal || 0;
+      const order = tabs.find((tab) => tab.key === hoaDonId)?.order;
+
+      // Apply free shipping for orders >= 2 million and delivery orders
+      if (subtotal >= 2000000 && order?.loaiHoaDon === 3) {
+        fee = 0;
+        message.info("Áp dụng miễn phí vận chuyển cho đơn hàng ≥ 2 triệu");
+      }
+
       // Cập nhật state ngay lập tức cho UX tốt hơn
       setTabs((prev) =>
         prev.map((tab) =>
-          tab.key === hoaDonId ? { ...tab, order: { ...tab.order, phiVanChuyen: fee } } : tab,
-        ),
+          tab.key === hoaDonId
+            ? { ...tab, order: { ...tab.order, phiVanChuyen: fee } }
+            : tab
+        )
       );
 
       // Cập nhật tổng tiền với phí vận chuyển mới
@@ -3539,7 +4773,9 @@ const BanHang = () => {
           [hoaDonId]: {
             ...current,
             shippingFee: fee,
-            finalTotal: (current.subtotal || 0) - (current.discountAmount || 0) + fee,
+            finalTotal:
+              (current.subtotal || 0) - (current.discountAmount || 0) + fee,
+            freeShipping: subtotal >= 2000000 && order?.loaiHoaDon === 3,
           },
         };
       });
@@ -3552,19 +4788,23 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
+        }
       );
 
-      console.log('Cập nhật phí vận chuyển thành công:', response.data);
-      message.success(
-        `Đã cập nhật phí vận chuyển: ${new Intl.NumberFormat('vi-VN', {
-          style: 'currency',
-          currency: 'VND',
-        }).format(fee)}`,
-      );
+      console.log("Cập nhật phí vận chuyển thành công:", response.data);
+      if (fee === 0 && subtotal >= 2000000 && order?.loaiHoaDon === 3) {
+        message.success("Đã áp dụng miễn phí vận chuyển (đơn ≥ 2 triệu)");
+      } else {
+        message.success(
+          `Đã cập nhật phí vận chuyển: ${new Intl.NumberFormat("vi-VN", {
+            style: "currency",
+            currency: "VND",
+          }).format(fee)}`
+        );
+      }
     } catch (error) {
-      console.error('Lỗi khi cập nhật phí vận chuyển:', error);
-      message.error('Không thể cập nhật phí vận chuyển');
+      console.error("Lỗi khi cập nhật phí vận chuyển:", error);
+      message.error("Không thể cập nhật phí vận chuyển");
 
       // Roll back changes if API call fails
       fetchInvoiceById(hoaDonId);
@@ -3574,24 +4814,34 @@ const BanHang = () => {
   // Add function to load customers
   const loadCustomers = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/khach_hang', {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
+      const response = await axios.get(
+        "http://localhost:8080/api/admin/khach_hang",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          },
+        }
+      );
       setCustomers(response.data);
     } catch (error) {
-      console.error('Error loading customers:', error);
+      console.error("Error loading customers:", error);
     }
   };
 
   const handleCustomerSelected = async (hoaDonId, customerId) => {
     try {
-      console.log('Chọn khách hàng với ID:', customerId, 'cho hóa đơn:', hoaDonId);
+      console.log(
+        "Chọn khách hàng với ID:",
+        customerId,
+        "cho hóa đơn:",
+        hoaDonId
+      );
 
       // Kiểm tra customerId có phải là "Khách hàng lẻ" không
-      if (customerId === 'Khách hàng lẻ') {
-        message.error("Không thể chọn 'Khách hàng lẻ'. Vui lòng chọn khách hàng khác.");
+      if (customerId === "Khách hàng lẻ") {
+        message.error(
+          "Không thể chọn 'Khách hàng lẻ'. Vui lòng chọn khách hàng khác."
+        );
         return;
       }
 
@@ -3604,14 +4854,14 @@ const BanHang = () => {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
           // Đúng tên tham số theo yêu cầu API
-        },
+        }
       );
 
       // Tìm khách hàng được chọn từ danh sách
       const selectedCustomer = customers.find((c) => c.id === customerId);
 
       if (!selectedCustomer) {
-        message.error('Không tìm thấy thông tin khách hàng.');
+        message.error("Không tìm thấy thông tin khách hàng.");
         return;
       }
 
@@ -3629,8 +4879,8 @@ const BanHang = () => {
                   khachHang: selectedCustomer,
                 },
               }
-            : tab,
-        ),
+            : tab
+        )
       );
 
       setOpenCustomerDialog(false);
@@ -3645,12 +4895,12 @@ const BanHang = () => {
         }, 300);
       }
     } catch (error) {
-      console.error('Lỗi khi chọn khách hàng:', error);
+      console.error("Lỗi khi chọn khách hàng:", error);
       if (error.response) {
-        console.error('Chi tiết lỗi:', error.response.data);
-        console.error('Status code:', error.response.status);
+        console.error("Chi tiết lỗi:", error.response.data);
+        console.error("Status code:", error.response.status);
       }
-      message.error('Lỗi khi chọn khách hàng. Vui lòng thử lại.');
+      message.error("Lỗi khi chọn khách hàng. Vui lòng thử lại.");
     }
   };
   // Add function to handle customer selection
@@ -3659,7 +4909,7 @@ const BanHang = () => {
       await loadCustomers();
       setOpenCustomerDialog(true);
     } catch (error) {
-      message.error('Lỗi khi tải danh sách khách hàng');
+      message.error("Lỗi khi tải danh sách khách hàng");
     }
   };
 
@@ -3686,7 +4936,10 @@ const BanHang = () => {
   }, [activeKey, orderProducts]);
   // Tự động tính lại tổng tiền khi danh sách sản phẩm thay đổi
   const calculateOrderTotal = (products, shippingFee = 0, discount = 0) => {
-    const subtotal = products.reduce((sum, product) => sum + product.gia * product.soLuong, 0);
+    const subtotal = products.reduce(
+      (sum, product) => sum + product.gia * product.soLuong,
+      0
+    );
     return subtotal + shippingFee - discount;
   };
   useEffect(() => {
@@ -3712,26 +4965,34 @@ const BanHang = () => {
       const totalBeforeVoucher = calculateOrderTotal(
         orderProducts[hoaDonId],
         order.phiVanChuyen || 0,
-        0,
+        0
       );
 
       // Kiểm tra nếu mã giảm giá hiện tại không còn hợp lệ
       const currentVoucher = order.phieuGiamGia;
-      if (currentVoucher && totalBeforeVoucher < currentVoucher.giaTriToiThieu) {
+      if (
+        currentVoucher &&
+        totalBeforeVoucher < currentVoucher.giaTriToiThieu
+      ) {
         await handleRemoveVoucher(hoaDonId);
-        message.info('Mã giảm giá cũ không còn hợp lệ và đã bị xóa.');
+        message.info("Mã giảm giá cũ không còn hợp lệ và đã bị xóa.");
       }
 
       // Tìm mã giảm giá tốt nhất
-      const response = await api.post(`/api/admin/ban-hang/${hoaDonId}/apply-best-voucher`, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
+      const response = await api.post(
+        `/api/admin/ban-hang/${hoaDonId}/apply-best-voucher`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          },
+        }
+      );
       const updatedOrder = response.data;
 
       setTabs((prev) =>
-        prev.map((tab) => (tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab)),
+        prev.map((tab) =>
+          tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
+        )
       );
 
       // Cập nhật tổng tiền ngay lập tức
@@ -3741,36 +5002,17 @@ const BanHang = () => {
 
       return updatedOrder;
     } catch (error) {
-      console.error('Lỗi khi áp dụng voucher:', error);
+      console.error("Lỗi khi áp dụng voucher:", error);
       return null;
-    }
-  };
-
-  // Add fetchPaymentHistory from InvoiceDetail if needed
-  const fetchPaymentHistory = async () => {
-    if (!activeKey) return;
-
-    try {
-      setLoadingPayments(true);
-      const response = await api.get(`/api/admin/hoa-don/${activeKey}/payment-history`, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
-      setPaymentHistory(response.data);
-    } catch (error) {
-      console.error('Error fetching payment history:', error);
-    } finally {
-      setLoadingPayments(false);
     }
   };
 
   // Update fetchProducts to match InvoiceDetail format
   const fetchProducts = async () => {
     try {
-      const response = await api.get('/api/admin/hoa-don/san-pham/all', {
+      const response = await api.get("/api/admin/hoa-don/san-pham/all", {
         headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
+          Authorization: `Bearer ${token}`,
         },
       });
       const productsData = response.data;
@@ -3779,32 +5021,48 @@ const BanHang = () => {
       const productsWithImages = await Promise.all(
         productsData.map(async (product) => {
           try {
-            const imgResponse = await api.get(`/api/admin/sanphamchitiet/${product.id}/hinhanh`, {
-              headers: {
-                Authorization: `Bearer ${token}`, // Thêm token vào header
-              },
-            });
+            // Sử dụng cache để tránh request lặp lại
+            const cacheKey = `product_image_${product.id}`;
+            const cachedImages = sessionStorage.getItem(cacheKey);
 
-            // Ensure imageUrls is always an array
+            if (cachedImages) {
+              return {
+                ...product,
+                hinhAnh: JSON.parse(cachedImages),
+              };
+            }
+
+            const imgResponse = await axios.get(
+              `http://localhost:8080/api/admin/sanphamchitiet/${product.id}/hinhanh`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+
+            // Đảm bảo hinhAnh luôn là một mảng
             const imageUrls = Array.isArray(imgResponse.data)
               ? imgResponse.data.map((img) => img.anhUrl)
               : [];
 
+            // Lưu vào cache
+            sessionStorage.setItem(cacheKey, JSON.stringify(imageUrls));
+
             return {
               ...product,
-              // Store full array of image URLs instead of just first one
               hinhAnh: imageUrls,
             };
           } catch (error) {
-            console.error('Lỗi khi lấy hình ảnh sản phẩm:', error);
-            return { ...product, hinhAnh: [] }; // Return empty array if error
+            console.error("Lỗi khi lấy hình ảnh sản phẩm:", error);
+            return { ...product, hinhAnh: [] };
           }
-        }),
+        })
       );
 
       setProducts(productsWithImages);
     } catch (error) {
-      message.error('Lỗi khi tải danh sách sản phẩm');
+      message.error("Lỗi khi tải danh sách sản phẩm");
     }
   };
 
@@ -3824,18 +5082,38 @@ const BanHang = () => {
         fetchInvoiceProducts.timer = setTimeout(
           async () => {
             try {
-              const response = await api.get(`/api/admin/hoa-don/${hoaDonId}/san-pham`, {
-                headers: {
-                  Authorization: `Bearer ${token}`, // Thêm token vào header
-                },
-              });
+              const response = await api.get(
+                `/api/admin/hoa-don/${hoaDonId}/san-pham`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
               let products = response.data || [];
 
               // Tối ưu: Chỉ lấy hình ảnh cho sản phẩm chưa có
               const productsWithImages = await Promise.all(
                 products.map(async (product) => {
+                  // Cập nhật thông tin thay đổi giá
+                  const isChanged =
+                    product.giaHienTai &&
+                    product.giaTaiThoiDiemThem &&
+                    product.giaHienTai !== product.giaTaiThoiDiemThem;
+
+                  // Tính toán chênh lệch giá
+                  const priceDiff = isChanged
+                    ? product.giaHienTai - product.giaTaiThoiDiemThem
+                    : 0;
+
+                  const enhancedProduct = {
+                    ...product,
+                    giaThayDoi: isChanged,
+                    chenhLech: priceDiff,
+                  };
+
                   if (product.hinhAnh && product.hinhAnh.length > 0) {
-                    return product;
+                    return enhancedProduct;
                   }
 
                   try {
@@ -3845,7 +5123,7 @@ const BanHang = () => {
 
                     if (cachedImages) {
                       return {
-                        ...product,
+                        ...enhancedProduct,
                         hinhAnh: JSON.parse(cachedImages),
                       };
                     }
@@ -3854,9 +5132,9 @@ const BanHang = () => {
                       `/api/admin/sanphamchitiet/${product.id}/hinhanh`,
                       {
                         headers: {
-                          Authorization: `Bearer ${token}`, // Thêm token vào header
+                          Authorization: `Bearer ${token}`,
                         },
-                      },
+                      }
                     );
 
                     const imageUrls =
@@ -3868,14 +5146,17 @@ const BanHang = () => {
                     sessionStorage.setItem(cacheKey, JSON.stringify(imageUrls));
 
                     return {
-                      ...product,
+                      ...enhancedProduct,
                       hinhAnh: imageUrls,
                     };
                   } catch (error) {
-                    console.error(` Lỗi khi lấy ảnh sản phẩm ${product.id}:`, error);
-                    return { ...product, hinhAnh: [] };
+                    console.error(
+                      `Lỗi khi lấy ảnh sản phẩm ${product.id}:`,
+                      error
+                    );
+                    return { ...enhancedProduct, hinhAnh: [] };
                   }
-                }),
+                })
               );
 
               // Chỉ cập nhật UI nếu không phải đang khởi tạo
@@ -3913,16 +5194,16 @@ const BanHang = () => {
 
               resolve(productsWithImages);
             } catch (error) {
-              console.error(' Lỗi khi lấy danh sách sản phẩm:', error);
+              console.error("Lỗi khi lấy danh sách sản phẩm:", error);
               resolve([]);
             }
           },
-          skipUIUpdate ? 0 : 300,
+          skipUIUpdate ? 0 : 300
         ); // Không debounce khi đang khởi tạo
       });
     } catch (error) {
-      console.error(' Lỗi khi lấy danh sách sản phẩm:', error);
-      message.error('Lỗi khi tải danh sách sản phẩm trong hóa đơn');
+      console.error("Lỗi khi lấy danh sách sản phẩm:", error);
+      message.error("Lỗi khi tải danh sách sản phẩm trong hóa đơn");
       return [];
     }
   };
@@ -3936,9 +5217,9 @@ const BanHang = () => {
         {orderProducts[tab.key]?.length > 0 && (
           <sup
             style={{
-              marginLeft: '4px',
-              color: '#ff4d4f',
-              fontWeight: 'bold',
+              marginLeft: "4px",
+              color: "#ff4d4f",
+              fontWeight: "bold",
             }}
           >
             ({orderProducts[tab.key].length})
@@ -3951,14 +5232,15 @@ const BanHang = () => {
 
   // Add this function to handle tab editing (adding/removing)
   const handleEditTab = (targetKey, action) => {
-    if (action === 'add') {
+    if (action === "add") {
       addTab();
-    } else if (action === 'remove') {
+    } else if (action === "remove") {
       Modal.confirm({
-        title: 'Xác nhận hủy đơn hàng',
-        content: 'Bạn có chắc chắn muốn hủy đơn hàng này? Sản phẩm sẽ được hoàn lại kho.',
-        okText: 'Hủy đơn',
-        cancelText: 'Đóng',
+        title: "Xác nhận hủy đơn hàng",
+        content:
+          "Bạn có chắc chắn muốn hủy đơn hàng này? Sản phẩm sẽ được hoàn lại kho.",
+        okText: "Hủy đơn",
+        cancelText: "Đóng",
         okButtonProps: { danger: true },
         onOk: async () => {
           try {
@@ -3978,17 +5260,25 @@ const BanHang = () => {
               delete newProducts[targetKey];
               return newProducts;
             });
-
+            setPriceChangesConfirmed((prev) => {
+              const newState = { ...prev };
+              delete newState[targetKey];
+              return newState;
+            });
             // Nếu tab hiện tại bị xóa, chuyển sang tab đầu tiên còn lại
             if (activeKey === targetKey) {
-              const newActiveKey = tabs.find((tab) => tab.key !== targetKey)?.key;
+              const newActiveKey = tabs.find(
+                (tab) => tab.key !== targetKey
+              )?.key;
               setActiveKey(newActiveKey);
             }
 
-            message.success('Đã hủy đơn hàng và hoàn lại sản phẩm vào kho.');
+            message.success("Đã hủy đơn hàng và hoàn lại sản phẩm vào kho.");
           } catch (error) {
-            console.error('Lỗi khi hủy đơn hàng:', error);
-            message.error(error.response?.data?.message || 'Lỗi khi hủy đơn hàng.');
+            console.error("Lỗi khi hủy đơn hàng:", error);
+            message.error(
+              error.response?.data?.message || "Lỗi khi hủy đơn hàng."
+            );
           }
         },
       });
@@ -4033,7 +5323,7 @@ const BanHang = () => {
           };
         }
         return tab;
-      }),
+      })
     );
   };
 
@@ -4046,22 +5336,23 @@ const BanHang = () => {
       // Lấy danh sách sản phẩm của đơn hàng
       const currentProducts = orderProducts[hoaDonId] || [];
       const totalBeforeVoucher =
-        calculateTotalBeforeDiscount(currentProducts) + (order.phiVanChuyen || 0);
+        calculateTotalBeforeDiscount(currentProducts) +
+        (order.phiVanChuyen || 0);
 
       if (totalBeforeVoucher <= 0) {
-        message.info('Tổng tiền đơn hàng không hợp lệ để áp dụng mã giảm giá.');
+        message.info("Tổng tiền đơn hàng không hợp lệ để áp dụng mã giảm giá.");
         return;
       }
 
       // Get customer ID from order
-      const customerId = order.khachHang?.id || '';
+      const customerId = order.khachHang?.id || "";
 
       // Nếu đã có voucher cũ, kiểm tra điều kiện và xóa nếu cần
       if (order.phieuGiamGia) {
         if (totalBeforeVoucher < order.phieuGiamGia.giaTriToiThieu) {
           // Nếu tổng tiền không đủ điều kiện, xóa voucher cũ
           await handleRemoveVoucher(hoaDonId);
-          message.info('Đã xóa voucher do không đủ điều kiện áp dụng.');
+          message.info("Đã xóa voucher do không đủ điều kiện áp dụng.");
           return; // Kết thúc hàm vì không đủ điều kiện áp dụng voucher mới
         }
       }
@@ -4073,12 +5364,12 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       const availableVouchers = response.data || [];
 
       if (!availableVouchers.length) {
-        message.info('Không có mã giảm giá phù hợp.');
+        message.info("Không có mã giảm giá phù hợp.");
         return;
       }
 
@@ -4086,25 +5377,33 @@ const BanHang = () => {
       const bestVoucher = availableVouchers.reduce((best, current) => {
         if (totalBeforeVoucher < current.giaTriToiThieu) return best;
 
-        const currentDiscount = calculateDiscountAmount(current, totalBeforeVoucher);
-        const bestDiscount = best ? calculateDiscountAmount(best, totalBeforeVoucher) : 0;
+        const currentDiscount = calculateDiscountAmount(
+          current,
+          totalBeforeVoucher
+        );
+        const bestDiscount = best
+          ? calculateDiscountAmount(best, totalBeforeVoucher)
+          : 0;
 
         return currentDiscount > bestDiscount ? current : best;
       }, null);
 
       if (!bestVoucher) {
-        message.info('Không tìm thấy phiếu giảm giá tốt hơn.');
+        message.info("Không tìm thấy phiếu giảm giá tốt hơn.");
         return;
       }
 
       // Tính toán số tiền giảm giá cho voucher mới
-      const newDiscount = calculateDiscountAmount(bestVoucher, totalBeforeVoucher);
+      const newDiscount = calculateDiscountAmount(
+        bestVoucher,
+        totalBeforeVoucher
+      );
       const currentDiscount = order.phieuGiamGia
         ? calculateDiscountAmount(order.phieuGiamGia, totalBeforeVoucher)
         : 0;
 
       if (newDiscount <= currentDiscount) {
-        message.info('Mã giảm giá hiện tại đã là tốt nhất.');
+        message.info("Mã giảm giá hiện tại đã là tốt nhất.");
         return;
       }
 
@@ -4123,7 +5422,7 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
 
       // Cập nhật UI và state
@@ -4135,7 +5434,9 @@ const BanHang = () => {
       };
 
       setTabs((prev) =>
-        prev.map((tab) => (tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab)),
+        prev.map((tab) =>
+          tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
+        )
       );
 
       const newTotals = {
@@ -4151,12 +5452,14 @@ const BanHang = () => {
         [hoaDonId]: newTotals,
       }));
 
-      message.success(`Đã áp dụng mã giảm giá tốt nhất: ${bestVoucher.maPhieuGiamGia}`);
+      message.success(
+        `Đã áp dụng mã giảm giá tốt nhất: ${bestVoucher.maPhieuGiamGia}`
+      );
 
       await fetchInvoiceProducts(hoaDonId);
     } catch (error) {
-      console.error('Lỗi khi tự động áp dụng voucher:', error);
-      message.error('Không thể áp dụng mã giảm giá tự động.');
+      console.error("Lỗi khi tự động áp dụng voucher:", error);
+      message.error("Không thể áp dụng mã giảm giá tự động.");
     }
   };
 
@@ -4174,18 +5477,24 @@ const BanHang = () => {
                     : p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
                     ? {
                         ...p,
-                        soTien: Math.max(0, totals[hoaDonId]?.finalTotal - cashAmount),
+                        soTien: Math.max(
+                          0,
+                          totals[hoaDonId]?.finalTotal - cashAmount
+                        ),
                       }
-                    : p,
+                    : p
                 ),
               },
             }
-          : tab,
-      ),
+          : tab
+      )
     );
 
     // Tự động tạo QR nếu khách chọn chuyển khoản
-    const transferAmount = Math.max(0, totals[hoaDonId]?.finalTotal - cashAmount);
+    const transferAmount = Math.max(
+      0,
+      totals[hoaDonId]?.finalTotal - cashAmount
+    );
     if (transferAmount > 0) {
       generateQR(hoaDonId, transferAmount);
     }
@@ -4198,13 +5507,17 @@ const BanHang = () => {
     const { change, remaining } = calculateChange(order.id);
 
     // Kiểm tra khách chọn tiền mặt hay không
-    const hasCash = order.thanhToans.some((p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH);
-    const hasQR = order.thanhToans.some((p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR);
+    const hasCash = order.thanhToans.some(
+      (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
+    );
+    const hasQR = order.thanhToans.some(
+      (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
+    );
 
     return (
-      <div style={{ maxWidth: 400, marginLeft: 'auto' }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Divider style={{ margin: '12px 0' }} />
+      <div style={{ maxWidth: 400, marginLeft: "auto" }}>
+        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <Divider style={{ margin: "12px 0" }} />
 
           {/* Nếu khách chọn tiền mặt, hiển thị ô nhập */}
           {hasCash && (
@@ -4214,7 +5527,7 @@ const BanHang = () => {
               </Col>
               <Col span={14}>
                 <InputNumber
-                  style={{ width: '100%' }}
+                  style={{ width: "100%" }}
                   value={customerPayment[order.id] || 0}
                   onChange={(value) => {
                     setCustomerPayment((prev) => ({
@@ -4223,7 +5536,10 @@ const BanHang = () => {
                     }));
 
                     // Tự động tính toán số tiền chuyển khoản
-                    const transferAmount = Math.max(0, orderTotals.finalTotal - value);
+                    const transferAmount = Math.max(
+                      0,
+                      orderTotals.finalTotal - value
+                    );
                     setTabs((prev) =>
                       prev.map((tab) =>
                         tab.key === order.id
@@ -4234,12 +5550,12 @@ const BanHang = () => {
                                 thanhToans: tab.order.thanhToans.map((p) =>
                                   p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
                                     ? { ...p, soTien: transferAmount }
-                                    : p,
+                                    : p
                                 ),
                               },
                             }
-                          : tab,
-                      ),
+                          : tab
+                      )
                     );
 
                     // Tạo QR cho chuyển khoản ngay sau khi nhập tiền mặt
@@ -4247,8 +5563,10 @@ const BanHang = () => {
                       generateQR(order.id, transferAmount);
                     }
                   }}
-                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                  formatter={(value) =>
+                    `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                  }
+                  parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
                   min={0}
                   step={1000}
                 />
@@ -4258,9 +5576,13 @@ const BanHang = () => {
 
           {/* Hiển thị mã QR nếu khách chọn chuyển khoản */}
           {hasQR && qrCode && (
-            <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <div style={{ textAlign: "center", marginTop: 12 }}>
               <Text strong>Quét mã để thanh toán:</Text>
-              <img src={qrCode} alt="QR Code" style={{ width: 200, marginTop: 8 }} />
+              <img
+                src={qrCode}
+                alt="QR Code"
+                style={{ width: 200, marginTop: 8 }}
+              />
             </div>
           )}
         </Space>
@@ -4294,7 +5616,7 @@ const BanHang = () => {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           },
-        },
+        }
       );
       const availableVouchers = response.data;
 
@@ -4302,7 +5624,7 @@ const BanHang = () => {
 
       // 1️⃣ Lọc danh sách voucher hợp lệ (đơn hàng đạt điều kiện tối thiểu)
       const validVouchers = availableVouchers.filter(
-        (voucher) => totalAmount >= voucher.giaTriToiThieu,
+        (voucher) => totalAmount >= voucher.giaTriToiThieu
       );
 
       if (validVouchers.length === 0) return null;
@@ -4310,11 +5632,13 @@ const BanHang = () => {
       // 2️⃣ Tìm voucher có mức giảm giá cao nhất
       return validVouchers.reduce((best, current) => {
         const currentDiscount = calculateDiscountAmount(current, totalAmount);
-        const bestDiscount = best ? calculateDiscountAmount(best, totalAmount) : 0;
+        const bestDiscount = best
+          ? calculateDiscountAmount(best, totalAmount)
+          : 0;
         return currentDiscount > bestDiscount ? current : best;
       }, null);
     } catch (error) {
-      console.error('Lỗi khi tìm mã giảm giá tốt nhất:', error);
+      console.error("Lỗi khi tìm mã giảm giá tốt nhất:", error);
       return null;
     }
   };
@@ -4322,14 +5646,17 @@ const BanHang = () => {
   const fetchPaymentMethods = async () => {
     setPaymentMethodsLoading(true);
     try {
-      const response = await api.get('/api/admin/phuong-thuc-thanh-toan/bank-and-cash', {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
+      const response = await api.get(
+        "/api/admin/phuong-thuc-thanh-toan/bank-and-cash",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          },
+        }
+      );
       setPaymentMethods(response.data);
     } catch (error) {
-      message.error('Lỗi khi tải phương thức thanh toán');
+      message.error("Lỗi khi tải phương thức thanh toán");
     } finally {
       setPaymentMethodsLoading(false);
     }
@@ -4355,18 +5682,23 @@ const BanHang = () => {
         src={pdfUrl}
         width="100%"
         height="1200"
-        style={{ border: 'none' }}
+        style={{ border: "none" }}
         title="PDF Preview"
       />
     </AntdModal>
   );
 
-  // Thêm useEffect mới để gọi findBestVoucherAndSuggest
   useEffect(() => {
     if (activeKey && orderProducts[activeKey]) {
-      findBestVoucherAndSuggest(activeKey);
+      // Dùng timeout để debounce
+      const timeoutId = setTimeout(() => {
+        findBestVoucherAndSuggest(activeKey);
+      }, 1000); // Delay 1 giây
+
+      // Cleanup để tránh gọi nhiều lần
+      return () => clearTimeout(timeoutId);
     }
-  }, [activeKey, orderProducts[activeKey]]); // Thêm dependency
+  }, [activeKey, orderProducts[activeKey]]);
 
   // Thêm hàm fetchInvoiceById để tải lại thông tin hóa đơn từ server
   const fetchInvoiceById = async (hoaDonId) => {
@@ -4385,17 +5717,19 @@ const BanHang = () => {
         if (updatedOrder.phieuGiamGia) {
           updatedOrder.phieuGiamGia.loaiPhieuGiamGia = parseInt(
             updatedOrder.phieuGiamGia.loaiPhieuGiamGia,
-            10,
+            10
           );
           console.log(
-            'Đã chuyển đổi loaiPhieuGiamGia thành số:',
-            updatedOrder.phieuGiamGia.loaiPhieuGiamGia,
+            "Đã chuyển đổi loaiPhieuGiamGia thành số:",
+            updatedOrder.phieuGiamGia.loaiPhieuGiamGia
           );
         }
 
         // Cập nhật order trong tabs
         setTabs((prev) =>
-          prev.map((tab) => (tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab)),
+          prev.map((tab) =>
+            tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
+          )
         );
 
         // Tải lại danh sách sản phẩm
@@ -4409,7 +5743,10 @@ const BanHang = () => {
         // Tính toán giảm giá dựa trên voucher
         let discountAmount = 0;
         if (updatedOrder.phieuGiamGia) {
-          discountAmount = calculateDiscountAmount(updatedOrder.phieuGiamGia, totalBeforeVoucher);
+          discountAmount = calculateDiscountAmount(
+            updatedOrder.phieuGiamGia,
+            totalBeforeVoucher
+          );
         }
 
         const finalTotal = totalBeforeVoucher - discountAmount;
@@ -4439,7 +5776,7 @@ const BanHang = () => {
         return updatedOrder;
       }
     } catch (error) {
-      console.error('Lỗi khi tải thông tin hóa đơn:', error);
+      console.error("Lỗi khi tải thông tin hóa đơn:", error);
     }
 
     return null;
@@ -4449,7 +5786,7 @@ const BanHang = () => {
   const findSuggestedProducts = async (currentProducts, amountNeeded) => {
     try {
       // Lấy danh sách tất cả sản phẩm từ server
-      const response = await api.get('/api/admin/san-pham', {
+      const response = await api.get("/api/admin/san-pham", {
         headers: {
           Authorization: `Bearer ${token}`, // Thêm token vào header
         },
@@ -4461,7 +5798,7 @@ const BanHang = () => {
 
       // Lọc sản phẩm có số lượng tồn kho > 0
       const availableProducts = allProducts.filter(
-        (p) => !currentProductIds.includes(p.id) && p.soLuong > 0,
+        (p) => !currentProductIds.includes(p.id) && p.soLuong > 0
       );
 
       // Sắp xếp theo mức độ phù hợp với số tiền cần thêm
@@ -4475,7 +5812,7 @@ const BanHang = () => {
       // Trả về tối đa 10 sản phẩm gợi ý
       return availableProducts.slice(0, 10);
     } catch (error) {
-      console.error('Lỗi khi tìm sản phẩm gợi ý:', error);
+      console.error("Lỗi khi tìm sản phẩm gợi ý:", error);
       return [];
     }
   };
@@ -4504,7 +5841,7 @@ const BanHang = () => {
             };
           }
           return tab;
-        }),
+        })
       );
     }
   };
@@ -4512,7 +5849,7 @@ const BanHang = () => {
   // Thêm hàm để lấy tất cả sản phẩm từ server
   const fetchAllProducts = async () => {
     try {
-      const response = await api.get('/api/admin/sanpham/chitietsanpham', {
+      const response = await api.get("/api/admin/sanpham/chitietsanpham", {
         headers: {
           Authorization: `Bearer ${token}`, // Thêm token vào header
         },
@@ -4521,12 +5858,15 @@ const BanHang = () => {
       // Đảm bảo các trường quan trọng được giữ nguyên
       const processedProducts = response.data.map((product) => ({
         ...product,
-        maSanPham: product.maSanPham || product.sanPhamChiTiet?.maSanPham || 'SP' + product.id,
+        maSanPham:
+          product.maSanPham ||
+          product.sanPhamChiTiet?.maSanPham ||
+          "SP" + product.id,
       }));
 
       return processedProducts || [];
     } catch (error) {
-      console.error(' Lỗi khi lấy danh sách sản phẩm:', error);
+      console.error(" Lỗi khi lấy danh sách sản phẩm:", error);
       return [];
     }
   };
@@ -4535,19 +5875,24 @@ const BanHang = () => {
   const applyVoucherToOrder = async (hoaDonId, voucherId) => {
     try {
       // Gọi API để áp dụng voucher
-      const response = await api.post(`/api/admin/ban-hang/${hoaDonId}/voucher`, {
-        voucherId: voucherId,
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
+      const response = await api.post(
+        `/api/admin/ban-hang/${hoaDonId}/voucher`,
+        {
+          voucherId: voucherId,
+          headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          },
+        }
+      );
 
       if (response.data) {
         const updatedOrder = response.data;
 
         // Cập nhật order trong tabs
         setTabs((prev) =>
-          prev.map((tab) => (tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab)),
+          prev.map((tab) =>
+            tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
+          )
         );
 
         // Lấy thông tin sản phẩm hiện tại
@@ -4561,7 +5906,10 @@ const BanHang = () => {
         // Tính toán giảm giá
         let discountAmount = 0;
         if (updatedOrder.phieuGiamGia) {
-          discountAmount = calculateDiscountAmount(updatedOrder.phieuGiamGia, totalBeforeVoucher);
+          discountAmount = calculateDiscountAmount(
+            updatedOrder.phieuGiamGia,
+            totalBeforeVoucher
+          );
         }
 
         const finalTotal = totalBeforeVoucher - discountAmount;
@@ -4590,8 +5938,8 @@ const BanHang = () => {
       }
       return false;
     } catch (error) {
-      console.error('Lỗi khi áp dụng voucher:', error);
-      message.error('Lỗi khi áp dụng voucher');
+      console.error("Lỗi khi áp dụng voucher:", error);
+      message.error("Lỗi khi áp dụng voucher");
       return false;
     }
   };
@@ -4599,11 +5947,11 @@ const BanHang = () => {
   // Thêm hàm mới để tải lại thông tin hóa đơn từ server
   const refreshInvoiceData = async (hoaDonId) => {
     try {
-      console.log('🔄 Refreshing invoice data for:', hoaDonId);
+      console.log("🔄 Refreshing invoice data for:", hoaDonId);
 
       // Kiểm tra xem hoaDonId có hợp lệ không
       if (!hoaDonId) {
-        console.warn('Không có hoaDonId hợp lệ để tải dữ liệu');
+        console.warn("Không có hoaDonId hợp lệ để tải dữ liệu");
         return null;
       }
 
@@ -4618,7 +5966,7 @@ const BanHang = () => {
         const updatedOrder = response.data;
 
         // Ghi log thông tin hóa đơn để debug
-        console.log('Thông tin hóa đơn từ server:', {
+        console.log("Thông tin hóa đơn từ server:", {
           id: updatedOrder.id,
           maHoaDon: updatedOrder.maHoaDon,
           tongTien: updatedOrder.tongTien,
@@ -4629,7 +5977,9 @@ const BanHang = () => {
 
         // Cập nhật order trong tabs
         setTabs((prev) =>
-          prev.map((tab) => (tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab)),
+          prev.map((tab) =>
+            tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
+          )
         );
 
         // Tải lại sản phẩm
@@ -4638,7 +5988,7 @@ const BanHang = () => {
         // Tính toán lại tổng tiền
         const newTotals = calculateOrderTotals(hoaDonId);
 
-        console.log('Tổng tiền sau khi tính toán:', newTotals);
+        console.log("Tổng tiền sau khi tính toán:", newTotals);
 
         setTotals((prev) => ({
           ...prev,
@@ -4654,7 +6004,7 @@ const BanHang = () => {
         return { updatedOrder, products, newTotals };
       }
     } catch (error) {
-      console.error('Lỗi khi tải lại thông tin hóa đơn:', error);
+      console.error("Lỗi khi tải lại thông tin hóa đơn:", error);
       // Không hiển thị thông báo lỗi để tránh làm phiền người dùng
       // Thay vào đó, sử dụng dữ liệu hiện có
 
@@ -4701,32 +6051,37 @@ const BanHang = () => {
   // Sửa hàm handleApplyBestVoucher để xử lý lỗi khi áp dụng voucher gợi ý
   const handleApplyBestVoucher = async (hoaDonId, voucherId) => {
     try {
-      console.log('Áp dụng voucher gợi ý:', { hoaDonId, voucherId });
+      console.log("Áp dụng voucher gợi ý:", { hoaDonId, voucherId });
 
       // Kiểm tra xem hoaDonId và voucherId có hợp lệ không
       if (!hoaDonId || !voucherId) {
-        console.error('hoaDonId hoặc voucherId không hợp lệ');
-        message.error('Không thể áp dụng voucher');
+        console.error("hoaDonId hoặc voucherId không hợp lệ");
+        message.error("Không thể áp dụng voucher");
         return false;
       }
 
       // Sửa endpoint API - thêm /voucher vào cuối URL
-      const response = await api.post(`/api/admin/hoa-don/${hoaDonId}/voucher`, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-        voucherId: voucherId,
-      });
+      const response = await api.post(
+        `/api/admin/hoa-don/${hoaDonId}/voucher`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Thêm token vào header
+          },
+          voucherId: voucherId,
+        }
+      );
 
       if (response.data) {
-        message.success('Áp dụng voucher thành công');
+        message.success("Áp dụng voucher thành công");
 
         // Cập nhật thông tin hóa đơn từ response
         const updatedOrder = response.data;
 
         // Cập nhật order trong tabs
         setTabs((prev) =>
-          prev.map((tab) => (tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab)),
+          prev.map((tab) =>
+            tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
+          )
         );
 
         // Tải lại sản phẩm
@@ -4740,7 +6095,10 @@ const BanHang = () => {
         // Tính toán giảm giá dựa trên voucher
         let discountAmount = 0;
         if (updatedOrder.phieuGiamGia) {
-          discountAmount = calculateDiscountAmount(updatedOrder.phieuGiamGia, totalBeforeVoucher);
+          discountAmount = calculateDiscountAmount(
+            updatedOrder.phieuGiamGia,
+            totalBeforeVoucher
+          );
         }
 
         const finalTotal = totalBeforeVoucher - discountAmount;
@@ -4775,8 +6133,8 @@ const BanHang = () => {
       }
       return false;
     } catch (error) {
-      console.error('Lỗi khi áp dụng voucher gợi ý:', error);
-      message.error('Lỗi khi áp dụng voucher');
+      console.error("Lỗi khi áp dụng voucher gợi ý:", error);
+      message.error("Lỗi khi áp dụng voucher");
       return false;
     }
   };
@@ -4804,27 +6162,30 @@ const BanHang = () => {
     try {
       // Kiểm tra ID hóa đơn
       if (!scanningForHoaDonId) {
-        message.error('Không xác định được hóa đơn đang xử lý');
+        message.error("Không xác định được hóa đơn đang xử lý");
         setIsQrScannerVisible(false);
         return;
       }
 
       // Hiển thị trạng thái đang xử lý
-      const loadingKey = 'qrScanning';
+      const loadingKey = "qrScanning";
       message.loading({
-        content: 'Đang tìm sản phẩm...',
+        content: "Đang tìm sản phẩm...",
         key: loadingKey,
         duration: 0,
       });
       setLoading(true);
 
       // Gọi API với mã sản phẩm chi tiết
-      const response = await api.get(`/api/admin/sanpham/sanphamchitiet/ma/${qrData}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get(
+        `/api/admin/sanpham/sanphamchitiet/ma/${qrData}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       if (!response?.data) {
-        throw new Error('Không tìm thấy sản phẩm từ mã QR');
+        throw new Error("Không tìm thấy sản phẩm từ mã QR");
       }
 
       const product = response.data;
@@ -4833,11 +6194,11 @@ const BanHang = () => {
       // Kiểm tra tồn kho
       if (product.soLuong <= 0 || product.soLuongTonKho <= 0) {
         notification.warning({
-          key: 'stockWarning',
-          message: 'Sản phẩm đã hết hàng',
+          key: "stockWarning",
+          message: "Sản phẩm đã hết hàng",
           description: `Sản phẩm "${product.tenSanPham}" hiện không còn trong kho.`,
-          icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
-          placement: 'topRight',
+          icon: <ExclamationCircleOutlined style={{ color: "#faad14" }} />,
+          placement: "topRight",
           duration: 4,
         });
         setLoading(false);
@@ -4845,9 +6206,9 @@ const BanHang = () => {
       }
 
       // Animation trước khi thêm sản phẩm
-      const successKey = 'addProductSuccess';
+      const successKey = "addProductSuccess";
       message.loading({
-        content: 'Đang thêm sản phẩm...',
+        content: "Đang thêm sản phẩm...",
         key: successKey,
         duration: 0.5,
       });
@@ -4858,51 +6219,53 @@ const BanHang = () => {
 
       // Thông báo thành công
       notification.success({
-        message: 'Đã thêm sản phẩm vào hóa đơn',
+        message: "Đã thêm sản phẩm vào hóa đơn",
         description: (
           <div>
-            <div style={{ fontWeight: 'bold' }}>{product.tenSanPham}</div>
+            <div style={{ fontWeight: "bold" }}>{product.tenSanPham}</div>
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
+                display: "flex",
+                justifyContent: "space-between",
                 marginTop: 5,
               }}
             >
-              <span>Mã: {product.maSanPhamChiTiet || product.maSanPham || 'N/A'}</span>
-              <span style={{ fontWeight: 'bold', color: '#ff4d4f' }}>
+              <span>
+                Mã: {product.maSanPhamChiTiet || product.maSanPham || "N/A"}
+              </span>
+              <span style={{ fontWeight: "bold", color: "#ff4d4f" }}>
                 {formatCurrency(product.gia)}
               </span>
             </div>
             {product.mauSac && product.kichThuoc && (
-              <div style={{ marginTop: 3, fontSize: '12px', color: '#8c8c8c' }}>
-                {typeof product.mauSac === 'string'
+              <div style={{ marginTop: 3, fontSize: "12px", color: "#8c8c8c" }}>
+                {typeof product.mauSac === "string"
                   ? product.mauSac
-                  : product.mauSac?.tenMau || 'N/A'}{' '}
+                  : product.mauSac?.tenMau || "N/A"}{" "}
                 -
-                {typeof product.kichThuoc === 'string'
+                {typeof product.kichThuoc === "string"
                   ? product.kichThuoc
-                  : product.kichThuoc?.tenKichThuoc || 'N/A'}
+                  : product.kichThuoc?.tenKichThuoc || "N/A"}
               </div>
             )}
           </div>
         ),
-        icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-        placement: 'topRight',
+        icon: <CheckCircleOutlined style={{ color: "#52c41a" }} />,
+        placement: "topRight",
         duration: 4,
       });
 
-      // Quan trọng: Đóng modal quét QR trước khi hiển thị modal xác nhận
+      // Đóng modal quét QR trước khi hiển thị modal xác nhận
       setIsQrScannerVisible(false);
 
       // Sau khi đóng modal quét QR, hiển thị modal hỏi người dùng
       setTimeout(() => {
         Modal.confirm({
-          title: 'Quét thành công!',
-          icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-          content: 'Bạn có muốn tiếp tục quét sản phẩm?',
-          okText: 'Tiếp tục',
-          cancelText: 'Đóng',
+          title: "Quét thành công!",
+          icon: <CheckCircleOutlined style={{ color: "#52c41a" }} />,
+          content: "Bạn có muốn tiếp tục quét sản phẩm?",
+          okText: "Tiếp tục",
+          cancelText: "Đóng",
           onOk: () => {
             // Mở lại modal quét QR
             setIsQrScannerVisible(true);
@@ -4910,24 +6273,24 @@ const BanHang = () => {
           onCancel: () => {
             // Không làm gì, vì modal QR đã đóng
           },
-          autoFocusButton: 'ok',
+          autoFocusButton: "ok",
           centered: true,
         });
       }, 300); // Chờ một chút để đảm bảo modal quét QR đã đóng hoàn toàn
     } catch (error) {
-      console.error('Lỗi khi xử lý mã QR:', error);
+      console.error("Lỗi khi xử lý mã QR:", error);
 
       // Thông báo lỗi chi tiết hơn
-      let errorMessage = 'Không tìm thấy sản phẩm từ mã QR hoặc có lỗi xảy ra';
+      let errorMessage = "Không tìm thấy sản phẩm từ mã QR hoặc có lỗi xảy ra";
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
 
       notification.error({
-        message: 'Lỗi quét mã QR',
+        message: "Lỗi quét mã QR",
         description: errorMessage,
-        icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
-        placement: 'topRight',
+        icon: <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />,
+        placement: "topRight",
         duration: 4,
       });
 
@@ -4939,7 +6302,7 @@ const BanHang = () => {
   };
   // Xử lý khi có lỗi quét QR
   const handleQrScanError = (error) => {
-    message.error('Lỗi khi quét mã QR, vui lòng thử lại');
+    message.error("Lỗi khi quét mã QR, vui lòng thử lại");
   };
 
   // Mở màn hình quét QR cho hóa đơn cụ thể
@@ -4949,21 +6312,25 @@ const BanHang = () => {
   };
 
   return (
-    <Layout style={{ height: '100vh', boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)' }}>
+    <Layout
+      style={{ height: "100vh", boxShadow: "0 4px 8px rgba(24, 24, 24, 0.1)" }}
+    >
       <Sider
         width="100%"
         style={{
-          background: '#fff',
+          background: "#fff",
           padding: 20,
-          position: 'relative',
-          height: '100%',
-          overflowY: 'hidden', // Ngăn scroll toàn bộ Sider
+          position: "relative",
+          height: "100%",
+          overflowY: "hidden", // Ngăn scroll toàn bộ Sider
         }}
       >
         {/* Dòng chứa Nút "Tạo hóa đơn" */}
         <Row style={{ marginBottom: 16 }}>
           <Col span={20}>
-            <Text style={{ fontSize: '20px', fontWeight: 'bold' }}>Quản lý bán hàng</Text>
+            <Text style={{ fontSize: "20px", fontWeight: "bold" }}>
+              Quản lý bán hàng
+            </Text>
           </Col>
           <Col span={4}>
             <Button
@@ -4981,13 +6348,19 @@ const BanHang = () => {
 
         {/* Khi không có hóa đơn nào, hiển thị thông báo */}
         {tabs.length === 0 ? (
-          <Row justify="center" align="middle" style={{ height: 'calc(100% - 60px)' }}>
+          <Row
+            justify="center"
+            align="middle"
+            style={{ height: "calc(100% - 60px)" }}
+          >
             <Col>
-              <Title level={3}>Không có hóa đơn ở trạng thái chờ xác nhận</Title>
+              <Title level={3}>
+                Không có hóa đơn ở trạng thái chờ xác nhận
+              </Title>
             </Col>
           </Row>
         ) : (
-          <div style={{ height: 'calc(100% - 60px)', overflowY: 'auto' }}>
+          <div style={{ height: "calc(100% - 60px)", overflowY: "auto" }}>
             <Tabs
               type="editable-card"
               onChange={setActiveKey}
@@ -5001,156 +6374,162 @@ const BanHang = () => {
       <Content
         style={{
           padding: 24,
-          height: '100%',
-          overflow: 'hidden',
+          height: "100%",
+          overflow: "hidden",
         }}
       />
 
       {/* Customer Selection Dialog */}
       <Modal
         title={
-          <div className="customer-modal-title">
-            <div className="customer-modal-icon">
-              <UserOutlined />
-            </div>
-            <span>Chọn khách hàng</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <UserOutlined style={{ fontSize: 20 }} />
+            <span style={{ fontSize: 18, fontWeight: "bold" }}>
+              Chọn khách hàng
+            </span>
           </div>
         }
         open={openCustomerDialog}
         onCancel={() => setOpenCustomerDialog(false)}
         footer={null}
-        width={800}
+        width={750}
         className="customer-selection-modal"
-        bodyStyle={{ padding: '0' }}
-        style={{ top: 20 }}
+        bodyStyle={{ padding: 24, paddingTop: 0 }}
+        style={{ top: 40 }}
       >
-        <div className="customer-modal-content">
-          <div className="customer-search-container">
-            <Input.Search
-              placeholder="Tìm kiếm theo tên, số điện thoại hoặc email..."
-              allowClear
-              enterButton={false}
-              onSearch={(value) => {
-                // API search - implement if backend supports
-              }}
-              onChange={(e) => {
-                const searchValue = e.target.value.toLowerCase();
-                // Lọc dữ liệu trên client
-                if (!searchValue) {
-                  loadCustomers();
-                } else {
-                  const filtered = customers.filter(
-                    (customer) =>
-                      customer.tenKhachHang?.toLowerCase().includes(searchValue) ||
-                      (customer.soDienThoai &&
-                        customer.soDienThoai.toLowerCase().includes(searchValue)) ||
-                      (customer.email && customer.email.toLowerCase().includes(searchValue)),
-                  );
-                  setCustomers(filtered);
-                }
-              }}
-              className="customer-search-input"
-            />
-          </div>
+        {/* Ô tìm kiếm */}
+        <Input.Search
+          placeholder="Tìm kiếm theo tên, số điện thoại hoặc email..."
+          allowClear
+          onChange={(e) => {
+            const searchValue = e.target.value.toLowerCase();
+            if (!searchValue) {
+              loadCustomers();
+            } else {
+              const filtered = customers.filter(
+                (customer) =>
+                  customer.tenKhachHang?.toLowerCase().includes(searchValue) ||
+                  customer.soDienThoai?.toLowerCase().includes(searchValue) ||
+                  customer.email?.toLowerCase().includes(searchValue)
+              );
+              setCustomers(filtered);
+            }
+          }}
+          style={{ marginBottom: 16 }}
+          size="large"
+        />
 
-          <List
-            className="customer-list"
-            itemLayout="horizontal"
-            dataSource={customers}
-            locale={{
-              emptyText: (
-                <div className="empty-customer-list">
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="Không tìm thấy khách hàng"
-                  />
-                </div>
-              ),
-            }}
-            pagination={{
-              pageSize: 5,
-              size: 'small',
-              position: 'bottom',
-              align: 'center',
-              showSizeChanger: false,
-              showTotal: (total) => `Tổng ${total} khách hàng`,
-            }}
-            renderItem={(customer) => (
-              <List.Item
-                className="customer-list-item"
-                onClick={() => handleCustomerSelected(activeKey, customer.id)}
-              >
-                <List.Item.Meta
-                  avatar={
-                    <div className="avatar-container">
-                      <Avatar src={customer.avatar} size={54} className="customer-avatar">
-                        {!customer.avatar && customer.tenKhachHang?.charAt(0)?.toUpperCase()}
-                      </Avatar>
-                    </div>
-                  }
-                  title={
-                    <div className="customer-name-container">
-                      <Text strong className="customer-name">
-                        {customer.tenKhachHang}
-                      </Text>
-                    </div>
-                  }
-                  description={
-                    <div className="customer-details">
-                      {customer.soDienThoai && (
-                        <div className="customer-contact-info">
-                          <PhoneOutlined />
-                          <Text type="secondary">{customer.soDienThoai}</Text>
-                        </div>
-                      )}
-                      {customer.email && (
-                        <div className="customer-contact-info">
-                          <MailOutlined />
-                          <Text type="secondary">{customer.email}</Text>
-                        </div>
-                      )}
-                      {customer.diaChi && (
-                        <div className="customer-contact-info">
-                          <EnvironmentOutlined />
-                          <Text type="secondary" ellipsis={{ tooltip: customer.diaChi }}>
-                            {customer.diaChi}
-                          </Text>
-                        </div>
-                      )}
-                    </div>
-                  }
-                />
-                <div className="customer-action-btn">
-                  <Button
-                    type="primary"
-                    icon={<SelectOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCustomerSelected(activeKey, customer.id);
-                    }}
-                  >
-                    Chọn
-                  </Button>
-                </div>
-              </List.Item>
-            )}
-          />
-
-          <div className="customer-modal-footer">
-            <Button onClick={() => setOpenCustomerDialog(false)}>Đóng</Button>
-            <Button
-              type="primary"
-              icon={<UserAddOutlined />}
-              onClick={() => {
-                setOpenCustomerDialog(false);
-                handleAddNewCustomer();
+        {/* Danh sách khách hàng */}
+        <List
+          dataSource={customers}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Không tìm thấy khách hàng"
+              />
+            ),
+          }}
+          pagination={{
+            pageSize: 5,
+            size: "small",
+            position: "bottom",
+            align: "center",
+            showSizeChanger: false,
+            showTotal: (total) => `Tổng ${total} khách hàng`,
+          }}
+          itemLayout="horizontal"
+          renderItem={(customer) => (
+            <List.Item
+              style={{
+                padding: 16,
+                borderRadius: 8,
+                transition: "all 0.3s",
+                border: "1px solid #f0f0f0",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#f9f9f9";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "white";
               }}
             >
-              Thêm khách hàng mới
-            </Button>
-          </div>
+              <List.Item.Meta
+                avatar={
+                  <Avatar
+                    src={customer.avatar}
+                    size={64}
+                    style={{ backgroundColor: "#1890ff", fontSize: 20 }}
+                  >
+                    {!customer.avatar &&
+                      customer.tenKhachHang?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                }
+                title={
+                  <Text strong style={{ fontSize: 16 }}>
+                    {customer.tenKhachHang}
+                  </Text>
+                }
+                description={
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 4 }}
+                  >
+                    {customer.soDienThoai && (
+                      <Text type="secondary">
+                        <PhoneOutlined style={{ marginRight: 4 }} />
+                        {customer.soDienThoai}
+                      </Text>
+                    )}
+                    {customer.email && (
+                      <Text type="secondary">
+                        <MailOutlined style={{ marginRight: 4 }} />
+                        {customer.email}
+                      </Text>
+                    )}
+                    {customer.diaChi && (
+                      <Text type="secondary" ellipsis>
+                        <EnvironmentOutlined style={{ marginRight: 4 }} />
+                        {customer.diaChi}
+                      </Text>
+                    )}
+                  </div>
+                }
+              />
+              <Button
+                type="default"
+                ghost
+                icon={<SelectOutlined />}
+                onClick={() => handleCustomerSelected(activeKey, customer.id)}
+              >
+                Chọn
+              </Button>
+            </List.Item>
+          )}
+        />
+
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            marginTop: 24,
+          }}
+        >
+          <Button onClick={() => setOpenCustomerDialog(false)}>Đóng</Button>
+          <Button
+            type="primary"
+            icon={<UserAddOutlined />}
+            onClick={() => {
+              setOpenCustomerDialog(false);
+              handleAddNewCustomer();
+            }}
+          >
+            Thêm khách hàng mới
+          </Button>
         </div>
       </Modal>
+
       {/* Voucher Selection Dialog */}
       <Modal
         title="Chọn mã giảm giá"
@@ -5163,13 +6542,21 @@ const BanHang = () => {
         centered
       >
         <div style={{ marginBottom: 16 }}>
-          <Text type="secondary">Gợi ý mã giảm giá tốt nhất cho đơn hàng của bạn:</Text>
+          <Text type="secondary">
+            Gợi ý mã giảm giá tốt nhất cho đơn hàng của bạn:
+          </Text>
         </div>
         <List
-          dataSource={sortVouchersBySavings(vouchers, totals[activeKey]?.totalBeforeVoucher || 0)}
+          dataSource={sortVouchersBySavings(
+            vouchers,
+            totals[activeKey]?.totalBeforeVoucher || 0
+          )}
           renderItem={(voucher, index) => {
             const originalTotal = totals[activeKey]?.totalBeforeVoucher || 0;
-            const discountAmount = calculateDiscountAmount(voucher, originalTotal);
+            const discountAmount = calculateDiscountAmount(
+              voucher,
+              originalTotal
+            );
             const savings = ((discountAmount / originalTotal) * 100).toFixed(1);
             const maxDiscount = vouchers.reduce((max, v) => {
               const vDiscount = calculateDiscountAmount(v, originalTotal);
@@ -5181,25 +6568,30 @@ const BanHang = () => {
             return (
               <List.Item
                 style={{
-                  border: isSelected ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  marginBottom: '8px',
-                  position: 'relative',
-                  backgroundColor: isSelected ? '#f0f5ff' : 'white',
+                  border: isSelected
+                    ? "2px solid #1890ff"
+                    : "1px solid #d9d9d9",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  marginBottom: "8px",
+                  position: "relative",
+                  backgroundColor: isSelected ? "#f0f5ff" : "white",
                 }}
                 actions={[
-                  <Radio checked={isSelected} onChange={() => setSelectedVoucher(voucher)} />,
+                  <Radio
+                    checked={isSelected}
+                    onChange={() => setSelectedVoucher(voucher)}
+                  />,
                 ]}
               >
                 {isHighestDiscount && (
                   <Tag
                     color="gold"
                     style={{
-                      position: 'absolute',
-                      top: '-12px',
-                      right: '16px',
-                      padding: '4px 8px',
+                      position: "absolute",
+                      top: "-12px",
+                      right: "16px",
+                      padding: "4px 8px",
                       zIndex: 1,
                     }}
                   >
@@ -5217,18 +6609,20 @@ const BanHang = () => {
                     <div>
                       <div>
                         {voucher.loaiPhieuGiamGia === 1
-                          ? `Giảm ${voucher.giaTriGiam}% (tối đa ${formatCurrency(
-                              voucher.soTienGiamToiDa,
+                          ? `Giảm ${
+                              voucher.giaTriGiam
+                            }% (tối đa ${formatCurrency(
+                              voucher.soTienGiamToiDa
                             )})`
                           : `Giảm ${formatCurrency(voucher.giaTriGiam)}`}
                       </div>
                       <div>Tên phiếu giảm giá: {voucher.tenPhieuGiamGia}</div>
                       <div>Số lượng: {voucher.soLuong}</div>
 
-                      <div style={{ color: 'rgba(0, 0, 0, 0.45)' }}>
+                      <div style={{ color: "rgba(0, 0, 0, 0.45)" }}>
                         Số tiền giảm: {formatCurrency(discountAmount)}
                       </div>
-                      <div style={{ color: 'rgba(0, 0, 0, 0.45)' }}>
+                      <div style={{ color: "rgba(0, 0, 0, 0.45)" }}>
                         Đơn tối thiểu: {formatCurrency(voucher.giaTriToiThieu)}
                       </div>
                     </div>
@@ -5237,14 +6631,14 @@ const BanHang = () => {
               </List.Item>
             );
           }}
-          locale={{ emptyText: 'Không có mã giảm giá khả dụng' }}
+          locale={{ emptyText: "Không có mã giảm giá khả dụng" }}
         />
       </Modal>
       {/* Modal quets qr thanh toán */}
       <Modal
         title={
-          <div style={{ textAlign: 'center' }}>
-            <QrcodeOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+          <div style={{ textAlign: "center" }}>
+            <QrcodeOutlined style={{ color: "#1890ff", marginRight: 8 }} />
             <span>Quét mã QR để thanh toán</span>
           </div>
         }
@@ -5263,23 +6657,27 @@ const BanHang = () => {
                 // Lấy thông tin thanh toán chuyển khoản
                 const order = tabs.find((tab) => tab.key === activeKey)?.order;
                 const transferPayment = order?.thanhToans?.find(
-                  (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR,
+                  (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
                 );
 
                 if (transferPayment && transferPayment.soTien > 0) {
-                  message.loading('Đang kiểm tra thanh toán...', 1.5);
+                  message.loading("Đang kiểm tra thanh toán...", 1.5);
 
                   setTimeout(() => {
-                    checkPayment(activeKey, transferPayment.soTien).then((isPaid) => {
-                      if (isPaid) {
-                        message.success('Thanh toán đã được xác nhận!');
-                        setIsModalVisiblePaymentQR(false);
-                        // Tiếp tục quá trình xác nhận đơn hàng sau khi thanh toán thành công
-                        handleConfirmOrder(activeKey);
-                      } else {
-                        message.error('Chưa nhận được thanh toán, vui lòng thử lại!');
+                    checkPayment(activeKey, transferPayment.soTien).then(
+                      (isPaid) => {
+                        if (isPaid) {
+                          message.success("Thanh toán đã được xác nhận!");
+                          setIsModalVisiblePaymentQR(false);
+                          // Tiếp tục quá trình xác nhận đơn hàng sau khi thanh toán thành công
+                          handleConfirmOrder(activeKey);
+                        } else {
+                          message.error(
+                            "Chưa nhận được thanh toán, vui lòng thử lại!"
+                          );
+                        }
                       }
-                    });
+                    );
                   }, 1500);
                 }
               }
@@ -5291,24 +6689,26 @@ const BanHang = () => {
         centered
         width={400}
       >
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: "center" }}>
           <div
             style={{
               fontSize: 16,
-              fontWeight: 'bold',
+              fontWeight: "bold",
               marginBottom: 15,
-              background: '#f0f7ff',
-              padding: '10px',
-              borderRadius: '8px',
+              background: "#f0f7ff",
+              padding: "10px",
+              borderRadius: "8px",
             }}
           >
-            Số tiền:{' '}
-            <span style={{ color: '#1890ff' }}>
+            Số tiền:{" "}
+            <span style={{ color: "#1890ff" }}>
               {activeKey &&
                 (() => {
-                  const order = tabs.find((tab) => tab.key === activeKey)?.order;
+                  const order = tabs.find(
+                    (tab) => tab.key === activeKey
+                  )?.order;
                   const transferPayment = order?.thanhToans?.find(
-                    (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR,
+                    (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
                   );
                   return formatCurrency(transferPayment?.soTien || 0);
                 })()}
@@ -5318,10 +6718,10 @@ const BanHang = () => {
           {qrCode && (
             <div
               style={{
-                padding: '10px',
-                border: '1px solid #d9d9d9',
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                padding: "10px",
+                border: "1px solid #d9d9d9",
+                borderRadius: "8px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                 marginBottom: 15,
               }}
             >
@@ -5329,10 +6729,10 @@ const BanHang = () => {
                 src={qrCode}
                 alt="QR Code"
                 style={{
-                  width: '100%',
+                  width: "100%",
                   maxWidth: 280,
-                  margin: '0 auto',
-                  borderRadius: '4px',
+                  margin: "0 auto",
+                  borderRadius: "4px",
                 }}
               />
             </div>
@@ -5341,7 +6741,7 @@ const BanHang = () => {
           <Alert
             message="Hướng dẫn thanh toán"
             description={
-              <ol style={{ textAlign: 'left', paddingLeft: '20px' }}>
+              <ol style={{ textAlign: "left", paddingLeft: "20px" }}>
                 <li>Mở ứng dụng ngân hàng trên điện thoại</li>
                 <li>Quét mã QR này bằng ứng dụng</li>
                 <li>Xác nhận thông tin và số tiền thanh toán</li>
@@ -5350,7 +6750,7 @@ const BanHang = () => {
             }
             type="info"
             showIcon
-            style={{ marginTop: 10, textAlign: 'left' }}
+            style={{ marginTop: 10, textAlign: "left" }}
           />
         </div>
       </Modal>
@@ -5358,6 +6758,7 @@ const BanHang = () => {
       <ProductTable
         products={products}
         onAddProduct={handleAddProductToOrder}
+        onAddMultipleProducts={handleAddMultipleProducts}
         open={openProductTable}
         onClose={() => setOpenProductTable(false)}
       />
@@ -5390,6 +6791,279 @@ const BanHang = () => {
           onScanSuccess={handleQrScanSuccess}
           onScanError={handleQrScanError}
           isActive={isQrScannerVisible}
+        />
+      </Modal>
+      {/* Modal xác nhận thay đổi giá */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <div
+              style={{
+                backgroundColor: "#fff2f0",
+                padding: "8px",
+                borderRadius: "50%",
+                display: "inline-flex",
+                marginRight: "12px",
+              }}
+            >
+              <WarningOutlined style={{ fontSize: "24px", color: "#ff4d4f" }} />
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "bold",
+                  marginBottom: "4px",
+                }}
+              >
+                Cảnh báo thay đổi giá sản phẩm
+              </div>
+              <div style={{ fontSize: "14px", color: "rgba(0, 0, 0, 0.65)" }}>
+                Có {changedProducts.length} sản phẩm đã thay đổi giá so với khi
+                thêm vào đơn hàng
+              </div>
+            </div>
+          </div>
+        }
+        open={openPriceChangeDialog}
+        onCancel={() => setOpenPriceChangeDialog(false)}
+        width={900}
+        bodyStyle={{ padding: "16px", maxHeight: "70vh", overflow: "auto" }}
+        centered
+        footer={
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "12px 0",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <Checkbox
+                checked={updateAllPrices}
+                onChange={(e) => setUpdateAllPrices(e.target.checked)}
+              >
+                <Text strong>Áp dụng giá mới cho tất cả sản phẩm</Text>
+              </Checkbox>
+
+              {priceChangeAmount !== 0 && (
+                <div style={{ marginTop: "8px" }}>
+                  <Text type={priceChangeAmount > 0 ? "danger" : "success"}>
+                    {priceChangeAmount > 0 ? "Tăng giá: +" : "Giảm giá: "}
+                    {formatCurrency(Math.abs(priceChangeAmount))}
+                  </Text>
+                </div>
+              )}
+            </div>
+            <Space>
+              <Button
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => setOpenPriceChangeDialog(false)}
+              >
+                Đóng
+              </Button>
+              <Button
+                onClick={() => handleUpdateAllPrices(false)}
+                style={{ margin: "0 8px" }}
+              >
+                Giữ tất cả giá ban đầu
+              </Button>
+              <Button
+                type="primary"
+                icon={<SyncOutlined />}
+                onClick={() => handleUpdateAllPrices(true)}
+              >
+                Cập nhật tất cả giá mới
+              </Button>
+            </Space>
+          </div>
+        }
+      >
+        <List
+          itemLayout="horizontal"
+          dataSource={changedProducts}
+          renderItem={(product) => (
+            <Card
+              style={{
+                marginBottom: 16,
+                borderRadius: 8,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                border: "1px solid #f0f0f0",
+              }}
+              bodyStyle={{ padding: 16 }}
+            >
+              <List.Item
+                style={{ padding: 0 }}
+                actions={[
+                  <Button
+                    key="keep-old-price"
+                    onClick={() => handleUpdateProductPrice(product.id, false)}
+                    style={{ width: 120 }}
+                  >
+                    Giữ giá cũ
+                  </Button>,
+                  <Button
+                    key="use-new-price"
+                    type="primary"
+                    onClick={() => handleUpdateProductPrice(product.id, true)}
+                    style={{ width: 120 }}
+                  >
+                    Dùng giá mới
+                  </Button>,
+                ]}
+              >
+                <List.Item.Meta
+                  avatar={
+                    <div
+                      style={{
+                        width: "80px",
+                        height: "80px",
+                        overflow: "hidden",
+                        borderRadius: "4px",
+                        marginRight: "16px",
+                        border: "1px solid #eee",
+                      }}
+                    >
+                      <img
+                        src={
+                          product.hinhAnh && product.hinhAnh.length > 0
+                            ? product.hinhAnh[0]
+                            : "https://via.placeholder.com/80x80?text=No+Image"
+                        }
+                        alt={product.tenSanPham}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                    </div>
+                  }
+                  title={
+                    <div
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "500",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span>{product.tenSanPham}</span>
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: "13px", marginLeft: "8px" }}
+                      >
+                        #{product.maSanPhamChiTiet || ""}
+                      </Text>
+                    </div>
+                  }
+                  description={
+                    <div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <div>
+                          <span style={{ color: "#666" }}>Màu: </span>
+                          <span>{product.mauSac || "---"}</span>
+                          {product.maMauSac && (
+                            <div
+                              style={{
+                                display: "inline-block",
+                                width: 16,
+                                height: 16,
+                                borderRadius: 4,
+                                backgroundColor: product.maMauSac,
+                                verticalAlign: "middle",
+                                marginLeft: "5px",
+                                border: "1px solid rgba(0, 0, 0, 0.1)",
+                              }}
+                            />
+                          )}
+                        </div>
+                        <Divider type="vertical" style={{ margin: "0 12px" }} />
+                        <div>
+                          <span style={{ color: "#666" }}>Kích thước: </span>
+                          <span>{product.kichThuoc || "---"}</span>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginTop: "8px",
+                        }}
+                      >
+                        <div>
+                          <div style={{ marginBottom: "4px" }}>
+                            <Text
+                              delete
+                              type="secondary"
+                              style={{ fontSize: "14px" }}
+                            >
+                              Giá cũ:{" "}
+                              {formatCurrency(product.giaTaiThoiDiemThem)}
+                            </Text>
+                          </div>
+                          <div>
+                            <Text
+                              type="danger"
+                              strong
+                              style={{ fontSize: "16px" }}
+                            >
+                              Giá mới: {formatCurrency(product.giaHienTai)}
+                            </Text>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <Tag
+                            color={product.chenhLech > 0 ? "red" : "green"}
+                            style={{
+                              padding: "4px 8px",
+                              fontSize: "14px",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            {product.chenhLech > 0
+                              ? `Tăng ${formatCurrency(
+                                  Math.abs(product.chenhLech)
+                                )}`
+                              : `Giảm ${formatCurrency(
+                                  Math.abs(product.chenhLech)
+                                )}`}
+                          </Tag>
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              color: "#666",
+                              marginTop: "4px",
+                            }}
+                          >
+                            {product.chenhLech > 0
+                              ? `+${(
+                                  (Math.abs(product.chenhLech) /
+                                    product.giaTaiThoiDiemThem) *
+                                  100
+                                ).toFixed(1)}%`
+                              : `-${(
+                                  (Math.abs(product.chenhLech) /
+                                    product.giaTaiThoiDiemThem) *
+                                  100
+                                ).toFixed(1)}%`}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                />
+              </List.Item>
+            </Card>
+          )}
         />
       </Modal>
     </Layout>

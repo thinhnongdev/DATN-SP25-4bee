@@ -40,7 +40,7 @@ public class KhachHangController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<KhachHang> updateKhachHang(@PathVariable String id, @RequestBody KhachHangCreationRequest khachHang) {
+    public ResponseEntity<KhachHang> updateNhanVien(@PathVariable String id, @RequestBody KhachHangCreationRequest khachHang) {
         return ResponseEntity.ok(khachHangService.updateKhachHang(id, khachHang));
     }
 

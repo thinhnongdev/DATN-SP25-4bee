@@ -32,7 +32,7 @@ import { checkTokenValidity } from './components/Client/pages/checkTokenValidity
 import ThongkeRoutes from './routes/ThongKeRoutes';
 import Forbidden403 from './components/Auth/Forbidden403';
 import ProtectedRoutes from './routes/ProtectedRoutes';
-import NotFoundPage from './components/Auth/NotFoundPage';
+import NotFoundPage from './components/Auth/NotFoundPage';                                                                                                                                              
 const { Header, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {

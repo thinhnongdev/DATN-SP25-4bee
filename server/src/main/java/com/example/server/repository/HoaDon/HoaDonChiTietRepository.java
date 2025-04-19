@@ -17,11 +17,11 @@ import java.util.Optional;
 public interface HoaDonChiTietRepository extends JpaRepository<HoaDonChiTiet, String> {
     List<HoaDonChiTiet> findByHoaDon(HoaDon hoaDon);
 
-    @Query("SELECT new com.example.server.dto.Client.response.HoaDonChiTietClientResponse( " +
-            " h.hoaDon.id, h.sanPhamChiTiet.id,h.id, h.soLuong, h.trangThai, h.giaTaiThoiDiemThem, h.ngayThemVaoGio) " +
-            "FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.trangThai = 1")
-    List<HoaDonChiTietClientResponse> findByHoaDonId(@Param("hoaDonId") String hoaDonId);
-
+//    List<HoaDonChiTiet> findByHoaDonId(String hoaDonId);
+@Query("SELECT new com.example.server.dto.Client.response.HoaDonChiTietClientResponse( " +
+        " h.hoaDon.id, h.sanPhamChiTiet.id,h.id, h.soLuong, h.trangThai, h.giaTaiThoiDiemThem, h.ngayThemVaoGio) " +
+        "FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.trangThai = 1")
+List<HoaDonChiTietClientResponse> findByHoaDonId(@Param("hoaDonId") String hoaDonId);
 
     @Query("SELECT h FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.sanPhamChiTiet.id = :sanPhamChiTietId")
     Optional<HoaDonChiTiet> findByHoaDonAndSanPhamChiTiet(@Param("hoaDonId") String hoaDonId, @Param("sanPhamChiTietId") String sanPhamChiTietId);
@@ -30,6 +30,7 @@ public interface HoaDonChiTietRepository extends JpaRepository<HoaDonChiTiet, St
             " h.sanPhamChiTiet.id, h.sanPhamChiTiet.maSanPhamChiTiet,h.soLuong,h.moTa, h.trangThai, h.sanPhamChiTiet.gia, h.sanPhamChiTiet.mauSac.tenMau,h.sanPhamChiTiet.chatLieu.tenChatLieu,h.sanPhamChiTiet.sanPham.tenSanPham,h.sanPhamChiTiet.kichThuoc.tenKichThuoc,h.sanPhamChiTiet.thuongHieu.tenThuongHieu,h.sanPhamChiTiet.kieuDang.tenKieuDang,h.sanPhamChiTiet.hoaTiet.tenHoaTiet,h.ngayTao) " +
             "FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.trangThai = 1")
     List<SanPhamChiTietClientResponse> findDanhSachSanPhamDaMuaByHoaDonId(@Param("hoaDonId") String hoaDonId);
+
 
     long countBySanPhamChiTietId(String sanPhamChiTietId);
 }

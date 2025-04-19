@@ -6,6 +6,7 @@ import com.example.server.dto.HoaDon.response.HoaDonChiTietResponse;
 import com.example.server.dto.HoaDon.response.HoaDonResponse;
 import com.example.server.dto.HoaDon.response.SanPhamChiTietHoaDonResponse;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -35,4 +36,12 @@ public interface IHoaDonSanPhamService {
 
     // Thêm phương thức để cập nhật giá tất cả sản phẩm trong giỏ hàng
     HoaDonResponse updateAllProductPrices(String hoaDonId, Boolean useCurrentPrices);
+
+    // Thêm phương thức mới
+    HoaDonResponse updateAllProductPricesAndProcessPayment(
+            String hoaDonId,
+            Boolean useCurrentPrices,
+            String paymentAction,
+            String paymentMethodId,
+            BigDecimal adjustmentAmount);
 }

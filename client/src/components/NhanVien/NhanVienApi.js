@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/nhan_vien';
+const API_URL = 'http://localhost:8080/api/admin/nhan_vien';
 const token = localStorage.getItem('token'); // Lấy token từ localStorage
 
 export async function getAllApi() {

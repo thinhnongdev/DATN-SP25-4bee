@@ -2,6 +2,7 @@ package com.example.server.controller.Client;
 
 import com.example.server.dto.Client.request.CartProductRequest;
 import com.example.server.dto.Client.request.OrderRequest;
+import com.example.server.dto.Client.request.UpdateDiaChiClientRequest;
 import com.example.server.dto.Client.response.HoaDonClientResponse;
 import com.example.server.entity.HoaDon;
 import com.example.server.service.Client.HoaDonChiTietClientService;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -50,15 +52,17 @@ public class HoaDonClientController {
     }
 
     @PutMapping("/order/thaydoidiachihoadonchoxacnhan/{idHoaDon}")
-    public ResponseEntity<?> updateDiaChiHoaDonChoXacNhan(@PathVariable("idHoaDon") String idHoaDon, @RequestBody String diaChi) {
+    public ResponseEntity<?> updateDiaChiHoaDonChoXacNhan(@PathVariable("idHoaDon") String idHoaDon, @RequestBody UpdateDiaChiClientRequest request) {
         if (idHoaDon == null || idHoaDon.isEmpty()) {
             return ResponseEntity.badRequest().body("Id hóa đơn không được để trống");
         }
-        if (diaChi == null || diaChi.isEmpty()) {
+        if (request.getDiaChi() == null || request.getDiaChi().isEmpty()) {
             return ResponseEntity.badRequest().body("địa chỉ cập nhật không được để trống");
+        }if (request.getShippingFee() == null) {
+            return ResponseEntity.badRequest().body("phí ship cập nhật không được để trống");
         }
         try {
-            HoaDon hoaDon = hoaDonClientService.updateDiaChiDonChoXacNhan(idHoaDon, diaChi);
+            HoaDon hoaDon = hoaDonClientService.updateDiaChiDonChoXacNhan(idHoaDon, request.getDiaChi(), request.getShippingFee(),request.getTotalPayment(), request.getDiaChi());
             if (hoaDon == null) {
                 return ResponseEntity.badRequest().body("Chỉ hóa đơn chờ xác nhận mới được thay đổi địa chỉ");
             }
@@ -137,5 +141,4 @@ public class HoaDonClientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
         }
     }
-
 }

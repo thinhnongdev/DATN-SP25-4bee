@@ -28,11 +28,120 @@ import {
 import { Bar, Pie } from "react-chartjs-2";
 import dayjs from "dayjs";
 
+// Đăng ký các thành phần cần thiết của ChartJS
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartTooltip, Legend, ArcElement);
 
 const { RangePicker } = DatePicker;
 const { TabPane } = Tabs;
 const { Title: AntTitle } = Typography;
+
+// Component StatisticCard được cải tiến
+const StatisticCard = ({ title, value, growth, period }) => {
+  // Format value thành chuỗi với dấu phân cách ngàn khi hiển thị
+  const formattedValue = typeof value === 'number' && !isNaN(value) 
+    ? value.toLocaleString('vi-VN')
+    : (value || 0);
+
+  return (
+    <Card
+      className="statistic-card"
+      style={{
+        padding: "20px",
+        borderRadius: "6px",
+        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+        height: "100%",
+        minHeight: "170px", // Đặt chiều cao tối thiểu cố định cho tất cả card
+        display: "flex",
+        flexDirection: "column",
+      }}
+      bodyStyle={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        padding: "0", // Loại bỏ padding mặc định của Card.Body
+      }}
+    >
+      <div>
+        <Statistic
+          title={<div style={{ fontSize: "16px", marginBottom: "8px" }}>{title}</div>}
+          value={formattedValue}
+          valueStyle={{
+            color: growth >= 0 ? "#3f8600" : "#cf1322",
+            fontSize: "24px",
+            fontWeight: "bold",
+            lineHeight: 1.2, // Giảm line-height
+          }}
+          suffix={
+            <>
+              ₫
+              <Tag color={growth >= 0 ? "success" : "error"} style={{ marginLeft: 8 }}>
+                {growth >= 0 ? `+${growth}%` : `${growth}%`}
+              </Tag>
+            </>
+          }
+        />
+      </div>
+      <div style={{ 
+        color: "#8c8c8c", 
+        fontSize: "12px", 
+        marginTop: "auto", 
+        paddingTop: "8px" 
+      }}>
+        So với {period}
+      </div>
+    </Card>
+  );
+};
+
+// Component Dashboard
+const Dashboard = ({
+  revenueDay,
+  growthDay,
+  revenueWeek,
+  growthWeek,
+  revenueMonth,
+  growthMonth,
+  revenueYear,
+  growthYear,
+}) => {
+  return (
+    <Row gutter={[16, 16]} align="stretch" style={{ marginTop: "16px" }}>
+      <Col xs={24} sm={12} md={6} style={{ display: "flex" }}>
+        <StatisticCard
+          title="Doanh số hôm nay"
+          value={revenueDay}
+          growth={growthDay}
+          period="ngày trước"
+        />
+      </Col>
+      <Col xs={24} sm={12} md={6} style={{ display: "flex" }}>
+        <StatisticCard
+          title="Doanh số tuần này"
+          value={revenueWeek}
+          growth={growthWeek}
+          period="tuần trước"
+        />
+      </Col>
+      <Col xs={24} sm={12} md={6} style={{ display: "flex" }}>
+        <StatisticCard
+          title="Doanh số tháng này"
+          value={revenueMonth}
+          growth={growthMonth}
+          period="tháng trước"
+        />
+      </Col>
+      <Col xs={24} sm={12} md={6} style={{ display: "flex" }}>
+        <StatisticCard
+          title="Doanh số năm nay"
+          value={revenueYear}
+          growth={growthYear}
+          period="năm trước"
+        />
+      </Col>
+    </Row>
+  );
+};
 
 const ThongkeList = () => {
   const [dateRange, setDateRange] = useState([dayjs().startOf("month"), dayjs()]);
@@ -73,10 +182,10 @@ const ThongkeList = () => {
     const fetchRevenueData = async () => {
       try {
         const endpoints = [
-          { url: "http://localhost:8080/api/admin/thong-ke/doanh-thu-ngay", setRevenue: setRevenueDay, setGrowth: setGrowthDay },
-          { url: "http://localhost:8080/api/admin/thong-ke/doanh-thu-tuan", setRevenue: setRevenueWeek, setGrowth: setGrowthWeek },
-          { url: "http://localhost:8080/api/admin/thong-ke/doanh-thu-thang", setRevenue: setRevenueMonth, setGrowth: setGrowthMonth },
-          { url: "http://localhost:8080/api/admin/thong-ke/doanh-thu-nam", setRevenue: setRevenueYear, setGrowth: setGrowthYear },
+          { url: "http://localhost:8080/thong-ke/doanh-thu-ngay", setRevenue: setRevenueDay, setGrowth: setGrowthDay },
+          { url: "http://localhost:8080/thong-ke/doanh-thu-tuan", setRevenue: setRevenueWeek, setGrowth: setGrowthWeek },
+          { url: "http://localhost:8080/thong-ke/doanh-thu-thang", setRevenue: setRevenueMonth, setGrowth: setGrowthMonth },
+          { url: "http://localhost:8080/thong-ke/doanh-thu-nam", setRevenue: setRevenueYear, setGrowth: setGrowthYear },
         ];
 
         const requests = endpoints.map(({ url, setRevenue, setGrowth }) =>
@@ -109,19 +218,19 @@ const ThongkeList = () => {
 
         if (activeTab === "Số lượng") {
           if (statsView === "Ngày") {
-            url = `http://localhost:8080/api/admin/thong-ke/so-luong-ban?startDate=${startDateFormatted}&endDate=${endDateFormatted}`;
+            url = `http://localhost:8080/thong-ke/so-luong-ban?startDate=${startDateFormatted}&endDate=${endDateFormatted}`;
           } else if (statsView === "Tháng") {
-            url = "http://localhost:8080/api/admin/thong-ke/so-luong-theo-thang";
+            url = "http://localhost:8080/thong-ke/so-luong-theo-thang";
           } else {
-            url = "http://localhost:8080/api/admin/thong-ke/so-luong-theo-nam";
+            url = "http://localhost:8080/thong-ke/so-luong-theo-nam";
           }
         } else {
           if (statsView === "Ngày") {
-            revenueUrl = `http://localhost:8080/api/admin/thong-ke/doanh-thu?start=${startDateFormatted}&end=${endDateFormatted}`;
+            revenueUrl = `http://localhost:8080/thong-ke/doanh-thu?start=${startDateFormatted}&end=${endDateFormatted}`;
           } else if (statsView === "Tháng") {
-            revenueUrl = "http://localhost:8080/api/admin/thong-ke/doanh-thu-thang-cot";
+            revenueUrl = "http://localhost:8080/thong-ke/doanh-thu-thang-cot";
           } else {
-            revenueUrl = "http://localhost:8080/api/admin/thong-ke/doanh-thu-cac-thang-trong-nam";
+            revenueUrl = "http://localhost:8080/thong-ke/doanh-thu-cac-thang-trong-nam";
           }
         }
 
@@ -189,7 +298,7 @@ const ThongkeList = () => {
 
     const fetchStatistics = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/admin/thong-ke/statistics", { headers: getAuthHeaders() });
+        const response = await axios.get("http://localhost:8080/thong-ke/statistics", { headers: getAuthHeaders() });
         const data = response.data;
 
         const allStatuses = [
@@ -241,7 +350,7 @@ const ThongkeList = () => {
     if (!token) return;
 
     axios
-      .get("http://localhost:8080/api/admin/thong-ke/don-hang-gan-day", { headers: getAuthHeaders() })
+      .get("http://localhost:8080/thong-ke/don-hang-gan-day", { headers: getAuthHeaders() })
       .then((response) => {
         const formattedData = response.data.map((item) => ({
           key: item.stt,
@@ -265,7 +374,7 @@ const ThongkeList = () => {
     if (!token) return;
 
     axios
-      .get("http://localhost:8080/api/admin/thong-ke/top-san-pham", { headers: getAuthHeaders() })
+      .get("http://localhost:8080/thong-ke/top-san-pham", { headers: getAuthHeaders() })
       .then((response) => {
         const formattedData = response.data.map((item, index) => ({
           key: index + 1,
@@ -283,7 +392,6 @@ const ThongkeList = () => {
     return `${value.toLocaleString("vi-VN")} ₫`;
   };
 
-  // Các hàm xử lý trạng thái và màu sắc (giữ nguyên)
   const getStatusLabel = (status) => {
     switch (status) {
       case 1: return "Chờ xác nhận";
@@ -370,6 +478,30 @@ const ThongkeList = () => {
     },
   ];
 
+  // CSS toàn cục để đảm bảo các card luôn có chiều cao đồng nhất
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .ant-row-flex {
+        align-items: stretch !important;
+      }
+      
+      .statistic-card {
+        height: 100% !important;
+        width: 100% !important;
+      }
+      
+      .ant-card-body {
+        height: 100% !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   return (
     <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
       <Row gutter={[16, 16]}>
@@ -383,84 +515,17 @@ const ThongkeList = () => {
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginTop: "16px" }}>
-        <Col span={6}>
-          <Card style={{ padding: "20px", borderRadius: "6px", boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)" }}>
-            <Statistic
-              title="Doanh số hôm nay"
-              value={revenueDay}
-              precision={0}
-              valueStyle={{ color: growthDay >= 0 ? "#3f8600" : "#cf1322" }}
-              suffix={
-                <>
-                  ₫
-                  <Tag color={growthDay >= 0 ? "success" : "error"} style={{ marginLeft: 8 }}>
-                    {growthDay >= 0 ? `+${growthDay}%` : `${growthDay}%`}
-                  </Tag>
-                </>
-              }
-            />
-            <div style={{ color: "#8c8c8c", fontSize: "12px", marginTop: "8px" }}>So với ngày trước</div>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card style={{ padding: "20px", borderRadius: "6px", boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)" }}>
-            <Statistic
-              title="Doanh số tuần này"
-              value={revenueWeek}
-              precision={0}
-              valueStyle={{ color: growthWeek >= 0 ? "#3f8600" : "#cf1322" }}
-              suffix={
-                <>
-                  ₫
-                  <Tag color={growthWeek >= 0 ? "success" : "error"} style={{ marginLeft: 8 }}>
-                    {growthWeek >= 0 ? `+${growthWeek}%` : `${growthWeek}%`}
-                  </Tag>
-                </>
-              }
-            />
-            <div style={{ color: "#8c8c8c", fontSize: "12px", marginTop: "8px" }}>So với tuần trước</div>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card style={{ padding: "20px", borderRadius: "6px", boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)" }}>
-            <Statistic
-              title="Doanh số tháng này"
-              value={revenueMonth}
-              precision={0}
-              valueStyle={{ color: growthMonth >= 0 ? "#3f8600" : "#cf1322" }}
-              suffix={
-                <>
-                  ₫
-                  <Tag color={growthMonth >= 0 ? "success" : "error"} style={{ marginLeft: 8 }}>
-                    {growthMonth >= 0 ? `+${growthMonth}%` : `${growthMonth}%`}
-                  </Tag>
-                </>
-              }
-            />
-            <div style={{ color: "#8c8c8c", fontSize: "12px", marginTop: "8px" }}>So với tháng trước</div>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card style={{ padding: "20px", borderRadius: "6px", boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)" }}>
-            <Statistic
-              title="Doanh số năm nay"
-              value={revenueYear}
-              precision={0}
-              valueStyle={{ color: growthYear >= 0 ? "#3f8600" : "#cf1322" }}
-              suffix={
-                <>
-                  ₫
-                  <Tag color={growthYear >= 0 ? "success" : "error"} style={{ marginLeft: 8 }}>
-                    {growthYear >= 0 ? `+${growthYear}%` : `${growthYear}%`}
-                  </Tag>
-                </>
-              }
-            />
-            <div style={{ color: "#8c8c8c", fontSize: "12px", marginTop: "8px" }}>So với năm trước</div>
-          </Card>
-        </Col>
-      </Row>
+      {/* Sử dụng Dashboard component với cấu trúc đã được cải tiến */}
+      <Dashboard
+        revenueDay={revenueDay}
+        growthDay={growthDay}
+        revenueWeek={revenueWeek}
+        growthWeek={growthWeek}
+        revenueMonth={revenueMonth}
+        growthMonth={growthMonth}
+        revenueYear={revenueYear}
+        growthYear={growthYear}
+      />
 
       <Row gutter={[16, 16]} style={{ marginTop: "16px" }}>
         <Col span={16}>
@@ -495,9 +560,11 @@ const ThongkeList = () => {
                     data={chartData}
                     options={{
                       responsive: true,
+                      maintainAspectRatio: false,
                       plugins: { legend: { position: "top" }, tooltip: { mode: "index" } },
                       scales: { y: { beginAtZero: true, title: { display: true, text: activeTab } } },
                     }}
+                    style={{ minHeight: "350px" }}
                   />
                 )}
               </TabPane>
@@ -509,6 +576,7 @@ const ThongkeList = () => {
                     data={chartData}
                     options={{
                       responsive: true,
+                      maintainAspectRatio: false,
                       plugins: {
                         legend: { position: "top" },
                         tooltip: {
@@ -518,6 +586,7 @@ const ThongkeList = () => {
                       },
                       scales: { y: { beginAtZero: true, title: { display: true, text: "Doanh số (₫)" } } },
                     }}
+                    style={{ minHeight: "350px" }}
                   />
                 )}
               </TabPane>
@@ -535,17 +604,26 @@ const ThongkeList = () => {
                 <Spin tip="Đang tải dữ liệu..." />
               </div>
             ) : (
-              <Pie
-                data={pieChartData}
-                options={{
-                  plugins: {
-                    legend: { position: "right", labels: { boxWidth: 15, padding: 15, font: { family: "Arial", size: 12 } } },
-                    tooltip: { bodyFont: { family: "Arial", size: 14 } },
-                  },
-                  maintainAspectRatio: false,
-                }}
-                height={230}
-              />
+              <div style={{ height: "350px", position: "relative" }}>
+                <Pie
+                  data={pieChartData}
+                  options={{
+                    plugins: {
+                      legend: { 
+                        position: "right", 
+                        labels: { 
+                          boxWidth: 15, 
+                          padding: 15, 
+                          font: { family: "Arial", size: 12 } 
+                        } 
+                      },
+                      tooltip: { bodyFont: { family: "Arial", size: 14 } },
+                    },
+                    maintainAspectRatio: false,
+                    responsive: true,
+                  }}
+                />
+              </div>
             )}
           </Card>
         </Col>
@@ -557,7 +635,14 @@ const ThongkeList = () => {
             style={{ padding: "20px", borderRadius: "6px", boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)" }}
             title="Đơn hàng gần đây"
           >
-            <Table columns={orderColumns} dataSource={recentOrders} pagination={false} size="small" scroll={{ y: 250 }} />
+            <Table 
+              columns={orderColumns} 
+              dataSource={recentOrders} 
+              pagination={{ pageSize: 5 }} 
+              size="small" 
+              scroll={{ x: 'max-content' }}
+              locale={{ emptyText: "Không có dữ liệu" }}
+            />
           </Card>
         </Col>
         <Col span={8}>
@@ -565,7 +650,13 @@ const ThongkeList = () => {
             title="Top sản phẩm thịnh hành"
             style={{ height: "100%", padding: "20px", borderRadius: "6px", boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)" }}
           >
-            <Table columns={productColumns} dataSource={topProducts} pagination={false} size="small" />
+            <Table 
+              columns={productColumns} 
+              dataSource={topProducts} 
+              pagination={{ pageSize: 5 }}
+              size="small"
+              locale={{ emptyText: "Không có dữ liệu" }}
+            />
           </Card>
         </Col>
       </Row>

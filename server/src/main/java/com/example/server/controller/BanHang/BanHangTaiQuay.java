@@ -79,9 +79,9 @@ public class BanHangTaiQuay {
         HoaDonResponse response = banHangService.addProduct(hoaDonId, request);
 
         // Nếu không trì hoãn áp dụng voucher, gọi applyBestVoucher nhưng không có customerId
-        if (!delayApplyVoucher) {
-            response = banHangService.applyBestVoucher(hoaDonId);
-        }
+//        if (!delayApplyVoucher) {
+//            response = banHangService.applyBestVoucher(hoaDonId);
+//        }
 
         webSocketService.sendInvoiceUpdate(hoaDonId);
         return ResponseEntity.ok(response);
@@ -102,8 +102,8 @@ public class BanHangTaiQuay {
 
         HoaDonResponse response = hoaDonSanPhamService.updateProductQuantity(hoaDonId, hoaDonChiTietId, request);
 
-        // Tự động áp dụng mã giảm giá tốt nhất sau khi cập nhật số lượng
-        response = banHangServiceImpl.applyBestVoucher(hoaDonId);
+//        // Tự động áp dụng mã giảm giá tốt nhất sau khi cập nhật số lượng
+//        response = banHangServiceImpl.applyBestVoucher(hoaDonId);
 
         return ResponseEntity.ok(response);
     }

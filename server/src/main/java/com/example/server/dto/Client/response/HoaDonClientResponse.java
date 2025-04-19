@@ -1,13 +1,9 @@
 package com.example.server.dto.Client.response;
 
-import com.example.server.entity.*;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 @Getter
 @Setter
@@ -74,3 +70,4 @@ public class HoaDonClientResponse {
     //List<ThanhToanHoaDon> thanhToanHoaDons = new ArrayList<>();
 
 }
+

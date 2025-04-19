@@ -7,9 +7,8 @@ import com.example.server.entity.KhachHang;
 import com.example.server.entity.PhieuGiamGia;
 import com.example.server.entity.PhieuGiamGiaKhachHang;
 import com.example.server.repository.HoaDon.PhieuGiamGiaKhachHangRepository;
-import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
-import jakarta.mail.MessagingException;
+import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
@@ -19,8 +18,10 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.MailSendException;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -28,11 +29,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,7 +39,10 @@ import java.util.stream.Collectors;
 @Service
 public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
+
     private final Logger logger = LoggerFactory.getLogger(PhieuGiamGiaService.class);
+//    @Autowired
+//    private SendGridEmailService emailService;
 
     @Autowired
     private PhieuGiamGiaRepository repository;
@@ -57,7 +59,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
     @Autowired
     private ModelMapper modelMapper;
-
 
 
     public PhieuGiamGiaDTO convertToDTO(PhieuGiamGia entity) {
@@ -77,15 +78,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public List<PhieuGiamGiaDTO> getActivePhieuGiamGia() {
-        return repository.findByTrangThai(1)
-                .stream()
-                .map(PhieuGiamGiaDTO::new) // Sử dụng constructor mới
-                .collect(Collectors.toList());
-    }
-
-
 
     @Override
     public PhieuGiamGiaDTO getById(String id) {
@@ -100,11 +92,22 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
                 .orElse(null);
     }
 
+    @Override
+    public List<PhieuGiamGiaDTO> getActivePhieuGiamGia() {
+        return repository.findByTrangThai(1)
+                .stream()
+                .map(PhieuGiamGiaDTO::new) // Sử dụng constructor mới
+                .collect(Collectors.toList());
+    }
+
     private void updateTrangThai(PhieuGiamGia phieuGiamGia, LocalDateTime now) {
         LocalDateTime ngayBatDau = phieuGiamGia.getNgayBatDau();
         LocalDateTime ngayKetThuc = phieuGiamGia.getNgayKetThuc();
+        int oldTrangThai = phieuGiamGia.getTrangThai();
 
-        if (now.isBefore(ngayBatDau)) {
+        if (phieuGiamGia.getSoLuong() <= 0) {
+            phieuGiamGia.setTrangThai(2); // Ngừng hoạt động nếu số lượng về 0
+        } else if (now.isBefore(ngayBatDau)) {
             phieuGiamGia.setTrangThai(3); // Sắp diễn ra
         } else if (now.isAfter(ngayKetThuc)) {
             phieuGiamGia.setTrangThai(2); // Ngừng hoạt động
@@ -112,9 +115,19 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             phieuGiamGia.setTrangThai(1); // Đang hoạt động
         }
 
+        // Nếu trạng thái thay đổi và là phiếu cá nhân, cập nhật PhieuGiamGiaKhachHang
+        if (oldTrangThai != phieuGiamGia.getTrangThai() && phieuGiamGia.getKieuGiamGia() == 2) {
+            List<PhieuGiamGiaKhachHang> pggKhachHangs = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(phieuGiamGia.getId());
+            for (PhieuGiamGiaKhachHang pggKhachHang : pggKhachHangs) {
+                if (phieuGiamGia.getTrangThai() == 2) {
+                    pggKhachHang.setTrangThai(false); // Đánh dấu đã hết hạn hoặc không khả dụng
+                }
+                phieuGiamGiaKhachHangRepository.save(pggKhachHang);
+            }
+        }
+
         repository.save(phieuGiamGia);
     }
-
 
     @Override
     public String getDiscountInfo(String maPhieuGiamGia) {
@@ -136,6 +149,13 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         PhieuGiamGia phieuGiamGia = repository.findByMaPhieuGiamGiaAndTrangThai(maPhieuGiamGia, 1)
                 .orElseThrow(() -> new IllegalArgumentException("Phiếu giảm giá không hợp lệ hoặc đã hết hạn."));
 
+        // Kiểm tra số lượng
+        if (phieuGiamGia.getSoLuong() <= 0) {
+            phieuGiamGia.setTrangThai(2); // Ngừng hoạt động
+            repository.save(phieuGiamGia);
+            throw new IllegalArgumentException("Phiếu giảm giá đã hết số lượng.");
+        }
+
         // Kiểm tra giá trị tối thiểu
         if (tongGiaTriDonHang < phieuGiamGia.getGiaTriToiThieu().doubleValue()) {
             throw new IllegalArgumentException(String.format(
@@ -155,16 +175,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         }
 
         return giaTriGiam;
-    }
-
-    @Override
-    public List<PhieuGiamGia> getAllPhieuCongKhai() {
-        return repository.findAllCongKhai();
-    }
-
-    @Override
-    public List<PhieuGiamGia> getAllPhieuCaNhan(String email) {
-        return repository.findAllCaNhan(email);
     }
 
 
@@ -271,7 +281,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
                 PhieuGiamGiaKhachHang pggKhachHang = new PhieuGiamGiaKhachHang();
                 pggKhachHang.setKhachHang(khachHang);
                 pggKhachHang.setPhieuGiamGia(phieuGiamGia);
-                pggKhachHang.setTrangThai(false);
+                pggKhachHang.setTrangThai(true);
                 pggKhachHang.setNgayTao(LocalDateTime.now(zoneId));
                 phieuGiamGiaKhachHangRepository.save(pggKhachHang);
 
@@ -285,68 +295,68 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
         return modelMapper.map(phieuGiamGia, PhieuGiamGiaDTO.class);
     }
-
     @Async("emailTaskExecutor")
     public void sendEmailAsync(KhachHang khachHang, PhieuGiamGia phieuGiamGia) {
         try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-
-            helper.setTo(khachHang.getEmail());
-            helper.setSubject("Thông báo phiếu giảm giá cá nhân");
-
-            // Định dạng ngày đúng múi giờ
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
                     .withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
-            String ngayKetThucFormatted = phieuGiamGia.getNgayKetThuc().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).format(formatter);
+            String ngayKetThucFormatted = phieuGiamGia.getNgayKetThuc()
+                    .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                    .format(formatter);
 
             String htmlContent = """
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #007bff; color: #fff; padding: 20px; text-align: center;">
-                <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
-                <p style="font-size: 18px;">Chúng tôi vui mừng thông báo rằng bạn vừa nhận được phiếu giảm giá!</p>
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #007bff; color: #fff; padding: 20px; text-align: center;">
+                    <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
+                    <p style="font-size: 18px;">Bạn vừa nhận được phiếu giảm giá!</p>
+                </div>
+                <div style="background-color: #f8f9fa; padding: 20px;">
+                    <p style="font-size: 16px;">Chi tiết phiếu giảm giá:</p>
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                        <tr>
+                            <th style="padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu</th>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
+                        </tr>
+                        <tr>
+                            <th style="padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu</th>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
+                        </tr>
+                        <tr>
+                            <th style="padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
+                        </tr>
+                    </table>
+                    <p>Hãy sử dụng phiếu trước <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi!</p>
+                </div>
+                <div style="background-color: #f1f1f1; padding: 10px; text-align: center;">
+                    <p style="font-size: 14px; color: #6c757d;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
+                </div>
             </div>
-            <div style="background-color: #f8f9fa; padding: 20px;">
-                <p style="font-size: 16px;">Dưới đây là chi tiết phiếu giảm giá của bạn:</p>
-                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu giảm giá</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu giảm giá</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
-                    </tr>
-                </table>
-                <p style="font-size: 16px;">Hãy sử dụng phiếu giảm giá này trước ngày <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi đặc biệt này.</p>
-                <p style="font-size: 16px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
-            </div>
-            <div style="background-color: #f1f1f1; padding: 10px; text-align: center;">
-                <p style="font-size: 14px; color: #6c757d;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
-            </div>
-        </div>
-        """;
+            """;
 
             htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
                     .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia())
                     .replace("{{maPhieuGiamGia}}", phieuGiamGia.getMaPhieuGiamGia())
                     .replace("{{ngayKetThuc}}", ngayKetThucFormatted);
 
-            helper.setText(htmlContent, true);
-            mailSender.send(mimeMessage);
+            // Gửi email bằng JavaMailSender
+            sendHtmlEmail(khachHang.getEmail(), "Thông báo phiếu giảm giá cá nhân", htmlContent);
 
-        } catch (MessagingException | MailSendException e) {
-            logger.error("Lỗi gửi email cho khách hàng: {}, mã phiếu giảm giá: {}. Chi tiết lỗi: {}",
-                    khachHang.getEmail(), phieuGiamGia.getMaPhieuGiamGia(), e.getMessage());
         } catch (Exception e) {
-            logger.error("Lỗi không xác định khi gửi email: {}", e.getMessage());
+            logger.error("Lỗi khi gửi email: {}", e.getMessage());
         }
     }
 
+    private void sendHtmlEmail(String to, String subject, String htmlContent) throws Exception {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(htmlContent, true); // true để gửi email dạng HTML
+
+        mailSender.send(message);
+    }
 
     // Lấy danh sách khách hàng theo mã phiếu giảm giá
     public List<KhachHang> getKhachHangByMaPhieuGiamGia(String maPhieuGiamGia) {
@@ -408,7 +418,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
                     newEntry.setPhieuGiamGia(existingEntity);
                     newEntry.setKhachHang(khachHangRepository.findById(idKH)
                             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khách hàng không tồn tại")));
-                    newEntry.setTrangThai(false);
+                    newEntry.setTrangThai(true);
                     newEntry.setNgayTao(now);
                     newEntry.setNguoiTao("admin");
                     return newEntry;
@@ -451,7 +461,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
             if (existingEntry.isPresent()) {
                 PhieuGiamGiaKhachHang entry = existingEntry.get();
-                entry.setTrangThai(false);
+                entry.setTrangThai(true);
                 entry.setNgaySua(now);
                 entry.setNguoiSua("admin");
                 phieuGiamGiaKhachHangRepository.save(entry);
@@ -460,7 +470,7 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
                 newEntry.setId(UUID.randomUUID().toString());
                 newEntry.setPhieuGiamGia(phieuGiamGia);
                 newEntry.setKhachHang(khachHang);
-                newEntry.setTrangThai(false);
+                newEntry.setTrangThai(true);
                 newEntry.setNgayTao(now);
                 newEntry.setNguoiTao("admin");
 
@@ -540,6 +550,9 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         }
     }
 
+
+
+
     @Transactional
     public void removeCustomerFromPhieuGiamGia(String phieuGiamGiaId, String khachHangId) {
         PhieuGiamGia phieuGiamGia = repository.findById(phieuGiamGiaId)
@@ -600,25 +613,29 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
 
     private void updatePhieuGiamGia(PhieuGiamGia ph, UpdatePhieuGiamGiaRequest request) {
-        ph.setTenPhieuGiamGia(Objects.requireNonNullElse(request.getTenPhieuGiamGia(), ph.getTenPhieuGiamGia()));
-        ph.setGiaTriGiam(Objects.requireNonNullElse(request.getGiaTriGiam(), ph.getGiaTriGiam()));
-        ph.setNgayBatDau(Objects.requireNonNullElse(request.getNgayBatDau(), ph.getNgayBatDau()));
-        ph.setNgayKetThuc(Objects.requireNonNullElse(request.getNgayKetThuc(), ph.getNgayKetThuc()));
-        ph.setSoLuong(Objects.requireNonNullElse(request.getSoLuong(), ph.getSoLuong()));
-        ph.setTrangThai(Objects.requireNonNullElse(request.getTrangThai(), ph.getTrangThai()));
-        ph.setMoTa(Objects.requireNonNullElse(request.getMoTa(), ph.getMoTa()));
+        if (request == null) {
+            throw new IllegalArgumentException("Request không được null");
+        }
 
-        // Lấy danh sách khách hàng của phiếu giảm giá này
-        List<PhieuGiamGiaKhachHang> dsKhachHang = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(ph.getId());
+        if (request.getTenPhieuGiamGia() != null) ph.setTenPhieuGiamGia(request.getTenPhieuGiamGia());
+        if (request.getGiaTriGiam() != null) ph.setGiaTriGiam(request.getGiaTriGiam());
+        if (request.getNgayBatDau() != null) ph.setNgayBatDau(request.getNgayBatDau());
+        if (request.getNgayKetThuc() != null) ph.setNgayKetThuc(request.getNgayKetThuc());
+        if (request.getSoLuong() != null) ph.setSoLuong(request.getSoLuong());
+        if (request.getTrangThai() != null) ph.setTrangThai(request.getTrangThai());
+        if (request.getMoTa() != null) ph.setMoTa(request.getMoTa());
 
-        // In ra trạng thái của từng khách hàng (hoặc xử lý theo yêu cầu của bạn)
-        dsKhachHang.forEach(kh -> {
-            System.out.println("Khách hàng ID: " + kh.getId() + " - Trạng thái: " + kh.getTrangThai());
-        });
+        // Đồng bộ trạng thái với PhieuGiamGiaKhachHang nếu là phiếu cá nhân
+        if (ph.getKieuGiamGia() == 2 && (ph.getTrangThai() == 2 || (ph.getNgayKetThuc() != null && ph.getNgayKetThuc().isBefore(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")))))) {
+            List<PhieuGiamGiaKhachHang> pggKhachHangs = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(ph.getId());
+            for (PhieuGiamGiaKhachHang pggKhachHang : pggKhachHangs) {
+                pggKhachHang.setTrangThai(false); // Không khả dụng
+                phieuGiamGiaKhachHangRepository.save(pggKhachHang);
+            }
+        }
 
         repository.save(ph);
     }
-
 
 
 
@@ -796,31 +813,67 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         entity.setTrangThai(2);
         repository.save(entity);
     }
-    // Phương thức tự động kiểm tra và đóng phiếu giảm giá hết hạn
-//    @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
-//    @Transactional
-//    public void checkAndUpdateExpiredCoupons() {
-//        logger.info("Bắt đầu kiểm tra và cập nhật trạng thái phiếu giảm giá...");
-//
-//
-//        ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
-//        LocalDateTime now = LocalDateTime.now(Clock.system(zoneId));
-//
-//        // Cập nhật phiếu giảm giá sắp diễn ra
-//        List<PhieuGiamGia> upcomingCoupons = repository.findAllByNgayKetThucBeforeAndTrangThai(now, 1);
-//        upcomingCoupons.forEach(phieu -> phieu.setTrangThai(3)); // Sắp diễn ra
-//        repository.saveAll(upcomingCoupons);
-//
-//        // Cập nhật phiếu giảm giá hết hạn
-//        List<PhieuGiamGia> expiredCoupons = repository.findAllByNgayKetThucBeforeAndTrangThai(now, 1);
-//        expiredCoupons.forEach(phieu -> phieu.setTrangThai(2)); // Ngừng hoạt động
-//        repository.saveAll(expiredCoupons);
-//
-//        logger.info("Đã cập nhật trạng thái của {} phiếu giảm giá.", (upcomingCoupons.size() + expiredCoupons.size()));
-//    }
 
+
+    @Override
+    public List<PhieuGiamGia> getAllPhieuCongKhai() {
+        return repository.findAllCongKhai();
+    }
+
+    @Override
+    public List<PhieuGiamGia> getAllPhieuCaNhan(String email) {
+        return repository.findAllCaNhan(email);
+    }
+
+
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void syncPhieuGiamGiaKhachHangStatus() {
+        Logger logger = LoggerFactory.getLogger(this.getClass());
+        ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime now = LocalDateTime.now(zoneId);
+        logger.info("Thời gian hiện tại: {}", now);
+
+        // Lấy tất cả phiếu giảm giá (không lọc trạng thái ban đầu)
+        List<PhieuGiamGia> allVouchers = repository.findAll();
+        logger.info("Số phiếu tìm thấy: {}", allVouchers.size());
+
+        for (PhieuGiamGia phieu : allVouchers) {
+            LocalDateTime ngayBatDau = phieu.getNgayBatDau();
+            LocalDateTime ngayKetThuc = phieu.getNgayKetThuc();
+            int oldTrangThai = phieu.getTrangThai();
+
+            // Cập nhật trạng thái
+            if (phieu.getSoLuong() <= 0) {
+                phieu.setTrangThai(2);
+            } else if (now.isBefore(ngayBatDau)) {
+                phieu.setTrangThai(3);
+            } else if (now.isAfter(ngayKetThuc)) {
+                phieu.setTrangThai(2);
+            } else {
+                phieu.setTrangThai(1);
+            }
+
+            // Nếu trạng thái thay đổi, đồng bộ PhieuGiamGiaKhachHang
+            if (oldTrangThai != phieu.getTrangThai()) {
+                logger.info("Cập nhật trạng thái phiếu {}: {} -> {}",
+                        phieu.getMaPhieuGiamGia(), oldTrangThai, phieu.getTrangThai());
+                List<PhieuGiamGiaKhachHang> pggKhachHangs = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(phieu.getId());
+                if (!pggKhachHangs.isEmpty()) {
+                    pggKhachHangs.forEach(pgg -> pgg.setTrangThai(phieu.getTrangThai() == 1));
+                    phieuGiamGiaKhachHangRepository.saveAll(pggKhachHangs);
+                }
+                repository.save(phieu);
+            }
+        }
+        logger.info("Hoàn tất đồng bộ trạng thái.");
+    }
 
 
 }
+
+
+
+
 
 

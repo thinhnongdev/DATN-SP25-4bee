@@ -1,18 +1,20 @@
 package com.example.server.controller.HoaDon;
 
+import com.example.server.constant.PaymentConstant;
 import com.example.server.dto.GiaoHang.GHNTinhPhiRequest;
-import com.example.server.dto.HoaDon.request.HoaDonRequest;
-import com.example.server.dto.HoaDon.request.HoaDonSearchCriteria;
-import com.example.server.dto.HoaDon.request.PhieuGiamGiaRequest;
+import com.example.server.dto.HoaDon.request.*;
 import com.example.server.dto.HoaDon.response.HoaDonResponse;
 import com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO;
 import com.example.server.entity.HoaDon;
+import com.example.server.entity.ThanhToanHoaDon;
 import com.example.server.exception.ResourceNotFoundException;
 import com.example.server.exception.ValidationException;
 import com.example.server.mapper.impl.HoaDonMapper;
+import com.example.server.repository.HoaDon.HoaDonRepository;
 import com.example.server.service.BanHang.BanHangService;
 import com.example.server.service.BanHang.impl.BanHangServiceImpl;
 import com.example.server.service.GiaoHang.GHNService;
+import com.example.server.service.HoaDon.impl.HoaDonServiceImpl;
 import com.example.server.service.WebSocketService;
 import com.example.server.service.HoaDon.impl.HoaDonSanPhamServiceImpl;
 import com.example.server.service.HoaDon.interfaces.IHoaDonService;
@@ -32,8 +34,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.example.server.constant.PaymentConstant.PAYMENT_METHOD_VNPAY;
 
 @RestController
 @RequestMapping("/api/admin/hoa-don")
@@ -42,20 +46,16 @@ import java.util.Map;
 @Slf4j
 public class HoaDonController {
     private final IHoaDonService hoaDonService;
+    private final HoaDonServiceImpl service;
     private final HoaDonSanPhamServiceImpl hoaDonSanPhamServiceImpl;
     private final WebSocketService webSocketService; // Inject WebSocket Service
     private final HoaDonMapper hoaDonMapper;
+    private final HoaDonRepository hoaDonRepository;
+    private final BanHangServiceImpl banHangServiceImpl;
     @Autowired
     BanHangService banHangService;
     @Autowired
     private GHNService ghnService;
-    @PostMapping
-    // @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Tạo mới hóa đơn")
-    public ResponseEntity<HoaDonResponse> createHoaDon(
-            @Valid @RequestBody HoaDonRequest request) {
-        return new ResponseEntity<>(hoaDonService.createHoaDon(request), HttpStatus.CREATED);
-    }
 
     @GetMapping("/{id}")
     // @PreAuthorize("hasRole('ADMIN')")
@@ -92,11 +92,53 @@ public class HoaDonController {
         return ResponseEntity.ok(hoaDonService.updateHoaDon(id, request));
     }
 
+    @PostMapping("/{id}/refund-to-pending")
+    @Operation(summary = "Điều chỉnh tiền thừa vào thanh toán chờ xác nhận hoặc trả sau")
+    public ResponseEntity<HoaDonResponse> refundToPending(
+            @PathVariable String id,
+            @RequestBody RefundRequest request) {
+        try {
+            HoaDonResponse response = service.refundExcessPaymentToPending(id, request.getSoTien());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Lỗi khi điều chỉnh tiền thừa: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+    @GetMapping("/{hoaDonId}/excess-payment")
+    public ResponseEntity<Map<String, Object>> getExcessPaymentInfo(@PathVariable String hoaDonId) {
+        BigDecimal excessAmount = service.calculateExcessPayment(hoaDonId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("excessAmount", excessAmount);
+        response.put("hasExcessPayment", excessAmount.compareTo(BigDecimal.ZERO) > 0);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/refund")
+    @Operation(summary = "Hoàn tiền thừa cho khách hàng")
+    public ResponseEntity<HoaDonResponse> refundExcessPayment(
+            @PathVariable String id,
+            @RequestBody RefundRequest request) {
+        try {
+            HoaDonResponse response = service.refundExcessPayment(
+                    id, request.getSoTien(), request.getMaPhuongThucThanhToan(), request.getMoTa());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Lỗi khi hoàn tiền: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Hủy hóa đơn và hoàn lại sản phẩm")
-    public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id) {
-        HoaDonResponse response = hoaDonService.deleteHoaDon(id);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id,  @RequestParam(required = false) String lyDo) {
+//        HoaDonResponse response = hoaDonService.deleteHoaDon(id);
+//        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(hoaDonService.deleteHoaDon(id, lyDo));
     }
 // GHN
     @PostMapping("/phi-van-chuyen")
@@ -139,15 +181,42 @@ public class HoaDonController {
     }
 
     @PatchMapping("/{id}/status")
-    // @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Cập nhật trạng thái hóa đơn")
+    @Operation(summary = "Cập nhật trạng thái hóa đơn và xử lý thanh toán")
     public ResponseEntity<HoaDonResponse> updateTrangThai(
             @PathVariable String id,
-            @RequestParam Integer trangThai) {
+            @RequestParam Integer trangThai,
+            @RequestBody(required = false) UpdateStatusPaymentRequest paymentRequest) {
+
+        List<ThanhToanRequest> thanhToans = paymentRequest != null ? paymentRequest.getThanhToans() : null;
         webSocketService.sendInvoiceUpdate(id); // Gửi thông báo WebSocket
-        return ResponseEntity.ok(hoaDonService.updateTrangThai(id, trangThai));
+        HoaDonResponse result = hoaDonService.updateTrangThai(id, trangThai, thanhToans);
+        return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/{id}/additional-payment")
+    @Operation(summary = "Xử lý thanh toán phụ phí sau khi thêm sản phẩm")
+    public ResponseEntity<HoaDonResponse> processAdditionalPayment(
+            @PathVariable String id,
+            @RequestBody AdditionalPaymentRequest request) {
+
+        HoaDonResponse result = hoaDonService.thanhToanPhuPhi(
+                id, request.getSoTien(), request.getThanhToanRequest());
+        webSocketService.sendInvoiceUpdate(id); // Gửi thông báo WebSocket
+        return ResponseEntity.ok(result);
+    }
+
+    // Các lớp DTO để nhận request
+    @lombok.Data
+    public static class UpdateStatusPaymentRequest {
+        private List<ThanhToanRequest> thanhToans;
+    }
+
+    @lombok.Data
+    public static class AdditionalPaymentRequest {
+        private BigDecimal soTien;
+        private ThanhToanRequest thanhToanRequest;
+    }
+    
     @PutMapping("/{id}/dia-chi")
     public ResponseEntity<HoaDonResponse> updateHoaDonAddress(
             @PathVariable String id,
@@ -259,4 +328,84 @@ public class HoaDonController {
         return ResponseEntity.ok(hoaDonService.getStatistics(fromDate, toDate));
     }
 
+    @PostMapping("/{id}/create-vnpay-payment")
+    @Operation(summary = "Tạo URL thanh toán qua VNPAY cho hóa đơn")
+    public ResponseEntity<?> createVnPayPayment(@PathVariable String id,
+                                                @RequestParam(defaultValue = "http://localhost:3000/admin/ban-hang") String returnUrl) {
+        try {
+            HoaDon hoaDon = hoaDonService.validateAndGet(id);
+
+            // Tìm khoản thanh toán VNPAY trong danh sách thanh toán
+            Optional<ThanhToanHoaDon> vnpayPaymentOpt = hoaDon.getThanhToanHoaDons().stream()
+                    .filter(p -> PAYMENT_METHOD_VNPAY.equals(p.getPhuongThucThanhToan().getId()))
+                    .findFirst();
+
+            // Nếu không tìm thấy, tạo một khoản VNPAY mới
+            if (vnpayPaymentOpt.isEmpty()) {
+                log.info("Không tìm thấy khoản thanh toán VNPAY, sẽ tạo mới với giá trị bằng hóa đơn");
+
+                // Tính số tiền còn lại cần thanh toán
+                BigDecimal paidAmount = hoaDon.getThanhToanHoaDons().stream()
+                        .filter(p -> p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID)
+                        .map(ThanhToanHoaDon::getSoTien)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal remainingAmount = hoaDon.getTongTien().subtract(paidAmount);
+
+                if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                    return ResponseEntity.badRequest().body("Đơn hàng đã được thanh toán đủ");
+                }
+
+                // Sử dụng tổng số tiền cần thanh toán
+                String paymentUrl = banHangServiceImpl.createVnpayPaymentUrl(
+                        remainingAmount.longValue(),
+                        hoaDon.getMaHoaDon(),
+                        returnUrl + "?hoaDonId=" + id
+                );
+
+                return ResponseEntity.ok(paymentUrl);
+            }
+
+            ThanhToanHoaDon vnpayPayment = vnpayPaymentOpt.get();
+
+            if (vnpayPayment.getSoTien().compareTo(BigDecimal.ZERO) <= 0) {
+                return ResponseEntity.badRequest().body("Số tiền thanh toán VNPAY phải lớn hơn 0");
+            }
+
+            // Gọi API tạo URL thanh toán VNPAY
+            String paymentUrl = banHangServiceImpl.createVnpayPaymentUrl(
+                    vnpayPayment.getSoTien().longValue(),
+                    hoaDon.getMaHoaDon(),
+                    returnUrl + "?hoaDonId=" + id
+            );
+
+            return ResponseEntity.ok(paymentUrl);
+        } catch (Exception e) {
+            log.error("Lỗi khi tạo URL thanh toán VNPAY: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi tạo URL thanh toán VNPAY: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/confirm-vnpay-payment")
+    @Operation(summary = "Xác nhận thanh toán VNPAY thành công")
+    public ResponseEntity<HoaDonResponse> confirmVnpayPayment(
+            @PathVariable String id,
+            @RequestBody(required = false) Map<String, String> vnpParams) {
+
+        try {
+            // Lưu thông tin tham số VNPAY vào log để debug
+            log.info("Xác nhận thanh toán VNPAY cho hóa đơn: {}", id);
+            if (vnpParams != null && !vnpParams.isEmpty()) {
+                log.info("Tham số VNPAY: {}", vnpParams);
+            }
+
+            HoaDonResponse response = service.updateVNPayPayment(id);
+            webSocketService.sendInvoiceUpdate(id); // Gửi thông báo WebSocket
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Lỗi khi xác nhận thanh toán VNPAY: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }

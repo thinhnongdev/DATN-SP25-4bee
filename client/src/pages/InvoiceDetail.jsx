@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import { toast } from "react-toastify";
+import { notification } from "antd";
 import api from "../utils/api";
 import ProductTable from "../components/HoaDon/ProductTable";
 import {
@@ -31,12 +30,15 @@ import {
   Image,
   Checkbox,
   message,
+  Alert,
+  Badge,
 } from "antd";
 import {
   EditOutlined,
   PrinterOutlined,
   ArrowLeftOutlined,
   DeleteOutlined,
+  InfoCircleOutlined,
   PlusOutlined,
   HistoryOutlined,
   CloseOutlined,
@@ -44,7 +46,27 @@ import {
   ReloadOutlined,
   SyncOutlined,
   WarningOutlined,
+  CloseCircleOutlined,
+  WalletOutlined,
+  DollarOutlined,
+  CreditCardOutlined,
+  BankOutlined,
+  FieldTimeOutlined,
+  CheckCircleOutlined,
+  ShoppingOutlined,
+  CarOutlined,
+  RollbackOutlined,
+  TrophyOutlined,
 } from "@ant-design/icons";
+import WarningIcon from "@mui/icons-material/Warning";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+  Box,
+} from "@mui/material";
 import { formatDate, formatCurrency } from "../utils/format";
 import { StatusChip, TypeChip } from "../components/StatusChip";
 import axios from "axios";
@@ -59,26 +81,8 @@ const steps = [
   { label: "Chuẩn bị giao hàng", status: 3 },
   { label: "Đang giao", status: 4 },
   { label: "Hoàn thành", status: 5 },
-  // { label: 'Đã hủy', status: 6 },
+  { label: "Đã hủy", status: 6 },
 ];
-const getStatusText = (status) => {
-  switch (status) {
-    case 1:
-      return "Chờ xác nhận";
-    case 2:
-      return "Đã xác nhận";
-    case 3:
-      return "Chờ giao hàng";
-    case 4:
-      return "Đang giao hàng";
-    case 5:
-      return "Hoàn thành đơn hàng";
-    case 6:
-      return "Đã hủy";
-    default:
-      return "---";
-  }
-};
 
 function InvoiceDetail() {
   const { id } = useParams();
@@ -138,7 +142,6 @@ function InvoiceDetail() {
   const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
   const [editRecipientDialogOpen, setEditRecipientDialogOpen] = useState(false);
   const [editRecipientLoading, setEditRecipientLoading] = useState(false);
-  // Thêm các state còn thiếu cho form chỉnh sửa thông tin người nhận
   const [checkingPrice, setCheckingPrice] = useState(false);
   const [priceNeedsConfirmation, setPriceNeedsConfirmation] = useState(false);
   const [email, setEmail] = useState(invoice?.emailNguoiNhan || "");
@@ -148,6 +151,23 @@ function InvoiceDetail() {
   const [shippingFeeFromGHN, setShippingFeeFromGHN] = useState(null);
   const [loadingShippingFee, setLoadingShippingFee] = useState(false);
   const [updateAllPrices, setUpdateAllPrices] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [openCancelDialog, setOpenCancelDialog] = useState(false);
+  const [openPaymentModal, setOpenPaymentModal] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [historySearchText, setHistorySearchText] = useState("");
+  const [showHistoryTable, setShowHistoryTable] = useState(false);
+  const [actionHistorySearchText, setActionHistorySearchText] = useState("");
+  const [hasExcessPayment, setHasExcessPayment] = useState(false);
+  const [excessPaymentAmount, setExcessPaymentAmount] = useState(0);
+  const [showExcessPaymentRefundDialog, setShowExcessPaymentRefundDialog] =
+    useState(false);
+  const [processingRefund, setProcessingRefund] = useState(false);
+  const [processingStatusChange, setProcessingStatusChange] = useState(false);
   const [editRecipientValues, setEditRecipientValues] = useState({
     name: "",
     phone: "",
@@ -157,6 +177,333 @@ function InvoiceDetail() {
     ward: "",
     address: "",
   });
+  const [priceChangeAmount, setPriceChangeAmount] = useState(0); // Số tiền thay đổi (+: cần thu thêm, -: hoàn lại)
+  const [showPriceChangePaymentDialog, setShowPriceChangePaymentDialog] =
+    useState(false); // Modal xử lý thanh toán khi thay đổi giá
+  const [processingPriceChangePayment, setProcessingPriceChangePayment] =
+    useState(false); // Loading state
+  const renderPaymentMethodStatus = (payment) => {
+    if (payment.trangThai === 2) {
+      return <Tag color="orange">Chờ thanh toán</Tag>;
+    } else if (payment.trangThai === 3) {
+      return <Tag color="purple">Trả sau</Tag>;
+    } else if (payment.trangThai === 1) {
+      return <Tag color="green">Đã thanh toán</Tag>;
+    } else if (payment.trangThai === 4) {
+      return <Tag color="red">Hoàn tiền</Tag>;
+    }
+    return <Tag>Không xác định</Tag>;
+  };
+  // Thêm các biến tính toán thanh toán
+  const getPaymentSummary = () => {
+    if (!paymentHistory || paymentHistory.length === 0) {
+      return {
+        actualPaidAmount: 0,
+        refundedAmount: 0,
+        pendingAmount: 0,
+      };
+    }
+
+    // Đã thanh toán (chỉ tính status = 1)
+    const actualPaidAmount = paymentHistory
+      .filter((p) => p.trangThai === 1)
+      .reduce((sum, p) => sum + p.tongTien, 0);
+
+    // Đã hoàn tiền (status = 4)
+    const refundedAmount = paymentHistory
+      .filter((p) => p.trangThai === 4)
+      .reduce((sum, p) => sum + p.tongTien, 0);
+
+    // Đang chờ thanh toán/trả sau (status = 2 hoặc 3)
+    const pendingAmount = paymentHistory
+      .filter((p) => p.trangThai === 2 || p.trangThai === 3)
+      .reduce((sum, p) => sum + p.tongTien, 0);
+
+    return { actualPaidAmount, refundedAmount, pendingAmount };
+  };
+  useEffect(() => {
+    const styleElement = document.createElement("style");
+    styleElement.id = "steps-custom-styles";
+
+    styleElement.textContent = `
+      /* Container chính cho Steps */
+      .invoice-steps {
+        padding: 32px 0 !important;
+        margin: 0 auto !important;
+        width: 100% !important;
+      }
+    
+      /* Container cho từng Step */
+      .ant-steps-item {
+        padding: 0 12px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        min-width: 200px !important;
+      }
+  
+      /* Icon container */
+      .ant-steps-item-icon {
+        width: 48px !important;
+        height: 48px !important;
+        line-height: 48px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 auto !important;
+        position: relative !important;
+        z-index: 2 !important;
+      }
+  
+      /* Icon size */
+      .ant-steps-item-icon .anticon {
+        font-size: 24px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 100% !important;
+        width: 100% !important;
+      }
+  
+      /* Đường nối - Cách tiếp cận mới cho việc quay lại trạng thái */
+      .ant-steps-item-tail::after {
+        height: 2px !important;
+        border-radius: 1px !important;
+        margin: 0 !important;
+        position: absolute !important;
+        width: calc(100% - 24px) !important;
+        left: -50% !important;
+        background-color: #e8e8e8 !important; /* Màu xám mặc định */
+        opacity: 1 !important;
+      }
+  
+      /* Đường nối cho các bước đã hoàn thành */
+      .ant-steps-item-finish .ant-steps-item-tail::after {
+        background-color: #1890ff !important; /* Màu xanh */
+        opacity: 1 !important;
+      }
+  
+      /* Đường nối cho các bước sau trạng thái hiện tại */
+      .ant-steps-item.ant-steps-next-error .ant-steps-item-tail::after {
+        background-color: #e8e8e8 !important;
+        opacity: 1 !important;
+      }
+  
+      /* Vô hiệu hóa opacity transition */
+      .ant-steps-item.ant-steps-item-wait,
+      .ant-steps-item.ant-steps-item-process,
+      .ant-steps-item.ant-steps-next-error {
+        opacity: 1 !important;
+      }
+  
+      .ant-steps-item.ant-steps-item-wait .ant-steps-item-tail::after,
+      .ant-steps-item.ant-steps-item-process .ant-steps-item-tail::after,
+      .ant-steps-item.ant-steps-next-error .ant-steps-item-tail::after {
+        opacity: 1 !important;
+      }
+  
+      /* Đảm bảo không có opacity transition */
+      .ant-steps-item-tail::after {
+        transition: background-color 0.3s !important;
+        transition-property: background-color !important;
+        transition-duration: 0.3s !important;
+        transition-timing-function: ease !important;
+        transition-delay: 0s !important;
+      }
+    `;
+
+    document.head.appendChild(styleElement);
+
+    return () => {
+      const existingStyle = document.getElementById("steps-custom-styles");
+      if (existingStyle) {
+        document.head.removeChild(existingStyle);
+      }
+    };
+  }, []);
+    useEffect(() => {
+    if (invoice?.trangThai === 1 && (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1)) {
+      const isFreeShipping = checkFreeShipping(totalBeforeDiscount);
+      
+      // Nếu đủ điều kiện miễn phí và phí vận chuyển khác 0, tự động cập nhật
+      if (isFreeShipping && invoice.phiVanChuyen > 0) {
+        calculateAndUpdateShippingFee(false);
+      }
+      // Thêm điều kiện kiểm tra: nếu không đủ điều kiện miễn phí nhưng phí vận chuyển = 0
+      // Tức là trước đây đủ điều kiện, bây giờ không còn đủ nữa
+      else if (!isFreeShipping && invoice.phiVanChuyen === 0) {
+        calculateAndUpdateShippingFee(false);
+      }
+      // Nếu không đủ điều kiện miễn phí, nhưng có thay đổi đáng kể về giá sản phẩm
+      else if (!isFreeShipping && priceChangeAmount !== 0) {
+        // Tính lại phí vận chuyển sau 500ms để đảm bảo state đã cập nhật
+        const timer = setTimeout(() => {
+          calculateAndUpdateShippingFee(false);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [totalBeforeDiscount, invoice?.trangThai, invoice?.loaiHoaDon, invoice?.phiVanChuyen, priceChangeAmount]);
+  useEffect(() => {
+    if (showPriceChangePaymentDialog) {
+      loadPaymentMethods();
+    }
+  }, [showPriceChangePaymentDialog]);
+  useEffect(() => {
+    const styleElement = document.createElement("style");
+    styleElement.id = "invoice-steps-styles";
+
+    styleElement.textContent = `
+      /* Thêm styles cho scrollbar */
+      .invoice-steps-container::-webkit-scrollbar {
+        height: 8px !important;
+      }
+  
+      .invoice-steps-container::-webkit-scrollbar-track {
+        background: #f0f0f0 !important;
+        border-radius: 4px !important;
+      }
+  
+      .invoice-steps-container::-webkit-scrollbar-thumb {
+        background: #d9d9d9 !important;
+        border-radius: 4px !important;
+        transition: all 0.3s ease !important;
+      }
+  
+      .invoice-steps-container::-webkit-scrollbar-thumb:hover {
+        background: #bfbfbf !important;
+      }
+  
+      /* Các styles cũ giữ nguyên */
+      .invoice-steps {
+        padding: 32px 0 !important;
+        background: white !important;
+        border-radius: 8px !important;
+      }
+  
+      /* Đảm bảo các step không bị ảnh hưởng bởi scroll */
+      .invoice-steps .ant-steps-item {
+        padding: 0 12px !important;
+        cursor: pointer !important;
+        flex: none !important; /* Ngăn các step co giãn */
+        min-width: 180px !important; /* Đặt chiều rộng tối thiểu cho mỗi step */
+      }
+      
+      /* Thêm shadow cho cạnh khi scroll */
+      .invoice-steps::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 30px;
+        background: linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,1));
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+  
+      .invoice-steps::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 30px;
+        background: linear-gradient(to left, rgba(255,255,255,0), rgba(255,255,255,1));
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+  
+      .invoice-steps-container.can-scroll-right .invoice-steps::after {
+        opacity: 1;
+      }
+  
+      .invoice-steps-container.can-scroll-left .invoice-steps::before {
+        opacity: 1;
+      }
+    `;
+
+    document.head.appendChild(styleElement);
+
+    return () => {
+      const existingStyle = document.getElementById("invoice-steps-styles");
+      if (existingStyle) {
+        document.head.removeChild(existingStyle);
+      }
+    };
+  }, []);
+
+  // Thêm logic để kiểm tra và cập nhật trạng thái scroll
+  useEffect(() => {
+    const container = document.querySelector(".invoice-steps-container");
+    if (!container) return;
+
+    const checkScroll = () => {
+      const canScrollLeft = container.scrollLeft > 0;
+      const canScrollRight =
+        container.scrollLeft < container.scrollWidth - container.clientWidth;
+
+      container.classList.toggle("can-scroll-left", canScrollLeft);
+      container.classList.toggle("can-scroll-right", canScrollRight);
+    };
+
+    container.addEventListener("scroll", checkScroll);
+    window.addEventListener("resize", checkScroll);
+    checkScroll(); // Kiểm tra lần đầu
+
+    return () => {
+      container.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, []);
+
+  const getAvailableStatuses = () => {
+    // Nếu là hóa đơn tại quầy (loai 2), chỉ có 3 trạng thái
+    if (invoice?.loaiHoaDon === 2) {
+      return {
+        1: "Chờ xác nhận",
+        2: "Đã xác nhận",
+        5: "Hoàn thành",
+        6: "Đã hủy", // Vẫn giữ trạng thái hủy
+      };
+    }
+
+    // Các loại hóa đơn khác có đầy đủ trạng thái
+    return {
+      1: "Chờ xác nhận",
+      2: "Đã xác nhận",
+      3: "Chờ giao hàng",
+      4: "Đang giao hàng",
+      5: "Hoàn thành",
+      6: "Đã hủy",
+    };
+  };
+  // Fixed version of calculatePriceChangeAmount
+  const calculatePriceChangeAmount = (changedProducts) => {
+    if (!changedProducts || changedProducts.length === 0) return 0;
+
+    // Just calculate and return the value, don't update state here
+    return changedProducts.reduce((total, product) => {
+      const priceDifference =
+        (product.giaHienTai - product.giaTaiThoiDiemThem) * product.soLuong;
+      return total + priceDifference;
+    }, 0);
+  };
+
+  // Use useEffect to update the state when changedProducts changes
+  useEffect(() => {
+    if (changedProducts && changedProducts.length > 0) {
+      const amount = calculatePriceChangeAmount(changedProducts);
+      setPriceChangeAmount(amount);
+    }
+  }, [changedProducts]);
+  // 2. Cập nhật hàm getStatusText để phản ánh trạng thái đúng
+  const getStatusText = (status) => {
+    const statuses = getAvailableStatuses();
+    return statuses[status] || "Không xác định";
+  };
   const forceUpdate = () => {
     setForceUpdateCounter((prev) => prev + 1);
   };
@@ -165,32 +512,713 @@ function InvoiceDetail() {
     districts: new Map(),
     wards: new Map(),
   };
-  const getOrderStatusHistory = () => {
-    if (!orderHistory || orderHistory.length === 0) return [];
+  // Hàm tải các phương thức thanh toán
+  const loadPaymentMethods = async () => {
+    try {
+      setLoadingPaymentMethods(true);
+      const response = await api.get("/api/admin/phuong-thuc-thanh-toan", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    // Lọc ra các bản ghi thay đổi trạng thái
-    const statusChanges = orderHistory.filter(
-      (record) => record.trangThai >= 1 && record.trangThai <= 6
-    );
-
-    // Sắp xếp theo thời gian tăng dần
-    const sortedChanges = [...statusChanges].sort(
-      (a, b) => new Date(a.ngayTao) - new Date(b.ngayTao)
-    );
-
-    // Loại bỏ các bản ghi trùng lặp trạng thái liên tiếp nhau
-    const uniqueStatuses = [];
-    let lastStatus = null;
-
-    sortedChanges.forEach((record) => {
-      if (record.trangThai !== lastStatus) {
-        uniqueStatuses.push(record);
-        lastStatus = record.trangThai;
+      if (response.data) {
+        setPaymentMethods(response.data);
+        // Chọn mặc định phương thức thanh toán đầu tiên nếu có
+        if (response.data.length > 0) {
+          setSelectedPaymentMethod(response.data[0].maPhuongThucThanhToan);
+        }
       }
-    });
-
-    return uniqueStatuses;
+    } catch (error) {
+      console.error("Lỗi khi tải phương thức thanh toán:", error);
+      toast.error("Không thể tải danh sách phương thức thanh toán");
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
   };
+
+  // Cập nhật hàm tính số tiền còn thiếu
+  const calculateRemainingPayment = () => {
+    if (!invoice) return 0;
+    
+    console.log("Bắt đầu tính toán số tiền còn thiếu...");
+  
+    // Bỏ qua giá trị từ backend, luôn ưu tiên tính lại từ lịch sử thanh toán
+    if (!paymentHistory || !Array.isArray(paymentHistory)) {
+      console.log("Không có lịch sử thanh toán, trả về tổng tiền hóa đơn:", invoice?.tongTien || 0);
+      return invoice?.tongTien || 0;
+    }
+  
+    // Tính tổng tiền hóa đơn bao gồm tất cả yếu tố
+    const productTotal = totalBeforeDiscount || 0;
+    const shippingFee = invoice.phiVanChuyen || 0;
+    const discountAmount = getDiscountAmount();
+    const totalInvoiceAmount = productTotal + shippingFee - discountAmount;
+  
+    // QUAN TRỌNG: Đảm bảo không tính trùng các khoản thanh toán
+    const processedPaymentIds = new Set();
+    
+    // Tính số tiền đã thanh toán (tất cả trạng thái 1, 2 và 3)
+    const paidAmount = paymentHistory.reduce((sum, p) => {
+      // Bỏ qua các khoản thanh toán đã tính
+      if (processedPaymentIds.has(p.id)) return sum;
+      
+      // Chỉ tính các khoản thanh toán có trạng thái hợp lệ
+      if (p.trangThai === 1 || p.trangThai === 2 || p.trangThai === 3) {
+        processedPaymentIds.add(p.id);
+        console.log(`Tính khoản thanh toán: ${p.id}, ${p.tenPhuongThucThanhToan}, ${p.tongTien || p.soTien || 0}, trạng thái: ${p.trangThai}`);
+        return sum + Number(p.tongTien || p.soTien || 0);
+      }
+      return sum;
+    }, 0);
+  
+    // Tính số tiền đã hoàn lại (trạng thái = 4)
+    const refundedAmount = paymentHistory.reduce((sum, p) => {
+      // Bỏ qua các khoản thanh toán đã tính
+      if (processedPaymentIds.has(p.id)) return sum;
+      
+      if (p.trangThai === 4) {
+        processedPaymentIds.add(p.id);
+        console.log(`Trừ khoản hoàn tiền: ${p.id}, ${p.tenPhuongThucThanhToan}, ${p.tongTien || p.soTien || 0}`);
+        return sum + Number(p.tongTien || p.soTien || 0);
+      }
+      return sum;
+    }, 0);
+  
+    // Số tiền thực tế đã thanh toán (đã trừ hoàn tiền)
+    const actualPaidAmount = paidAmount - refundedAmount;
+  
+    // Số tiền còn thiếu = tổng tiền cần trả - số tiền thực tế đã thanh toán
+    const remainingAmount = totalInvoiceAmount - actualPaidAmount;
+  
+    // Log chi tiết để debug
+    console.log("Tính lại số tiền còn thiếu:", {
+      productTotal,
+      shippingFee,
+      discountAmount,
+      totalInvoiceAmount,
+      paidAmount,
+      refundedAmount,
+      actualPaidAmount,
+      remainingAmount
+    });
+  
+    // Thêm log chi tiết cho từng khoản thanh toán
+    console.table(paymentHistory.map(p => ({
+      id: p.id,
+      amount: p.tongTien || p.soTien,
+      status: p.trangThai,
+      method: p.tenPhuongThucThanhToan,
+      counted: p.trangThai === 1 || p.trangThai === 2 || p.trangThai === 3
+    })));
+    
+    // Nếu có thanh toán thừa (số tiền còn thiếu âm), trả về 0
+    return Math.max(0, Math.round(remainingAmount));
+  };
+  const handleConfirmPayment = async () => {
+    if (!selectedPaymentMethod) {
+      toast.error("Vui lòng chọn phương thức thanh toán");
+      return;
+    }
+
+    if (paymentAmount <= 0) {
+      toast.error("Số tiền thanh toán không hợp lệ");
+      return;
+    }
+
+    try {
+      setProcessingPayment(true);
+      const paymentToastId = toast.loading("Đang xử lý thanh toán...");
+
+      // Chuẩn bị dữ liệu thanh toán
+      const paymentData = {
+        soTien: paymentAmount,
+        thanhToanRequest: {
+          maPhuongThucThanhToan: selectedPaymentMethod,
+          soTien: paymentAmount,
+          moTa:
+            paymentHistory && paymentHistory.length > 0
+              ? "Thanh toán bổ sung khi xác nhận đơn hàng"
+              : "Thanh toán khi xác nhận đơn hàng",
+        },
+      };
+
+      // Quan trọng: Gọi đến API thanh toán phụ phí, KHÔNG phải API update status
+      const response = await api.post(
+        `/api/admin/hoa-don/${id}/additional-payment`,
+        paymentData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Cập nhật dữ liệu hóa đơn từ response
+      setInvoice(response.data);
+
+      // Đợi một chút để đảm bảo backend đã xử lý xong
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Làm mới dữ liệu thanh toán
+      await fetchPaymentHistory();
+
+      // Làm mới lịch sử đơn hàng
+      await fetchOrderHistory();
+
+      // Force update UI
+      forceUpdate();
+
+      // Đóng các modal và hiển thị thông báo
+      setOpenPaymentModal(false);
+      setOpenConfirmDialog(false);
+      toast.dismiss(paymentToastId);
+      toast.success("Đã thanh toán thành công");
+    } catch (error) {
+      console.error("Lỗi khi xử lý thanh toán:", error);
+      toast.error(
+        error.response?.data?.message || "Không thể xử lý thanh toán"
+      );
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+  const checkExcessPayment = async () => {
+    try {
+      // Kiểm tra nếu đang hiển thị dialog hoàn tiền thì không hiện thông báo
+      if (showExcessPaymentRefundDialog) {
+        return false;
+      }
+
+      // Tính toán số tiền thừa bằng cách sử dụng hàm calculateExcessAmount
+      const excessAmount = calculateExcessAmount();
+
+      // Cập nhật state với giá trị tính toán
+      const hasExcess = excessAmount > 0;
+      setHasExcessPayment(hasExcess);
+      setExcessPaymentAmount(excessAmount);
+
+      // Chỉ hiển thị thông báo nếu:
+      // 1. Số tiền thừa đáng kể (>1000đ)
+      // 2. Không đang hiển thị dialog xử lý hoàn tiền
+      // 3. Chưa có thông báo tương tự đang hiển thị (sử dụng biến global/state để theo dõi)
+      if (
+        hasExcess &&
+        excessAmount > 1000 &&
+        !showExcessPaymentRefundDialog &&
+        !window.excessNotificationShown
+      ) {
+        // Đánh dấu đã hiển thị thông báo
+        window.excessNotificationShown = true;
+
+        notification.warning({
+          message: "Phát hiện thanh toán thừa",
+          description: `Khách hàng đã thanh toán thừa ${formatCurrency(
+            excessAmount
+          )}. Bạn nên xử lý hoàn tiền.`,
+          btn: (
+            <Button
+              type="primary"
+              onClick={() => {
+                handleShowRefundDialog(excessAmount);
+                notification.destroy(); // Đóng tất cả notifications
+              }}
+            >
+              Xử lý hoàn tiền
+            </Button>
+          ),
+          key: "excess_payment_notification", // Thêm key để xác định unique notification
+          duration: 0, // Không tự động đóng
+          onClose: () => {
+            // Reset trạng thái thông báo khi đóng
+            window.excessNotificationShown = false;
+          },
+        });
+      }
+
+      return hasExcess;
+    } catch (error) {
+      console.error("Lỗi khi kiểm tra thanh toán thừa:", error);
+      return false;
+    }
+  };
+  // Thêm hàm này để tính toán chính xác số tiền thừa
+
+  const calculateExcessAmount = () => {
+    if (!paymentHistory || !invoice) return 0;
+
+    console.log("Tính lại số tiền thừa:");
+    console.log("Tổng tiền hóa đơn:", invoice.tongTien);
+
+    // Tính tổng thực tế khách hàng cần thanh toán
+    const productTotal = totalBeforeDiscount || 0;
+    const shippingFee = invoice.phiVanChuyen || 0;
+    const discountAmount = getDiscountAmount();
+    const actualTotalDue = productTotal + shippingFee - discountAmount;
+
+    // Tính số tiền khách đã thanh toán (trạng thái = 1 - đã thanh toán)
+    const totalPaid = paymentHistory.reduce((sum, p) => {
+      if (p.trangThai === 1) {
+        console.log(
+          `Thanh toán đã tính: ${p.tongTien}, phương thức: ${p.tenPhuongThucThanhToan}`
+        );
+        return sum + (p.tongTien || 0);
+      }
+      return sum;
+    }, 0);
+
+    // Tính số tiền đã hoàn lại (trạng thái = 4 - hoàn tiền)
+    const totalRefunded = paymentHistory.reduce((sum, p) => {
+      if (p.trangThai === 4) {
+        console.log(
+          `Hoàn tiền đã tính: ${p.tongTien}, phương thức: ${p.tenPhuongThucThanhToan}`
+        );
+        return sum + (p.tongTien || 0);
+      }
+      return sum;
+    }, 0);
+
+    // Số tiền thực tế khách đã trả
+    const actualPaid = totalPaid - totalRefunded;
+    console.log("Số tiền thực tế đã trả:", actualPaid);
+    console.log("Số tiền thực tế cần trả:", actualTotalDue);
+
+    // Số tiền thừa (nếu có)
+    const excess = Math.max(0, actualPaid - actualTotalDue);
+    console.log("Số tiền thừa tính được:", excess);
+
+    return Math.round(excess);
+  };
+
+  // Sửa useEffect kiểm tra thanh toán thừa
+  useEffect(() => {
+    if (paymentHistory && paymentHistory.length > 0 && invoice?.tongTien) {
+      const totalInvoiceAmount = invoice.tongTien || 0;
+
+      // Tính toán chính xác bằng cách gọi hàm calculateExcessAmount
+      const excessAmount = calculateExcessAmount();
+
+      // Cập nhật state với giá trị mới tính toán
+      setHasExcessPayment(excessAmount > 0);
+      setExcessPaymentAmount(excessAmount);
+
+      // Chỉ hiển thị thông báo nếu số tiền thừa đáng kể (>1000đ) và không đang hiển thị dialog
+      if (excessAmount > 1000 && !showExcessPaymentRefundDialog) {
+        notification.warning({
+          message: "Phát hiện thanh toán thừa",
+          description: `Khách hàng đã thanh toán thừa ${formatCurrency(
+            excessAmount
+          )}. Bạn nên xử lý hoàn tiền.`,
+          btn: (
+            <Button
+              type="primary"
+              onClick={() => handleShowRefundDialog(excessAmount)}
+            >
+              Xử lý hoàn tiền
+            </Button>
+          ),
+          duration: 0,
+        });
+      }
+    }
+  }, [
+    paymentHistory,
+    invoice?.tongTien,
+    showExcessPaymentRefundDialog,
+    invoiceProducts,
+  ]);
+
+  const handleShowRefundDialog = (amount) => {
+    // Đóng tất cả thông báo hiện tại
+    notification.destroy();
+
+    // Reset trạng thái thông báo
+    window.excessNotificationShown = false;
+
+    // Tính toán lại số tiền thừa để đảm bảo chính xác
+    const calculatedExcess = calculateExcessAmount();
+    setExcessPaymentAmount(calculatedExcess);
+    setSelectedPaymentMethod(null); // Reset phương thức thanh toán
+    loadPaymentMethods();
+    setShowExcessPaymentRefundDialog(true);
+  };
+
+  const handleAdditionalPayment = async () => {
+    if (!selectedPaymentMethod) {
+      toast.error("Vui lòng chọn phương thức thanh toán");
+      return;
+    }
+
+    if (paymentAmount <= 0) {
+      toast.error("Số tiền thanh toán không hợp lệ");
+      return;
+    }
+
+    try {
+      setProcessingPayment(true);
+      const paymentToastId = toast.loading(
+        "Đang kiểm tra số tiền cần thanh toán..."
+      );
+
+      // Tính lại số tiền còn thiếu để kiểm tra trước khi gửi request
+      const remainingPayment = calculateRemainingPayment();
+      console.log("Kiểm tra số tiền cần thanh toán:", {
+        calculated: remainingPayment,
+        requestAmount: paymentAmount,
+      });
+
+      // Nếu không còn thiếu tiền
+      if (remainingPayment <= 0) {
+        toast.dismiss(paymentToastId);
+        toast.error("Khách hàng đã thanh toán đủ. Không cần thanh toán thêm.");
+        setProcessingPayment(false);
+        setOpenPaymentModal(false);
+        return;
+      }
+
+      // Nếu số tiền thanh toán vượt quá số tiền còn thiếu quá nhiều
+      if (paymentAmount > remainingPayment * 1.1) {
+        // cho phép vượt 10%
+        toast.dismiss(paymentToastId);
+        toast.error(
+          `Số tiền thanh toán không được vượt quá số tiền còn thiếu (${formatCurrency(
+            remainingPayment
+          )}) quá nhiều`
+        );
+        setProcessingPayment(false);
+        return;
+      }
+
+      // Cập nhật toast
+      toast.update(paymentToastId, { render: "Đang xử lý thanh toán..." });
+
+      // Chuẩn bị dữ liệu thanh toán
+      const paymentData = {
+        soTien: paymentAmount,
+        thanhToanRequest: {
+          maPhuongThucThanhToan: selectedPaymentMethod,
+          soTien: paymentAmount,
+          moTa: "Thanh toán phụ phí bổ sung",
+        },
+      };
+
+      // Gọi API thanh toán phụ phí
+      const response = await api.post(
+        `/api/admin/hoa-don/${id}/additional-payment`,
+        paymentData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Cập nhật dữ liệu hóa đơn từ response
+      setInvoice(response.data);
+
+      // Refresh dữ liệu lần lượt
+      await fetchPaymentHistory();
+      await fetchOrderHistory();
+      await refreshInvoice();
+
+      // Force update UI để hiển thị dữ liệu mới
+      forceUpdate();
+
+      // Đóng modal và hiển thị thông báo
+      setOpenPaymentModal(false);
+      toast.dismiss(paymentToastId);
+      toast.success("Đã thanh toán phụ phí thành công");
+    } catch (error) {
+      console.error("Lỗi khi xử lý thanh toán phụ phí:", error);
+      toast.error(
+        error.response?.data?.message || "Không thể xử lý thanh toán phụ phí"
+      );
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  // Thêm hàm kiểm tra thanh toán chờ/trả sau
+  const hasPendingOrCodPayments = () => {
+    if (!paymentHistory || !Array.isArray(paymentHistory)) {
+      return false;
+    }
+
+    // Kiểm tra nếu có thanh toán trả sau hoặc chờ thanh toán ngân hàng
+    return paymentHistory.some(
+      (payment) =>
+        // Trạng thái 2 (chờ thanh toán) hoặc 3 (trả sau/COD)
+        (payment.trangThai === 2 || payment.trangThai === 3) &&
+        // Mã phương thức COD hoặc chuyển khoản ngân hàng
+        (payment.maPhuongThucThanhToan === "COD" ||
+          payment.maPhuongThucThanhToan === "BANK")
+    );
+  };
+// Hàm phát hiện tiền thừa do hoàn thành đơn hàng
+const detectExcessFromOrderCompletion = () => {
+  if (!orderHistory || orderHistory.length === 0) return false;
+  
+  // Tìm hành động gần nhất trong lịch sử liên quan đến hoàn thành đơn hàng
+  const recentStatusUpdates = orderHistory
+    .filter(record => 
+      record.moTa?.includes("Cập nhật trạng thái: Hoàn thành") || 
+      record.hanhDong?.includes("Điều chỉnh thanh toán") ||
+      record.moTa?.includes("Điều chỉnh thanh toán sau khi hoàn thành đơn hàng")
+    )
+    .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
+  
+  // Nếu có hành động hoàn thành đơn hàng trong thời gian gần đây (10 phút)
+  if (recentStatusUpdates.length > 0) {
+    const mostRecentUpdate = recentStatusUpdates[0];
+    const timeSinceUpdate = Date.now() - new Date(mostRecentUpdate.ngayTao).getTime();
+    const tenMinutesInMs = 10 * 60 * 1000;
+    
+    if (timeSinceUpdate < tenMinutesInMs && invoice?.trangThai === 5) {
+      console.log("Phát hiện tiền thừa do hoàn thành đơn hàng gần đây");
+      return true;
+    }
+  }
+  
+  return false;
+};
+  const handleRefundExcessPayment = async () => {
+    try {
+      if (!selectedPaymentMethod) {
+        toast.error("Vui lòng chọn phương thức hoàn tiền");
+        return;
+      }
+  
+      setProcessingRefund(true);
+  
+      // Kiểm tra có thanh toán chờ xác nhận hoặc trả sau không
+      const hasPendingPayments = hasPendingOrCodPayments();
+      
+      // Phát hiện tiền thừa do hoàn thành đơn hàng
+      const isFromOrderCompletion = detectExcessFromOrderCompletion();
+      
+      // Hiển thị trạng thái đang xử lý
+      const loadingToast = toast.loading(`Đang ${isFromOrderCompletion ? 'điều chỉnh' : 'hoàn'} tiền...`);
+  
+      if (hasPendingPayments) {
+        // Nếu còn tiền chờ thanh toán, điều chỉnh trực tiếp
+        try {
+          await api.post(
+            `/api/admin/hoa-don/${id}/refund-to-pending`,
+            {
+              soTien: excessPaymentAmount,
+            },
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+  
+          toast.dismiss(loadingToast);
+          toast.success(
+            `Đã điều chỉnh trừ ${formatCurrency(
+              excessPaymentAmount
+            )} vào thanh toán chờ/trả sau`
+          );
+        } catch (error) {
+          toast.dismiss(loadingToast);
+          console.error("Lỗi khi điều chỉnh vào thanh toán chờ:", error);
+          toast.error("Lỗi khi điều chỉnh: " + (error.response?.data?.message || error.message));
+          setProcessingRefund(false);
+          return;
+        }
+      } else {
+        // Xác định lý do hoàn tiền dựa trên loại tiền thừa
+        let refundReason = "";
+        
+        if (isFromOrderCompletion) {
+          // Nếu là do hoàn thành đơn hàng
+          refundReason = "Điều chỉnh thanh toán sau khi hoàn thành đơn hàng";
+        } else {
+          // Nếu là do các thay đổi khác trong đơn hàng
+          const recentActions = orderHistory
+            .filter(
+              (record) =>
+                !record.moTa?.includes("Cập nhật trạng thái") &&
+                !record.hanhDong?.includes("Cập nhật trạng thái") &&
+                record.ngayTao
+            )
+            .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
+  
+          const mostRecentAction = recentActions[0];
+  
+          if (mostRecentAction) {
+            if (
+              mostRecentAction.hanhDong?.includes("Thêm sản phẩm") ||
+              mostRecentAction.hanhDong?.includes("Xóa sản phẩm") ||
+              mostRecentAction.hanhDong?.includes("Cập nhật số lượng sản phẩm")
+            ) {
+              refundReason = "Hoàn tiền thừa sau khi thay đổi sản phẩm trong đơn hàng";
+            } else if (priceNeedsConfirmation) {
+              refundReason = "Hoàn tiền thừa do thay đổi giá sản phẩm";
+            } else if (
+              shippingFeeFromGHN !== null &&
+              shippingFeeFromGHN !== invoice?.phiVanChuyen
+            ) {
+              refundReason = "Hoàn tiền thừa sau khi tính lại phí vận chuyển";
+            } else if (
+              mostRecentAction.hanhDong?.includes("Áp dụng voucher") ||
+              (invoice?.phieuGiamGia &&
+                new Date(mostRecentAction.ngayTao) > new Date(Date.now() - 5 * 60000))
+            ) {
+              refundReason = "Hoàn tiền thừa sau khi áp dụng voucher";
+            } else {
+              refundReason = "Hoàn tiền thừa cho khách hàng";
+            }
+          } else {
+            refundReason = "Hoàn tiền thừa cho khách hàng";
+          }
+        }
+  
+        console.log(`Lý do ${isFromOrderCompletion ? 'điều chỉnh' : 'hoàn tiền'}: ${refundReason}`);
+  
+        // Gọi API hoàn tiền với số tiền thừa và lý do chính xác
+        try {
+          await api.post(
+            `/api/admin/hoa-don/${id}/refund`,
+            {
+              soTien: excessPaymentAmount,
+              maPhuongThucThanhToan: selectedPaymentMethod,
+              moTa: refundReason,
+            },
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+  
+          toast.dismiss(loadingToast);
+          toast.success(
+            `Đã ${isFromOrderCompletion ? 'điều chỉnh' : 'hoàn'} ${formatCurrency(excessPaymentAmount)} thành công`
+          );
+        } catch (error) {
+          toast.dismiss(loadingToast);
+          console.error("Lỗi khi hoàn tiền:", error);
+          toast.error("Lỗi khi hoàn tiền: " + (error.response?.data?.message || error.message));
+          setProcessingRefund(false);
+          return;
+        }
+      }
+  
+      // Cập nhật UI
+      await Promise.all([refreshInvoice(), refreshPaymentHistory()]);
+  
+      setShowExcessPaymentRefundDialog(false);
+      setHasExcessPayment(false);
+      setExcessPaymentAmount(0);
+    } catch (error) {
+      toast.error(
+        "Lỗi khi xử lý: " + (error.response?.data?.message || error.message)
+      );
+      console.error("Error handling excess payment:", error);
+    } finally {
+      setProcessingRefund(false);
+    }
+  };
+  // 1. Thêm useEffect để tự động tải orderHistory khi trạng thái hóa đơn thay đổi
+  useEffect(() => {
+    if (id && invoice?.trangThai) {
+      // Tải lịch sử đơn hàng mỗi khi trạng thái thay đổi
+      const loadOrderHistory = async () => {
+        try {
+          console.log("🔄 Tự động tải lịch sử khi trạng thái thay đổi");
+          const response = await api.get(
+            `/api/admin/lich-su-hoa-don/hoa-don/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (response.data && Array.isArray(response.data)) {
+            // Xử lý dữ liệu - đảm bảo datetime hợp lệ và định dạng đúng
+            const processedData = response.data.map((record) => {
+              let ngayTao = null;
+              let ngaySua = null;
+
+              try {
+                ngayTao = record.ngayTao
+                  ? new Date(record.ngayTao).toISOString()
+                  : null;
+              } catch (e) {
+                console.error("Lỗi định dạng ngayTao:", e);
+              }
+
+              try {
+                ngaySua = record.ngaySua
+                  ? new Date(record.ngaySua).toISOString()
+                  : null;
+              } catch (e) {
+                console.error("Lỗi định dạng ngaySua:", e);
+              }
+
+              return {
+                ...record,
+                ngayTao,
+                ngaySua,
+                timestamp: ngayTao || ngaySua,
+                trangThai:
+                  typeof record.trangThai === "string"
+                    ? parseInt(record.trangThai, 10)
+                    : record.trangThai,
+              };
+            });
+
+            setOrderHistory(processedData);
+            console.log(
+              " Đã cập nhật orderHistory mới với",
+              processedData.length,
+              "bản ghi"
+            );
+          }
+        } catch (error) {
+          console.error("Lỗi khi tải lịch sử đơn hàng:", error);
+        }
+      };
+
+      loadOrderHistory();
+    }
+  }, [id, invoice?.trangThai]);
+
+  const handleOpenCancelDialog = () => {
+    setCancelReason(""); // Reset lý do khi mở dialog
+    setOpenCancelDialog(true);
+  };
+
+  // 3. Thêm hàm xử lý hủy đơn với lý do
+  const handleCancelOrder = async () => {
+    if (!cancelReason || cancelReason.trim() === "") {
+      toast.error("Vui lòng nhập lý do hủy đơn hàng");
+      return;
+    }
+
+    try {
+      const cancelToastId = toast.loading("Đang hủy đơn hàng...");
+      await api.delete(
+        `/api/admin/hoa-don/${id}?lyDo=${encodeURIComponent(cancelReason)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      toast.dismiss(cancelToastId);
+      toast.success("Đã hủy đơn hàng và hoàn lại sản phẩm, mã giảm giá.");
+
+      setOpenCancelDialog(false);
+      // Cập nhật lại dữ liệu hóa đơn
+      await fetchInvoice();
+      await fetchOrderHistory();
+    } catch (error) {
+      console.error("Lỗi khi hủy đơn hàng:", error);
+      toast.error(error.response?.data?.message || "Lỗi khi hủy đơn hàng!");
+    }
+  };
+
   // Thêm các hàm trợ giúp từ GiaoHang.js để xử lý địa chỉ
   const addressHelpers = {
     // Lưu thông tin địa chỉ vào cache
@@ -389,11 +1417,11 @@ function InvoiceDetail() {
       const updateToastId = toast.loading(
         useCurrentPrice ? "Đang cập nhật giá mới..." : "Đang giữ giá cũ..."
       );
-  
+
       // Lưu lại danh sách sản phẩm thay đổi hiện tại (trước khi cập nhật)
       // Đặc biệt quan trọng: tạo bản sao mới để tránh tham chiếu
       const currentChangedProducts = [...changedProducts];
-  
+
       // Gọi API để cập nhật giá sản phẩm - sửa cách truyền tham số
       const response = await api.put(
         `/api/admin/hoa-don/${id}/chi-tiet/${hoaDonChiTietId}/gia?useCurrentPrice=${useCurrentPrice}`,
@@ -402,10 +1430,10 @@ function InvoiceDetail() {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
-          }
+          },
         }
       );
-  
+
       // Cập nhật UI sau khi API thành công
       if (response.data) {
         // Cập nhật danh sách sản phẩm cục bộ
@@ -424,38 +1452,143 @@ function InvoiceDetail() {
               : p
           )
         );
-        
+
         // Cập nhật danh sách sản phẩm thay đổi giá - loại bỏ sản phẩm đã xử lý
         const updatedChangedProducts = currentChangedProducts.filter(
           (product) => product.id !== hoaDonChiTietId
         );
         setChangedProducts(updatedChangedProducts);
-  
+
         // Kiểm tra nếu không còn sản phẩm nào thay đổi giá
         if (updatedChangedProducts.length === 0) {
           setOpenPriceChangeDialog(false);
           setPriceNeedsConfirmation(false);
         }
-  
+
         toast.dismiss(updateToastId);
         toast.success(
           useCurrentPrice
             ? "Đã cập nhật giá mới cho sản phẩm"
             : "Đã giữ nguyên giá cũ cho sản phẩm"
         );
-  
+
         // Làm mới dữ liệu để đảm bảo tính nhất quán
         await refreshInvoiceProducts();
       }
     } catch (error) {
       console.error("Lỗi khi cập nhật giá sản phẩm:", error);
       toast.error("Không thể cập nhật giá sản phẩm. Vui lòng thử lại.");
-      
+
       // Làm mới dữ liệu từ server để đảm bảo đồng bộ
       await refreshInvoiceProducts();
     }
   };
+  // Cập nhật hàm xử lý thanh toán phụ phí hoặc hoàn tiền khi thay đổi giá
+  // Cập nhật hàm xử lý thanh toán phụ phí hoặc hoàn tiền khi thay đổi giá
+  const handlePriceChangePayment = async () => {
+    try {
+      setProcessingPriceChangePayment(true);
 
+      // Lấy tổng đã thanh toán và tổng đã hoàn
+      const totalPaid = paymentHistory.reduce((sum, p) => {
+        if (p.trangThai === 1) {
+          // PAYMENT_STATUS_PAID
+          return sum + (p.tongTien || 0);
+        }
+        return sum;
+      }, 0);
+
+      const totalRefunded = paymentHistory.reduce((sum, p) => {
+        if (p.trangThai === 4) {
+          // PAYMENT_STATUS_REFUND
+          return sum + (p.tongTien || 0);
+        }
+        return sum;
+      }, 0);
+
+      const netPaid = totalPaid - totalRefunded;
+
+      // Kiểm tra có thanh toán chờ xác nhận hoặc trả sau không
+      const hasPendingPayment = paymentHistory.some(
+        (p) => p.trangThai === 2 || p.trangThai === 3
+      ); // PAYMENT_STATUS_UNPAID || PAYMENT_STATUS_COD
+
+      // Nếu giảm giá và có thanh toán chờ xác nhận/trả sau -> cập nhật trực tiếp
+      if (priceChangeAmount < 0 && hasPendingPayment) {
+        await api.put(
+          `/api/admin/hoa-don/${id}/cap-nhat-gia`,
+          {
+            useCurrentPrices: true,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        toast.success(
+          "Đã cập nhật giảm giá vào thanh toán chờ xác nhận/trả sau"
+        );
+        setShowPriceChangePaymentDialog(false);
+
+        // Làm mới dữ liệu
+        await Promise.all([
+          refreshInvoice(),
+          refreshPaymentHistory(),
+          refreshInvoiceProducts(),
+        ]);
+
+        return;
+      }
+
+      // Xử lý theo hướng thông thường
+      if (!selectedPaymentMethod) {
+        toast.error("Vui lòng chọn phương thức thanh toán/hoàn tiền");
+        return;
+      }
+
+      const paymentAction = priceChangeAmount > 0 ? "payment" : "refund";
+
+      // Gọi API để xử lý thanh toán hoặc hoàn tiền
+      await api.put(
+        `/api/admin/hoa-don/${id}/cap-nhat-gia`,
+        {
+          useCurrentPrices: true,
+          paymentAction: paymentAction,
+          paymentMethodId: selectedPaymentMethod,
+          adjustmentAmount: Math.abs(priceChangeAmount),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      toast.success(
+        priceChangeAmount > 0
+          ? `Đã cập nhật giá và thu thêm ${formatCurrency(priceChangeAmount)}`
+          : `Đã cập nhật giá và hoàn ${formatCurrency(
+              Math.abs(priceChangeAmount)
+            )}`
+      );
+
+      // Làm mới dữ liệu
+      await Promise.all([
+        refreshInvoice(),
+        refreshPaymentHistory(),
+        refreshInvoiceProducts(),
+      ]);
+
+      setPriceNeedsConfirmation(false);
+      setShowPriceChangePaymentDialog(false);
+    } catch (error) {
+      console.error("Lỗi khi xử lý thanh toán thay đổi giá:", error);
+      toast.error(
+        "Lỗi khi xử lý thanh toán: " +
+          (error.response?.data?.message || error.message)
+      );
+    } finally {
+      setProcessingPriceChangePayment(false);
+    }
+  };
   // Thêm hàm cập nhật tất cả giá sản phẩm
   const handleUpdateAllPrices = async (useCurrentPrices = null) => {
     // Nếu không truyền tham số, sử dụng giá trị từ state
@@ -463,9 +1596,25 @@ function InvoiceDetail() {
       useCurrentPrices !== null ? useCurrentPrices : updateAllPrices;
 
     try {
+      // Kiểm tra nếu áp dụng giá mới và có thay đổi giá
+      if (shouldUseCurrentPrices && changedProducts.length > 0) {
+        // Tính toán số tiền chênh lệch
+        const amountDifference = calculatePriceChangeAmount(changedProducts);
+
+        // Kiểm tra nếu có thanh toán trước đó và số tiền thay đổi khác 0
+        const hasPreviousPayments = paymentHistory && paymentHistory.length > 0;
+
+        if (hasPreviousPayments && amountDifference !== 0) {
+          // Mở modal xử lý thanh toán
+          await loadPaymentMethods();
+          setShowPriceChangePaymentDialog(true);
+          return;
+        }
+      }
+
       const updateToastId = toast.loading("Đang cập nhật giá sản phẩm...");
 
-      const response = await api.put(
+      await api.put(
         `/api/admin/hoa-don/${id}/cap-nhat-gia`,
         {},
         {
@@ -474,7 +1623,7 @@ function InvoiceDetail() {
         }
       );
 
-      // Cập nhật UI mà không gây loading toàn trang
+      // Cập nhật UI không gây loading toàn trang
       await Promise.all([refreshInvoiceProducts(), refreshInvoice()]);
 
       toast.dismiss(updateToastId);
@@ -485,29 +1634,53 @@ function InvoiceDetail() {
       );
 
       // Đánh dấu đã xác nhận thay đổi giá
+      setPriceChangeAmount(0);
       setPriceNeedsConfirmation(false);
       setOpenPriceChangeDialog(false);
     } catch (error) {
       console.error("Lỗi khi cập nhật giá sản phẩm:", error);
-      toast.error("Không thể cập nhật giá sản phẩm");
+      toast.error("Không thể cập nhật giá sản phẩm. Vui lòng thử lại.");
     }
   };
+  // Thêm hàm này để hiển thị loại thanh toán
+  const getPaymentTypeDisplay = (payment) => {
+    if (!payment.moTa) return "Thanh toán";
+
+    if (payment.moTa.includes("Hoàn tiền")) {
+      return "Hoàn tiền";
+    } else if (payment.moTa.includes("Thanh toán phụ phí")) {
+      return "Phụ phí";
+    } else {
+      return "Thanh toán";
+    }
+  };
+
+  const getPaymentTypeColor = (payment) => {
+    if (!payment.moTa) return "blue";
+
+    if (payment.moTa.includes("Hoàn tiền")) {
+      return "green";
+    } else if (payment.moTa.includes("Thanh toán phụ phí")) {
+      return "red";
+    } else {
+      return "blue";
+    }
+  };
+
   // Thêm hàm này vào trong component InvoiceDetail, trước return statement
   const getDiscountAmount = () => {
-    // Nếu giá trị từ backend đã có sẵn, ưu tiên sử dụng giá trị này
+    // Ưu tiên giá trị từ backend nếu có
     if (invoice?.giamGia !== undefined && invoice?.giamGia !== null) {
       return invoice.giamGia;
     }
 
-    // Nếu không có voucher, không có giảm giá
+    // Không có voucher, không có giảm giá
     if (!invoice?.phieuGiamGia) return 0;
 
-    // Tính toán dựa trên quy tắc giảm giá
+    // Tính toán dựa trên tổng tiền sản phẩm (không bao gồm phí vận chuyển)
     const subtotal = totalBeforeDiscount || 0;
 
-    if (subtotal <= 0) return 0;
-
-    if (subtotal < invoice.phieuGiamGia.giaTriToiThieu) {
+    if (subtotal <= 0 || subtotal < invoice.phieuGiamGia.giaTriToiThieu) {
       return 0; // Không đủ điều kiện áp dụng
     }
 
@@ -515,21 +1688,27 @@ function InvoiceDetail() {
 
     if (invoice.phieuGiamGia.loaiPhieuGiamGia === 1) {
       // Giảm giá theo phần trăm
-      discountAmount = (subtotal * invoice.phieuGiamGia.giaTriGiam) / 100;
+      discountAmount = Math.floor(
+        (subtotal * invoice.phieuGiamGia.giaTriGiam) / 100
+      );
 
       // Kiểm tra giới hạn giảm tối đa
       if (
         invoice.phieuGiamGia.soTienGiamToiDa &&
-        discountAmount > invoice.phieuGiamGia.soTienGiamToiDa
+        invoice.phieuGiamGia.soTienGiamToiDa > 0
       ) {
-        discountAmount = invoice.phieuGiamGia.soTienGiamToiDa;
+        discountAmount = Math.min(
+          discountAmount,
+          invoice.phieuGiamGia.soTienGiamToiDa
+        );
       }
     } else {
       // Giảm giá cố định
       discountAmount = Math.min(invoice.phieuGiamGia.giaTriGiam, subtotal);
     }
 
-    return discountAmount;
+    // Đảm bảo giảm giá không âm và không vượt quá tổng tiền
+    return Math.max(0, Math.min(discountAmount, subtotal));
   };
 
   const fetchProducts = async () => {
@@ -591,48 +1770,83 @@ function InvoiceDetail() {
   };
 
   const updateInvoiceTotal = async (updatedProducts) => {
+    // Tính tổng tiền sản phẩm
     const newTotalBeforeDiscount =
       calculateTotalBeforeDiscount(updatedProducts);
     setTotalBeforeDiscount(newTotalBeforeDiscount);
 
+    // Tính tổng tiền bao gồm phí vận chuyển
     const totalWithShipping =
       newTotalBeforeDiscount + (invoice?.phiVanChuyen || 0);
 
-    // Tìm voucher tốt nhất dựa trên tổng tiền mới
-    const bestVoucher = findBestVoucher(vouchers, newTotalBeforeDiscount);
-
-    let finalTotal = totalWithShipping;
+    // Tìm voucher tốt nhất dựa trên tổng mới
     let appliedVoucher = invoice.phieuGiamGia;
+    let finalTotal = totalWithShipping;
 
-    if (!appliedVoucher && bestVoucher) {
-      appliedVoucher = bestVoucher;
-      toast.info(
-        `Đã tự động áp dụng mã giảm giá ${bestVoucher.maPhieuGiamGia}`
-      );
-      await api.post(
-        `/api/admin/hoa-don/${id}/voucher`,
-        {
-          voucherId: bestVoucher.id,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    }
-
+    // Tính giảm giá nếu có voucher
     if (appliedVoucher) {
-      const discount = calculateDiscountAmount(
-        appliedVoucher,
-        newTotalBeforeDiscount
-      );
-      finalTotal -= discount;
+      // Kiểm tra xem voucher hiện tại còn áp dụng được không
+      if (newTotalBeforeDiscount < appliedVoucher.giaTriToiThieu) {
+        // Voucher không còn áp dụng được, tự động gỡ bỏ
+        try {
+          await api.delete(`/api/admin/hoa-don/${id}/voucher`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          toast.info(
+            "Mã giảm giá không còn áp dụng được do thay đổi số lượng sản phẩm"
+          );
+          appliedVoucher = null;
+          finalTotal = totalWithShipping;
+        } catch (error) {
+          console.error("Lỗi khi gỡ bỏ voucher không hợp lệ:", error);
+        }
+      } else {
+        // Voucher vẫn áp dụng được, tính giảm giá
+        const discount = calculateDiscountAmount(
+          appliedVoucher,
+          newTotalBeforeDiscount
+        );
+        finalTotal = totalWithShipping - discount;
+      }
+    } else if (vouchers && vouchers.length > 0) {
+      // Không có voucher hiện tại, kiểm tra xem có thể tự động áp dụng voucher tốt nhất không
+      const bestVoucher = findBestVoucher(vouchers, newTotalBeforeDiscount);
+
+      if (bestVoucher) {
+        try {
+          await api.post(
+            `/api/admin/hoa-don/${id}/voucher`,
+            { voucherId: bestVoucher.id },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          appliedVoucher = bestVoucher;
+          const discount = calculateDiscountAmount(
+            bestVoucher,
+            newTotalBeforeDiscount
+          );
+          finalTotal = totalWithShipping - discount;
+
+          toast.info(
+            `Đã tự động áp dụng mã giảm giá ${bestVoucher.maPhieuGiamGia}`
+          );
+        } catch (error) {
+          console.error("Lỗi khi áp dụng voucher tốt nhất:", error);
+        }
+      }
     }
 
+    // Cập nhật state invoice
     setInvoice((prevInvoice) => ({
       ...prevInvoice,
       tongTien: finalTotal,
       phieuGiamGia: appliedVoucher,
     }));
 
-    fetchPaymentHistory(); // Cập nhật lịch sử thanh toán ngay lập tức
+    // Làm mới dữ liệu
+    await refreshInvoice();
+    await fetchPaymentHistory();
   };
 
   const calculateTotalBeforeDiscount = (products) => {
@@ -692,8 +1906,35 @@ function InvoiceDetail() {
       toast.error("Không thể tải danh sách mã giảm giá");
     }
   };
+  // Thêm vào component
   useEffect(() => {
-    if (invoice && invoice.loaiHoaDon === 3) {
+    const style = document.createElement("style");
+    style.innerHTML = `
+        .ant-steps-item-tail::after {
+          background-color: #1890ff !important;
+          opacity: 0.8;
+        }
+        .ant-steps-item-finish .ant-steps-item-tail::after {
+          background-color: #1890ff !important;
+          opacity: 1;
+        }
+        .ant-steps-item-process .ant-steps-item-tail::after {
+          background-color: #e8e8e8 !important;
+        }
+        .ant-steps-item-wait .ant-steps-item-tail::after {
+          background-color: #e8e8e8 !important;
+        }
+      `;
+    document.head.appendChild(style);
+
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+  useEffect(() => {
+    if (invoice && (invoice.loaiHoaDon === 3 || invoice.loaiHoaDon === 1)) {
       calculateShippingFeeFromGHN();
     }
   }, [invoice?.id]);
@@ -811,6 +2052,8 @@ function InvoiceDetail() {
       setSelectedVoucher(null);
       toast.success(`Đã áp dụng mã giảm giá ${selectedVoucher.maPhieuGiamGia}`);
       fetchPaymentHistory(); // Cập nhật lịch sử thanh toán ngay lập tức
+      await refreshInvoice();
+      await checkExcessPayment();
     } catch (error) {
       showErrorDialog(
         error.response?.data?.message || "Lỗi khi áp dụng mã giảm giá"
@@ -927,7 +2170,6 @@ function InvoiceDetail() {
     return parts.join(", ");
   };
 
-  // Cập nhật hàm handleSaveRecipientInfo
 
   const handleSaveRecipientInfo = async () => {
     try {
@@ -936,33 +2178,33 @@ function InvoiceDetail() {
         showErrorDialog("Vui lòng nhập tên người nhận");
         return;
       }
-
-      if (invoice?.loaiHoaDon === 3) {
+  
+      if (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1) {
         if (!province) {
           showErrorDialog("Vui lòng chọn tỉnh/thành phố");
           return;
         }
-
+  
         if (!district) {
           showErrorDialog("Vui lòng chọn quận/huyện");
           return;
         }
-
+  
         if (!ward) {
           showErrorDialog("Vui lòng chọn phường/xã");
           return;
         }
       }
-
+  
       setTrackingAddressLoading(true);
       const loadingToastId = toast.loading(
         "Đang cập nhật thông tin người nhận..."
       );
-
+  
       // Tạo địa chỉ đầy đủ
       let fullAddress = "";
-
-      if (invoice?.loaiHoaDon === 3) {
+  
+      if (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1) {
         // Nếu là đơn giao hàng, sử dụng format mới: địa chỉ chi tiết, wardId, districtId, provinceId
         if (detailAddress) {
           fullAddress = `${detailAddress}, ${ward}, ${district}, ${province}`;
@@ -973,16 +2215,16 @@ function InvoiceDetail() {
         // Nếu không phải đơn giao hàng, chỉ lấy địa chỉ chi tiết
         fullAddress = detailAddress;
       }
-
+  
       // Tạo payload cập nhật
       const updateData = {
         tenNguoiNhan: recipientName,
-        sdtNguoiNhan: phoneNumber || "",
+        soDienThoai: phoneNumber || "",
         emailNguoiNhan: email || "",
         diaChi: fullAddress,
         ghiChu: note || "",
       };
-
+  
       // Gọi API cập nhật
       const response = await api.put(
         `/api/admin/hoa-don/${invoice.id}`,
@@ -991,7 +2233,7 @@ function InvoiceDetail() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
+  
       if (response.status === 200) {
         // Cập nhật lại state địa phương thay vì gọi API fetchInvoice
         setInvoice((prev) => ({
@@ -1002,17 +2244,25 @@ function InvoiceDetail() {
           diaChi: fullAddress,
           ghiChu: note || "",
         }));
-
+  
         // Cập nhật địa chỉ đã định dạng
         setFormattedAddress(fullAddress);
-
+  
         toast.dismiss(loadingToastId);
         message.success("Cập nhật thông tin người nhận thành công");
         setOpenEditRecipientDialog(false);
+        
+        // Tự động tính lại phí vận chuyển nếu là đơn hàng giao hoặc online
+        if ((invoice.loaiHoaDon === 3 || invoice.loaiHoaDon === 1) && invoice.trangThai === 1) {
+          // Sử dụng timeout để đảm bảo state đã được cập nhật
+          setTimeout(async () => {
+            await calculateAndUpdateShippingFee(false);
+          }, 500);
+        }
       } else {
         throw new Error("Lỗi khi cập nhật thông tin người nhận");
       }
-
+  
       setTrackingAddressLoading(false);
     } catch (error) {
       console.error("Lỗi khi lưu thông tin người nhận:", error);
@@ -1020,7 +2270,79 @@ function InvoiceDetail() {
       showErrorDialog("Đã xảy ra lỗi khi cập nhật. Vui lòng thử lại sau.");
     }
   };
-
+    const calculateAndUpdateShippingFee = async (showToast = true) => {
+    if (!invoice || (invoice.loaiHoaDon !== 3 && invoice.loaiHoaDon !== 1)) {
+      return;
+    }
+    
+    try {
+      // Kiểm tra điều kiện miễn phí vận chuyển
+      if (checkFreeShipping(totalBeforeDiscount)) {
+        // Nếu đủ điều kiện miễn phí vận chuyển
+        if (invoice.phiVanChuyen > 0) {
+          // Gọi API để cập nhật phí vận chuyển = 0
+          const updateResponse = await axios({
+            method: 'post',
+            url: `http://localhost:8080/api/admin/hoa-don/${id}/cap-nhat-phi-van-chuyen`,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              "Content-Type": "application/json",
+            },
+            data: { fee: 0 }
+          });
+  
+          // Cập nhật UI
+          setInvoice((prev) => ({
+            ...prev,
+            phiVanChuyen: 0
+          }));
+          
+          setShippingFeeFromGHN(0);
+          
+          if (showToast) {
+            toast.success("Đơn hàng được miễn phí vận chuyển");
+          }
+        }
+        return;
+      }
+      
+      // Nếu không đủ điều kiện miễn phí, tính phí vận chuyển mới
+      const newShippingFee = await calculateShippingFeeFromGHN();
+      
+      // Nếu phí vận chuyển khác với hiện tại, cập nhật
+      if (newShippingFee !== null && newShippingFee !== invoice.phiVanChuyen) {
+        const updateResponse = await axios({
+          method: 'post',
+          url: `http://localhost:8080/api/admin/hoa-don/${id}/cap-nhat-phi-van-chuyen`,
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json",
+          },
+          data: { fee: newShippingFee }
+        });
+        
+        // Cập nhật hóa đơn trong state
+        setInvoice((prev) => ({
+          ...prev,
+          phiVanChuyen: newShippingFee
+        }));
+        
+        setShippingFeeFromGHN(newShippingFee);
+        
+        if (showToast) {
+          toast.success(`Đã cập nhật phí vận chuyển: ${formatCurrency(newShippingFee)}`);
+        }
+        
+        // Kiểm tra thanh toán thừa
+        await checkExcessPayment();
+      }
+    } catch (error) {
+      console.error("Lỗi khi tính lại phí vận chuyển:", error);
+      if (showToast) {
+        toast.error("Không thể tính lại phí vận chuyển. Vui lòng thử lại.");
+      }
+    }
+  };
   const fetchProvinces = async () => {
     try {
       const response = await api.get("/api/admin/hoa-don/dia-chi/tinh", {
@@ -1035,7 +2357,7 @@ function InvoiceDetail() {
         }));
 
         setProvinces(formattedProvinces);
-        console.log(`✅ Đã tải ${formattedProvinces.length} tỉnh/thành phố`);
+        console.log(` Đã tải ${formattedProvinces.length} tỉnh/thành phố`);
 
         // Cache provinces data
         window.addressCache = window.addressCache || {};
@@ -1108,7 +2430,7 @@ function InvoiceDetail() {
         }
       });
 
-      console.log(`✅ Đã tải ${response.data.length} quận/huyện`);
+      console.log(` Đã tải ${response.data.length} quận/huyện`);
       return response.data;
     } catch (error) {
       console.error(` Lỗi khi gọi API districts:`, error);
@@ -1153,7 +2475,7 @@ function InvoiceDetail() {
         });
 
         setDistricts(formattedDistricts);
-        console.log(`✅ Đã tải ${formattedDistricts.length} quận/huyện`);
+        console.log(` Đã tải ${formattedDistricts.length} quận/huyện`);
 
         // Cache districts data cho việc hiển thị
         window.addressCache = window.addressCache || {};
@@ -1202,7 +2524,7 @@ function InvoiceDetail() {
         }));
 
         setWards(formattedWards);
-        console.log(`✅ Đã tải ${formattedWards.length} phường/xã`);
+        console.log(` Đã tải ${formattedWards.length} phường/xã`);
 
         // Cache wards data
         window.addressCache = window.addressCache || {};
@@ -1300,7 +2622,7 @@ function InvoiceDetail() {
 
       // 3. Cập nhật giá trị state ban đầu
       setRecipientName(invoice?.tenNguoiNhan || "");
-      setPhoneNumber(invoice?.sdtNguoiNhan || "");
+      setPhoneNumber(invoice?.soDienThoai || "");
       setEmail(invoice?.emailNguoiNhan || "");
       setDetailAddress(addressInfo.detailAddress);
 
@@ -1432,7 +2754,7 @@ function InvoiceDetail() {
       setWard(normalizedXaId);
       setSelectedWard(foundWard);
 
-      console.log("✅ Đã tải thành công thông tin địa chỉ");
+      console.log(" Đã tải thành công thông tin địa chỉ");
       return true;
     } catch (error) {
       console.error(" Lỗi khi tải thông tin địa chỉ:", error);
@@ -1486,10 +2808,10 @@ function InvoiceDetail() {
         wardId = lastThreeParts[0];
         districtId = lastThreeParts[1];
         provinceId = lastThreeParts[2];
-        console.log("✅ Phát hiện địa chỉ có dạng ID");
+        console.log(" Phát hiện địa chỉ có dạng ID");
       } else {
         // Nếu là tên địa lý, cần tìm ID tương ứng
-        console.log("ℹ️ Phát hiện địa chỉ có tên đầy đủ, cần tìm ID");
+        console.log("Phát hiện địa chỉ có tên đầy đủ, cần tìm ID");
 
         const provinceName = lastThreeParts[2];
         const districtName = lastThreeParts[1];
@@ -1674,7 +2996,7 @@ function InvoiceDetail() {
     const selectedWard = wards.find((ward) => ward.value === value);
     if (selectedWard) {
       console.log(
-        `✅ Đã chọn xã/phường: ${selectedWard.label} (${selectedWard.value})`
+        ` Đã chọn xã/phường: ${selectedWard.label} (${selectedWard.value})`
       );
     }
   };
@@ -1783,7 +3105,7 @@ function InvoiceDetail() {
             );
           });
 
-          console.log("✅ Tải thành công dữ liệu tỉnh/thành phố ban đầu");
+          console.log(" Tải thành công dữ liệu tỉnh/thành phố ban đầu");
         } catch (error) {
           console.error(" Lỗi khi tải dữ liệu tỉnh/thành phố ban đầu:", error);
         }
@@ -1969,74 +3291,7 @@ function InvoiceDetail() {
       };
 
       loadStatusHistory();
-      // Initialize WebSocket connection
-      const socket = new SockJS("http://localhost:8080/ws", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const stompClient = new Client({
-        webSocketFactory: () => socket,
-        onConnect: () => {
-          console.log(" Kết nối WebSocket thành công");
-
-          // Lắng nghe sự kiện cập nhật hóa đơn
-          stompClient.subscribe(`/topic/hoa-don/${id}`, (message) => {
-            console.log("🔄 Nhận cập nhật hóa đơn:", message.body);
-            fetchInvoice(); // Gọi API để cập nhật dữ liệu
-            fetchInvoiceProducts(); // Cập nhật danh sách sản phẩm
-          });
-          const loadStatusHistory = async () => {
-            try {
-              const response = await api.get(
-                `/api/admin/lich-su-hoa-don/hoa-don/${id}`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
-              );
-
-              const sortedHistory = response.data.sort(
-                (a, b) => new Date(b.ngayTao) - new Date(a.ngayTao)
-              );
-
-              // Tạo một object lưu thời gian cho mỗi trạng thái
-              const timestamps = {};
-              sortedHistory.forEach((record) => {
-                // Chỉ lưu trạng thái đầu tiên tìm thấy cho mỗi trạng thái
-                if (!timestamps[record.trangThai]) {
-                  timestamps[record.trangThai] = record.ngayTao;
-                }
-              });
-
-              setStatusTimestamps(timestamps);
-            } catch (error) {
-              console.error("Lỗi khi tải lịch sử trạng thái:", error);
-            }
-          };
-
-          loadStatusHistory();
-          // Lắng nghe sự kiện cập nhật sản phẩm trong hóa đơn
-          stompClient.subscribe(`/topic/hoa-don-san-pham/${id}`, (message) => {
-            console.log("🔄 Nhận cập nhật sản phẩm:", message.body);
-            fetchInvoiceProducts(); // Gọi API để cập nhật danh sách sản phẩm
-            fetchPaymentHistory(); // Cập nhật lịch sử thanh toán khi có sự kiện
-          });
-        },
-        onStompError: (frame) => {
-          console.error("STOMP error:", frame.headers["message"]);
-          console.error("STOMP error details:", frame.body);
-        },
-        onWebSocketError: (event) => {
-          console.error("WebSocket error:", event);
-        },
-        onDisconnect: () => console.log(" WebSocket bị ngắt kết nối"),
-      });
-
-      stompClient.activate();
-
-      return () => {
-        stompClient.deactivate();
-      };
+      // Removed WebSocket connection setup and subscription logic
     }
   }, [id]);
 
@@ -2071,7 +3326,76 @@ function InvoiceDetail() {
       }
     }
   }, [invoice, provinces]);
+  // Thêm vào useEffect cho hóa đơn
+  useEffect(() => {
+    if (id) {
+      const loadOrderHistory = async () => {
+        try {
+          setLoadingHistory(true);
 
+          const response = await api.get(
+            `/api/admin/lich-su-hoa-don/hoa-don/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (response.data && Array.isArray(response.data)) {
+            // Xử lý dữ liệu - đảm bảo datetime hợp lệ và định dạng đúng
+            const processedData = response.data.map((record) => {
+              // Chuyển đổi thời gian sang đối tượng Date rồi sang chuỗi ISO để đảm bảo định dạng nhất quán
+              let ngayTao = null;
+              let ngaySua = null;
+
+              try {
+                ngayTao = record.ngayTao
+                  ? new Date(record.ngayTao).toISOString()
+                  : null;
+              } catch (e) {
+                console.error("Lỗi định dạng ngayTao:", e);
+              }
+
+              try {
+                ngaySua = record.ngaySua
+                  ? new Date(record.ngaySua).toISOString()
+                  : null;
+              } catch (e) {
+                console.error("Lỗi định dạng ngaySua:", e);
+              }
+
+              return {
+                ...record,
+                ngayTao,
+                ngaySua,
+                timestamp: ngayTao || ngaySua, // Thêm trường timestamp để dễ truy cập
+                trangThai:
+                  typeof record.trangThai === "string"
+                    ? parseInt(record.trangThai, 10)
+                    : record.trangThai,
+              };
+            });
+
+            // Sắp xếp theo thời gian để đảm bảo thứ tự đúng
+            const sortedData = processedData.sort((a, b) => {
+              const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+              const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+              return timeA - timeB; // Sắp xếp tăng dần
+            });
+
+            setOrderHistory(sortedData);
+          }
+        } catch (error) {
+          console.error("Lỗi khi tải lịch sử đơn hàng:", error);
+        } finally {
+          setLoadingHistory(false);
+        }
+      };
+
+      loadOrderHistory();
+    }
+  }, [id]);
   // Add useEffect for dialog open
   useEffect(() => {
     if (openEditRecipientDialog && invoice) {
@@ -2185,17 +3509,33 @@ function InvoiceDetail() {
   // Hàm tối ưu để cập nhật thông tin hóa đơn không gây loading toàn trang
   const refreshInvoice = async () => {
     try {
-      const response = await api.get(`/api/admin/hoa-don/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Thêm timestamp để tránh cache
+      const timestamp = new Date().getTime();
+      const response = await api.get(
+        `/api/admin/hoa-don/${id}?t=${timestamp}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+          },
+        }
+      );
 
       if (response.data) {
         setInvoice(response.data);
+
+        // Log thông tin quan trọng để debug
+        console.log("Thông tin hóa đơn sau refresh:", {
+          tongTien: response.data.tongTien,
+          tongThanhToan: response.data.tongThanhToan,
+          conThieu: response.data.tongTien - (response.data.tongThanhToan || 0),
+        });
       }
     } catch (error) {
-      console.error("Lỗi khi tải thông tin hóa đơn:", error);
+      console.error("Lỗi khi refresh hóa đơn:", error);
     }
   };
+
   const handleAddProduct = async (product, quantity) => {
     if (!product) {
       showErrorDialog("Vui lòng chọn sản phẩm");
@@ -2278,7 +3618,50 @@ function InvoiceDetail() {
       toast.dismiss(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
     }
   };
-
+    const handleAddMultipleProducts = async (products) => {
+      if (!products || products.length === 0) {
+        showErrorDialog("Không có sản phẩm nào được chọn");
+        return;
+      }
+    
+      try {
+        const addToastId = toast.loading("Đang thêm sản phẩm...");
+        
+        // Chuẩn bị dữ liệu
+        const productList = products.map(product => ({
+          sanPhamChiTietId: product.id,
+          soLuong: 1  // Mặc định số lượng là 1 cho mỗi sản phẩm
+        }));
+        
+        // Gọi API để thêm nhiều sản phẩm cùng lúc
+        await api.post(
+          `/api/admin/hoa-don/${id}/san-pham`,
+          {
+            productList: productList
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+    
+        // Làm mới danh sách sản phẩm và thông tin hóa đơn
+        await refreshInvoiceProducts();
+        await refreshInvoice();
+    
+        toast.dismiss(addToastId);
+        toast.success(`Đã thêm ${products.length} sản phẩm vào đơn hàng`);
+        setOpenAddProductDialog(false);
+        
+        // Đặt lại pagination
+        setPagination({ current: 1, pageSize: 3 });
+      } catch (error) {
+        console.error("Lỗi khi thêm sản phẩm:", error);
+        toast.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
+      }
+    };
   const handleConfirmDelete = async () => {
     try {
       await api.delete(
@@ -2307,10 +3690,6 @@ function InvoiceDetail() {
     }
   };
 
-  const getProductStatusText = (status) => {
-    return status == 1 ? "Thành công" : "Không thành công";
-  };
-
   const handleUpdateQuantity = async (hoaDonChiTietId, newQuantity) => {
     if (newQuantity < 1) {
       toast.error("Số lượng phải lớn hơn 0");
@@ -2324,27 +3703,32 @@ function InvoiceDetail() {
       return;
     }
 
-    // Kiểm tra xem sản phẩm này có thay đổi giá không
+    // Kiểm tra sản phẩm có thay đổi giá không
     if (product && product.giaThayDoi) {
-      toast.warning("Không thể thay đổi số lượng sản phẩm đã thay đổi giá");
-      return;
+      if (newQuantity > product.soLuong) {
+        toast.warning("Không thể tăng số lượng sản phẩm đã thay đổi giá");
+        return;
+      }
     }
 
     try {
       const updateToastId = toast.loading("Đang cập nhật số lượng...");
 
-      // Cập nhật UI trước để phản hồi nhanh
-      setInvoiceProducts((prevProducts) =>
-        prevProducts.map((p) =>
-          p.id === hoaDonChiTietId
-            ? {
-                ...p,
-                soLuong: newQuantity,
-                thanhTien: p.gia * newQuantity,
-              }
-            : p
-        )
+      // Cập nhật UI ngay lập tức để trải nghiệm người dùng tốt hơn
+      const updatedProducts = invoiceProducts.map((p) =>
+        p.id === hoaDonChiTietId
+          ? {
+              ...p,
+              soLuong: newQuantity,
+              thanhTien: p.gia * newQuantity,
+            }
+          : p
       );
+
+      setInvoiceProducts(updatedProducts);
+
+      // Tính toán tổng mới trước khi gọi API
+      updateTotalBeforeDiscount(updatedProducts);
 
       // Gọi API để cập nhật số lượng
       await api.put(
@@ -2358,29 +3742,64 @@ function InvoiceDetail() {
         }
       );
 
-      // Cập nhật tổng tiền và các thông tin khác
-      updateTotalBeforeDiscount(
-        invoiceProducts.map((p) =>
-          p.id === hoaDonChiTietId
-            ? { ...p, soLuong: newQuantity, thanhTien: p.gia * newQuantity }
-            : p
-        )
-      );
+      // Cập nhật tổng hóa đơn và kiểm tra thanh toán thừa/còn thiếu
+      await updateInvoiceTotal(updatedProducts);
+
+      // Làm mới lịch sử thanh toán và kiểm tra thanh toán thừa
+      await refreshPaymentHistory();
+      await checkExcessPayment();
 
       toast.dismiss(updateToastId);
       toast.success("Cập nhật số lượng thành công");
     } catch (error) {
       console.error("Lỗi khi cập nhật số lượng:", error);
-      toast.error(error.response?.data?.message || "Lỗi khi cập nhật số lượng");
+      showErrorDialog(
+        error.response?.data?.message || "Lỗi khi cập nhật số lượng"
+      );
 
-      // Tải lại danh sách sản phẩm từ server để đảm bảo dữ liệu đồng bộ
-      refreshInvoiceProducts();
+      // Khôi phục dữ liệu ban đầu nếu có lỗi
+      await fetchInvoiceProducts();
     }
   };
   const handleStatusChange = async (newStatus) => {
     if (invoice.trangThai === 6) {
       showErrorDialog("Không thể thay đổi trạng thái của đơn hàng đã hủy");
       return;
+    }
+
+    // Kiểm tra nếu đơn hàng không có sản phẩm và đang chuyển từ chờ xác nhận sang xác nhận
+    if (
+      invoice.trangThai === 1 &&
+      newStatus === 2 &&
+      (!invoiceProducts || invoiceProducts.length === 0)
+    ) {
+      showErrorDialog("Không thể xác nhận đơn hàng không có sản phẩm");
+      return;
+    }
+
+    // Xác định nextStatus: với đơn tại quầy (loại 2), từ trạng thái 2 (đã xác nhận) chuyển thẳng sang 5 (hoàn thành)
+    let nextStatusValue = newStatus;
+    if (
+      invoice.loaiHoaDon === 2 &&
+      invoice.trangThai === 2 &&
+      newStatus === 3
+    ) {
+      nextStatusValue = 5; // Chuyển thẳng sang Hoàn thành cho hóa đơn tại quầy
+    }
+
+    // Xử lý khi chuyển từ chờ xác nhận sang đã xác nhận và cần thanh toán
+    if (invoice.trangThai === 1 && newStatus === 2) {
+      const hasPayments = paymentHistory && paymentHistory.length > 0;
+      const remainingAmount = calculateRemainingPayment();
+
+      if (!hasPayments || remainingAmount > 0) {
+        // Mở dialog thanh toán
+        setNextStatus(newStatus);
+        await loadPaymentMethods();
+        setPaymentAmount(calculateRemainingPayment());
+        setOpenPaymentModal(true);
+        return;
+      }
     }
 
     // Kiểm tra nếu đang chuyển từ trạng thái chờ xác nhận (1) sang đã xác nhận (2)
@@ -2392,81 +3811,109 @@ function InvoiceDetail() {
           "Đơn hàng này có sản phẩm thay đổi giá chưa được xác nhận. Bạn cần xác nhận thay đổi giá trước khi xác nhận đơn hàng.",
         okText: "Xác nhận giá ngay",
         cancelText: "Đóng",
-        onOk: () => {
-          setOpenPriceChangeDialog(true);
-        },
+        onOk: () => setOpenPriceChangeDialog(true),
       });
       return;
     }
 
     // Nếu là trạng thái hủy đơn
     if (newStatus === 6) {
-      Modal.confirm({
-        title: "Xác nhận hủy đơn hàng",
-        content:
-          "Bạn có chắc chắn muốn hủy đơn hàng này? Sản phẩm và mã giảm giá sẽ được hoàn lại.",
-        okText: "Hủy đơn",
-        cancelText: "Đóng",
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          try {
-            const cancelToastId = toast.loading("Đang hủy đơn hàng...");
-            await api.delete(`/api/admin/hoa-don/${id}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            toast.dismiss(cancelToastId);
-            toast.success("Đã hủy đơn hàng và hoàn lại sản phẩm, mã giảm giá.");
-            fetchInvoice();
-          } catch (error) {
-            console.error("Lỗi khi hủy đơn hàng:", error);
-            toast.error("Lỗi khi hủy đơn hàng!");
-          }
-        },
-      });
+      handleOpenCancelDialog();
     } else {
       // Các trạng thái khác
-      setNextStatus(newStatus);
+      setNextStatus(nextStatusValue); // Sử dụng nextStatusValue đã được điều chỉnh
       setOpenConfirmDialog(true);
       setConfirmText("");
     }
   };
+
   const handleConfirmStatusChange = async () => {
-    if (confirmText.toLowerCase() !== "đồng ý") {
-      showErrorDialog("Vui lòng nhập 'đồng ý' để xác nhận");
-      return;
-    }
-
     try {
-      console.log("Updating status to:", nextStatus);
+      setProcessingStatusChange(true);
+      const statusToastId = toast.loading(`Đang xử lý chuyển trạng thái...`);
 
-      // 1. Gọi API để cập nhật trạng thái hóa đơn
-      const response = await api.patch(
-        `/api/admin/hoa-don/${id}/status`,
-        null,
-        {
-          params: { trangThai: nextStatus },
-          headers: {
-            Authorization: `Bearer ${token}`, // Gắn token vào header
-            "Content-Type": "application/json",
-          },
-        }
+      // Kiểm tra số tiền cần thanh toán
+      const remainingPayment = calculateRemainingPayment();
+
+      // Kiểm tra xem có khoản thanh toán trả sau hoặc chuyển khoản ngân hàng không
+      const hasPendingOrCodPayments = paymentHistory.some(
+        (p) =>
+          (p.trangThai === 2 || p.trangThai === 3) &&
+          (p.maPhuongThucThanhToan === "COD" ||
+            p.maPhuongThucThanhToan === "BANK")
       );
-      // 2. Cập nhật state sau khi thành công
-      setInvoice(response.data);
-      toast.success("Cập nhật trạng thái thành công");
+
+      // Chỉ mở modal thanh toán khi còn thiếu tiền VÀ không có thanh toán COD/bank chờ xác nhận
+      if (remainingPayment > 1000 && !hasPendingOrCodPayments) {
+        toast.dismiss(statusToastId);
+        setPaymentAmount(remainingPayment);
+        setOpenPaymentModal(true);
+        setProcessingStatusChange(false);
+        return;
+      }
+
+      // Tạo payload cho API với thông tin thanh toán
+      const requestPayload = {
+        thanhToans: [],
+      };
+
+      // Nếu có thanh toán chờ xác nhận hoặc trả sau, thêm vào payload
+      if (hasPendingOrCodPayments) {
+        const pendingPayments = paymentHistory
+          .filter(
+            (p) =>
+              (p.trangThai === 2 || p.trangThai === 3) &&
+              (p.maPhuongThucThanhToan === "COD" ||
+                p.maPhuongThucThanhToan === "BANK")
+          )
+          .map((p) => ({
+            maPhuongThucThanhToan: p.maPhuongThucThanhToan,
+            soTien: p.tongTien || p.soTien,
+            moTa:
+              p.trangThai === 2
+                ? "Xác nhận thanh toán chuyển khoản"
+                : "Thanh toán khi xác nhận đơn hàng",
+          }));
+
+        requestPayload.thanhToans = pendingPayments;
+        console.log("Đang gửi thông tin thanh toán:", pendingPayments);
+      }
+
+      // Gọi API với thông tin thanh toán
+      await api.patch(
+        `/api/admin/hoa-don/${id}/status?trangThai=${nextStatus}`,
+        requestPayload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Cập nhật UI và hiển thị thông báo thành công
+      await refreshInvoice();
+      await fetchOrderHistory();
+      await refreshStepsHistory();
+      await refreshPaymentHistory();
+
       setOpenConfirmDialog(false);
+      toast.dismiss(statusToastId);
+      toast.success(`Đã chuyển trạng thái thành công`);
     } catch (error) {
-      console.error("Error updating status:", error); // Log lỗi chi tiết
-      showErrorDialog(
-        error.response?.data?.message || "Lỗi khi cập nhật trạng thái"
-      );
+      console.error("Lỗi khi chuyển trạng thái:", error);
+      toast.error(error.response?.data?.message || "Lỗi khi chuyển trạng thái");
+    } finally {
+      setProcessingStatusChange(false);
     }
   };
 
   const handleGoBack = (currentStatus) => {
     if (currentStatus > 1) {
-      // Only allow going back if not at first status
-      setNextStatus(currentStatus - 1);
+      // Xác định trạng thái trước dựa vào loại hóa đơn
+      let prevStatus = currentStatus - 1;
+
+      // Nếu là hóa đơn tại quầy và đang ở trạng thái Hoàn thành (5), quay lại Đã xác nhận (2)
+      if (invoice.loaiHoaDon === 2 && currentStatus === 5) {
+        prevStatus = 2;
+      }
+
+      setNextStatus(prevStatus);
       setOpenConfirmDialog(true);
       setConfirmText("");
     }
@@ -2476,12 +3923,41 @@ function InvoiceDetail() {
   const fetchPaymentHistory = async () => {
     try {
       setLoadingPayments(true);
-      const response = await api.get(`/api/thanh-toan-hoa-don/hoa-don/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
-      setPaymentHistory(response.data);
+
+      // Thêm timestamp và cache-control để đảm bảo luôn lấy dữ liệu mới
+      const timestamp = new Date().getTime();
+      const response = await api.get(
+        `/api/thanh-toan-hoa-don/hoa-don/${id}?t=${timestamp}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        }
+      );
+
+      if (response.data) {
+        // Quan trọng: xử lý số liệu trước khi cập nhật state
+        const processedPayments = response.data.map((payment) => ({
+          ...payment,
+          tongTien: payment.tongTien ? Number(payment.tongTien) : 0,
+          soTien: payment.soTien ? Number(payment.soTien) : 0,
+        }));
+
+        console.log("Dữ liệu thanh toán mới:", processedPayments);
+        setPaymentHistory(processedPayments);
+
+        // Tính lại số tiền còn thiếu ngay sau khi cập nhật dữ liệu
+        setTimeout(() => {
+          const remaining = calculateRemainingPayment();
+          console.log(
+            "Số tiền còn thiếu sau khi cập nhật payment history:",
+            remaining
+          );
+        }, 100);
+      }
     } catch (error) {
       console.error("Error fetching payment history:", error);
       toast.error("Lỗi khi tải lịch sử thanh toán");
@@ -2532,7 +4008,7 @@ function InvoiceDetail() {
     }, null);
   };
 
-  const fetchOrderHistory = async () => {
+  const fetchOrderHistory = async (openDialog = false) => {
     try {
       setLoadingHistory(true);
       const response = await api.get(
@@ -2545,38 +4021,47 @@ function InvoiceDetail() {
       );
 
       if (response.data && Array.isArray(response.data)) {
-        // Lọc các bản ghi có liên quan đến trạng thái và sắp xếp theo thời gian tăng dần
-        const statusRecords = response.data.filter(
-          (record) => record.trangThai >= 1 && record.trangThai <= 6
-        );
+        // Xử lý dữ liệu trả về
+        const processedData = response.data.map((record) => {
+          // Chuyển đổi trangThai thành số nếu chưa phải
+          const trangThai =
+            typeof record.trangThai === "string"
+              ? parseInt(record.trangThai, 10)
+              : record.trangThai;
 
-        // Sắp xếp theo thời gian tăng dần để hiển thị theo thứ tự
-        const sortedHistory = statusRecords.sort(
-          (a, b) => new Date(a.ngayTao) - new Date(b.ngayTao)
-        );
+          // Đảm bảo ngayTao và ngaySua là chuỗi ISO hợp lệ
+          const ngayTao = record.ngayTao
+            ? new Date(record.ngayTao).toISOString()
+            : null;
+          const ngaySua = record.ngaySua
+            ? new Date(record.ngaySua).toISOString()
+            : null;
 
-        setOrderHistory(sortedHistory);
-
-        // Tạo một object lưu thời gian cho mỗi trạng thái
-        // (chỉ lấy thời gian gần nhất của mỗi trạng thái)
-        const timestamps = {};
-        const reversedHistory = [...response.data].sort(
-          (a, b) => new Date(b.ngayTao) - new Date(a.ngayTao)
-        );
-
-        reversedHistory.forEach((record) => {
-          // Chỉ lưu trạng thái đầu tiên tìm thấy cho mỗi trạng thái
-          if (
-            !timestamps[record.trangThai] &&
-            record.trangThai >= 1 &&
-            record.trangThai <= 6
-          ) {
-            timestamps[record.trangThai] = record.ngayTao;
-          }
+          return {
+            ...record,
+            trangThai,
+            ngayTao,
+            ngaySua,
+            timestamp: ngayTao || ngaySua,
+          };
         });
 
-        setStatusTimestamps(timestamps);
-        setOpenHistoryDialog(true);
+        // Lưu toàn bộ lịch sử vào state
+        setOrderHistory(processedData);
+        console.log(
+          "📋 Đã cập nhật orderHistory với",
+          processedData.length,
+          "bản ghi"
+        );
+
+        // Force update để Steps re-render
+        forceUpdate();
+
+        // Chỉ mở dialog nếu được yêu cầu và tham số openDialog là true
+        if (openDialog) {
+          setOpenHistoryDialog(true);
+        }
+        setShowHistoryTable(false);
       }
     } catch (error) {
       console.error("Lỗi khi lấy lịch sử đơn hàng:", error);
@@ -2584,6 +4069,9 @@ function InvoiceDetail() {
     } finally {
       setLoadingHistory(false);
     }
+  };
+  const refreshStepsHistory = () => {
+    fetchOrderHistory(false);
   };
   const isAddressId = (text) => {
     if (!text) return false;
@@ -2620,7 +4108,7 @@ function InvoiceDetail() {
       window.addressCache[type][idStr]
     ) {
       console.log(
-        `✅ Tìm thấy địa chỉ trong cache toàn cục: ${window.addressCache[type][idStr]}`
+        ` Tìm thấy địa chỉ trong cache toàn cục: ${window.addressCache[type][idStr]}`
       );
       return window.addressCache[type][idStr];
     }
@@ -2628,7 +4116,7 @@ function InvoiceDetail() {
     // Tìm trong cache của component trước
     const cachedName = getAddressNameById(type, idStr);
     if (cachedName) {
-      console.log(`✅ Tìm thấy địa chỉ trong cache component: ${cachedName}`);
+      console.log(` Tìm thấy địa chỉ trong cache component: ${cachedName}`);
       return cachedName;
     }
 
@@ -2636,7 +4124,7 @@ function InvoiceDetail() {
     if (typeof findNameById === "function") {
       const foundName = findNameById(type, idStr);
       if (foundName) {
-        console.log(`✅ Tìm thấy địa chỉ bằng findNameById: ${foundName}`);
+        console.log(` Tìm thấy địa chỉ bằng findNameById: ${foundName}`);
         return foundName;
       }
     }
@@ -2677,7 +4165,7 @@ function InvoiceDetail() {
       if (provinceData) {
         provinceName = provinceData.name;
         console.log(
-          `✅ Tìm thấy tỉnh/thành phố: ${provinceName} (${provinceId})`
+          ` Tìm thấy tỉnh/thành phố: ${provinceName} (${provinceId})`
         );
 
         // Bước 2: Tải danh sách quận/huyện
@@ -2698,7 +4186,7 @@ function InvoiceDetail() {
             if (districtData) {
               districtName = districtData.name;
               console.log(
-                `✅ Tìm thấy quận/huyện: ${districtName} (${districtId})`
+                ` Tìm thấy quận/huyện: ${districtName} (${districtId})`
               );
 
               // Bước 3: Tải danh sách phường/xã
@@ -2721,7 +4209,7 @@ function InvoiceDetail() {
                   if (wardData) {
                     wardName = wardData.name;
                     console.log(
-                      `✅ Tìm thấy phường/xã: ${wardName} (${wardCode})`
+                      ` Tìm thấy phường/xã: ${wardName} (${wardCode})`
                     );
                   } else {
                     console.log(
@@ -3118,7 +4606,7 @@ function InvoiceDetail() {
       }
 
       // Trả về thông tin định dạng GHN
-      console.log("✅ Chuyển đổi địa chỉ thành công:", {
+      console.log(" Chuyển đổi địa chỉ thành công:", {
         to_district_id: districtId,
         to_ward_code: wardCode,
       });
@@ -3228,31 +4716,43 @@ function InvoiceDetail() {
       console.error("❌ Lỗi khi tải thông tin địa chỉ:", error);
     }
   };
+    // Thêm hàm kiểm tra điều kiện miễn phí vận chuyển
+  const checkFreeShipping = (subtotal) => {
+    const FREE_SHIPPING_THRESHOLD = 2000000; // 2 triệu đồng
+    return subtotal >= FREE_SHIPPING_THRESHOLD;
+  };
   const calculateShippingFeeFromGHN = async () => {
-    if (!invoice || invoice.loaiHoaDon !== 3) {
-      return;
+    if (!invoice || (invoice.loaiHoaDon !== 3 && invoice.loaiHoaDon !== 1)) {
+      console.error("Không phải hóa đơn giao hàng hoặc online");
+      return null;
     }
-
+  
     try {
       setLoadingShippingFee(true);
 
+  // Kiểm tra miễn phí vận chuyển ngay từ đầu
+  if (checkFreeShipping(totalBeforeDiscount)) {
+    console.log("Đơn hàng đủ điều kiện miễn phí vận chuyển");
+    setShippingFeeFromGHN(0);
+    return 0;
+  }
       // Phân tích địa chỉ
       const addressParts = invoice.diaChi?.split(/,\s*/);
       if (!addressParts || addressParts.length < 4) {
         console.error("Địa chỉ không đủ thông tin để tính phí vận chuyển");
-        return;
+        return null;
       }
-
+  
       // Lấy ra 3 phần cuối của địa chỉ (phường/xã, quận/huyện, tỉnh/thành phố)
       const wardInfo = addressParts[addressParts.length - 3].trim();
       const districtInfo = addressParts[addressParts.length - 2].trim();
       const provinceInfo = addressParts[addressParts.length - 1].trim();
-
+  
       // Kiểm tra xem có phải địa chỉ dạng ID không
       const isIdFormat = [wardInfo, districtInfo, provinceInfo].every((part) =>
         /^\d+$/.test(part)
       );
-
+  
       let addressData;
       if (isIdFormat) {
         // Sử dụng ID trực tiếp
@@ -3269,28 +4769,31 @@ function InvoiceDetail() {
           !addressInfo.districtId ||
           !addressInfo.wardId
         ) {
-          return;
+          console.error("Không thể trích xuất ID từ địa chỉ");
+          return null;
         }
-
+  
         addressData = {
           tinh: addressInfo.provinceId,
           huyen: addressInfo.districtId,
           xa: addressInfo.wardId,
         };
       }
-
+  
       const shopInfo = {
         district_id: 1482,
         ward_code: "11006",
       };
-
+  
       // Chuyển đổi địa chỉ sang định dạng GHN
       const ghnAddress = await mapAddressToGHNFormat(addressData);
       if (!ghnAddress) {
         console.error("Không thể chuyển đổi địa chỉ GHN:", addressData);
-        return;
+        return null;
       }
-
+  
+      console.log("Địa chỉ GHN đã chuyển đổi:", ghnAddress);
+  
       const payload = {
         from_district_id: shopInfo.district_id,
         from_ward_code: shopInfo.ward_code,
@@ -3302,7 +4805,7 @@ function InvoiceDetail() {
         width: 20, // 20cm
         height: 10, // 10cm
       };
-
+  
       // Gọi API tính phí vận chuyển của GHN
       const response = await api.post(
         `/api/admin/hoa-don/phi-van-chuyen`,
@@ -3314,87 +4817,86 @@ function InvoiceDetail() {
           },
         }
       );
-
+  
       // Xử lý kết quả từ API
       if (response.data && typeof response.data === "number") {
         const fee = response.data > 0 ? response.data : 30000;
+        console.log("Phí vận chuyển tính được:", fee);
         setShippingFeeFromGHN(fee);
+        return fee; // Đảm bảo luôn trả về fee
       }
+      
+      return null; // Trả về null nếu không nhận được response hợp lệ
     } catch (error) {
       console.error("Lỗi khi tính phí vận chuyển từ GHN:", error);
+      return null; // Trả về null trong trường hợp lỗi
     } finally {
       setLoadingShippingFee(false);
     }
   };
+
   const refreshPaymentHistory = async () => {
     try {
-      const response = await api.get(`/api/thanh-toan-hoa-don/hoa-don/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      setLoadingPayments(true);
+
+      // Thêm timestamp và cache-control để đảm bảo luôn lấy dữ liệu mới
+      const timestamp = new Date().getTime();
+      const response = await api.get(
+        `/api/thanh-toan-hoa-don/hoa-don/${id}?t=${timestamp}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        }
+      );
 
       if (response.data) {
-        setPaymentHistory(response.data);
-      }
-    } catch (error) {
-      console.error("Lỗi khi tải lịch sử thanh toán:", error);
-    }
-  };
-  // Cập nhật hàm handleRecalculateShipping để hiển thị kết quả mới từ GHN
-  const handleRecalculateShipping = async () => {
-    if (!invoice || invoice.loaiHoaDon !== 3) {
-      toast.info("Chỉ áp dụng cho hóa đơn giao hàng");
-      return;
-    }
-
-    try {
-      const loadingToastId = toast.loading("Đang tính phí vận chuyển...");
-      setLoadingShippingFee(true);
-
-      // Tính phí vận chuyển mới từ GHN
-      await calculateShippingFeeFromGHN();
-
-      // Nếu có phí vận chuyển mới, cập nhật vào hóa đơn
-      if (shippingFeeFromGHN) {
-        const response = await api.post(
-          `/api/admin/hoa-don/${id}/cap-nhat-phi-van-chuyen`,
-          { fee: shippingFeeFromGHN },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        // Cập nhật cục bộ thay vì reload toàn trang
-        setInvoice((prev) => ({
-          ...prev,
-          phiVanChuyen: shippingFeeFromGHN,
-          tongTien:
-            totalBeforeDiscount - getDiscountAmount() + shippingFeeFromGHN,
+        // Quan trọng: xử lý số liệu trước khi cập nhật state
+        const processedPayments = response.data.map((payment) => ({
+          ...payment,
+          tongTien: payment.tongTien ? Number(payment.tongTien) : 0,
+          soTien: payment.soTien ? Number(payment.soTien) : 0,
         }));
 
-        toast.dismiss(loadingToastId);
-        toast.success(
-          `Đã cập nhật phí vận chuyển: ${formatCurrency(shippingFeeFromGHN)}`
+        console.log("Dữ liệu thanh toán mới:", processedPayments);
+        setPaymentHistory(processedPayments);
+
+        // Kiểm tra có COD/bank payments để đặt button đúng trạng thái
+        const hasSpecialPayments = processedPayments.some(
+          (p) =>
+            (p.trangThai === 2 || p.trangThai === 3) &&
+            (p.maPhuongThucThanhToan === "COD" ||
+              p.maPhuongThucThanhToan === "BANK")
         );
 
-        // Cập nhật nhẹ nhàng không reload toàn trang
-        refreshInvoice();
-        refreshPaymentHistory();
-      } else {
-        toast.dismiss(loadingToastId);
-        toast.error(
-          "Không thể tính phí vận chuyển. Đang sử dụng giá mặc định."
-        );
+        console.log("Có thanh toán COD/bank chờ xác nhận:", hasSpecialPayments);
       }
     } catch (error) {
-      console.error("Lỗi khi tính phí vận chuyển:", error);
-      toast.error(
-        error.message || "Không thể tính phí vận chuyển. Vui lòng thử lại."
-      );
+      console.error("Error fetching payment history:", error);
+      toast.error("Lỗi khi tải lịch sử thanh toán");
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+  // Cải tiến hàm handleRecalculateShipping để đảm bảo phí vận chuyển được cập nhật đúng
+  const handleRecalculateShipping = async () => {
+    const loadingToastId = toast.loading("Đang tính phí vận chuyển...");
+    setLoadingShippingFee(true);
+    
+    try {
+      await calculateAndUpdateShippingFee(false);
+      toast.dismiss(loadingToastId);
+      toast.success("Đã cập nhật phí vận chuyển thành công");
+    } catch (error) {
+      toast.dismiss(loadingToastId);
+      toast.error("Không thể tính lại phí vận chuyển. Vui lòng thử lại.");
     } finally {
       setLoadingShippingFee(false);
     }
   };
-
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: 24 }}>
@@ -3411,7 +4913,7 @@ function InvoiceDetail() {
           <Button
             type="default"
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate("/hoa-don")}
+            onClick={() => navigate("/admin/hoa-don")}
           >
             Quay lại
           </Button>
@@ -3420,67 +4922,295 @@ function InvoiceDetail() {
     );
   }
 
+  const getCompleteOrderHistory = () => {
+    if (!orderHistory || orderHistory.length === 0) return [];
+
+    // Lọc các bản ghi liên quan đến thay đổi trạng thái hoặc hủy đơn
+    const statusRecords = orderHistory.filter(
+      (record) =>
+        (record.moTa?.includes("Cập nhật trạng thái") ||
+          record.hanhDong?.includes("Cập nhật trạng thái") ||
+          record.hanhDong === "Hủy hóa đơn") &&
+        record.trangThai >= 1 &&
+        record.trangThai <= 6
+    );
+
+    // Sắp xếp theo thời gian tăng dần để hiển thị theo đúng trình tự
+    const sortedHistory = [...statusRecords].sort((a, b) => {
+      // Đảm bảo sử dụng ngayTao hoặc ngaySua để sắp xếp chính xác
+      const timeA = a.ngayTao
+        ? new Date(a.ngayTao).getTime()
+        : a.ngaySua
+        ? new Date(a.ngaySua).getTime()
+        : 0;
+
+      const timeB = b.ngayTao
+        ? new Date(b.ngayTao).getTime()
+        : b.ngaySua
+        ? new Date(b.ngaySua).getTime()
+        : 0;
+
+      return timeA - timeB; // Sắp xếp tăng dần theo thời gian
+    });
+
+    // Chuyển đổi sang định dạng phù hợp cho Steps
+    const history = sortedHistory.map((record) => ({
+      trangThai: record.trangThai,
+      timestamp: record.ngayTao || record.ngaySua,
+      moTa: record.moTa,
+      tenNhanVien: record.tenNhanVien,
+      hanhDong: record.hanhDong,
+    }));
+
+    return history;
+  };
+  // Hàm xác định trạng thái hiện tại của Steps
+  const getStepsCurrent = (currentTrangThai, history) => {
+    if (currentTrangThai === 6) {
+      // Nếu là trạng thái hủy, điểm current là phần tử cuối (thường là trạng thái hủy)
+      return history.length - 1;
+    }
+
+    // Tìm chỉ số của trạng thái hiện tại trong history
+    // Nếu có nhiều phần tử cùng trạng thái, lấy cái cuối cùng
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].trangThai === currentTrangThai) {
+        return i;
+      }
+    }
+
+    // Nếu không tìm thấy, dùng currentTrangThai - 1 như trước
+    return currentTrangThai - 1;
+  };
+
+  // Hàm xác định trạng thái của từng Step
+  const getStepStatus = (
+    stepTrangThai,
+    currentTrangThai,
+    stepIndex,
+    totalSteps
+  ) => {
+    // Nếu là trạng thái hủy (6)
+    if (stepTrangThai === 6) {
+      return "error";
+    }
+
+    // Nếu đơn hàng đã hủy (currentTrangThai === 6)
+    if (currentTrangThai === 6) {
+      return stepIndex < totalSteps - 1 ? "finish" : "error";
+    }
+
+    // Nếu step hiện tại đang được xử lý
+    if (stepTrangThai === currentTrangThai) {
+      return "process";
+    }
+
+    // Các step đã hoàn thành (các step trước step hiện tại)
+    if (stepTrangThai < currentTrangThai) {
+      return "finish";
+    }
+
+    // Các step sau step hiện tại
+    return "wait";
+  };
+  // Hàm hỗ trợ lấy chỉ số step từ trạng thái
+  const getStepIndexByStatus = (status) => {
+    const history = getCompleteOrderHistory();
+    for (let i = 0; i < history.length; i++) {
+      if (history[i].trangThai === status) {
+        return i;
+      }
+    }
+    return status - 1; // Fallback: trả về index = trạng thái - 1
+  };
+
   return (
     <div className="flex-1 overflow-auto relative z-10">
       <div
         style={{
-          padding: 24,
-          position: "relative",
+          marginBottom: 24,
+          padding: "16px 24px",
+          backgroundColor: "#fff",
+          borderRadius: "8px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          overflow: "hidden",
         }}
       >
-        <div style={{ marginBottom: 24 }}></div>
-        <Steps
-          current={invoice.trangThai - 1}
-          progressDot={(dot, { index }) => {
-            const statusHistory = getOrderStatusHistory();
-            const currentStatus = index + 1; // Index bắt đầu từ 0 nhưng status từ 1
-
-            // Tìm thời gian gần nhất của trạng thái này trong lịch sử
-            const statusRecord = statusHistory.find(
-              (record) => record.trangThai === currentStatus
-            );
-            const timestamp = statusRecord?.ngayTao;
-
-            return (
-              <Tooltip
-                title={
-                  timestamp
-                    ? `${getStatusText(currentStatus)}: ${formatDate(
-                        timestamp
-                      )}`
-                    : getStatusText(currentStatus)
-                }
-              >
-                {dot}
-              </Tooltip>
-            );
+        <Title level={5} style={{ marginBottom: 24 }}>
+          Quá trình xử lý đơn hàng
+        </Title>
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            overflowY: "hidden",
+            WebkitOverflowScrolling: "touch", // Cho scroll mượt trên iOS
+            position: "relative",
           }}
         >
-          {steps
-            .filter(
-              (step) =>
-                // Chỉ hiển thị các trạng thái đã đạt được hoặc trạng thái hiện tại
-                step.status <= invoice.trangThai
-            )
-            .map((step) => {
-              // Tìm timestamp từ lịch sử
-              const timestamp = statusTimestamps[step.status];
+          {/* Container cố định chiều rộng tối thiểu */}
+          <div
+            style={{
+              minWidth: `${getCompleteOrderHistory().length * 200}px`, // 200px cho mỗi step
+              paddingBottom: "20px", // Tạo khoảng trống cho scrollbar
+            }}
+          >
+            <Steps
+              current={getStepsCurrent(
+                invoice.trangThai,
+                getCompleteOrderHistory()
+              )}
+              progressDot={false}
+              className="invoice-steps"
+              status={invoice.trangThai === 6 ? "error" : "process"}
+            >
+              {getCompleteOrderHistory().map((record, idx) => {
+                // Xác định icon cho mỗi trạng thái
+                if (
+                  invoice?.loaiHoaDon === 2 &&
+                  (record.trangThai === 3 || record.trangThai === 4)
+                ) {
+                  return null;
+                }
+                let stepIcon;
+                switch (record.trangThai) {
+                  case 1:
+                    stepIcon = <FieldTimeOutlined />;
+                    break;
+                  case 2:
+                    stepIcon = <CheckCircleOutlined />;
+                    break;
+                  case 3:
+                    stepIcon = <ShoppingOutlined />;
+                    break;
+                  case 4:
+                    stepIcon = <CarOutlined />;
+                    break;
+                  case 5:
+                    stepIcon = <TrophyOutlined />;
+                    break;
+                  case 6:
+                    stepIcon = <CloseCircleOutlined />;
+                    break;
+                  default:
+                    stepIcon = <FieldTimeOutlined />;
+                }
 
-              return (
-                <Step
-                  key={step.label}
-                  title={step.label}
-                  description={
-                    timestamp ? (
-                      <Text type="secondary" style={{ fontSize: "12px" }}>
-                        {formatDate(timestamp)}
-                      </Text>
-                    ) : null
-                  }
-                />
-              );
-            })}
-        </Steps>
+                const stepStatus = getStepStatus(
+                  record.trangThai,
+                  invoice.trangThai,
+                  idx,
+                  getCompleteOrderHistory().length
+                );
+
+                return (
+                  <Step
+                    key={idx}
+                    style={{
+                      margin: "0",
+                      padding: "0 8px",
+                      maxWidth: "200px",
+                    }}
+                    icon={stepIcon}
+                    title={
+                      <Tooltip
+                        title={
+                          <div style={{ padding: "8px" }}>
+                            <div
+                              style={{
+                                fontWeight: "600",
+                                fontSize: "14px",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              {getStatusText(record.trangThai)}
+                            </div>
+                            {record.timestamp && (
+                              <div
+                                style={{ color: "#8c8c8c", fontSize: "12px" }}
+                              >
+                                {formatDate(record.timestamp)}
+                              </div>
+                            )}
+                            {record.tenNhanVien && (
+                              <div
+                                style={{
+                                  color: "#1890ff",
+                                  fontSize: "12px",
+                                  marginTop: "4px",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                Người xác nhận: {record.tenNhanVien}
+                              </div>
+                            )}
+                            {record.moTa && (
+                              <div
+                                style={{
+                                  fontSize: "12px",
+                                  marginTop: "4px",
+                                  color: "#595959",
+                                }}
+                              >
+                                {record.moTa}
+                              </div>
+                            )}
+                          </div>
+                        }
+                      >
+                        <div style={{ textAlign: "center" }}>
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              fontWeight: "500",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            {getStatusText(record.trangThai)}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "rgba(0,0,0,0.65)",
+                            }}
+                          >
+                            {formatDate(record.timestamp)}
+                          </div>
+                        </div>
+                      </Tooltip>
+                    }
+                    description={
+                      record.trangThai === 6 && record.moTa ? (
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#ff4d4f",
+                            maxWidth: "150px",
+                            textAlign: "center",
+                            marginTop: "4px",
+                          }}
+                        >
+                          {record.moTa.includes("Hóa đơn bị hủy")
+                            ? record.moTa.replace(
+                                /^Hóa đơn bị hủy:?\s*/,
+                                "Lý do: "
+                              )
+                            : `Lý do: ${record.moTa}`}
+                        </div>
+                      ) : null
+                    }
+                    status={getStepStatus(
+                      record.trangThai,
+                      invoice.trangThai,
+                      idx,
+                      getCompleteOrderHistory().length
+                    )}
+                  />
+                );
+              })}
+            </Steps>
+          </div>
+        </div>
         <div
           style={{
             display: "flex",
@@ -3512,13 +5242,33 @@ function InvoiceDetail() {
 
               <Button
                 type="primary"
-                onClick={() => handleStatusChange(invoice.trangThai + 1)}
-                disabled={priceNeedsConfirmation && invoice.trangThai === 1}
+                onClick={() =>
+                  handleStatusChange(
+                    // Nếu là hóa đơn tại quầy và đang ở trạng thái "Đã xác nhận" (2)
+                    // thì chuyển thẳng sang trạng thái "Hoàn thành" (5)
+                    invoice.loaiHoaDon === 2 && invoice.trangThai === 2
+                      ? 5
+                      : invoice.trangThai + 1
+                  )
+                }
+                disabled={
+                  (priceNeedsConfirmation && invoice.trangThai === 1) ||
+                  (invoice.trangThai === 1 &&
+                    (!invoiceProducts || invoiceProducts.length === 0))
+                }
+                title={
+                  invoice.trangThai === 1 &&
+                  (!invoiceProducts || invoiceProducts.length === 0)
+                    ? "Đơn hàng phải có ít nhất 1 sản phẩm để xác nhận"
+                    : ""
+                }
               >
                 {invoice.trangThai === 1
                   ? "Xác nhận"
                   : invoice.trangThai === 2
-                  ? "Chuẩn bị giao hàng"
+                  ? invoice.loaiHoaDon === 2
+                    ? "Hoàn thành" // Hóa đơn tại quầy: từ Đã xác nhận -> Hoàn thành
+                    : "Chuẩn bị giao hàng" // Hóa đơn khác: từ Đã xác nhận -> Chuẩn bị giao hàng
                   : invoice.trangThai === 3
                   ? "Bắt đầu giao hàng"
                   : invoice.trangThai === 4
@@ -3526,17 +5276,23 @@ function InvoiceDetail() {
                   : ""}
               </Button>
 
-              {invoice.trangThai !== 6 && (
+              {(invoice.trangThai === 1 || invoice.trangThai === 2) && (
                 <Button type="default" onClick={() => handleStatusChange(6)}>
                   Hủy đơn hàng
                 </Button>
               )}
             </>
           )}
-
           <Button
             type="default"
-            onClick={fetchOrderHistory}
+            onClick={refreshStepsHistory}
+            icon={<SyncOutlined />}
+          >
+            Làm mới
+          </Button>
+          <Button
+            type="default"
+            onClick={() => fetchOrderHistory(true)}
             icon={<HistoryOutlined />}
           >
             Xem lịch sử
@@ -3564,13 +5320,6 @@ function InvoiceDetail() {
                 align: "center",
                 render: (_, __, index) => index + 1,
               },
-              // {
-              //   title: "Mã giao dịch",
-              //   dataIndex: "index",
-              //   key: "index",
-              //   align: "center",
-              //   render: (text, record, index) => index + 1,
-              // },
               {
                 title: "Số tiền",
                 dataIndex: "tongTien",
@@ -3596,20 +5345,8 @@ function InvoiceDetail() {
                 title: "Trạng thái",
                 dataIndex: "trangThai",
                 key: "trangThai",
-                align: "center",
-                render: (text) => (
-                  <Tag
-                    color={text === 1 ? "green" : text === 0 ? "orange" : "red"}
-                  >
-                    {text === 1
-                      ? "Đã thanh toán"
-                      : text === 2
-                      ? "Chờ thanh toán"
-                      : text === 3
-                      ? "Trả sau"
-                      : "---"}
-                  </Tag>
-                ),
+                align:"center",
+                render: (_, record) => renderPaymentMethodStatus(record),
               },
               {
                 title: "Ghi chú",
@@ -3632,7 +5369,54 @@ function InvoiceDetail() {
           />
         )}
       </Card>
-
+      {/* Dialog Hủy Đơn Hàng */}
+      <Dialog
+        open={openCancelDialog}
+        onClose={() => setOpenCancelDialog(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ bgcolor: "error.main", color: "white" }}>
+          <WarningIcon sx={{ mr: 1, fontSize: 28, verticalAlign: "middle" }} />
+          Xác nhận hủy đơn hàng
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2, pb: 2 }}>
+          <Typography variant="body1" mb={2} mt={1}>
+            Bạn có chắc chắn muốn hủy đơn hàng này? Sản phẩm và mã giảm giá sẽ
+            được hoàn lại.
+          </Typography>
+          <Typography variant="body2" fontWeight="bold" mb={1}>
+            Vui lòng nhập lý do hủy đơn: <span style={{ color: "red" }}>*</span>
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            variant="outlined"
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="Nhập lý do hủy đơn hàng..."
+            required
+            error={cancelReason.trim() === ""}
+            helperText={
+              cancelReason.trim() === ""
+                ? "Lý do hủy đơn không được để trống"
+                : ""
+            }
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCancelDialog(false)}>Đóng</Button>
+          <Button
+            onClick={handleCancelOrder}
+            variant="contained"
+            color="error"
+            disabled={!cancelReason || cancelReason.trim() === ""}
+          >
+            Hủy đơn
+          </Button>
+        </DialogActions>
+      </Dialog>
       {/* Rest of the content */}
       <Card style={{ marginBottom: 24 }}>
         <div
@@ -3725,6 +5509,7 @@ function InvoiceDetail() {
             open={openAddProductDialog}
             onClose={() => setOpenAddProductDialog(false)}
             onAddProduct={handleAddProduct}
+            onAddMultipleProducts={handleAddMultipleProducts}
             hoaDonId={invoice.id}
           />
         </div>
@@ -3794,7 +5579,17 @@ function InvoiceDetail() {
               width: 180,
               render: (_, record) => (
                 <Space direction="vertical" size={0}>
-                  <Typography.Text strong>{record.tenSanPham}</Typography.Text>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Typography.Text strong>{record.tenSanPham}</Typography.Text>
+                    {record.giaThayDoi && (
+                      <Tooltip title="Sản phẩm đã thay đổi giá, chỉ có thể giảm số lượng">
+                        <Badge 
+                          count={<InfoCircleOutlined style={{ color: '#ff4d4f' }} />} 
+                          offset={[0, 0]} 
+                        />
+                      </Tooltip>
+                    )}
+                  </div>
                   <Typography.Text type="secondary">
                     Mã: {record.maSanPhamChiTiet}
                   </Typography.Text>
@@ -3903,22 +5698,36 @@ function InvoiceDetail() {
                 </div>
               ),
             },
+                        // Trong phần columns của Table sản phẩm, thêm tooltip cho InputNumber:
             {
               title: "Số lượng",
               key: "soLuong",
               width: 120,
               align: "center",
               render: (_, record) => (
-                <InputNumber
-                  min={1}
-                  value={record.soLuong}
-                  onChange={(value) => handleUpdateQuantity(record.id, value)}
-                  disabled={invoice.trangThai !== 1 || record.giaThayDoi}
-                  style={{
-                    width: 80,
-                    backgroundColor: record.giaThayDoi ? "#f5f5f5" : undefined,
-                  }}
-                />
+                <div>
+                  <Tooltip 
+                    title={record.giaThayDoi ? "Sản phẩm đã thay đổi giá chỉ có thể giảm số lượng hoặc xóa" : ""}
+                    placement="topLeft"
+                  >
+                    <InputNumber
+                      min={1}
+                      max={record.giaThayDoi ? record.soLuong : undefined}
+                      value={record.soLuong}
+                      onChange={(value) => handleUpdateQuantity(record.id, value)}
+                      disabled={invoice.trangThai !== 1}
+                      style={{
+                        width: 80,
+                        backgroundColor: record.giaThayDoi ? "#f5f5f5" : undefined,
+                      }}
+                    />
+                  </Tooltip>
+                  {record.giaThayDoi && (
+                    <div style={{ fontSize: '12px', color: '#ff4d4f', marginTop: '4px' }}>
+                      Chỉ có thể giảm số lượng
+                    </div>
+                  )}
+                </div>
               ),
             },
             {
@@ -3984,13 +5793,7 @@ function InvoiceDetail() {
               <Text strong>Tổng tiền hàng:</Text>
               <Text>{formatCurrency(totalBeforeDiscount)}</Text>
             </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Text>
                 Phí vận chuyển{" "}
                 <Image
@@ -4003,19 +5806,26 @@ function InvoiceDetail() {
                     verticalAlign: "middle",
                   }}
                 />
+                {checkFreeShipping(totalBeforeDiscount) && (
+                  <Tag color="green" style={{ marginLeft: 8 }}>
+                    Miễn phí
+                  </Tag>
+                )}
               </Text>
               <div style={{ display: "flex", alignItems: "center" }}>
                 {loadingShippingFee ? (
                   <Spin size="small" style={{ marginRight: 8 }} />
                 ) : (
                   <Text>
-                    {shippingFeeFromGHN !== null
-                      ? formatCurrency(shippingFeeFromGHN)
-                      : formatCurrency(invoice?.phiVanChuyen || 0)}
+                    {formatCurrency(checkFreeShipping(totalBeforeDiscount) 
+                      ? 0 
+                      : (shippingFeeFromGHN !== null
+                        ? shippingFeeFromGHN
+                        : invoice?.phiVanChuyen || 0))}
                   </Text>
                 )}
-
-                {invoice.loaiHoaDon === 3 && (
+            
+                {(invoice.loaiHoaDon === 3 || invoice.loaiHoaDon === 1) && (
                   <Button
                     type="link"
                     icon={<ReloadOutlined />}
@@ -4023,12 +5833,20 @@ function InvoiceDetail() {
                     style={{ marginLeft: 8 }}
                     size="small"
                     loading={loadingShippingFee}
+                    disabled={invoice.trangThai !== 1}
                   >
                     Tính lại
                   </Button>
                 )}
               </div>
             </div>
+            
+            {/* Thông báo điều kiện miễn phí vận chuyển */}
+            {totalBeforeDiscount < 2000000 && (
+              <div style={{ marginTop: 4, fontSize: '12px', fontStyle: 'italic', color: '#1890ff' }}>
+                Miễn phí vận chuyển cho đơn hàng từ 2.000.000₫
+              </div>
+            )}
 
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <Text strong>Voucher giảm giá:</Text>
@@ -4068,13 +5886,28 @@ function InvoiceDetail() {
             {paymentHistory && paymentHistory.length > 0 && (
               <>
                 {paymentHistory.map((payment, index) => (
-                  <div
-                    key={index}
-                    style={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Text>{payment.tenPhuongThucThanhToan}:</Text>
-                    <Text>{formatCurrency(payment.tongTien || 0)}</Text>
-                  </div>
+                  <Card key={index} style={{ marginBottom: 16 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Space direction="vertical">
+                        <Tag color={getPaymentTypeColor(payment)}>
+                          {getPaymentTypeDisplay(payment)}
+                        </Tag>
+                        <Text strong>{formatCurrency(payment.tongTien)}</Text>
+                        <Text type="secondary">
+                          {payment.tenPhuongThucThanhToan}
+                        </Text>
+                      </Space>
+                      <Space direction="vertical" align="end">
+                        <Text>{formatDate(payment.ngayTao)}</Text>
+                        <Text type="secondary">{payment.moTa}</Text>
+                      </Space>
+                    </div>
+                  </Card>
                 ))}
                 <Divider style={{ margin: "8px 0" }} />
               </>
@@ -4083,24 +5916,293 @@ function InvoiceDetail() {
               <Text strong>Tổng tiền thanh toán:</Text>
               <Text type="danger" strong>
                 {formatCurrency(
-                  // Ưu tiên sử dụng lịch sử thanh toán nếu có
-                  paymentHistory && paymentHistory.length > 0
-                    ? paymentHistory.reduce(
-                        (total, payment) => total + (payment.tongTien || 0),
-                        0
-                      )
-                    : // Nếu không có lịch sử thanh toán, sử dụng công thức:
-                      // Tổng tiền hàng + Phí vận chuyển - Giảm giá
-                      totalBeforeDiscount +
-                        (invoice.phiVanChuyen || 0) -
-                        getDiscountAmount()
+                  totalBeforeDiscount + 
+                  (shippingFeeFromGHN !== null ? shippingFeeFromGHN : (invoice?.phiVanChuyen || 0)) - 
+                  getDiscountAmount()
                 )}
               </Text>
             </div>
+
+            {/* Add remaining payment amount display if there are payments but not completed */}
+            {paymentHistory &&
+              paymentHistory.length > 0 &&
+              calculateRemainingPayment() > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: "10px",
+                    padding: "8px",
+                    backgroundColor: "#fff2f0",
+                    border: "1px solid #ffccc7",
+                    borderRadius: "4px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  <Text strong type="danger">
+                    Còn thiếu:
+                  </Text>
+                  <Text strong type="danger">
+                    {formatCurrency(calculateRemainingPayment())}
+                  </Text>
+                </div>
+              )}
+            {/* Hiển thị thanh toán thừa nếu có */}
+            {hasExcessPayment && excessPaymentAmount > 0 && (
+              <>
+                <Divider style={{ margin: "8px 0" }} />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: "8px",
+                    backgroundColor: "#f6ffed",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #b7eb8f",
+                  }}
+                >
+                  <Text strong style={{ color: "#52c41a" }}>
+                    Khách đã thanh toán thừa:
+                    <Tooltip title="Khách hàng đã thanh toán nhiều hơn tổng giá trị đơn hàng">
+                      <InfoCircleOutlined style={{ marginLeft: 8 }} />
+                    </Tooltip>
+                  </Text>
+                  <Text type="success" strong>
+                    {formatCurrency(excessPaymentAmount)}
+                  </Text>
+                </div>
+                <Button
+                  type="primary"
+                  icon={<RollbackOutlined />}
+                  onClick={() => handleShowRefundDialog(excessPaymentAmount)}
+                  style={{ width: "100%" }}
+                  ghost
+                >
+                  Xử lý hoàn tiền thừa
+                </Button>
+              </>
+            )}
           </Space>
         </div>
       </Card>
-
+      {/* Modal xử lý tiền thừa */}
+      {showExcessPaymentRefundDialog && (
+        <Modal
+          title={
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <WalletOutlined
+                style={{
+                  fontSize: "24px",
+                  color: detectExcessFromOrderCompletion() ? "#1890ff" : "#52c41a",
+                  marginRight: "12px",
+                }}
+              />
+              <span>
+                {detectExcessFromOrderCompletion() ? "Điều chỉnh tiền thừa" : "Hoàn tiền thừa"}
+              </span>
+            </div>
+          }
+          open={showExcessPaymentRefundDialog}
+          onCancel={() => setShowExcessPaymentRefundDialog(false)}
+          footer={[
+            <Button 
+              key="cancel" 
+              onClick={() => setShowExcessPaymentRefundDialog(false)}
+              disabled={processingRefund}
+            >
+              Hủy
+            </Button>,
+            <Button
+              key="submit"
+              type="primary"
+              onClick={handleRefundExcessPayment}
+              loading={processingRefund}
+              disabled={!selectedPaymentMethod}
+            >
+              {detectExcessFromOrderCompletion() ? "Điều chỉnh" : "Hoàn tiền"}
+            </Button>,
+          ]}
+          width={600}
+          centered
+          destroyOnClose
+        >
+          <Alert
+            message={detectExcessFromOrderCompletion() 
+              ? "Phát hiện tiền thừa sau khi hoàn thành đơn hàng" 
+              : "Khách hàng đã thanh toán thừa tiền"}
+            description={detectExcessFromOrderCompletion()
+              ? "Hệ thống phát hiện phát sinh tiền thừa khi hoàn thành đơn hàng do chuyển thanh toán trả sau sang đã thanh toán."
+              : "Hệ thống phát hiện khách hàng đã thanh toán nhiều hơn tổng giá trị đơn hàng. Bạn nên hoàn lại số tiền thừa."}
+            type="warning"
+            showIcon
+            style={{ marginBottom: "20px" }}
+          />
+      
+          <div style={{ marginBottom: "24px" }}>
+            <Typography.Text strong style={{ fontSize: "16px" }}>
+              Chi tiết thanh toán:
+            </Typography.Text>
+      
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px",
+                background: "#f5f5f5",
+                borderRadius: "8px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "8px",
+                }}
+              >
+                <Text>Tổng tiền đơn hàng:</Text>
+                <Text>{formatCurrency(invoice?.tongTien || 0)}</Text>
+              </div>
+      
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "8px",
+                }}
+              >
+                <Text>Phí vận chuyển:</Text>
+                <Text>{formatCurrency(invoice?.phiVanChuyen || 0)}</Text>
+              </div>
+      
+              {(() => {
+                // Lấy dữ liệu thanh toán
+                const { actualPaidAmount, refundedAmount, pendingAmount } = getPaymentSummary();
+      
+                return (
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <Text>Đã thanh toán:</Text>
+                      <Text type="success">{formatCurrency(actualPaidAmount)}</Text>
+                    </div>
+      
+                    {refundedAmount > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <Text>Đã hoàn tiền:</Text>
+                        <Text type="warning">-{formatCurrency(refundedAmount)}</Text>
+                      </div>
+                    )}
+      
+                    {pendingAmount > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <Text>Chờ thanh toán/trả sau:</Text>
+                        <Text type="processing">{formatCurrency(pendingAmount)}</Text>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+      
+              <Divider style={{ margin: "8px 0" }} />
+      
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <Text strong>Số tiền thừa cần {detectExcessFromOrderCompletion() ? 'điều chỉnh' : 'hoàn'}:</Text>
+                <Text type="success" strong>
+                  {formatCurrency(excessPaymentAmount)}
+                </Text>
+              </div>
+            </div>
+          </div>
+      
+          <Form.Item label={`Chọn phương thức ${detectExcessFromOrderCompletion() ? 'điều chỉnh' : 'hoàn tiền'}`} required>
+            <Radio.Group
+              value={selectedPaymentMethod}
+              onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+              style={{ width: "100%" }}
+              disabled={processingRefund}
+            >
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {paymentMethods
+                  .filter((method) =>
+                    ["CASH", "BANK"].includes(method.maPhuongThucThanhToan)
+                  )
+                  .map((method) => (
+                    <Radio.Button
+                      key={method.id}
+                      value={method.maPhuongThucThanhToan}
+                      style={{
+                        width: "100%",
+                        height: "auto",
+                        padding: "12px 16px",
+                        marginBottom: "8px",
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          width: "100%",
+                        }}
+                      >
+                        {method.maPhuongThucThanhToan === "CASH" && (
+                          <DollarOutlined
+                            style={{
+                              fontSize: "24px",
+                              color: "#52c41a",
+                              marginRight: "12px",
+                            }}
+                          />
+                        )}
+                        {method.maPhuongThucThanhToan === "BANK" && (
+                          <CreditCardOutlined
+                            style={{
+                              fontSize: "24px",
+                              color: "#1890ff",
+                              marginRight: "12px",
+                            }}
+                          />
+                        )}
+                        <div>
+                          <div style={{ fontWeight: "bold" }}>
+                            {method.tenPhuongThucThanhToan}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "rgba(0,0,0,0.45)",
+                            }}
+                          >
+                            {method.moTa}
+                          </div>
+                        </div>
+                      </div>
+                    </Radio.Button>
+                  ))}
+              </Space>
+            </Radio.Group>
+          </Form.Item>
+        </Modal>
+      )}
       {/* Edit Recipient Dialog */}
       <Modal
         title="Chỉnh sửa thông tin người nhận"
@@ -4115,7 +6217,8 @@ function InvoiceDetail() {
         okButtonProps={{
           disabled:
             !recipientName ||
-            (invoice?.loaiHoaDon === 3 && (!province || !district || !ward)),
+            ((invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1) &&
+              (!province || !district || !ward)),
           loading: trackingAddressLoading,
         }}
       >
@@ -4151,7 +6254,7 @@ function InvoiceDetail() {
               />
             </Form.Item>
 
-            {invoice?.loaiHoaDon === 3 && (
+            {(invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1) && (
               <>
                 <Form.Item
                   label="Tỉnh/Thành phố"
@@ -4379,7 +6482,291 @@ function InvoiceDetail() {
           placeholder="đồng ý"
         />
       </Modal>
+      {/* Modal Thanh Toán */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <WalletOutlined
+              style={{
+                fontSize: "24px",
+                color: "#1890ff",
+                marginRight: "12px",
+              }}
+            />
+            <span>
+              {nextStatus === 2 ? "Thanh toán đơn hàng" : "Thanh toán phụ phí"}
+            </span>
+          </div>
+        }
+        open={openPaymentModal}
+        onCancel={() => setOpenPaymentModal(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setOpenPaymentModal(false)}>
+            Hủy
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            onClick={
+              nextStatus === 2 ? handleConfirmPayment : handleAdditionalPayment
+            }
+            loading={processingPayment}
+            disabled={!selectedPaymentMethod || paymentAmount <= 0}
+          >
+            Xác nhận thanh toán
+          </Button>,
+        ]}
+        width={600}
+        centered
+        destroyOnClose
+      >
+        {loadingPaymentMethods ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              padding: "20px",
+            }}
+          >
+            <Spin tip="Đang tải phương thức thanh toán..." />
+          </div>
+        ) : (
+          <Form layout="vertical">
+            <div style={{ marginBottom: "24px" }}>
+              <Typography.Text strong style={{ fontSize: "16px" }}>
+                Chi tiết thanh toán:
+              </Typography.Text>
 
+              <div
+                style={{
+                  marginTop: "12px",
+                  padding: "12px",
+                  background: "#f5f5f5",
+                  borderRadius: "8px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <Text>Tổng tiền hàng + phí vận chuyển:</Text>
+                  <Text>
+                    {formatCurrency(
+                      (totalBeforeDiscount || 0) + (invoice?.phiVanChuyen || 0)
+                    )}
+                  </Text>
+                </div>
+
+                {invoice?.phieuGiamGia && (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <Text>Giảm giá:</Text>
+                    <Text type="danger">
+                      -{formatCurrency(getDiscountAmount() || 0)}
+                    </Text>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <Text>Tổng tiền đơn hàng:</Text>
+                  <Text strong>
+                    {formatCurrency(
+                      (totalBeforeDiscount || 0) +
+                        (invoice?.phiVanChuyen || 0) -
+                        getDiscountAmount()
+                    )}
+                  </Text>
+                </div>
+
+                {/* Thông tin thanh toán */}
+                {paymentHistory &&
+                  paymentHistory.length > 0 &&
+                  (() => {
+                    const { actualPaidAmount, refundedAmount, pendingAmount } =
+                      getPaymentSummary();
+                    return (
+                      <>
+                        {actualPaidAmount > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <Text>Đã thanh toán:</Text>
+                            <Text type="success">
+                              -{formatCurrency(actualPaidAmount)}
+                            </Text>
+                          </div>
+                        )}
+
+                        {refundedAmount > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <Text>Đã hoàn tiền:</Text>
+                            <Text type="warning">
+                              +{formatCurrency(refundedAmount)}
+                            </Text>
+                          </div>
+                        )}
+
+                        {pendingAmount > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <Text>Chờ thanh toán/trả sau:</Text>
+                            <Text type="processing">
+                              -{formatCurrency(pendingAmount)}
+                            </Text>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                <Divider style={{ margin: "8px 0" }} />
+
+                <div
+                  style={{ display: "flex", justifyContent: "space-between" }}
+                >
+                  <Text strong>Cần thanh toán:</Text>
+                  <Text type="danger" strong>
+                    {formatCurrency(calculateRemainingPayment())}
+                  </Text>
+                </div>
+              </div>
+            </div>
+
+            <Form.Item label="Chọn phương thức thanh toán" required>
+              <Radio.Group
+                value={selectedPaymentMethod}
+                onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                style={{ width: "100%" }}
+              >
+                <Space direction="vertical" style={{ width: "100%" }}>
+                  {paymentMethods
+                    .filter((method) => {
+                      if (invoice?.loaiHoaDon === 1 || invoice?.loaiHoaDon === 3) {
+                        return true;
+                      } else {
+                        return method.maPhuongThucThanhToan !== "COD";
+                      }
+                    })
+                    .map((method) => (
+                      <Radio.Button
+                        key={method.id}
+                        value={method.maPhuongThucThanhToan}
+                        style={{
+                          width: "100%",
+                          height: "auto",
+                          padding: "12px 16px",
+                          marginBottom: "8px",
+                          borderRadius: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            width: "100%",
+                          }}
+                        >
+                          {method.maPhuongThucThanhToan === "CASH" && (
+                            <DollarOutlined
+                              style={{
+                                fontSize: "24px",
+                                color: "#52c41a",
+                                marginRight: "12px",
+                              }}
+                            />
+                          )}
+                          {method.maPhuongThucThanhToan === "BANK" && (
+                            <CreditCardOutlined
+                              style={{
+                                fontSize: "24px",
+                                color: "#1890ff",
+                                marginRight: "12px",
+                              }}
+                            />
+                          )}
+                          {method.maPhuongThucThanhToan === "COD" && (
+                <CarOutlined
+                  style={{
+                    fontSize: "24px",
+                    color: "#fa8c16",
+                    marginRight: "12px",
+                  }}
+                />
+              )}
+                          <div>
+                            <div style={{ fontWeight: "bold" }}>
+                              {method.tenPhuongThucThanhToan}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "12px",
+                                color: "rgba(0,0,0,0.45)",
+                              }}
+                            >
+                              {method.moTa}
+                            </div>
+                          </div>
+                        </div>
+                      </Radio.Button>
+                    ))}
+                </Space>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item
+              label="Số tiền thanh toán"
+              required
+              help="Nhập số tiền bạn muốn thanh toán"
+            >
+              <InputNumber
+                style={{ width: "100%" }}
+                formatter={(value) =>
+                  `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                }
+                parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                value={paymentAmount}
+                onChange={(value) => setPaymentAmount(value)}
+                min={0}
+                max={calculateRemainingPayment() * 1.1} // Cho phép thanh toán vượt 10% số tiền cần thanh toán
+                step={1000}
+                size="large"
+                addonAfter="VNĐ"
+              />
+            </Form.Item>
+          </Form>
+        )}
+      </Modal>
       {/* Confirm Delete Dialog */}
       <Modal
         title="Xác nhận xóa"
@@ -4414,12 +6801,43 @@ function InvoiceDetail() {
         ) : (
           <>
             <Title level={5}>Lịch sử chuyển trạng thái</Title>
+            <Input.Search
+              placeholder="Tìm kiếm theo mô tả, người thực hiện..."
+              style={{ marginBottom: 16 }}
+              value={historySearchText}
+              onChange={(e) => setHistorySearchText(e.target.value)}
+              allowClear
+            />
             <Table
-              dataSource={orderHistory.filter(
-                (record) =>
-                  record.moTa?.includes("Cập nhật trạng thái") ||
-                  record.hanhDong?.includes("Cập nhật trạng thái")
-              )}
+              dataSource={orderHistory
+                .filter(
+                  (record) =>
+                    record.moTa?.includes("Cập nhật trạng thái") ||
+                    record.hanhDong?.includes("Cập nhật trạng thái") ||
+                    record.hanhDong === "Hủy hóa đơn"
+                )
+                .filter((record) => {
+                  if (!historySearchText) return true;
+                  const searchLower = historySearchText.toLowerCase();
+                  return (
+                    (record.moTa || "").toLowerCase().includes(searchLower) ||
+                    (record.tenNhanVien || "")
+                      .toLowerCase()
+                      .includes(searchLower) ||
+                    (record.hanhDong || "")
+                      .toLowerCase()
+                      .includes(searchLower) ||
+                    getStatusText(record.trangThai)
+                      .toLowerCase()
+                      .includes(searchLower)
+                  );
+                })
+                // Sắp xếp theo thời gian giảm dần (mới nhất lên đầu)
+                .sort((a, b) => {
+                  const dateA = new Date(a.ngayTao || a.ngaySua || 0);
+                  const dateB = new Date(b.ngayTao || b.ngaySua || 0);
+                  return dateB - dateA;
+                })}
               columns={[
                 {
                   title: "STT",
@@ -4431,18 +6849,29 @@ function InvoiceDetail() {
                 },
                 {
                   title: "Thời gian",
-                  dataIndex: ["ngayTao", "ngaySua"],
-                  key: "ngayTaoOrNgaySua",
+                  dataIndex: "ngayTao",
+                  key: "ngayTao",
                   align: "center",
-                  render: (text, record) => {
-                    const displayDate = record.ngayTao
-                      ? record.ngayTao
-                      : record.ngaySua;
-                    return formatDate(displayDate);
-                  },
+                  render: (text, record) =>
+                    formatDate(record.ngayTao || record.ngaySua),
                   width: 180,
-
-                  sorter: (a, b) => new Date(a.ngayTao) - new Date(b.ngayTao),
+                  sorter: {
+                    compare: (a, b) => {
+                      const timeA = a.ngayTao
+                        ? new Date(a.ngayTao).getTime()
+                        : a.ngaySua
+                        ? new Date(a.ngaySua).getTime()
+                        : 0;
+                      const timeB = b.ngayTao
+                        ? new Date(b.ngayTao).getTime()
+                        : b.ngaySua
+                        ? new Date(b.ngaySua).getTime()
+                        : 0;
+                      return timeA - timeB;
+                    },
+                    multiple: 2,
+                  },
+                  defaultSortOrder: "descend",
                 },
                 {
                   title: "Trạng thái",
@@ -4486,7 +6915,31 @@ function InvoiceDetail() {
                   dataIndex: "moTa",
                   key: "moTa",
                   align: "center",
-                  render: (text) => text || "---",
+                  render: (text, record) => {
+                    if (record.hanhDong === "Hủy hóa đơn") {
+                      return (
+                        <>
+                          <Text>Hủy đơn hàng</Text>
+                          <div
+                            style={{
+                              marginTop: 4,
+                              color: "#ff4d4f",
+                              fontStyle: "italic",
+                              fontSize: "12px",
+                            }}
+                          >
+                            {record.moTa
+                              ? `Lý do: ${record.moTa.replace(
+                                  /^Hóa đơn bị hủy:?\s*/,
+                                  ""
+                                )}`
+                              : "---"}
+                          </div>
+                        </>
+                      );
+                    }
+                    return text || "---";
+                  },
                   width: 250,
                 },
                 {
@@ -4503,14 +6956,16 @@ function InvoiceDetail() {
                   key: "hanhDong",
                   align: "center",
                   render: (text) => text || "---",
-                  width: 250,
+                  width: 180,
                 },
               ]}
               pagination={{
                 pageSize: 5,
                 showSizeChanger: false,
               }}
-              rowKey="id"
+              rowKey={(record) =>
+                `${record.id}-${record.ngayTao || record.ngaySua}`
+              }
               locale={{ emptyText: "Không có lịch sử trạng thái" }}
               scroll={{ x: "max-content" }}
             />
@@ -4518,14 +6973,34 @@ function InvoiceDetail() {
             <Divider />
 
             <Title level={5}>Lịch sử đơn hàng</Title>
+            <Input.Search
+              placeholder="Tìm kiếm theo mô tả, người thực hiện..."
+              style={{ marginBottom: 16 }}
+              value={actionHistorySearchText}
+              onChange={(e) => setActionHistorySearchText(e.target.value)}
+              allowClear
+            />
             <Table
-              dataSource={orderHistory.filter(
-                (record) =>
-                  !(
-                    record.moTa?.includes("Cập nhật trạng thái") ||
-                    record.hanhDong?.includes("Cập nhật trạng thái")
-                  )
-              )}
+              dataSource={orderHistory
+                .filter(
+                  (record) =>
+                    !(
+                      record.moTa?.includes("Cập nhật trạng thái") ||
+                      record.hanhDong?.includes("Cập nhật trạng thái") ||
+                      record.hanhDong === "Hủy hóa đơn"
+                    )
+                )
+                .filter((record) => {
+                  if (!actionHistorySearchText) return true;
+                  const searchLower = actionHistorySearchText.toLowerCase();
+                  return (
+                    (record.moTa || "").toLowerCase().includes(searchLower) ||
+                    (record.tenNhanVien || "")
+                      .toLowerCase()
+                      .includes(searchLower) ||
+                    (record.hanhDong || "").toLowerCase().includes(searchLower)
+                  );
+                })}
               columns={[
                 {
                   title: "STT",
@@ -4555,7 +7030,25 @@ function InvoiceDetail() {
                   dataIndex: "moTa",
                   key: "moTa",
                   align: "center",
-                  render: (text) => text || "---",
+                  render: (text, record) => (
+                    <>
+                      {text || "---"}
+                      {record.hanhDong === "Hủy hóa đơn" && record.moTa && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            color: "#ff4d4f",
+                            fontStyle: "italic",
+                            fontSize: "13px",
+                          }}
+                        >
+                          {record.moTa.includes("Hóa đơn bị hủy")
+                            ? null
+                            : `Lý do: ${record.moTa}`}
+                        </div>
+                      )}
+                    </>
+                  ),
                   width: 300,
                 },
                 {
@@ -4571,7 +7064,27 @@ function InvoiceDetail() {
                   dataIndex: "hanhDong",
                   key: "hanhDong",
                   align: "center",
-                  render: (text) => text || "---",
+                  render: (text, record) => (
+                    <>
+                      {text || "---"}
+                      {record.hanhDong === "Hủy hóa đơn" && record.moTa && (
+                        <div
+                          style={{
+                            marginTop: 8,
+                            color: "#ff4d4f",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          {record.moTa.includes("Hóa đơn bị hủy")
+                            ? `Lý do: ${record.moTa.replace(
+                                "Hóa đơn bị hủy: ",
+                                ""
+                              )}`
+                            : `Lý do: ${record.moTa}`}
+                        </div>
+                      )}
+                    </>
+                  ),
                   width: 300,
                 },
               ]}
@@ -4586,7 +7099,276 @@ function InvoiceDetail() {
           </>
         )}
       </Modal>
+      {/* Modal xử lý thanh toán phụ phí hoặc hoàn tiền */}
+      <Modal
+        title={
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <WalletOutlined
+              style={{
+                fontSize: "24px",
+                color: priceChangeAmount > 0 ? "#ff4d4f" : "#52c41a",
+                marginRight: "12px",
+              }}
+            />
+            <span>
+              {priceChangeAmount > 0
+                ? "Thanh toán phụ phí khi thay đổi giá"
+                : "Hoàn tiền khi thay đổi giá"}
+            </span>
+          </div>
+        }
+        open={showPriceChangePaymentDialog}
+        onCancel={() => setShowPriceChangePaymentDialog(false)}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => setShowPriceChangePaymentDialog(false)}
+          >
+            Hủy
+          </Button>,
+          <Button
+            key="submit"
+            type={priceChangeAmount > 0 ? "danger" : "primary"}
+            onClick={handlePriceChangePayment}
+            loading={processingPriceChangePayment}
+            disabled={!selectedPaymentMethod}
+          >
+            {priceChangeAmount > 0 ? "Xác nhận thu thêm" : "Xác nhận hoàn tiền"}
+          </Button>,
+        ]}
+        width={600}
+        centered
+        destroyOnClose
+      >
+        <Alert
+          message={
+            priceChangeAmount > 0 ? "Cần thu thêm tiền" : "Cần hoàn tiền"
+          }
+          description={
+            priceChangeAmount > 0
+              ? "Giá sản phẩm đã tăng so với thời điểm đặt hàng. Bạn cần thu thêm phụ phí từ khách hàng."
+              : "Giá sản phẩm đã giảm so với thời điểm đặt hàng. Hệ thống sẽ tự động điều chỉnh nếu có thanh toán đang chờ xác nhận hoặc trả sau, hoặc hoàn tiền cho khách nếu đã thanh toán đủ."
+          }
+          type={priceChangeAmount > 0 ? "error" : "success"}
+          showIcon
+          style={{ marginBottom: "20px" }}
+        />
 
+        {/* Kiểm tra có thanh toán chờ xác nhận hoặc trả sau không */}
+        {priceChangeAmount < 0 &&
+          paymentHistory.some(
+            (p) => p.trangThai === 2 || p.trangThai === 3
+          ) && (
+            <Alert
+              message="Có thanh toán chờ xác nhận hoặc trả sau"
+              description="Hệ thống sẽ tự động điều chỉnh số tiền trong các khoản thanh toán chờ xác nhận hoặc trả sau."
+              type="info"
+              showIcon
+              style={{ marginBottom: "20px" }}
+            />
+          )}
+
+        <div style={{ marginBottom: "24px" }}>
+          <Typography.Text strong style={{ fontSize: "16px" }}>
+            Chi tiết thay đổi giá:
+          </Typography.Text>
+
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "12px",
+              background: "#f5f5f5",
+              borderRadius: "8px",
+            }}
+          >
+            {changedProducts.map((product, index) => (
+              <div
+                key={index}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "8px",
+                  padding: "8px 0",
+                  borderBottom:
+                    index < changedProducts.length - 1
+                      ? "1px dashed #d9d9d9"
+                      : "none",
+                }}
+              >
+                <div>
+                  <Text>
+                    {product.tenSanPham} (x{product.soLuong})
+                  </Text>
+                  <div>
+                    <Text delete type="secondary" style={{ fontSize: "12px" }}>
+                      {formatCurrency(product.giaTaiThoiDiemThem)}
+                    </Text>
+                    {" → "}
+                    <Text
+                      type={product.chenhLech > 0 ? "danger" : "success"}
+                      style={{ fontSize: "12px" }}
+                    >
+                      {formatCurrency(product.giaHienTai)}
+                    </Text>
+                  </div>
+                </div>
+                <Text type={product.chenhLech > 0 ? "danger" : "success"}>
+                  {product.chenhLech > 0 ? "+" : ""}
+                  {formatCurrency(product.chenhLech * product.soLuong)}
+                </Text>
+              </div>
+            ))}
+
+            <Divider style={{ margin: "8px 0" }} />
+            {/* Thông tin thanh toán */}
+            {paymentHistory &&
+              paymentHistory.length > 0 &&
+              priceChangeAmount < 0 &&
+              (() => {
+                const { actualPaidAmount, refundedAmount, pendingAmount } =
+                  getPaymentSummary();
+                return (
+                  <>
+                    {actualPaidAmount > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <Text>Đã thanh toán:</Text>
+                        <Text type="success">
+                          {formatCurrency(actualPaidAmount)}
+                        </Text>
+                      </div>
+                    )}
+
+                    {refundedAmount > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <Text>Đã hoàn tiền:</Text>
+                        <Text type="warning">
+                          -{formatCurrency(refundedAmount)}
+                        </Text>
+                      </div>
+                    )}
+
+                    {pendingAmount > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        <Text>Chờ thanh toán/trả sau:</Text>
+                        <Text type="processing">
+                          {formatCurrency(pendingAmount)}
+                        </Text>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <Text strong>Tổng thay đổi:</Text>
+              <Text type={priceChangeAmount > 0 ? "danger" : "success"} strong>
+                {priceChangeAmount > 0 ? "+" : ""}
+                {formatCurrency(Math.abs(priceChangeAmount))}
+              </Text>
+            </div>
+          </div>
+        </div>
+
+        {(priceChangeAmount > 0 ||
+          (priceChangeAmount < 0 &&
+            !paymentHistory.some(
+              (p) => p.trangThai === 2 || p.trangThai === 3
+            ))) && (
+          <Form.Item
+            label={
+              priceChangeAmount > 0
+                ? "Chọn phương thức thanh toán"
+                : "Chọn phương thức hoàn tiền"
+            }
+            required
+          >
+            <Radio.Group
+              value={selectedPaymentMethod}
+              onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+              style={{ width: "100%" }}
+            >
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {paymentMethods
+                  .filter(
+                    (method) => method.maPhuongThucThanhToan !== "COD"
+                  ) // Loại bỏ COD
+                  .map((method) => (
+                    <Radio.Button
+                      key={method.id}
+                      value={method.maPhuongThucThanhToan}
+                      style={{
+                        width: "100%",
+                        height: "auto",
+                        padding: "12px 16px",
+                        marginBottom: "8px",
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          width: "100%",
+                        }}
+                      >
+                        {method.maPhuongThucThanhToan === "CASH" && (
+                          <DollarOutlined
+                            style={{
+                              fontSize: "24px",
+                              color: "#52c41a",
+                              marginRight: "12px",
+                            }}
+                          />
+                        )}
+                        {method.maPhuongThucThanhToan === "BANK" && (
+                          <CreditCardOutlined
+                            style={{
+                              fontSize: "24px",
+                              color: "#1890ff",
+                              marginRight: "12px",
+                            }}
+                          />
+                        )}
+                        <div>
+                          <div style={{ fontWeight: "bold" }}>
+                            {method.tenPhuongThucThanhToan}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "rgba(0,0,0,0.45)",
+                            }}
+                          >
+                            {method.moTa}
+                          </div>
+                        </div>
+                      </div>
+                    </Radio.Button>
+                  ))}
+              </Space>
+            </Radio.Group>
+          </Form.Item>
+        )}
+      </Modal>
       {/* Error Dialog */}
       <Modal
         title="Lỗi"
@@ -4648,12 +7430,24 @@ function InvoiceDetail() {
               padding: "12px 0",
             }}
           >
-            <Checkbox
-              checked={updateAllPrices}
-              onChange={(e) => setUpdateAllPrices(e.target.checked)}
-            >
-              <Text strong>Áp dụng giá mới cho tất cả sản phẩm</Text>
-            </Checkbox>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <Checkbox
+                checked={updateAllPrices}
+                onChange={(e) => setUpdateAllPrices(e.target.checked)}
+              >
+                <Text strong>Áp dụng giá mới cho tất cả sản phẩm</Text>
+              </Checkbox>
+
+              {priceChangeAmount !== 0 && (
+                <div style={{ marginTop: "8px" }}>
+                  <Text type={priceChangeAmount > 0 ? "danger" : "success"}>
+                    Tổng thay đổi: {priceChangeAmount > 0 ? "+" : ""}
+                    {formatCurrency(priceChangeAmount)}{" "}
+                    {priceChangeAmount > 0 ? "(phụ phí)" : "(hoàn tiền)"}
+                  </Text>
+                </div>
+              )}
+            </div>
             <Space>
               <Button
                 danger

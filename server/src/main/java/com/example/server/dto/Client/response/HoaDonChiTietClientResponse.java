@@ -1,7 +1,5 @@
 package com.example.server.dto.Client.response;
 
-import com.example.server.entity.HoaDon;
-import com.example.server.entity.SanPhamChiTiet;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 

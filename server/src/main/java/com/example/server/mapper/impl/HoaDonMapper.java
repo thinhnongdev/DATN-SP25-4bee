@@ -211,29 +211,47 @@ public class HoaDonMapper implements IHoaDonMapper {
     private HoaDonResponse buildHoaDonResponse(HoaDon hoaDon, String diaChiCuThe, String xa, String huyen, String tinh) {
         List<ThanhToanHoaDonResponse> thanhToanResponses = hoaDon.getThanhToanHoaDons() != null
                 ? hoaDon.getThanhToanHoaDons().stream()
-                .peek(thanhToan -> log.info("Thanh toán ID: {}, Phương thức: {}",
+                .peek(thanhToan -> log.info("Thanh toán ID: {}, Phương thức: {}, Trạng thái: {}",
                         thanhToan.getId(),
                         thanhToan.getPhuongThucThanhToan() != null
                                 ? thanhToan.getPhuongThucThanhToan().getTenPhuongThucThanhToan()
-                                : "Không có"))
+                                : "Không có",
+                        thanhToan.getTrangThai()))
                 .map(thanhToanHoaDonMapper::toDTO)
                 .collect(Collectors.toList())
                 : Collections.emptyList();
 
-        // Tính tổng tiền từ bảng thanh toán hóa đơn (nếu có)
-        BigDecimal tongTienThanhToan = thanhToanResponses.stream()
-                .map(ThanhToanHoaDonResponse::getTongTien)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Tính riêng biệt tổng tiền thanh toán và tổng tiền hoàn trả
+        BigDecimal tongTienDaThanhToan = BigDecimal.ZERO;
+        BigDecimal tongTienHoanTra = BigDecimal.ZERO;
 
-// Tính tổng tiền sản phẩm
+        // Tính riêng tổng thanh toán và hoàn trả từ các giao dịch thanh toán
+        for (ThanhToanHoaDonResponse payment : thanhToanResponses) {
+            if (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID) {
+                tongTienDaThanhToan = tongTienDaThanhToan.add(payment.getTongTien());
+            } else if (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_REFUND) {
+                tongTienHoanTra = tongTienHoanTra.add(payment.getTongTien());
+            }
+        }
+
+        // Tính tổng tiền đã thanh toán thực tế (sau khi trừ hoàn tiền)
+        BigDecimal tongTienThucTe = tongTienDaThanhToan.subtract(tongTienHoanTra);
+
+        // Tính tổng tiền sản phẩm
         BigDecimal tongTienSanPham = hoaDon.getHoaDonChiTiets().stream()
-                .map(chiTiet -> chiTiet.getSanPhamChiTiet().getGia().multiply(BigDecimal.valueOf(chiTiet.getSoLuong())))
+                .filter(chiTiet -> chiTiet.getTrangThai() == 1) // Chỉ tính sản phẩm đang hoạt động
+                .map(chiTiet -> {
+                    BigDecimal donGia = chiTiet.getGiaTaiThoiDiemThem() != null ?
+                            chiTiet.getGiaTaiThoiDiemThem() :
+                            chiTiet.getSanPhamChiTiet().getGia();
+                    return donGia.multiply(BigDecimal.valueOf(chiTiet.getSoLuong()));
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal phiVanChuyen = hoaDon.getPhiVanChuyen() != null ? hoaDon.getPhiVanChuyen() : BigDecimal.ZERO;
         BigDecimal discountAmount = BigDecimal.ZERO;
 
-// Tính toán giá trị giảm giá từ phiếu giảm giá
+        // Tính toán giá trị giảm giá từ phiếu giảm giá
         if (hoaDon.getPhieuGiamGia() != null) {
             if (hoaDon.getPhieuGiamGia().getLoaiPhieuGiamGia() == 1) { // Giảm giá theo phần trăm
                 discountAmount = tongTienSanPham.multiply(hoaDon.getPhieuGiamGia().getGiaTriGiam())
@@ -249,10 +267,19 @@ public class HoaDonMapper implements IHoaDonMapper {
             }
         }
 
-// Nếu không có thanh toán, tính lại tổng tiền từ hóa đơn
-        if (tongTienThanhToan.compareTo(BigDecimal.ZERO) == 0) {
-            tongTienThanhToan = tongTienSanPham.add(phiVanChuyen).subtract(discountAmount);
-        }
+        // Tính tổng tiền cần thanh toán (sản phẩm + phí vận chuyển - giảm giá)
+        BigDecimal tongTienCanThanhToan = tongTienSanPham.add(phiVanChuyen).subtract(discountAmount);
+
+        // Log chi tiết các khoản tiền để dễ debug
+        log.info("Hóa đơn {}: Tổng tiền SP = {}, Phí vận chuyển = {}, Giảm giá = {}, Đã thanh toán = {}, Hoàn trả = {}, Thực thanh toán = {}, Cần thanh toán = {}",
+                hoaDon.getMaHoaDon(),
+                tongTienSanPham,
+                phiVanChuyen,
+                discountAmount,
+                tongTienDaThanhToan,
+                tongTienHoanTra,
+                tongTienThucTe,
+                tongTienCanThanhToan);
 
         return HoaDonResponse.builder()
                 .id(hoaDon.getId())
@@ -272,10 +299,10 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .trangThaiGiaoHang(hoaDon.getTrangThaiGiaoHang())
                 .thoiGianGiaoHang(hoaDon.getThoiGianGiaoHang())
                 .thoiGianNhanHang(hoaDon.getThoiGianNhanHang())
-//                .tongTien(hoaDon.getTongTien())
-                .tongTien(tongTienThanhToan)// Cập nhật tổng tiền từ bảng thanh toán hóa đơn/ nếu bảng thanh toán hóa đơn trống lấy dữ liệu bằng cách :tính giá sản phẩm sản chi tiết có trong hóa đơn + phí vận chuyển(nếu có) - giá trị voucher
+                .tongTien(tongTienCanThanhToan) // Tổng tiền đơn hàng cần thanh toán
+                .tongThanhToan(tongTienThucTe) // Tổng tiền đã thanh toán thực tế (đã trừ hoàn tiền)
                 .giamGia(discountAmount)
-                .phiVanChuyen(hoaDon.getPhiVanChuyen())
+                .phiVanChuyen(phiVanChuyen)
                 .ghiChu(hoaDon.getGhiChu())
                 .trangThai(hoaDon.getTrangThai() != null ? hoaDon.getTrangThai() : 0) // Tránh null
                 .ngayTao(hoaDon.getNgayTao())
@@ -308,7 +335,7 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .map(AnhSanPham::getAnhUrl)
                 .collect(Collectors.toList());
 
-            return HoaDonChiTietResponse.builder()
+        return HoaDonChiTietResponse.builder()
                 .id(chiTiet.getId())
                 .sanPhamChiTietId(sanPhamChiTiet.getId())
                 .hinhAnh(hinhAnh)
@@ -439,7 +466,10 @@ public class HoaDonMapper implements IHoaDonMapper {
                 return PaymentConstant.PAYMENT_STATUS_PAID; // Tiền mặt -> Đã thanh toán ngay
             case PaymentConstant.PAYMENT_METHOD_BANK:
                 return PaymentConstant.PAYMENT_STATUS_UNPAID; // Chuyển khoản -> Cần xác nhận
+            case PaymentConstant.PAYMENT_METHOD_VNPAY:
+                return PaymentConstant.PAYMENT_STATUS_UNPAID; // VNPay -> Ban đầu là chờ xác nhận, sau cập nhật thành đã thanh toán
             default:
+                log.warn(" Phát hiện phương thức thanh toán không hợp lệ: {}", phuongThucId);
                 return PaymentConstant.PAYMENT_STATUS_UNPAID; // Mặc định là chưa thanh toán
         }
     }

@@ -36,7 +36,7 @@ public class HoaDonResponse {
     private NhanVienResponse nhanVien;
     private KhachHangResponse khachHang;
     private PhieuGiamGiaResponse phieuGiamGia;
-
+    private BigDecimal tongThanhToan;
     private BigDecimal giamGia;
 
     private List<ThanhToanHoaDonResponse> thanhToans;

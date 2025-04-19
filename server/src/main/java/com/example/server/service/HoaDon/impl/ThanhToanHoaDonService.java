@@ -10,6 +10,7 @@ import com.example.server.mapper.impl.ThanhToanHoaDonMapper;
 import com.example.server.repository.HoaDon.ThanhToanHoaDonRepository;
 import com.example.server.repository.HoaDon.HoaDonRepository;
 import com.example.server.repository.HoaDon.PhuongThucThanhToanRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@Slf4j
 public class ThanhToanHoaDonService {
     private final ThanhToanHoaDonRepository repository;
     private final ThanhToanHoaDonMapper mapper;
@@ -44,14 +46,22 @@ public class ThanhToanHoaDonService {
     }
 
     private int determineTrangThai(String phuongThucId) {
+        if (phuongThucId == null) {
+            throw new IllegalArgumentException("Phương thức thanh toán không được để trống.");
+        }
+
         switch (phuongThucId) {
             case PaymentConstant.PAYMENT_METHOD_COD:
                 return PaymentConstant.PAYMENT_STATUS_COD; // Trả sau (COD)
-            case PaymentConstant.PAYMENT_METHOD_BANK:
             case PaymentConstant.PAYMENT_METHOD_CASH:
-                return PaymentConstant.PAYMENT_STATUS_UNPAID; // Mặc định là chưa thanh toán khi mới tạo
+                return PaymentConstant.PAYMENT_STATUS_PAID; // Tiền mặt -> Đã thanh toán ngay
+            case PaymentConstant.PAYMENT_METHOD_BANK:
+                return PaymentConstant.PAYMENT_STATUS_UNPAID; // Chuyển khoản -> Cần xác nhận
+            case PaymentConstant.PAYMENT_METHOD_VNPAY:
+                return PaymentConstant.PAYMENT_STATUS_UNPAID; // VNPay -> Ban đầu là chờ xác nhận, sau cập nhật thành đã thanh toán
             default:
-                return PaymentConstant.PAYMENT_STATUS_UNPAID;
+                log.warn(" Phát hiện phương thức thanh toán không hợp lệ: {}", phuongThucId);
+                return PaymentConstant.PAYMENT_STATUS_UNPAID; // Mặc định là chưa thanh toán
         }
     }
 

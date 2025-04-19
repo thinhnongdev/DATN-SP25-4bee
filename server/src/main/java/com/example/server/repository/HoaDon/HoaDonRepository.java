@@ -26,6 +26,10 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
     @Query("SELECT h FROM HoaDon h WHERE h.trangThai = :trangThai")
     List<HoaDon> findByTrangThai(@Param("trangThai") Integer trangThai);
 
+    @Query("SELECT h FROM HoaDon h WHERE h.maHoaDon LIKE %:maHoaDon%")
+    List<HoaDon> findByMaHoaDonLike(@Param("maHoaDon") String maHoaDon);
+
+
     @Query("SELECT new com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO(" +
             "h.trangThai, COUNT(h), SUM(h.tongTien), " +
             "CASE " +
@@ -44,7 +48,14 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
             @Param("toDate") LocalDateTime toDate
     );
 
-    @Query(value = "SELECT * FROM hoa_don WHERE loai_hoa_don IN (2, 3) AND trang_thai = 1", nativeQuery = true)
+    @Query(value = """
+                SELECT * FROM hoa_don hd
+                WHERE hd.loai_hoa_don IN (2, 3) 
+                AND hd.trang_thai = 1
+                AND NOT EXISTS (
+                    SELECT 1 FROM thanh_toan_hoa_don tthd WHERE tthd.id_hoa_don = hd.id
+                )
+            """, nativeQuery = true)
     List<HoaDon> getHoaDonTheoLoai();
 
 
@@ -129,7 +140,6 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
     Object[] getSoLuongSanPhamHomNay();
 
 
-
     @Query(value = "SELECT DATE(hd.ngay_tao) AS date, COALESCE(SUM(hdct.so_luong), 0) AS quantity " +
             "FROM hoa_don hd " +
             "LEFT JOIN hoa_don_chi_tiet hdct ON hd.id = hdct.id_hoa_don " +
@@ -184,55 +194,60 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
     List<Object[]> getDoanhThuTheoThangTrongNam();
 
     @Query(value = """
-    SELECT 
-        ROW_NUMBER() OVER (ORDER BY ngay_tao DESC) AS STT, 
-        ma_hoa_don as MaHoaDon,
-        trang_thai AS trangthai, 
-        loai_hoa_don AS loaidon, 
-        ngay_tao AS ngaytao, 
-        ten_nguoi_nhan AS khachHang, 
-        tong_tien AS doanhSo 
-    FROM hoa_don
-    ORDER BY ngay_tao DESC
-    LIMIT :limit
-    """, nativeQuery = true)
+            SELECT 
+                ROW_NUMBER() OVER (ORDER BY ngay_tao DESC) AS STT, 
+                ma_hoa_don as MaHoaDon,
+                trang_thai AS trangthai, 
+                loai_hoa_don AS loaidon, 
+                ngay_tao AS ngaytao, 
+                ten_nguoi_nhan AS khachHang, 
+                tong_tien AS doanhSo 
+            FROM hoa_don
+            ORDER BY ngay_tao DESC
+            LIMIT :limit
+            """, nativeQuery = true)
     List<Object[]> getDonHangGanDay(@Param("limit") int limit);
 
 
-
     @Query(value = """
-    SELECT sp.ten_san_pham AS product, 
-           SUM(hdct.so_luong) AS sold 
-    FROM hoa_don_chi_tiet hdct
-    JOIN san_pham_chi_tiet spct ON hdct.id_san_pham_chi_tiet = spct.id
-    JOIN san_pham sp ON spct.id_san_pham = sp.id
-    GROUP BY sp.id, sp.ten_san_pham
-    ORDER BY sold DESC
-    LIMIT 3
-    """, nativeQuery = true)
+            SELECT sp.ten_san_pham AS product, 
+                   SUM(hdct.so_luong) AS sold 
+            FROM hoa_don_chi_tiet hdct
+            JOIN san_pham_chi_tiet spct ON hdct.id_san_pham_chi_tiet = spct.id
+            JOIN san_pham sp ON spct.id_san_pham = sp.id
+            GROUP BY sp.id, sp.ten_san_pham
+            ORDER BY sold DESC
+            LIMIT 3
+            """, nativeQuery = true)
     List<Object[]> getTop3SanPhamBanChay();
 
-
-    @Query("select h from HoaDon h where h.trangThai=10 and h.khachHang.email=:email")
+    @Query("select h from HoaDon h where h.trangThai= 10 and h.khachHang.email=:email")
     Optional<HoaDon> findHoaDonPending(String email);
-    @Query("SELECT h FROM HoaDon h WHERE h.trangThai =10 and h.maHoaDon=:maHoaDon")
+
+    @Query("SELECT h FROM HoaDon h WHERE h.trangThai = 10 and h.maHoaDon=:maHoaDon")
     Optional<HoaDon> findByMaHoaDon(@Param("maHoaDon") String maHoaDon);
+
     @Query("select new com.example.server.dto.Client.response.HoaDonClientResponse(" +
             "h.id,h.maHoaDon,h.phieuGiamGia.id,h.khachHang.id," +
             "h.loaiHoaDon,h.tenNguoiNhan,h.soDienThoai,h.emailNguoiNhan,h.diaChi," +
             "h.trangThaiGiaoHang,h.thoiGianGiaoHang,h.thoiGianNhanHang,h.tongTien,h.phiVanChuyen" +
             ",h.ghiChu,h.trangThai,h.ngayTao,h.ngaySua,h.nguoiTao,h.nguoiSua)" +
-            " from HoaDon h where h.loaiHoaDon=1 and  h.trangThai <> 10  and h.khachHang.email=:email") //bỏ hóa đơn có trang thái là pendding
+            " from HoaDon h where h.loaiHoaDon=1 and  h.trangThai <> 10  and h.khachHang.email=:email")
+        //bỏ hóa đơn có trang thái là pendding
     List<HoaDonClientResponse> findHoaDonClient(String email);
+
     @Query("select new com.example.server.dto.Client.response.HoaDonClientResponse(" +
             "h.id,h.maHoaDon,h.phieuGiamGia.id,h.khachHang.id," +
             "h.loaiHoaDon,h.tenNguoiNhan,h.soDienThoai,h.emailNguoiNhan,h.diaChi," +
             "h.trangThaiGiaoHang,h.thoiGianGiaoHang,h.thoiGianNhanHang,h.tongTien,h.phiVanChuyen" +
             ",h.ghiChu,h.trangThai,h.ngayTao,h.ngaySua,h.nguoiTao,h.nguoiSua)" +
-            " from HoaDon h where h.loaiHoaDon=1 and  h.trangThai <> 10  and h.id=:idHoaDon") //bỏ hóa đơn có trang thái là pendding
+            " from HoaDon h where h.loaiHoaDon=1 and  h.trangThai <> 10  and h.id=:idHoaDon")
+        //bỏ hóa đơn có trang thái là pendding
     Optional<HoaDonClientResponse> findHoaDonClientByIdHoaDon(String idHoaDon);
+
     @Query("SELECT new com.example.server.dto.Client.response.HoaDonChiTietClientResponse( " +
             " h.hoaDon.id, h.sanPhamChiTiet.id,h.id, h.soLuong, h.trangThai, h.giaTaiThoiDiemThem, h.ngayThemVaoGio) " +
             "FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.trangThai = 1")
     List<HoaDonChiTietClientResponse> findByHoaDonId(@Param("hoaDonId") String hoaDonId);
+
 }

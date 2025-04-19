@@ -20,7 +20,7 @@ import PropTypes from "prop-types";
 import { Option } from "antd/es/mentions";
 import axios from "axios";
 const { Text } = Typography;
-const ProductTable = ({ products, onAddProduct, open, onClose }) => {
+const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, onClose }) => {
   const [chatLieu, setChatLieu] = useState([]);
   const [kieuDang, setKieuDang] = useState([]);
   const [thuongHieu, setThuongHieu] = useState([]);
@@ -404,11 +404,19 @@ const ProductTable = ({ products, onAddProduct, open, onClose }) => {
 
     try {
       // Gửi tất cả sản phẩm đã chọn lên `onAddProduct`
-      selectedProducts.forEach((product) => {
-        const quantity = tempQuantities[product.id] || 1;
-        onAddProduct(product, quantity);
-      });
-
+      // selectedProducts.forEach((product) => {
+      //   const quantity = tempQuantities[product.id] || 1;
+      //   onAddProduct(product, quantity);
+      // });
+      if (onAddMultipleProducts) {
+        onAddMultipleProducts(selectedProducts);
+      } else {
+        // Fallback nếu không có prop onAddMultipleProducts
+        selectedProducts.forEach((product) => {
+          const quantity = tempQuantities[product.id] || 1;
+          onAddProduct(product, quantity);
+        });
+      }
       // Cập nhật danh sách sản phẩm ngay lập tức
       setProductList((prevProducts) =>
         prevProducts.map((p) => {
@@ -973,6 +981,7 @@ ProductTable.defaultProps = {
 ProductTable.propTypes = {
   products: PropTypes.array,
   onAddProduct: PropTypes.func,
+  onAddMultipleProducts: PropTypes.func,
   open: PropTypes.bool,
   onClose: PropTypes.func,
 };

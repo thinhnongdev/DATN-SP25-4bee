@@ -3,8 +3,10 @@ package com.example.server.controller.PhieuGiamGia;
 
 import com.example.server.dto.PhieuGiamGia.*;
 import com.example.server.entity.KhachHang;
+import com.example.server.entity.PhieuGiamGia;
 import com.example.server.entity.PhieuGiamGiaKhachHang;
 import com.example.server.repository.HoaDon.PhieuGiamGiaKhachHangRepository;
+import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import com.example.server.service.PhieuGiamGia.KhachHangService;
 import com.example.server.service.PhieuGiamGia.PhieuGiamGiaService;
 import jakarta.validation.Valid;
@@ -19,6 +21,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @EnableScheduling
@@ -33,23 +36,26 @@ public class PhieuGiamGiaController {
     private KhachHangService khachHangService;
 
     @Autowired
-    private PhieuGiamGiaKhachHangRepository pkhachHangRepository;
+    private PhieuGiamGiaRepository repository;
 
+    @Autowired
+    private PhieuGiamGiaKhachHangRepository pkhachHangRepository;
     @GetMapping
     public List<PhieuGiamGiaDTO> getAll() {
         return service.getAll();
     }
 
-    @GetMapping("/active")
-    public List<PhieuGiamGiaDTO> getActivePhieuGiamGia() {
-        return service.getActivePhieuGiamGia();
-    }
+
 
     @GetMapping("/khach_hang")
     public List<KhachHangDTO> getAllKhachHang() {
         return khachHangService.getAll();
     }
 
+    @GetMapping("/active")
+    public List<PhieuGiamGiaDTO> getActivePhieuGiamGia() {
+        return service.getActivePhieuGiamGia();
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<PhieuGiamGiaDTO> getById(@PathVariable String id) {
@@ -127,17 +133,6 @@ public class PhieuGiamGiaController {
         }
     }
 
-//    @GetMapping("/{maPhieuGiamGia}/khach-hang")
-//    public List<KhachHang> getKhachHangByMaPhieuGiamGia(@PathVariable String maPhieuGiamGia) {
-//        return service.getKhachHangByMaPhieuGiamGia(maPhieuGiamGia);
-//    }
-
-    // Hủy phiếu giảm giá cho khách hàng
-//    @PostMapping("/{maPhieuGiamGia}/cancel")
-//    public void cancelPhieuGiamGiaForCustomer(@PathVariable String maPhieuGiamGia, @RequestBody String maKhachHang) {
-//        service.cancelPhieuGiamGiaForCustomer(maPhieuGiamGia, maKhachHang);
-//    }
-
 
     @PatchMapping("/{id}/remove-customer/{khachHangId}")
     public ResponseEntity<String> removeCustomerFromVoucher(@PathVariable String id, @PathVariable String khachHangId) {
@@ -151,7 +146,6 @@ public class PhieuGiamGiaController {
         service.addCustomerToPhieuGiamGia(id, khachHangIds);
         return ResponseEntity.ok("Thêm khách hàng thành công");
     }
-
 
     @GetMapping("/{id}/khach-hang")
     public ResponseEntity<List<KhachHangDTO>> getKhachHangByPhieu(@PathVariable String id) {
@@ -171,6 +165,28 @@ public class PhieuGiamGiaController {
         return ResponseEntity.ok(response);
     }
 
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<PhieuGiamGia> updateTrangThai(
+            @PathVariable String id,
+            @RequestBody Map<String, Integer> body) {
+        PhieuGiamGia phieu = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu giảm giá"));
+        int newTrangThai = body.get("trangThai");
+        phieu.setTrangThai(newTrangThai);
+
+        // Nếu là phiếu cá nhân và trạng thái chuyển sang "Ngừng hoạt động" (2)
+        if (phieu.getKieuGiamGia() == 2 && newTrangThai == 2) {
+            List<PhieuGiamGiaKhachHang> pggKhachHangs = pkhachHangRepository.findByPhieuGiamGiaId(phieu.getId());
+            for (PhieuGiamGiaKhachHang pggKhachHang : pggKhachHangs) {
+                pggKhachHang.setTrangThai(false); // Đánh dấu không khả dụng
+                pkhachHangRepository.save(pggKhachHang);
+            }
+        }
+
+        PhieuGiamGia updatedPhieu = repository.save(phieu);
+        return ResponseEntity.ok(updatedPhieu);
+    }
 
 
 }

@@ -39,7 +39,6 @@
     "react-toastify": "^11.0.2",
     "recharts": "^2.15.0",
     "sockjs-client": "^1.6.1",
-    "styled-components": "^6.1.17",
     "xlsx": "^0.18.5"
   },
   "scripts": {

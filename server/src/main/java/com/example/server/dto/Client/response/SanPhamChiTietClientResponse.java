@@ -1,10 +1,7 @@
 package com.example.server.dto.Client.response;
-
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
 import java.time.LocalDateTime;
-
 @Getter
 @Setter
 @AllArgsConstructor

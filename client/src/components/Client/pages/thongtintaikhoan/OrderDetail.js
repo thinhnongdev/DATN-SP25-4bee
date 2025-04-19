@@ -32,6 +32,37 @@ const OrderDetailPage = () => {
   const [isAddressList, setIsAddressList] = useState(false);
   const [addressList, setAddressList] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [shippingFee, setShippingFee] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
+  const [editableOrder, setEditableOrder] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchUserInfo(token).then((data) => {
+        if (data) {
+          console.log('Setting user info:', data);
+          setUserInfo(data);
+        }
+      });
+    }
+  }, []);
+
+  const fetchUserInfo = async (token) => {
+    try {
+      const response = await axios.post(
+        'http://localhost:8080/api/auth/getInfoUser',
+        { token }, // Không cần stringify thủ công vì axios tự xử lý
+        { headers: { 'Content-Type': 'application/json' } },
+      );
+      console.log('User Info:', response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Failed to fetch user info:', err);
+      return null;
+    }
+  };
   const fetchLocationData = async () => {
     try {
       const headers = { Token: API_TOKEN, 'Content-Type': 'application/json' };
@@ -147,15 +178,19 @@ const OrderDetailPage = () => {
       const productRes = await axios.get(
         `http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${orderId}`,
       );
+      const voucherRes = await axios.get(
+        `http://localhost:8080/api/client/phieugiamgia/findPhieuGiamGia/${orderRes.data.idPhieuGiamGia}`,
+      );
 
       const fullOrder = {
         ...orderRes.data,
         payments: paymentRes.data,
         products: productRes.data,
+        voucher: voucherRes.data,
       };
 
       setOrder(fullOrder);
-
+      setShippingFee(fullOrder.phiVanChuyen);
       // Lấy ảnh cho từng sản phẩm
       const imageMap = {};
       for (const product of productRes.data) {
@@ -170,12 +205,23 @@ const OrderDetailPage = () => {
     }
   };
   useEffect(() => {
-    
-
     fetchOrder();
   }, [orderId]);
   console.log('order', order);
   console.log('productImages', productImages);
+
+  const getDiscountValue = (voucher, totalAmount) => {
+    if (!voucher) return 0; // Nếu không có voucher, không giảm giá
+
+    if (voucher.loaiPhieuGiamGia === 1) {
+      // Giảm theo %
+      const discount = (parseFloat(voucher.giaTriGiam) / 100) * totalAmount;
+      return Math.min(discount, voucher.soTienGiamToiDa); // Không vượt quá mức tối đa
+    }
+    // Giảm giá cố định (VND)
+    return voucher.giaTriGiam || 0;
+  };
+
   const fetchProductImage = async (productDetailId) => {
     try {
       const response = await axios.get(
@@ -255,30 +301,106 @@ const OrderDetailPage = () => {
   const getFormattedAddress = (address) => {
     return `${address.diaChiCuThe}, ${address.xa}, ${address.huyen}, ${address.tinh}`;
   };
+
   const handleConfirm = async () => {
     if (!orderId || !selectedAddress) {
-      message.warning("Vui lòng chọn địa chỉ");
+      message.warning('Vui lòng chọn địa chỉ');
       return;
     }
-  
     try {
-      const response = await axios.put(`http://localhost:8080/api/client/order/thaydoidiachihoadonchoxacnhan/${orderId}`, selectedAddress, {
-        headers: {
-          'Content-Type': 'text/plain', // vì backend nhận @RequestBody String
+      const fee = await fetchShippingFee(); // Chờ lấy phí ship xong
+      setShippingFee(fee);
+      Modal.confirm({
+        title: 'Xác nhận thay đổi địa chỉ giao hàng?',
+        content: (
+          <div>
+            <p>
+              <strong>Địa chỉ mới: </strong>
+              {`${selectedAddress.diaChiCuThe}, ${formatWardName(
+                selectedAddress.xa,
+                selectedAddress.huyen,
+              )}, ${formatDistrictName(selectedAddress.huyen)}, ${formatProvinceName(
+                selectedAddress.tinh,
+              )}`}
+            </p>
+            <p>
+              <strong>Phí vận chuyển: </strong>
+              {fee.toLocaleString('vi-VN')}₫
+            </p>
+          </div>
+        ),
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          console.log('Địa chỉ đã chọn:', selectedAddress);
+          console.log('Phí vận chuyển:', fee);
+          console.log('Tổng tiền thanh toán:', totalPayMent);
+          console.log('ID đơn hàng:', orderId);
+          console.log('khách hàng:', userInfo);
+          console.log('email khách hàng:', userInfo?.email);
+          if (!userInfo?.email) {
+            message.error('Không lấy được email khách hàng. Vui lòng thử lại!');
+            return;
+          }
+
+          try {
+            const response = await axios.put(
+              `http://localhost:8080/api/client/order/thaydoidiachihoadonchoxacnhan/${orderId}`,
+              {
+                diaChi: selectedAddress,
+                shippingFee: fee,
+                tongTien: totalPayMent,
+                idKhachHang: userInfo?.id,
+              },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              },
+            );
+
+            message.success('Cập nhật địa chỉ thành công!');
+            setIsAddressList(false);
+            fetchOrder?.();
+          } catch (error) {
+            message.error(error.response?.data || 'Có lỗi xảy ra, vui lòng thử lại!');
+          }
         },
       });
-  
-      message.success("Cập nhật địa chỉ thành công!");
-      setIsAddressList(false); // đóng modal
-      fetchOrder?.(); // gọi lại dữ liệu đơn hàng nếu có hàm này
-    } catch (error) {
-      if (error.response?.data) {
-        message.error(error.response.data);
-      } else {
-        message.error("Có lỗi xảy ra, vui lòng thử lại!");
-      }
+    } catch (err) {
+      message.error('Không thể tính phí vận chuyển');
     }
   };
+
+  const fetchShippingFee = () => {
+    return axios
+      .post(
+        'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
+        {
+          service_type_id: 2,
+          insurance_value: Number(order.tongTien),
+          from_district_id: 3440, // Nam Từ Liêm
+          to_district_id: Number(parseAddress(selectedAddress).huyen),
+          weight: 1000,
+          length: 30,
+          width: 20,
+          height: 10,
+        },
+        {
+          headers: {
+            Token: API_TOKEN,
+            ShopId: 5687296,
+            'Content-Type': 'application/json',
+          },
+        },
+      )
+      .then((res) => res.data.data.total);
+  };
+  const voucherDiscount =
+    order?.tongTien > 0 ? getDiscountValue(order.voucher, order?.tongTien) : 0; //tính giảm giá
+  const totalPayMent = Math.max(order?.tongTien + shippingFee - voucherDiscount, 0); //tính tổng tiền thanh toán
+  const totalPaid = order.payments.reduce((sum, payment) => sum + payment.tongTien, 0); //tổng tiền đã thanh toán
+  const tienChengLech = Math.max(totalPayMent - order?.daThanhToan, 0); //tính tổng tiền còn thiếu
   return (
     <Layout
       style={{
@@ -436,13 +558,7 @@ const OrderDetailPage = () => {
               </Col>
               <Col>
                 <Text style={{ fontSize: '16px' }}>
-                  -{' '}
-                  {(
-                    order.tongTien +
-                    (order.phiVanChuyen || 0) -
-                    order.payments[0].tongTien
-                  ).toLocaleString('vi-VN')}
-                  ₫
+                  - {voucherDiscount.toLocaleString('vi-VN') || '0'}₫
                 </Text>
               </Col>
             </Row>
@@ -469,7 +585,7 @@ const OrderDetailPage = () => {
               </Col>
               <Col>
                 <Text strong style={{ color: 'red', fontSize: 18 }}>
-                  {(order.tongTien + (order.phiVanChuyen || 0)).toLocaleString('vi-VN')}₫
+                  {totalPayMent.toLocaleString('vi-VN')}₫
                 </Text>
               </Col>
             </Row>
@@ -488,69 +604,62 @@ const OrderDetailPage = () => {
         </Card>
       </div>
       <Modal
-  title="Chọn địa chỉ giao hàng"
-  open={isAddressList}
-  footer={null}
-  onCancel={() => setIsAddressList(false)}
-  width={600}
->
-  {addressList.length > 0 ? (
-    <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
-      {addressList.map((address) => {
-        const isSelected = getFormattedAddress(address) === selectedAddress;
+        title="Chọn địa chỉ giao hàng"
+        open={isAddressList}
+        footer={null}
+        onCancel={() => setIsAddressList(false)}
+        width={600}
+      >
+        {addressList.length > 0 ? (
+          <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
+            {addressList.map((address) => {
+              const isSelected = getFormattedAddress(address) === selectedAddress;
 
-        return (
-          <Card
-            key={address.id}
-            hoverable
-            onClick={() => handleSelectAddress(getFormattedAddress(address))}
-            style={{
-              marginBottom: '16px',
-              border: isSelected ? '2px solid #1890ff' : '1px solid #f0f0f0',
-              backgroundColor: isSelected ? '#e6f7ff' : '#fff',
-              borderRadius: '12px',
-              boxShadow: isSelected
-                ? '0 4px 12px rgba(24, 144, 255, 0.15)'
-                : '0 2px 6px rgba(0, 0, 0, 0.05)',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <Checkbox
-                checked={isSelected}
-                onChange={() => handleSelectAddress(getFormattedAddress(address))}
-                style={{ marginTop: 4 }}
-              />
-              <div>
-                <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{address.name}</div>
-                <div style={{ color: '#555', marginTop: 4, wordBreak: 'break-word' }}>
-                  {address.diaChiCuThe}, {formatWardName(address.xa, address.huyen)},
-                  {` `}{formatDistrictName(address.huyen)}, {formatProvinceName(address.tinh)}
-                </div>
-              </div>
-            </div>
-          </Card>
-        );
-      })}
-    </div>
-  ) : (
-    <Empty description="Không có địa chỉ nào, vui lòng thêm mới!" />
-  )}
+              return (
+                <Card
+                  key={address.id}
+                  hoverable
+                  onClick={() => handleSelectAddress(getFormattedAddress(address))}
+                  style={{
+                    marginBottom: '16px',
+                    border: isSelected ? '2px solid #1890ff' : '1px solid #f0f0f0',
+                    backgroundColor: isSelected ? '#e6f7ff' : '#fff',
+                    borderRadius: '12px',
+                    boxShadow: isSelected
+                      ? '0 4px 12px rgba(24, 144, 255, 0.15)'
+                      : '0 2px 6px rgba(0, 0, 0, 0.05)',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <Checkbox
+                      checked={isSelected}
+                      onChange={() => handleSelectAddress(getFormattedAddress(address))}
+                      style={{ marginTop: 4 }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{address.name}</div>
+                      <div style={{ color: '#555', marginTop: 4, wordBreak: 'break-word' }}>
+                        {address.diaChiCuThe}, {formatWardName(address.xa, address.huyen)},{` `}
+                        {formatDistrictName(address.huyen)}, {formatProvinceName(address.tinh)}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Empty description="Không có địa chỉ nào, vui lòng thêm mới!" />
+        )}
 
-  <div style={{ marginTop: '24px', textAlign: 'right' }}>
-    <Button
-      type="primary"
-      onClick={() => handleConfirm()}
-      disabled={!selectedAddress}
-    >
-      Xác nhận
-    </Button>
-  </div>
-</Modal>
-
-
-
+        <div style={{ marginTop: '24px', textAlign: 'right' }}>
+          <Button type="primary" onClick={() => handleConfirm()} disabled={!selectedAddress}>
+            Xác nhận
+          </Button>
+        </div>
+      </Modal>
     </Layout>
   );
 };

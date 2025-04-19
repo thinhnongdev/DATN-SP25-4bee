@@ -16,7 +16,7 @@ public class HoaDonRequest {
     @NotBlank(message = "Tên người nhận không được để trống")
     private String tenNguoiNhan;
 
-    @Pattern(regexp = "\\d{10}", message = "Số điện thoại không hợp lệ")
+//    @Pattern(regexp = "\\d{10}", message = "Số điện thoại không hợp lệ")
     private String soDienThoai;
 
     @Email(message = "Email không hợp lệ")

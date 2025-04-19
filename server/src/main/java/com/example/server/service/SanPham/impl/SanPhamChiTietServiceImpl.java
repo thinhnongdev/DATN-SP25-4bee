@@ -137,6 +137,7 @@ public class SanPhamChiTietServiceImpl implements SanPhamChiTietService {
             }
         }
     }
+
     @Override
     public void updateSanPhamChiTiet(String id, SanPhamChiTietUpdateRequest sanPhamChiTietUpdateRequest) {
         SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietRepository.findById(id).orElseThrow();

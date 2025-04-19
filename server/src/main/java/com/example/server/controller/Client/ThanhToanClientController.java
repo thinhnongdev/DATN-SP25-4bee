@@ -7,7 +7,6 @@ import com.example.server.dto.Client.response.ThanhToanHoaDonClientResponse;
 import com.example.server.entity.HoaDon;
 import com.example.server.entity.PhieuGiamGia;
 import com.example.server.entity.SanPhamChiTiet;
-import com.example.server.entity.ThanhToanHoaDon;
 import com.example.server.service.Client.HoaDonChiTietClientService;
 import com.example.server.service.Client.HoaDonClientService;
 import com.example.server.service.Client.ThanhToanClientService;

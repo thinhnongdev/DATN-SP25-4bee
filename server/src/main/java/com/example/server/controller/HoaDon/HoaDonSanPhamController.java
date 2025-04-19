@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -125,15 +126,28 @@ public class HoaDonSanPhamController {
     }
 
     @PutMapping("/{hoaDonId}/cap-nhat-gia")
-    @Operation(summary = "Cập nhật giá tất cả sản phẩm trong giỏ hàng")
+    @Operation(summary = "Cập nhật giá sản phẩm và xử lý thanh toán phụ trội/hoàn tiền")
     public ResponseEntity<HoaDonResponse> updateAllProductPrices(
             @PathVariable String hoaDonId,
-            @RequestParam Boolean useCurrentPrices) {
-        log.info("Nhận request cập nhật tất cả giá: hoaDonId={}, useCurrentPrices={}",
-                hoaDonId, useCurrentPrices);
+            @RequestParam Boolean useCurrentPrices,
+            @RequestParam(required = false) String paymentAction,
+            @RequestParam(required = false) String paymentMethodId,
+            @RequestParam(required = false) BigDecimal adjustmentAmount) {
+        log.info("Nhận request cập nhật tất cả giá: hoaDonId={}, useCurrentPrices={}, paymentAction={}, adjustmentAmount={}",
+                hoaDonId, useCurrentPrices, paymentAction, adjustmentAmount);
 
         try {
-            HoaDonResponse response = hoaDonSanPhamService.updateAllProductPrices(hoaDonId, useCurrentPrices);
+            HoaDonResponse response;
+
+            // Nếu không có paymentAction và paymentMethodId, chỉ cập nhật giá
+            if (paymentAction == null || paymentMethodId == null) {
+                response = hoaDonSanPhamService.updateAllProductPrices(hoaDonId, useCurrentPrices);
+            } else {
+                // Nếu có thông tin thanh toán, gọi phương thức xử lý thanh toán
+                response = hoaDonSanPhamService.updateAllProductPricesAndProcessPayment(
+                        hoaDonId, useCurrentPrices, paymentAction, paymentMethodId, adjustmentAmount);
+            }
+
             webSocketService.sendProductUpdate(hoaDonId); // Gửi thông báo WebSocket
             return ResponseEntity.ok(response);
         } catch (Exception e) {

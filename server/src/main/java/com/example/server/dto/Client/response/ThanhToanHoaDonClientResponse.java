@@ -3,10 +3,8 @@ package com.example.server.dto.Client.response;
 import com.example.server.entity.PhuongThucThanhToan;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
 @Getter
 @Setter
 @AllArgsConstructor

@@ -13,7 +13,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 @RestController
-@RequestMapping("/api/admin/thong-ke")
+@RequestMapping("/thong-ke")
 @CrossOrigin(origins = "http://localhost:3000")
 public class ThongKeConTroller {
 

@@ -1,5 +1,4 @@
 package com.example.server.controller.Client;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,18 +8,20 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
-
 @RestController
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 @RequestMapping("/api/client/vnpay")
 public class VnPayController {
 
     @GetMapping("/create-payment")
-    public ResponseEntity<?> createPayment(@RequestParam long amount,@RequestParam String orderCode) {
+    public ResponseEntity<?> createPayment(@RequestParam long amount,@RequestParam String orderCode,    @RequestParam(required = false) String returnUrl
+    ) {
         String vnp_TmnCode = "ECH7JJON";
         String vnp_HashSecret = "ZBMD9TMWMBVQPP083XUU0X2NOJWA6685";
         String vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-        String vnp_ReturnUrl = "http://localhost:3000/vnpay/payment-success";
+        String vnp_ReturnUrl = returnUrl != null && !returnUrl.isEmpty()
+                ? returnUrl
+                : "http://localhost:3000/vnpay/payment-success";
 
         Map<String, String> vnp_Params = new HashMap<>();
         vnp_Params.put("vnp_Version", "2.1.0");
@@ -68,9 +69,9 @@ public class VnPayController {
         String paymentUrl = vnp_Url + "?" + query.toString();
 
         // Debug
-        System.out.println("🔑 HashData: " + hashData);
-        System.out.println("🔐 SecureHash: " + secureHash);
-        System.out.println("🔗 Payment URL: " + paymentUrl);
+        System.out.println(" HashData: " + hashData);
+        System.out.println(" SecureHash: " + secureHash);
+        System.out.println(" Payment URL: " + paymentUrl);
 
         return ResponseEntity.ok(paymentUrl);
     }
@@ -97,3 +98,4 @@ public class VnPayController {
         return hexString.toString();
     }
 }
+

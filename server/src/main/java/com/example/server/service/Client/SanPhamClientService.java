@@ -8,7 +8,6 @@ import com.example.server.entity.SanPhamChiTiet;
 import com.example.server.repository.HoaDon.HoaDonChiTietRepository;
 import com.example.server.repository.SanPham.AnhSanPhamRepository;
 import com.example.server.repository.SanPham.SanPhamChiTietRepository;
-import jakarta.persistence.Id;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

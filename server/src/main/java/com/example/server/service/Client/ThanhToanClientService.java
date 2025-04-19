@@ -8,6 +8,7 @@ import com.example.server.repository.HoaDon.LichSuHoaDonRepository;
 import com.example.server.repository.HoaDon.PhuongThucThanhToanRepository;
 import com.example.server.repository.HoaDon.ThanhToanHoaDonRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
+import com.example.server.service.HoaDon.impl.LichSuHoaDonService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -38,26 +39,42 @@ public class ThanhToanClientService {
     private JavaMailSender mailSender;
     @Autowired
     private KhachHangRepository khachHangRepository;
+    @Autowired
+    private LichSuHoaDonService lichSuHoaDonService;
+
     public List<ThanhToanHoaDonClientResponse> findThanhToanHoaDon(String idHoaDon) {
         List<ThanhToanHoaDonClientResponse> thanhToanHoaDons=thanhToanHoaDonRepository.findByHoaDonIdForClient(idHoaDon);
 
         return thanhToanHoaDons;
     }
+
     public ThanhToanHoaDon createThanhToanHoaDon(String phuongThucThanhToan, HoaDon hoaDon, BigDecimal tienThanhToan,ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest) {
         ThanhToanHoaDon thanhToanHoaDon = new ThanhToanHoaDon();
-        thanhToanHoaDon.setId(UUID.randomUUID().toString());
+        //thanhToanHoaDon.setId(UUID.randomUUID().toString());
         thanhToanHoaDon.setPhuongThucThanhToan(phuongThucThanhToanHoaDonRepository.findByMaPhuongThucThanhToan(phuongThucThanhToan).orElseThrow());
         thanhToanHoaDon.setHoaDon(hoaDon);
         thanhToanHoaDon.setSoTien(tienThanhToan);
         thanhToanHoaDon.setTrangThai(phuongThucThanhToan.equalsIgnoreCase("COD") ? 3 : 1); //1 đã thanh toán, 3 là trả sau
         thanhToanHoaDon.setNgayTao(LocalDateTime.now());
-        LichSuHoaDon lichSuHoaDon=new LichSuHoaDon();
-        lichSuHoaDon.setId(UUID.randomUUID().toString());
+
+        // Lịch sử nè
+        LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
+        lichSuHoaDon.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
         lichSuHoaDon.setHoaDon(hoaDon);
         lichSuHoaDon.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElse(null));
         lichSuHoaDon.setNgayTao(LocalDateTime.now());
+
+        //Nội dung mô tả chi tiết hơn
+        String trangThaiThanhToan = phuongThucThanhToan.equalsIgnoreCase("COD") ? "trả sau (COD)" : "đã thanh toán";
+        String tenPhuongThuc = phuongThucThanhToanHoaDonRepository.findByMaPhuongThucThanhToan(phuongThucThanhToan)
+                .map(PhuongThucThanhToan::getTenPhuongThucThanhToan)
+                .orElse(phuongThucThanhToan);
+
         lichSuHoaDon.setHanhDong("Thanh toán đơn hàng");
-        lichSuHoaDon.setMoTa("");
+        lichSuHoaDon.setMoTa("Khách hàng " + thongTinGiaoHangClientRequest.getHoTen() +
+                " thanh toán " + String.format("%,.0f", tienThanhToan) + " đ" +
+                " bằng " + tenPhuongThuc + " (" + trangThaiThanhToan + ")");
+        lichSuHoaDon.setTrangThai(1);
         lichSuHoaDonRepository.save(lichSuHoaDon);
         return thanhToanHoaDonRepository.save(thanhToanHoaDon);
     }

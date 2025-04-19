@@ -28,4 +28,5 @@ public class SanPhamClientResponse {
     String tenKieuTayAo;
     String tenKieuTuiAo;
     String tenThuongHieu;
+
 }

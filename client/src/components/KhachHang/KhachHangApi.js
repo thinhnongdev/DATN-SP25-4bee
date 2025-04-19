@@ -59,7 +59,3 @@ export const getDiaChiByIdKhachHang = (id) =>
   axios.get(`${API_URL}/diaChi/${id}`, {
     headers: getAuthHeaders(),
   });
-  export const getKhachHangByEmail = (email) =>
-    axios.get(`${API_URL}/${email}`, {
-      headers: getAuthHeaders(),
-    });
