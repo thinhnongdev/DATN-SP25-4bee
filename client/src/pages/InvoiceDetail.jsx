@@ -4800,8 +4800,8 @@ const detectExcessFromOrderCompletion = () => {
         to_district_id: ghnAddress.to_district_id,
         to_ward_code: ghnAddress.to_ward_code,
         service_type_id: 2, // Giao hàng tiêu chuẩn
-        weight: 500, // 500g
-        length: 20, // 20cm
+        weight: 1000, // 1kg
+        length: 30, // 30cm
         width: 20, // 20cm
         height: 10, // 10cm
       };

@@ -77,14 +77,12 @@ const DetailForm = () => {
           ngaySinh: khachHang.ngaySinh ? dayjs(khachHang.ngaySinh) : null,
           gioiTinh: khachHang.gioiTinh ? 'true' : 'false',
         });
-
         const diaChiResponse = await getDiaChiByIdKhachHang(selectedKhachHang);
         if (Array.isArray(diaChiResponse.data)) {
           const formattedAddresses = await Promise.all(
             diaChiResponse.data.map(async (address) => {
               const quanHuyenList = address.tinh ? await fetchDistricts(address.tinh) : [];
               const xaPhuongList = address.huyen ? await fetchWards(address.huyen) : [];
-
               return {
                 tinh: address.tinh || '',
                 tinhName:

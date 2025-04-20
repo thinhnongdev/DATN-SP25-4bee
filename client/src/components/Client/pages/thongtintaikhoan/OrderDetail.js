@@ -889,14 +889,12 @@ const OrderDetailPage = () => {
       const voucherRes = await axios.get(
         `http://localhost:8080/api/client/phieugiamgia/findPhieuGiamGia/${orderRes.data.idPhieuGiamGia}`,
       );
-
       const fullOrder = {
         ...orderRes.data,
         payments: paymentRes.data,
         products: productRes.data,
-        voucher: voucherRes.data,
+        voucher: voucherRes.data ? voucherRes.data : null,
       };
-
       setOrder(fullOrder);
       setShippingFee(fullOrder.phiVanChuyen);
       setUpdateOrder(fullOrder); //thong tin order để chỉnh sửa
@@ -908,6 +906,29 @@ const OrderDetailPage = () => {
     fetchOrder();
   }, [orderId]);
   console.log('order', order);
+
+  //hủy đơn hàng
+  const handleCancelOrder = () => {
+    Modal.confirm({
+      title: 'Xác nhận hủy đơn hàng',
+      content: 'Bạn có chắc chắn muốn hủy đơn hàng này không?',
+      okText: 'Hủy đơn',
+      cancelText: 'Không',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          // Gửi yêu cầu hủy đơn hàng lên server
+          await axios.put(`http://localhost:8080/api/client/order/cancel/${updateOrder.id}`);
+
+          message.success('Đơn hàng đã được hủy thành công!');
+          // TODO: bạn có thể redirect, reload hoặc update UI tùy theo luồng app
+        } catch (error) {
+          console.error('Lỗi khi hủy đơn hàng:', error);
+          message.error('Không thể hủy đơn hàng. Vui lòng thử lại!');
+        }
+      },
+    });
+  };
 
   useEffect(() => {
     //lấy hình ảnh sản phẩm tự động khi updateOrder thay đổi
@@ -958,6 +979,7 @@ const OrderDetailPage = () => {
     };
   }, [updateOrder]);
 
+  
   useEffect(() => {
     if (!order || !updateOrder) return;
 
@@ -1021,13 +1043,50 @@ const OrderDetailPage = () => {
 
   const handleQuantityChange = (productDetailId, newQuantity) => {
     try {
+      if (newQuantity === 0) {
+        // Kiểm tra nếu chỉ còn 1 sản phẩm
+        if (updateOrder.products.length === 1) {
+          message.warning('Phải có ít nhất 1 sản phẩm trong hóa đơn.');
+          return;
+        }
+
+        Modal.confirm({
+          title: 'Xác nhận xóa sản phẩm',
+          content: 'Bạn có chắc chắn muốn xóa sản phẩm này khỏi hóa đơn?',
+          okText: 'Xóa',
+          cancelText: 'Hủy',
+          okType: 'danger',
+          onOk: () => {
+            // Xóa sản phẩm và cập nhật state
+            const filteredProducts = updateOrder.products.filter(
+              (item) => item.id !== productDetailId,
+            );
+            const newTotal = filteredProducts.reduce(
+              (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
+              0,
+            );
+
+            setUpdateOrder((prev) => ({
+              ...prev,
+              products: filteredProducts,
+              tongTien: newTotal,
+              tongThanhToan:
+                newTotal + prev.phiVanChuyen - getDiscountValue(prev.voucher, newTotal),
+            }));
+
+            message.success('Đã xóa sản phẩm khỏi hóa đơn!');
+          },
+        });
+
+        return; // Dừng ở đây, không tiếp tục xử lý phía dưới
+      }
+
+      // Nếu số lượng > 0 thì cập nhật như thường
       setUpdateOrder((prev) => {
-        // Cập nhật sản phẩm trong danh sách hiện tại
         const updatedProducts = prev.products.map((item) =>
           item.id === productDetailId ? { ...item, soLuongMua: newQuantity } : item,
         );
 
-        // Tính lại tổng tiền
         const newTotal = updatedProducts.reduce(
           (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
           0,
@@ -1037,7 +1096,7 @@ const OrderDetailPage = () => {
           ...prev,
           products: updatedProducts,
           tongTien: newTotal,
-          tongThanhToan: newTotal + prev.phiVanChuyen- getDiscountValue(prev.voucher, newTotal),
+          tongThanhToan: newTotal + prev.phiVanChuyen - getDiscountValue(prev.voucher, newTotal),
         };
       });
 
@@ -1050,14 +1109,21 @@ const OrderDetailPage = () => {
 
   const handleEditAddress = () => {
     setIsAddressList(true);
-    setSelectedAddress(order.diaChi); // Set the selected address to the current address
-    console.log('ID khách hàng', order.idKhachHang);
-    console.log('Thông tin đơn hàng', order);
-    fetchAddresses(order.idKhachHang); // Fetch addresses when modal opens
+    setSelectedAddress(updateOrder.diaChi); // Set the selected address to the current address
+    console.log('ID khách hàng', updateOrder.idKhachHang);
+    console.log('Thông tin đơn hàng', updateOrder);
+    fetchAddresses(updateOrder.idKhachHang); // Fetch addresses when modal opens
   };
 
   const getFormattedAddress = (address) => {
     return `${address.diaChiCuThe}, ${address.xa}, ${address.huyen}, ${address.tinh}`;
+  };
+  const isSameAddress = (aStr, bStr) => {
+    const a = parseAddress(aStr);
+    const b = parseAddress(bStr);
+    return (
+      a.diaChiCuThe === b.diaChiCuThe && a.xa === b.xa && a.huyen === b.huyen && a.tinh === b.tinh
+    );
   };
 
   const handleConfirm = async () => {
@@ -1165,7 +1231,7 @@ const OrderDetailPage = () => {
           thuongHieu: product.thuongHieu?.tenThuongHieu,
           moTa: product.moTa,
           ngayTao: product.ngayTao,
-          trangThai: product.trangThai,
+          trangThai: product.trangThai? 1:2,//format lại trang thái
         };
 
         updatedProducts = [...prev.products, simplifiedProduct];
@@ -1196,7 +1262,7 @@ const OrderDetailPage = () => {
     }
     return sum;
   }, 0);
-  
+
   const chenhLech = totalPayMent - totalPaid;
   //Tách danh sách các payment không phải COD
   const nonCODPayments = order.payments?.filter(
@@ -1205,20 +1271,28 @@ const OrderDetailPage = () => {
   //Kiểm tra nếu tất cả đều là COD
   const allCOD = order.payments?.length > 0 && nonCODPayments?.length === 0;
 
-
-  const handleConfirmUpdateOrder = async () => {
-    try {
-      // Gửi dữ liệu updateOrder về server
-      await axios.put(`http://localhost:8080/api/client/order/updatehoadoncho/${updateOrder.id}`, updateOrder);
-  
-      message.success('Cập nhật đơn hàng thành công!');
-      setHasChanges(false); // Ẩn nút sau khi cập nhật thành công
-    } catch (error) {
-      console.error(error);
-      message.error('Lỗi khi cập nhật đơn hàng!');
-    }
+  const handleConfirmUpdateOrder = () => {
+    Modal.confirm({
+      title: 'Xác nhận cập nhật đơn hàng',
+      content: 'Bạn có chắc chắn muốn cập nhật đơn hàng này không?',
+      okText: 'Xác nhận',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await axios.put(
+            `http://localhost:8080/api/client/order/updatehoadoncho/${updateOrder.id}`,
+            updateOrder,
+          );
+          message.success('Cập nhật đơn hàng thành công!');
+          setHasChanges(false); // Ẩn nút sau khi cập nhật thành công
+        } catch (error) {
+          console.error(error);
+          message.error('Lỗi khi cập nhật đơn hàng!');
+        }
+      },
+    });
   };
-
+  const isEditable = ![3, 4, 5].includes(updateOrder.trangThai); // 3: Đang giao, 4: Hoàn thành, 5: Đã hủy
 
   return (
     <Layout
@@ -1256,13 +1330,20 @@ const OrderDetailPage = () => {
               <Step key={index} title={label} />
             ))}
           </Steps>
-          <Row style={{ marginTop: 16 }} justify="end" align="middle">
-            <Col>
-              <Button type="default" danger style={{ borderColor: 'red', color: 'red' }}>
-                Hủy đơn hàng
-              </Button>
-            </Col>
-          </Row>
+          {isEditable && (
+            <Row style={{ marginTop: 16 }} justify="end" align="middle">
+              <Col>
+                <Button
+                  type="default"
+                  danger
+                  style={{ borderColor: 'red', color: 'red' }}
+                  onClick={handleCancelOrder}
+                >
+                  Hủy đơn hàng
+                </Button>
+              </Col>
+            </Row>
+          )}
         </Card>
         <Card style={{ marginTop: 16, border: '1px solid #d9d9d9', borderRadius: 8 }}>
           <Title level={5}>Địa Chỉ Nhận Hàng</Title>
@@ -1275,12 +1356,14 @@ const OrderDetailPage = () => {
           <Text>
             Địa chỉ: {address.diaChiCuThe}, {formatWardName(address.xa, address.huyen)},{' '}
             {formatDistrictName(address.huyen)}, {formatProvinceName(address.tinh)}
+            {isEditable && (
             <a
               onClick={handleEditAddress} // hàm xử lý khi nhấn "Sửa"
               style={{ marginLeft: 8, color: '#1677ff', cursor: 'pointer' }}
             >
               Sửa
             </a>
+            )}
           </Text>
         </Card>
 
@@ -1292,9 +1375,11 @@ const OrderDetailPage = () => {
               <br />
             </Col>
             <Col>
-              <Button type="primary" onClick={handleOpenModalSanPham}>
-                + Thêm sản phẩm
-              </Button>
+              {isEditable && (
+                <Button type="primary" onClick={handleOpenModalSanPham}>
+                  + Thêm sản phẩm
+                </Button>
+              )}
             </Col>
           </Row>
           {updateOrder?.products?.map((item, idx) => {
@@ -1320,29 +1405,31 @@ const OrderDetailPage = () => {
                       Màu: {item.mauSac}, Kích thước: {item.kichThuoc}, Chất liệu: {item.chatLieu}
                     </Text>
                     <br />
-                    <Row align="middle" gutter={8}>
-                      <Col>
-                        <Button
-                          size="small"
-                          onClick={() => handleQuantityChange(item.id, item.soLuongMua - 1)}
-                          disabled={item.soLuongMua <= 1}
-                        >
-                          -
-                        </Button>
-                      </Col>
-                      <Col>
-                        <Text>{item.soLuongMua}</Text>
-                      </Col>
-                      <Col>
-                        <Button
-                          size="small"
-                          onClick={() => handleQuantityChange(item.id, item.soLuongMua + 1)}
-                          disabled={currentPrices[item.id] > item.giaTaiThoiDiemThem}
-                        >
-                          +
-                        </Button>
-                      </Col>
-                    </Row>
+                    {isEditable && (
+                      <Row align="middle" gutter={8}>
+                        <Col>
+                          <Button
+                            size="small"
+                            onClick={() => handleQuantityChange(item.id, item.soLuongMua - 1)}
+                            disabled={updateOrder.products.length === 1 && item.soLuongMua === 1}
+                          >
+                            -
+                          </Button>
+                        </Col>
+                        <Col>
+                          <Text>{item.soLuongMua}</Text>
+                        </Col>
+                        <Col>
+                          <Button
+                            size="small"
+                            onClick={() => handleQuantityChange(item.id, item.soLuongMua + 1)}
+                            disabled={currentPrices[item.id] > item.giaTaiThoiDiemThem}
+                          >
+                            +
+                          </Button>
+                        </Col>
+                      </Row>
+                    )}
 
                     <br />
                     <Text style={{ color: 'red', fontWeight: 500 }}>
@@ -1482,7 +1569,7 @@ const OrderDetailPage = () => {
             </Card>
           ))
         ) : (
-          <Text type="secondary">Chưa có thông tin thanh toán hợp lệ (trừ COD)</Text>
+          <Text type="secondary"></Text>
         )}
 
         {/* Hiện tổng thanh toán & chênh lệch nếu KHÔNG phải tất cả đều là COD */}
@@ -1508,7 +1595,7 @@ const OrderDetailPage = () => {
 
             <Row justify="space-between" style={{ marginTop: 12 }}>
               <Col>
-                <Text strong>Chênh lệch</Text>
+                <Text strong>Số tiền chêng lệch</Text>
               </Col>
               <Col>
                 {chenhLech > 0 ? (
@@ -1522,15 +1609,22 @@ const OrderDetailPage = () => {
                 )}
               </Col>
             </Row>
+
+            {/* Dòng mô tả */}
+            <Row style={{ marginTop: 8 }}>
+              <Col span={24}>
+                <Text type="secondary" italic>
+                  {chenhLech > 0
+                    ? 'Khách hàng cần thanh toán số tiền còn thiếu khi nhận hàng.'
+                    : 'Cửa hàng sẽ liên hệ hoàn tiền cho quý khách trong vòng 2-3 ngày làm việc.'}
+                </Text>
+              </Col>
+            </Row>
           </Card>
         )}
         {hasChanges && (
           <div style={{ marginTop: 16, textAlign: 'right' }}>
-            <Button
-              type="primary"
-              size="large"
-              onClick={handleConfirmUpdateOrder}
-            >
+            <Button type="primary" size="large" onClick={handleConfirmUpdateOrder}>
               Xác nhận cập nhật đơn hàng
             </Button>
           </div>
@@ -1547,8 +1641,11 @@ const OrderDetailPage = () => {
         {addressList.length > 0 ? (
           <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
             {addressList.map((address) => {
-              const isSelected = getFormattedAddress(address) === selectedAddress;
+              const isSelected = isSameAddress(getFormattedAddress(address), selectedAddress);
 
+              console.log('isSelected', isSelected);
+              console.log('addressok', getFormattedAddress(address));
+              console.log('selectedAddressok', selectedAddress);
               return (
                 <Card
                   key={address.id}

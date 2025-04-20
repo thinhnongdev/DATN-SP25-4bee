@@ -82,6 +82,10 @@ const Cart = () => {
 
     fetchProduct();
   }, []);
+
+
+
+  
   const getEmailFromToken = () => {
     const token = localStorage.getItem('token'); // Hoặc lấy từ cookie nếu bạn lưu ở đó
     if (!token) return null;
@@ -250,7 +254,8 @@ const Cart = () => {
             style={{ width: '80px', height: '80px', objectFit: 'cover' }}
           />
           <div>
-            <Text strong>{record.sanPham.tenSanPham}</Text>
+            <Text strong>{record.sanPham.tenSanPham}</Text><br/>
+            <Text >{record.maSanPhamChiTiet}</Text>
           </div>
         </Space>
       ),

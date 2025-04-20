@@ -13,6 +13,8 @@ import {
   Button,
   Image,
   Badge,
+  message,
+  Modal,
 } from 'antd';
 import Sidebar from './SidebarProfile';
 import axios from 'axios';
@@ -59,6 +61,28 @@ const OrderPage = () => {
       return null;
     }
   };
+  const handleCancelOrder = (idHoaDon) => {
+    Modal.confirm({
+      title: 'Xác nhận hủy đơn hàng',
+      content: 'Bạn có chắc chắn muốn hủy đơn hàng này không?',
+      okText: 'Hủy đơn',
+      cancelText: 'Không',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          // Gửi yêu cầu hủy đơn hàng lên server
+          await axios.put(`http://localhost:8080/api/client/order/cancel/${idHoaDon}`);
+
+          message.success('Đơn hàng đã được hủy thành công!');
+          // TODO: bạn có thể redirect, reload hoặc update UI tùy theo luồng app
+        } catch (error) {
+          console.error('Lỗi khi hủy đơn hàng:', error);
+          message.error('Không thể hủy đơn hàng. Vui lòng thử lại!');
+        }
+      },
+    });
+  };
+
   // Gọi API khi component mount
   useEffect(() => {
     const email = getEmailFromToken();
@@ -88,10 +112,24 @@ const OrderPage = () => {
                 }),
               );
 
+              //Gọi thêm API phiếu giảm giá
+              let voucher = null;
+              if (order.idPhieuGiamGia) {
+                try {
+                  const voucherRes = await axios.get(
+                    `http://localhost:8080/api/client/phieugiamgia/findPhieuGiamGia/${order.idPhieuGiamGia}`,
+                  );
+                  voucher = voucherRes.data;
+                } catch (voucherErr) {
+                  console.warn(`Không tìm thấy phiếu giảm giá cho order ${order.id}`);
+                }
+              }
+
               return {
                 ...order,
                 payments: paymentRes.data || [],
                 products: productsWithImages,
+                voucher, // gắn phiếu giảm giá vào order
               };
             } catch (err) {
               console.error(`Error enriching order ${order.id}:`, err);
@@ -99,6 +137,7 @@ const OrderPage = () => {
                 ...order,
                 payments: [],
                 products: [],
+                voucher: null,
               };
             }
           }),
@@ -117,14 +156,26 @@ const OrderPage = () => {
     return orders.filter((order) => order.trangThai === status).length;
   };
 
+  const getDiscountValue = (voucher, totalAmount) => {
+    
+    if (!voucher) return 0; // Nếu không có voucher, không giảm giá
+
+    if (voucher.loaiPhieuGiamGia === 1) {
+      // Giảm theo %
+      const discount = (parseFloat(voucher.giaTriGiam) / 100) * totalAmount;
+      return Math.min(discount, voucher.soTienGiamToiDa); // Không vượt quá mức tối đa
+    }
+    // Giảm giá cố định (VND)
+    return voucher.giaTriGiam || 0;
+  };
+
   const renderOrdersByStatus = (status) => {
     return orders
       .filter((order) => order.trangThai === status) // Lọc đơn hàng theo trạng thái
       .map((order) => {
         const payment = order.payments?.[0];
-        const tongTienThanhToan = payment?.tongTien || 0;
-        const phuongThuc = payment?.phuongThucThanhToan?.tenPhuongThucThanhToan || '---';
-        const trangThaiThanhToan = payment?.trangThai;
+        const discountValue = getDiscountValue(order.voucher, order.tongTien);
+        const tongTienThanhToan = order.tongTien - discountValue + order.phiVanChuyen;
 
         return (
           <Card
@@ -152,13 +203,7 @@ const OrderPage = () => {
                   <BarcodeOutlined /> Mã HĐ: {order.maHoaDon}
                 </Tag>
               </div>
-              <div>
-                {trangThaiThanhToan === 3 ? (
-                  <Tag color="red">Chưa thanh toán</Tag>
-                ) : (
-                  <Tag color="green">Đã thanh toán</Tag>
-                )}
-              </div>
+              <div>{renderTrangThaiTag(order.trangThai)}</div>
             </div>
 
             {/* Danh sách sản phẩm */}
@@ -192,7 +237,7 @@ const OrderPage = () => {
 
                 <div style={{ textAlign: 'right', minWidth: 100 }}>
                   <div style={{ color: '#d4380d', fontWeight: 600, fontSize: 16 }}>
-                    {sp.gia.toLocaleString('vi-VN')} đ
+                    {sp.giaTaiThoiDiemThem.toLocaleString('vi-VN')} đ
                   </div>
                 </div>
               </div>
@@ -228,12 +273,16 @@ const OrderPage = () => {
                     Chi tiết đơn hàng
                   </Button>
 
-                  <Button
-                    danger
-                    //onClick={() => handleCancelOrder(order.id)}
-                  >
-                    Hủy đơn hàng
-                  </Button>
+                  {![3, 4, 5, 6].includes(order.trangThai) && (
+                    <Button
+                      type="default"
+                      danger
+                      style={{ borderColor: 'red', color: 'red' }}
+                      onClick={() => handleCancelOrder(order.id)}
+                    >
+                      Hủy đơn hàng
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -249,13 +298,15 @@ const OrderPage = () => {
       case 2:
         return <Tag color="blue">Đã xác nhận</Tag>;
       case 3:
-        return <Tag color="processing">Đang giao</Tag>;
+        return <Tag color="processing">Chờ giao hàng</Tag>;
       case 4:
-        return <Tag color="green">Hoàn thành</Tag>;
+        return <Tag color="green">Đang giao hàng</Tag>;
       case 5:
-        return <Tag color="red">Đã hủy</Tag>;
+        return <Tag color="purple">Hoàn thành</Tag>;
       case 6:
-        return <Tag color="purple">Đã hoàn hàng</Tag>;
+        return <Tag color="red">Đã hủy</Tag>;
+      case 7:
+        return <Tag color="purple">Đã hoàn thành</Tag>;
       default:
         return <Tag>Không rõ</Tag>;
     }

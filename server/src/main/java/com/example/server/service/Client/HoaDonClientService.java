@@ -135,6 +135,7 @@ public class HoaDonClientService {
 
                 if (changed) {
                     hoaDonChiTiet.setNgaySua(LocalDateTime.now());
+                    hoaDonChiTiet.setTrangThai(1);
                     hoaDonChiTietRepository.save(hoaDonChiTiet);
                     saveLichSuHoaDon(request, "Cập nhật sản phẩm", moTa.toString());
                 }
@@ -183,69 +184,46 @@ public class HoaDonClientService {
         HoaDon hoaDon = hoaDonRepository.findById(request.getId()).orElseThrow();
         List<ThanhToanHoaDon> thanhToans = thanhToanHoaDonRepository.findByHoaDonId(hoaDon.getId());
 
-        // Tổng tiền KH đã thanh toán, ngoại trừ COD
+        // Tổng tiền KH đã thanh toán (tính tất cả phương thức)
         BigDecimal tongDaThanhToan = thanhToans.stream()
-                .filter(tt -> !tt.getPhuongThucThanhToan().getMaPhuongThucThanhToan().equalsIgnoreCase("COD"))
                 .map(ThanhToanHoaDon::getSoTien)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Kiểm tra nếu chỉ có một thanh toán COD
-        boolean chiCoCOD = thanhToans.size() == 1 &&
-                thanhToans.get(0).getPhuongThucThanhToan().getMaPhuongThucThanhToan().equalsIgnoreCase("COD");
-
         BigDecimal chenhLech = request.getTongThanhToan().subtract(tongDaThanhToan);
 
-        if (chiCoCOD && chenhLech.compareTo(BigDecimal.ZERO) != 0) {
-            // Tạo bản ghi thanh toán mới tùy theo loại chênh lệch
-            createThanhToanChenhLech(hoaDon, request, chenhLech);
-
-            // Ghi vào lịch sử hóa đơn
-            createLichSuChenhLech(hoaDon, request, chenhLech);
+        // Nếu tổng đã thanh toán < tổng mới → tạo thêm COD
+        if (chenhLech.compareTo(BigDecimal.ZERO) > 0) {
+            createThanhToanCOD(hoaDon, chenhLech);
+            createLichSuPhuPhi(hoaDon, request, chenhLech);
         }
     }
 
-    private void createThanhToanChenhLech(HoaDon hoaDon, OrderUpdateRequest request, BigDecimal chenhLech) {
+    private void createThanhToanCOD(HoaDon hoaDon, BigDecimal soTienThem) {
         ThanhToanHoaDon thanhToan = new ThanhToanHoaDon();
-        thanhToan.setId(UUID.randomUUID().toString());
         thanhToan.setHoaDon(hoaDon);
-        thanhToan.setSoTien(chenhLech.abs()); // Luôn lưu số dương
-        thanhToan.setTrangThai(1);
+        thanhToan.setSoTien(soTienThem); // luôn là số dương
+        thanhToan.setTrangThai(2);
         thanhToan.setNgayTao(LocalDateTime.now());
         thanhToan.setNguoiTao("Khách hàng");
 
-        if (chenhLech.compareTo(BigDecimal.ZERO) > 0) {
-            // Phụ phí ➜ COD
-            thanhToan.setPhuongThucThanhToan(
-                    phuongThucThanhToanRepository.findByMaPhuongThucThanhToan("COD").orElseThrow()
-            );
-        } else {
-            // Hoàn tiền ➜ Chuyển khoản
-            thanhToan.setPhuongThucThanhToan(
-                    phuongThucThanhToanRepository.findByMaPhuongThucThanhToan("BANK").orElseThrow()
-            );
-        }
+        thanhToan.setPhuongThucThanhToan(
+                phuongThucThanhToanRepository.findByMaPhuongThucThanhToan("COD").orElseThrow()
+        );
 
         thanhToanHoaDonRepository.save(thanhToan);
     }
 
-    private void createLichSuChenhLech(HoaDon hoaDon, OrderUpdateRequest request, BigDecimal chenhLech) {
+    private void createLichSuPhuPhi(HoaDon hoaDon, OrderUpdateRequest request, BigDecimal soTienThem) {
         LichSuHoaDon lichSu = new LichSuHoaDon();
         lichSu.setId(UUID.randomUUID().toString());
         lichSu.setHoaDon(hoaDon);
         lichSu.setKhachHang(khachHangRepository.findById(request.getIdKhachHang()).orElse(null));
         lichSu.setNgayTao(LocalDateTime.now());
 
-        if (chenhLech.compareTo(BigDecimal.ZERO) > 0) {
-            lichSu.setHanhDong("Khách hàng thanh toán thêm phụ phí");
-            lichSu.setMoTa("Tổng thanh toán thay đổi từ " + hoaDon.getTongTien()
-                    + " → " + request.getTongThanhToan()
-                    + ". Tạo thanh toán COD mới: +" + chenhLech);
-        } else {
-            lichSu.setHanhDong("Hoàn tiền cho khách hàng");
-            lichSu.setMoTa("Tổng thanh toán thay đổi từ " + hoaDon.getTongTien()
-                    + " → " + request.getTongThanhToan()
-                    + ". Tạo thanh toán chuyển khoản hoàn phí: " + chenhLech);
-        }
+        lichSu.setHanhDong("Khách hàng thanh toán thêm phụ phí");
+        lichSu.setMoTa("Tổng thanh toán thay đổi từ " + hoaDon.getTongTien()
+                + " → " + request.getTongThanhToan()
+                + ". Tạo thanh toán COD mới: +" + soTienThem);
 
         lichSuHoaDonRepository.save(lichSu);
     }
@@ -279,11 +257,8 @@ public class HoaDonClientService {
         lichSuHoaDon.setMoTa("Khách hàng thanh toán đơn hàng #" + thongTinGiaoHangClientRequest.getMaHoaDon());
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
-
         return hoaDon1;
-    }
-
-    ;
+    };
 
     public HoaDon createCartKhachHangDangNhap(String email) {
         Optional<HoaDon> hoaDonPending = hoaDonRepository.findHoaDonPending(email);
