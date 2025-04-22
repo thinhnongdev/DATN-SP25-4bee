@@ -52,6 +52,8 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
   const [productList, setProductList] = useState(products);
   const [selectedProducts, setSelectedProducts] = useState([]); // Thêm state cho việc chọn nhiều sản phẩm
   const token = localStorage.getItem("token");
+  
+  const [productQuantities, setProductQuantities] = useState({});
   //xử lý phân trang, thay đổi STT dòng bắt đầu khi chuyển trang
   const handleTableChange = (pagination) => {
     setPagination(pagination);
@@ -364,18 +366,27 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
 
   const handleQuantityChange = (productDetailId, value) => {
     const newQuantity = Math.max(1, parseInt(value) || 1);
-    setTempQuantities((prev) => ({ ...prev, [productDetailId]: newQuantity }));
+    setProductQuantities((prev) => ({ ...prev, [productDetailId]: newQuantity }));
   };
   useEffect(() => {
     setProductList(products);
   }, [products]);
+
   const handleAddProduct = (productDetail) => {
     if (productDetail) {
       try {
-        const quantity = tempQuantities[productDetail.id] || 1;
+        const quantity = productQuantities[productDetail.id] || 1;
+        
+        // Kiểm tra số lượng có vượt quá tồn kho không
+        if (quantity > productDetail.soLuong) {
+          message.error(`Chỉ còn ${productDetail.soLuong} sản phẩm trong kho!`);
+          return;
+        }
+        
+        // Gọi callback với sản phẩm và số lượng
         onAddProduct(productDetail, quantity);
 
-        // Cập nhật ngay số lượng tồn kho
+        // Cập nhật UI ngay lập tức
         setProductList((prevProducts) =>
           prevProducts.map((p) =>
             p.id === productDetail.id
@@ -384,7 +395,8 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
           )
         );
 
-        setTempQuantities((prev) => ({ ...prev, [productDetail.id]: 1 }));
+        // Reset về số lượng mặc định là 1
+        setProductQuantities((prev) => ({ ...prev, [productDetail.id]: 1 }));
       } catch (error) {
         console.error("Error in handleAddProduct:", error);
         message.error("Lỗi khi thêm sản phẩm");
@@ -403,39 +415,59 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     }
 
     try {
-      // Gửi tất cả sản phẩm đã chọn lên `onAddProduct`
-      // selectedProducts.forEach((product) => {
-      //   const quantity = tempQuantities[product.id] || 1;
-      //   onAddProduct(product, quantity);
-      // });
+      // Chuẩn bị danh sách sản phẩm với số lượng đã chọn
+      const productsWithQuantities = selectedProducts.map(product => {
+        const quantity = productQuantities[product.id] || 1;
+        
+        // Kiểm tra số lượng có vượt quá tồn kho không
+        if (quantity > product.soLuong) {
+          message.error(`Sản phẩm ${product.tenSanPham} chỉ còn ${product.soLuong} trong kho!`);
+          throw new Error("Số lượng vượt quá tồn kho");
+        }
+        
+        return {
+          ...product, 
+          soLuongThem: quantity
+        };
+      });
+      
+      // Gọi callback với danh sách sản phẩm và số lượng
       if (onAddMultipleProducts) {
-        onAddMultipleProducts(selectedProducts);
+        onAddMultipleProducts(productsWithQuantities);
       } else {
-        // Fallback nếu không có prop onAddMultipleProducts
-        selectedProducts.forEach((product) => {
-          const quantity = tempQuantities[product.id] || 1;
-          onAddProduct(product, quantity);
+        // Fallback nếu không có callback onAddMultipleProducts
+        productsWithQuantities.forEach((product) => {
+          onAddProduct(product, product.soLuongThem);
         });
       }
-      // Cập nhật danh sách sản phẩm ngay lập tức
+
+      // Cập nhật UI ngay lập tức
       setProductList((prevProducts) =>
         prevProducts.map((p) => {
-          const selectedProduct = selectedProducts.find((sp) => sp.id === p.id);
-          return selectedProduct
-            ? {
-                ...p,
-                soLuong: Math.max(0, p.soLuong - (tempQuantities[p.id] || 1)),
-              }
-            : p;
+          const selectedProduct = productsWithQuantities.find((sp) => sp.id === p.id);
+          if (!selectedProduct) return p;
+          
+          return {
+            ...p,
+            soLuong: Math.max(0, p.soLuong - selectedProduct.soLuongThem),
+          };
         })
       );
 
       // Reset danh sách sản phẩm đã chọn và số lượng
       setSelectedProducts([]);
-      setTempQuantities({});
-
+      
+      // Hiển thị thông báo thành công
+      message.success(`Đã thêm ${productsWithQuantities.length} sản phẩm vào đơn hàng!`);
+      
+      // Đóng modal nếu cần
+      if (onClose) onClose();
+      
     } catch (error) {
-      console.error("Error in handleAddSelectedProducts:", error);
+      if (error.message !== "Số lượng vượt quá tồn kho") {
+        console.error("Error in handleAddSelectedProducts:", error);
+        message.error("Lỗi khi thêm sản phẩm: " + error.message);
+      }
     }
   };
 
@@ -546,10 +578,18 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     },
     {
       title: "Số lượng",
-      key: "soLuong",
+      key: "soLuongThem",
       align: "center",
       render: (_, record) => (
-        <Text>1</Text>  // Chỉ hiển thị số 1, không cho phép điều chỉnh
+        <InputNumber
+          min={1}
+          max={record.soLuong}
+          defaultValue={1}
+          value={productQuantities[record.id] || 1}
+          onChange={(value) => handleQuantityChange(record.id, value)}
+          style={{ width: 80 }}
+          disabled={record.soLuong <= 0}
+        />
       ),
     },
   ];
@@ -974,9 +1014,11 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
 ProductTable.defaultProps = {
   products: [],
   onAddProduct: () => {},
+  onAddMultipleProducts: () => {},
   open: false,
   onClose: () => {},
 };
+
 
 ProductTable.propTypes = {
   products: PropTypes.array,

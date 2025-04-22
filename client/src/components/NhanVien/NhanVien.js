@@ -11,15 +11,14 @@ import {
 } from "antd";
 import {
   PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  EyeOutlined,
   FileExcelOutlined,
+  FilterOutlined,
 } from "@ant-design/icons";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { getAllApi } from "./NhanVienApi";
+import { TbEyeEdit } from "react-icons/tb";
 import { toast } from "react-toastify";
 
 const { Option } = Select;
@@ -47,10 +46,10 @@ const NhanVien = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
       });
   }
 
-  const filteredNhanVien = nhanvien.filter((item) => {
-    const matchesSearch = item.tenNhanVien
+  const filteredNhanVien = (nhanvien || []).filter((item) => {
+    const matchesSearch = (item.tenNhanVien || "")
       .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+      .includes((searchTerm || "").toLowerCase());
     const matchesGender =
       genderFilter === "all" ||
       (genderFilter === "male" && item.gioiTinh) ||
@@ -59,7 +58,7 @@ const NhanVien = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
       statusFilter === "all" ||
       (statusFilter === "active" && item.trangThai) ||
       (statusFilter === "inactive" && !item.trangThai);
-
+  
     return matchesSearch && matchesGender && matchesStatus;
   });
 
@@ -151,22 +150,10 @@ const NhanVien = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
       title: "Thao tác",
       render: (_, record) => (
         <>
-          <Tooltip title="Xem">
-            <Button
-              icon={<EyeOutlined />}
-              onClick={() => onViewClick(record.id)}
-            />
-          </Tooltip>
           <Tooltip title="Chỉnh sửa">
             <Button
-              icon={<EditOutlined />}
+              icon={<TbEyeEdit />}
               onClick={() => onEditClick(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Xóa">
-            <Button
-              icon={<DeleteOutlined />}
-              onClick={() => onDeleteClick(record.id)}
             />
           </Tooltip>
         </>
@@ -176,23 +163,39 @@ const NhanVien = ({ onAddClick, onDeleteClick, onEditClick, onViewClick }) => {
 
   return (
     <div style={{ maxWidth: "2000px", margin: "0 auto", padding: "20px" }}>
-      <h4 style={{ textAlign: "center" }}>Danh sách nhân viên</h4>
-
+      {/* Phần bộ lọc */}
+      <h1 style={{ position: "relative", left: 0, textAlign: "left" }}>
+        Danh sách nhân viên
+      </h1>
       <div
         style={{
-          background: "#f9f9f9",
+          background: "#fff",
           padding: "15px",
           borderRadius: "8px",
           marginBottom: "20px",
         }}
       >
-        <h5 style={{ marginBottom: "10px" }}>Bộ lọc</h5>
+        <h5
+          style={{
+            marginBottom: "15px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <FilterOutlined
+            style={{ marginRight: "8px", fontSize: "18px", color: "black" }}
+          />
+          Bộ lọc
+        </h5>
         <div
           style={{
             display: "flex",
             flexWrap: "wrap",
             gap: 10,
-            justifyContent: "center",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "15px",
           }}
         >
           <Input

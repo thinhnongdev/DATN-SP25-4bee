@@ -34,6 +34,8 @@ public interface IHoaDonService {
 
     byte[] generateInvoicePDF(String id);
 
+    byte[] generateDeliveryInvoicePDF(String id);
+
     Map<String, Long> getInvoiceCounts(HoaDonSearchCriteria criteria);
 
     HoaDon validateAndGet(String id);

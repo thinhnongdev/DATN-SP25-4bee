@@ -4,6 +4,9 @@ package com.example.server.service.NhanVien_KhachHang;
 
 import com.example.server.entity.NhanVien;
 import com.example.server.repository.NhanVien_KhachHang.NhanVienRepository;
+import com.google.zxing.*;
+import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
+import com.google.zxing.common.HybridBinarizer;
 import jakarta.mail.internet.MimeMessage;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
@@ -13,6 +16,10 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -43,6 +50,10 @@ public class NhanVienService {
         nv.setEmail(nhanVien.getEmail());
         nv.setAnh(nhanVien.getAnh());
         nv.setCanCuocCongDan(nhanVien.getCanCuocCongDan());
+        nv.setTinh(nhanVien.getTinh());
+        nv.setHuyen(nhanVien.getHuyen());
+        nv.setXa(nhanVien.getXa());
+        nv.setDiaChiCuThe(nhanVien.getDiaChiCuThe());
 
         NhanVien savedNhanVien = nhanVienRepository.save(nv);
 
@@ -145,6 +156,10 @@ public class NhanVienService {
             existingNhanVien.setEmail(updatedNhanVien.getEmail());
             existingNhanVien.setSoDienThoai(updatedNhanVien.getSoDienThoai());
             existingNhanVien.setCanCuocCongDan(updatedNhanVien.getCanCuocCongDan());
+            existingNhanVien.setTinh(updatedNhanVien.getTinh());
+            existingNhanVien.setHuyen(updatedNhanVien.getHuyen());
+            existingNhanVien.setXa(updatedNhanVien.getXa());
+            existingNhanVien.setDiaChiCuThe(updatedNhanVien.getDiaChiCuThe());
             return nhanVienRepository.save(existingNhanVien);
         }
         return null;
@@ -159,27 +174,34 @@ public class NhanVienService {
             throw new IllegalArgumentException("Không tìm thấy nhân viên");
         }
     }
+    public String decodeQRCode(File qrCodeImage) throws IOException, NotFoundException {
+        BufferedImage bufferedImage = ImageIO.read(qrCodeImage);
+        LuminanceSource source = new BufferedImageLuminanceSource(bufferedImage);
+        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
 
-    public NhanVien getNhanVienByQRCode(String qrData) {
-        if (qrData == null || qrData.isEmpty()) {
-            throw new IllegalArgumentException("Dữ liệu QR không hợp lệ!");
-        }
-
-        // Tách số CCCD từ chuỗi QR
-        String canCuocCongDan = extractCCCD(qrData);
-
-        // Tìm nhân viên theo số CCCD
-        Optional<NhanVien> nhanVien = nhanVienRepository.findBySoCCCD(canCuocCongDan);
-        return nhanVien.orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên với CCCD: " + canCuocCongDan));
+        Result result = new MultiFormatReader().decode(bitmap);
+        return result.getText();
     }
-
-    private String extractCCCD(String qrData) {
-        String[] parts = qrData.split("\\|");
-        if (parts.length < 5) {
-            throw new IllegalArgumentException("Dữ liệu QR không đúng định dạng!");
-        }
-        return parts[4]; // Lấy số CCCD từ chuỗi QR
-    }
+//    public NhanVien getNhanVienByQRCode(File qrImage) throws IOException {
+//        try {
+//            String qrData = decodeQRCode(qrImage);
+//            System.out.println("Dữ liệu QR: " + qrData);
+//
+//            // Tìm nhân viên theo số CCCD từ dữ liệu QR
+//            Optional<NhanVien> nhanVienOpt = nhanVienRepository.findByCanCuocCongDan(qrData);
+//
+//            return nhanVienOpt.orElseThrow(() -> new RuntimeException("Không tìm thấy nhân viên!"));
+//        } catch (NotFoundException e) {
+//            throw new RuntimeException("Không thể đọc mã QR!");
+//        }
+//    }
+//    private String extractCCCD(String qrData) {
+//        String[] parts = qrData.split("\\|");
+//        if (parts.length < 5) {
+//            throw new IllegalArgumentException("Dữ liệu QR không đúng định dạng!");
+//        }
+//        return parts[4]; // Lấy số CCCD từ chuỗi QR
+//    }
 
 
 }

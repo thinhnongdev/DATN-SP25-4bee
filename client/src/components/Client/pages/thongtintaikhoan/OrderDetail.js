@@ -24,13 +24,14 @@ import {
   Tag,
   Slider,
   InputNumber,
+  Timeline,
 } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, ClockCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import Sidebar from './SidebarProfile';
 import { Option } from 'antd/es/mentions';
-import { TbEyeEdit } from 'react-icons/tb';
-import moment from 'moment/moment';
 import { isEqual } from 'lodash'; // Cài bằng: npm install lodash
+import Paragraph from 'antd/es/skeleton/Paragraph';
+import moment from 'moment/moment';
 
 const { Title, Text } = Typography;
 const { Step } = Steps;
@@ -86,13 +87,22 @@ const OrderDetailPage = () => {
   const [isAddressList, setIsAddressList] = useState(false);
   const [addressList, setAddressList] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [shippingFee, setShippingFee] = useState(null);
   const [userInfo, setUserInfo] = useState(null);
   const [updateOrder, setUpdateOrder] = useState({ products: [], tongTien: 0 });
   const [currentPrices, setCurrentPrices] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
-
+  const [history, setHistory] = useState([]);
+  const [showFullTimeline, setShowFullTimeline] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [selectedReason, setSelectedReason] = useState('');
+  const cancelReasons = [
+    'Tôi muốn thay đổi địa chỉ giao hàng',
+    'Tôi tìm thấy sản phẩm khác tốt hơn',
+    'Thời gian giao hàng quá lâu',
+    'Tôi đặt nhầm đơn hàng',
+    'Lý do khác',
+  ];
   const token = localStorage.getItem('token');
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -123,49 +133,6 @@ const OrderDetailPage = () => {
     };
     fetchImages();
   }, []);
-
-  //   try {
-  //     const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham/${id}`, {
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-  //     const data = await response.json();
-  //     setSanPhamChiTiet(data);
-  //     if (data.length > 0) {
-  //       const maxGia = Math.max(...data.map((p) => p.gia));
-  //       setMaxPrice(maxGia); // Cập nhật maxPrice
-  //       setPriceRange([0, maxGia]); // Cập nhật khoảng giá mặc định
-  //     }
-  //     if (data.length === 0) {
-  //       setMaxPrice(0); // Cập nhật maxPrice
-  //       setPriceRange([0, 0]); // Cập nhật khoảng giá mặc định
-  //     }
-  //     console.log('Dữ liệu spct', data);
-  //   } catch (error) {
-  //     console.log('Lỗi get sản phẩm chi tiết', error.message);
-  //   }
-  // };
-  // useEffect(() => {
-  //   fetchChiTietSanPham();
-  // }, [id]);
-  // const fetchTenSanPham = async () => {
-  //   try {
-  //     const response = await fetch(`http://localhost:8080/api/admin/sanpham/${id}`, {
-  //       headers: {
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //     });
-  //     const data = await response.json();
-  //     setTenSanPham(data.tenSanPham);
-  //   } catch (error) {
-  //     console.log('Lỗi get tên sản phẩm', error.message);
-  //   }
-  // };
-  // useEffect(() => {
-  //   fetchTenSanPham();
-  //   fetchChiTietSanPham();
-  // }, [id]);
 
   // Gọi API để lấy danh sách chất liệu
   useEffect(() => {
@@ -723,8 +690,15 @@ const OrderDetailPage = () => {
       title: 'Trạng Thái',
       dataIndex: 'trangThai',
       key: 'trangThai',
-      render: (text, record) =>
-        record.trangThai ? (
+      render: (text, record) => {
+        if (record.soLuong === 0) {
+          return (
+            <Tag color="orange" style={{ fontSize: 14, padding: '4px 12px', borderRadius: '15px' }}>
+              Hết hàng
+            </Tag>
+          );
+        }
+        return record.trangThai ? (
           <Tag color="green" style={{ fontSize: 14, padding: '4px 12px', borderRadius: '15px' }}>
             Đang bán
           </Tag>
@@ -732,13 +706,18 @@ const OrderDetailPage = () => {
           <Tag color="red" style={{ fontSize: 14, padding: '4px 12px', borderRadius: '15px' }}>
             Ngừng bán
           </Tag>
-        ),
+        );
+      },
     },
 
     {
       title: 'Chức năng',
       render: (text, record) => (
-        <Button type="default" onClick={() => handleOpenModalQuantity(record)}>
+        <Button
+          type="default"
+          onClick={() => handleOpenModalQuantity(record)}
+          disabled={record.soLuong === 0}
+        >
           Chọn
         </Button>
       ),
@@ -842,12 +821,6 @@ const OrderDetailPage = () => {
         return prev;
       });
       console.log('địa chỉ mặc định', addresses);
-      // if (addresses.length > 0) {
-      //   const defaultAddress = addresses.find((addr) => addr.isDefault) || addresses[0];
-      //   console.log('địa chỉ mặc định kp', defaultAddress.huyen);
-      //   setSelectedAddress((prev) => (prev !== defaultAddress ? defaultAddress : prev));
-      //   setSelectedDistrict(defaultAddress.huyen);
-      // }
     } catch (error) {
       console.error('Lỗi khi tải địa chỉ:', error);
       message.error('Không thể tải địa chỉ. Vui lòng thử lại!');
@@ -855,13 +828,15 @@ const OrderDetailPage = () => {
   };
   const handleSelectAddress = (diaChiString) => {
     const selected = addressList.find((address) => getFormattedAddress(address) === diaChiString);
-
+    console.log('selected', selected);
+    console.log('diaChiString', diaChiString);
     if (selected && getFormattedAddress(selectedAddress) !== diaChiString) {
       setSelectedAddress(diaChiString);
+      console.log('selectedAddress', 'true');
     }
   };
 
-  console.log('selectedAddress', selectedAddress);
+  console.log('selectedAddress2131232', selectedAddress);
 
   const fetchProductImages = async (products) => {
     //lấy hình ảnh sản phẩm
@@ -898,6 +873,7 @@ const OrderDetailPage = () => {
       setOrder(fullOrder);
       setShippingFee(fullOrder.phiVanChuyen);
       setUpdateOrder(fullOrder); //thong tin order để chỉnh sửa
+      setSelectedAddress(fullOrder.diaChi);
     } catch (error) {
       console.error('Lỗi lấy chi tiết đơn hàng:', error);
     }
@@ -907,27 +883,52 @@ const OrderDetailPage = () => {
   }, [orderId]);
   console.log('order', order);
 
+  const fetchOrderHistory = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:8080/api/client/order/findLichSuHoaDon/${order.id}`,
+      );
+      setHistory(res.data || []);
+    } catch (err) {
+      console.error('Lỗi khi lấy lịch sử đơn hàng:', err);
+      message.error('Không thể tải lịch sử đơn hàng!');
+    }
+  };
+
+  useEffect(() => {
+    if (order?.id) {
+      fetchOrderHistory();
+    }
+  }, [order]);
+  console.log('history', history);
+  const displayedHistory = showFullTimeline ? history : history.slice(0, 3);
   //hủy đơn hàng
   const handleCancelOrder = () => {
-    Modal.confirm({
-      title: 'Xác nhận hủy đơn hàng',
-      content: 'Bạn có chắc chắn muốn hủy đơn hàng này không?',
-      okText: 'Hủy đơn',
-      cancelText: 'Không',
-      okType: 'danger',
-      onOk: async () => {
-        try {
-          // Gửi yêu cầu hủy đơn hàng lên server
-          await axios.put(`http://localhost:8080/api/client/order/cancel/${updateOrder.id}`);
+    setCancelModalVisible(true);
+  };
 
-          message.success('Đơn hàng đã được hủy thành công!');
-          // TODO: bạn có thể redirect, reload hoặc update UI tùy theo luồng app
-        } catch (error) {
-          console.error('Lỗi khi hủy đơn hàng:', error);
-          message.error('Không thể hủy đơn hàng. Vui lòng thử lại!');
-        }
-      },
-    });
+  const handleConfirmCancel = async () => {
+    if (!selectedReason) {
+      message.warning('Vui lòng chọn lý do hủy đơn hàng!');
+      return;
+    }
+
+    try {
+      await axios.delete(`http://localhost:8080/api/client/huydonchoxacnhan/${order.id}`, {
+        data: {
+          moTa: selectedReason,
+          idKhachHang: order?.idKhachHang,
+        },
+      });
+
+      message.success('Đơn hàng đã được hủy thành công!');
+      fetchOrder();
+      setCancelModalVisible(false);
+      setSelectedReason('');
+    } catch (error) {
+      console.error('Lỗi khi hủy đơn hàng:', error);
+      message.error('Không thể hủy đơn hàng. Vui lòng thử lại!');
+    }
   };
 
   useEffect(() => {
@@ -979,7 +980,6 @@ const OrderDetailPage = () => {
     };
   }, [updateOrder]);
 
-  
   useEffect(() => {
     if (!order || !updateOrder) return;
 
@@ -993,13 +993,17 @@ const OrderDetailPage = () => {
   }, [updateOrder, order]);
 
   const getDiscountValue = (voucher, totalAmount) => {
-    if (!voucher) return 0; // Nếu không có voucher, không giảm giá
+    if (!voucher) return 0; // Không có voucher
+
+    // Kiểm tra điều kiện giá trị đơn hàng tối thiểu
+    if (totalAmount < voucher.giaTriToiThieu) return 0;
 
     if (voucher.loaiPhieuGiamGia === 1) {
       // Giảm theo %
       const discount = (parseFloat(voucher.giaTriGiam) / 100) * totalAmount;
       return Math.min(discount, voucher.soTienGiamToiDa); // Không vượt quá mức tối đa
     }
+
     // Giảm giá cố định (VND)
     return voucher.giaTriGiam || 0;
   };
@@ -1041,10 +1045,9 @@ const OrderDetailPage = () => {
   const address = parseAddress(updateOrder.diaChi);
   console.log('currentStep', currentStep);
 
-  const handleQuantityChange = (productDetailId, newQuantity) => {
+  const handleQuantityChange = async (productDetailId, newQuantity) => {
     try {
       if (newQuantity === 0) {
-        // Kiểm tra nếu chỉ còn 1 sản phẩm
         if (updateOrder.products.length === 1) {
           message.warning('Phải có ít nhất 1 sản phẩm trong hóa đơn.');
           return;
@@ -1056,8 +1059,7 @@ const OrderDetailPage = () => {
           okText: 'Xóa',
           cancelText: 'Hủy',
           okType: 'danger',
-          onOk: () => {
-            // Xóa sản phẩm và cập nhật state
+          onOk: async () => {
             const filteredProducts = updateOrder.products.filter(
               (item) => item.id !== productDetailId,
             );
@@ -1066,39 +1068,47 @@ const OrderDetailPage = () => {
               0,
             );
 
+            const discount = getDiscountValue(updateOrder.voucher, newTotal);
+            const phiVanChuyen = await fetchShippingFee(newTotal - discount);
+
             setUpdateOrder((prev) => ({
               ...prev,
               products: filteredProducts,
               tongTien: newTotal,
-              tongThanhToan:
-                newTotal + prev.phiVanChuyen - getDiscountValue(prev.voucher, newTotal),
+              phiVanChuyen: phiVanChuyen,
+              tongThanhToan: newTotal + phiVanChuyen - discount,
             }));
 
-            message.success('Đã xóa sản phẩm khỏi hóa đơn!');
+            message.success('Đã xóa sản phẩm khỏi đơn hàng!');
           },
         });
 
-        return; // Dừng ở đây, không tiếp tục xử lý phía dưới
+        return;
       }
 
-      // Nếu số lượng > 0 thì cập nhật như thường
-      setUpdateOrder((prev) => {
-        const updatedProducts = prev.products.map((item) =>
-          item.id === productDetailId ? { ...item, soLuongMua: newQuantity } : item,
-        );
+      // Nếu số lượng > 0 thì cập nhật bình thường
+      const updatedProducts = updateOrder.products.map((item) =>
+        item.id === productDetailId ? { ...item, soLuongMua: newQuantity } : item,
+      );
 
-        const newTotal = updatedProducts.reduce(
-          (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
-          0,
-        );
+      const newTotal = updatedProducts.reduce(
+        (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
+        0,
+      );
 
-        return {
-          ...prev,
-          products: updatedProducts,
-          tongTien: newTotal,
-          tongThanhToan: newTotal + prev.phiVanChuyen - getDiscountValue(prev.voucher, newTotal),
-        };
-      });
+      const discount = getDiscountValue(updateOrder.voucher, newTotal);
+      let phiVanChuyen = await fetchShippingFee(newTotal - discount);
+      if (newTotal > 2000000) {
+        message.success('Đơn hàng trên 2 triệu được miễn phí vận chuyển');
+        phiVanChuyen = 0;
+      }
+      setUpdateOrder((prev) => ({
+        ...prev,
+        products: updatedProducts,
+        tongTien: newTotal,
+        phiVanChuyen: phiVanChuyen,
+        tongThanhToan: newTotal + phiVanChuyen - discount,
+      }));
 
       message.success('Đã cập nhật số lượng sản phẩm!');
     } catch (error) {
@@ -1132,7 +1142,10 @@ const OrderDetailPage = () => {
       return;
     }
     try {
-      const fee = await fetchShippingFee(); // Chờ lấy phí ship xong
+      let fee = await fetchShippingFee(totalPayMent); // Chờ lấy phí ship xong
+      if (totalPayMent > 2000000) {
+        fee = 0;
+      }
       setShippingFee(fee);
       Modal.confirm({
         title: 'Xác nhận thay đổi địa chỉ giao hàng?',
@@ -1149,7 +1162,9 @@ const OrderDetailPage = () => {
             </p>
             <p>
               <strong>Phí vận chuyển: </strong>
-              {fee.toLocaleString('vi-VN')}₫
+              <span style={{ color: fee === 0 ? '#52c41a' : 'inherit' }}>
+                {fee === 0 ? 'Miễn phí (Đơn từ 2 triệu)' : `${fee.toLocaleString('vi-VN')}₫`}
+              </span>
             </p>
           </div>
         ),
@@ -1169,7 +1184,7 @@ const OrderDetailPage = () => {
           }));
 
           setIsAddressList(false); // đóng danh sách địa chỉ
-          message.success('Đã lưu thay đổi vào bộ nhớ tạm');
+          message.success('Đã lưu thay đổi địa chỉ');
         },
       });
     } catch (err) {
@@ -1178,13 +1193,13 @@ const OrderDetailPage = () => {
   };
   console.log('thông tin đơn hàng update', updateOrder);
 
-  const fetchShippingFee = () => {
+  const fetchShippingFee = (tongTien) => {
     return axios
       .post(
         'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee',
         {
           service_type_id: 2,
-          insurance_value: Number(order.tongTien),
+          insurance_value: Number(tongTien),
           from_district_id: 3440, // Nam Từ Liêm
           to_district_id: Number(parseAddress(selectedAddress).huyen),
           weight: 1000,
@@ -1202,6 +1217,7 @@ const OrderDetailPage = () => {
       )
       .then((res) => res.data.data.total);
   };
+
   const handleAddProductToUpdateOrder = (product, quantity) => {
     setUpdateOrder((prev) => {
       const existingIndex = prev.products.findIndex(
@@ -1209,19 +1225,28 @@ const OrderDetailPage = () => {
       );
 
       let updatedProducts;
+      let currentQuantity = 0;
 
       if (existingIndex !== -1) {
-        // Đã có sản phẩm với cùng giá => cộng dồn số lượng
+        currentQuantity = prev.products[existingIndex].soLuongMua;
+      }
+
+      //Kiểm tra tổng số lượng mới có vượt quá tồn kho không
+      if (currentQuantity + quantity > product.soLuong) {
+        message.warning(`Vượt quá số lượng sản phẩm trong kho.`);
+        return { ...prev }; // Không thay đổi gì
+      }
+
+      if (existingIndex !== -1) {
         updatedProducts = [...prev.products];
         updatedProducts[existingIndex].soLuongMua += quantity;
       } else {
-        // Giá khác hoặc sản phẩm chưa có => tạo mới bản ghi
         const simplifiedProduct = {
           id: product.id,
           maSanPhamChiTiet: product.maSanPhamChiTiet,
           sanPham: product.sanPham?.tenSanPham,
-          gia: product.gia, // Giá hiện tại
-          giaTaiThoiDiemThem: product.gia, // Dùng để so sánh và hiển thị đúng thời điểm
+          gia: product.gia,
+          giaTaiThoiDiemThem: product.gia,
           soLuongMua: quantity,
           mauSac: product.mauSac?.tenMau,
           kichThuoc: product.kichThuoc?.tenKichThuoc,
@@ -1231,29 +1256,55 @@ const OrderDetailPage = () => {
           thuongHieu: product.thuongHieu?.tenThuongHieu,
           moTa: product.moTa,
           ngayTao: product.ngayTao,
-          trangThai: product.trangThai? 1:2,//format lại trang thái
+          trangThai: product.trangThai ? 1 : 2,
         };
 
         updatedProducts = [...prev.products, simplifiedProduct];
       }
 
-      // Tính lại tổng tiền dựa theo `giaTaiThoiDiemThem`
       const newTotal = updatedProducts.reduce(
         (sum, item) => sum + item.giaTaiThoiDiemThem * item.soLuongMua,
         0,
       );
 
-      return {
-        ...prev,
-        products: updatedProducts,
-        tongTien: newTotal,
-        tongThanhToan: newTotal + shippingFee - voucherDiscount,
-      };
+      const voucherDiscount = getDiscountValue(prev.voucher, newTotal);
+      const afterDiscount = newTotal - voucherDiscount;
+
+      if (afterDiscount > 2000000) {
+        setShippingFee(0);
+        message.success('Đã thêm sản phẩm và miễn phí vận chuyển!');
+        return {
+          ...prev,
+          products: updatedProducts,
+          tongTien: newTotal,
+          tongThanhToan: newTotal - voucherDiscount,
+          phiVanChuyen: 0,
+        };
+      } else {
+        fetchShippingFee(afterDiscount)
+          .then((fee) => {
+            setShippingFee(fee);
+            setUpdateOrder((current) => ({
+              ...current,
+              products: updatedProducts,
+              tongTien: newTotal,
+              tongThanhToan: newTotal + fee - voucherDiscount,
+              phiVanChuyen: fee,
+            }));
+            message.success('Đã thêm sản phẩm và cập nhật phí vận chuyển!');
+          })
+          .catch((error) => {
+            console.error('Lỗi khi tính phí ship:', error);
+            message.error('Không thể tính phí vận chuyển.');
+          });
+
+        return { ...prev };
+      }
     });
   };
 
   const voucherDiscount =
-    updateOrder?.tongTien > 0 ? getDiscountValue(order.voucher, order?.tongTien) : 0; //tính giảm giá
+    updateOrder?.tongTien > 0 ? getDiscountValue(updateOrder?.voucher, updateOrder?.tongTien) : 0; //tính giảm giá
   const totalPayMent = Math.max(updateOrder?.tongTien + shippingFee - voucherDiscount, 0); //tính tổng tiền thanh toán
   const totalPaid = order.payments.reduce((sum, payment) => {
     const maPTTT = payment.phuongThucThanhToan?.maPhuongThucThanhToan;
@@ -1292,7 +1343,7 @@ const OrderDetailPage = () => {
       },
     });
   };
-  const isEditable = ![3, 4, 5].includes(updateOrder.trangThai); // 3: Đang giao, 4: Hoàn thành, 5: Đã hủy
+  const isEditable = ![3, 4, 5, 6, 7].includes(updateOrder.trangThai); // 3: Đang giao, 4: Hoàn thành, 5:hoàn thành, 6: Đã hủy,7: đã hoàn thành
 
   return (
     <Layout
@@ -1346,25 +1397,96 @@ const OrderDetailPage = () => {
           )}
         </Card>
         <Card style={{ marginTop: 16, border: '1px solid #d9d9d9', borderRadius: 8 }}>
-          <Title level={5}>Địa Chỉ Nhận Hàng</Title>
-          <Text strong>Tên người nhận: {order.tenNguoiNhan}</Text>
-          <br />
-          <Text>Email: {order.emailNguoiNhan}</Text>
-          <br />
-          <Text>SĐT: {order.soDienThoai}</Text>
-          <br />
-          <Text>
-            Địa chỉ: {address.diaChiCuThe}, {formatWardName(address.xa, address.huyen)},{' '}
-            {formatDistrictName(address.huyen)}, {formatProvinceName(address.tinh)}
-            {isEditable && (
-            <a
-              onClick={handleEditAddress} // hàm xử lý khi nhấn "Sửa"
-              style={{ marginLeft: 8, color: '#1677ff', cursor: 'pointer' }}
-            >
-              Sửa
-            </a>
-            )}
-          </Text>
+          <Row gutter={[24, 24]} style={{ display: 'flex', alignItems: 'stretch' }}>
+            {/* Địa chỉ nhận hàng */}
+            <Col xs={24} md={9}>
+              <div style={{ paddingRight: 24 }}>
+                <Title level={5}>Địa Chỉ Nhận Hàng</Title>
+                <Text strong>Tên người nhận: {order.tenNguoiNhan}</Text>
+                <br />
+                <Text>Email: {order.emailNguoiNhan}</Text>
+                <br />
+                <Text>SĐT: {order.soDienThoai}</Text>
+                <br />
+                <Text>
+                  Địa chỉ: {address.diaChiCuThe}, {formatWardName(address.xa, address.huyen)},
+                  {formatDistrictName(address.huyen)}, {formatProvinceName(address.tinh)}
+                  {isEditable && (
+                    <a
+                      onClick={handleEditAddress}
+                      style={{ marginLeft: 8, color: '#1677ff', cursor: 'pointer' }}
+                    >
+                      Sửa
+                    </a>
+                  )}
+                </Text>
+              </div>
+            </Col>
+
+            {/* Đường kẻ dọc ngăn cách */}
+            <Col
+              xs={0}
+              md={1}
+              style={{
+                borderLeft: '1px solid #f0f0f0',
+                minHeight: '100%',
+                marginTop: 8,
+                opacity: 0.6,
+              }}
+            />
+
+            {/* Lịch sử đơn hàng */}
+            <Col xs={24} md={12}>
+              <Title level={5}>Lịch Sử Đơn Hàng</Title>
+              <Timeline style={{ marginLeft: 8 }}>
+                {displayedHistory.map((item, index) => (
+                <Timeline.Item
+                key={index}
+                dot={
+                  index === 0 ? (
+                    <CheckCircleOutlined style={{ fontSize: 18, color: '#52c41a' }} />
+                  ) : (
+                    <ClockCircleOutlined style={{ fontSize: 16, color: '#bfbfbf' }} />
+                  )
+              }
+                color="gray"
+              >
+                <div style={{ display: 'flex' }}>
+                  {/* Cột thời gian */}
+                  <div style={{ width: 100, color: '#999', flexShrink: 0 }}>
+                    {moment(item.ngayTao).format('HH:mm DD-MM-YYYY')}
+                  </div>
+              
+                  {/* Cột nội dung */}
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        color: index === 0 ? '#52c41a' : '#000',
+                        fontWeight: index === 0 ? 'bold' : 'normal',
+                      }}
+                    >
+                      {item.hanhDong}
+                    </div>
+                    <div style={{ color: '#666' }}>{item.moTa}</div>
+                    {item.tenNhanVien && item.idNhanVien && (
+                      <div style={{ color: '#1890ff' }}>Người xử lý: {item.tenNhanVien}</div>
+                    )}
+                  </div>
+                </div>
+              </Timeline.Item>
+              
+                ))}
+              </Timeline>
+
+              {history.length > 3 && !showFullTimeline && (
+                <div style={{ textAlign: 'left', marginTop: 8, marginLeft: 98 }}>
+                  <Button type="link" onClick={() => setShowFullTimeline(true)}>
+                    Xem thêm
+                  </Button>
+                </div>
+              )}
+            </Col>
+          </Row>
         </Card>
 
         <Divider />
@@ -1488,9 +1610,11 @@ const OrderDetailPage = () => {
                 <Text>Phí vận chuyển</Text>
               </Col>
               <Col>
-                <Text style={{ fontSize: '16px' }}>
-                  + {updateOrder.phiVanChuyen?.toLocaleString('vi-VN') || '0'}₫
-                </Text>
+                <span style={{ color: updateOrder?.phiVanChuyen === 0 ? '#52c41a' : 'inherit' }}>
+                  {updateOrder?.phiVanChuyen === 0
+                    ? 'Miễn phí (Đơn từ 2 triệu)'
+                    : `+ ${updateOrder?.phiVanChuyen.toLocaleString('vi-VN')}₫`}
+                </span>
               </Col>
             </Row>
             <Row
@@ -2099,6 +2223,36 @@ const OrderDetailPage = () => {
           formatter={(value) => `${value}`.replace(/\D/g, '')}
           style={{ width: '100%' }}
         />
+      </Modal>
+      <Modal
+        title="Chọn lý do hủy đơn hàng"
+        open={cancelModalVisible}
+        onCancel={() => setCancelModalVisible(false)}
+        footer={[
+          <Button key="back" onClick={() => setCancelModalVisible(false)}>
+            Không
+          </Button>,
+          <Button key="submit" type="primary" danger onClick={handleConfirmCancel}>
+            Hủy đơn
+          </Button>,
+        ]}
+      >
+        <Row gutter={[16, 16]}>
+          {cancelReasons.map((reason, index) => (
+            <Col span={24} key={index}>
+              <Card
+                hoverable
+                onClick={() => setSelectedReason(reason)}
+                style={{
+                  borderColor: selectedReason === reason ? '#ff4d4f' : '#f0f0f0',
+                  backgroundColor: selectedReason === reason ? '#fff1f0' : '#fff',
+                }}
+              >
+                {reason}
+              </Card>
+            </Col>
+          ))}
+        </Row>
       </Modal>
     </Layout>
 

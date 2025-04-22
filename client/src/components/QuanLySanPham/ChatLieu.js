@@ -190,7 +190,7 @@ const ChatLieu = () => {
       >
         <Breadcrumb.Item>Chất liệu</Breadcrumb.Item>
       </Breadcrumb>
-      <div
+      <Container
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -231,7 +231,7 @@ const ChatLieu = () => {
           onChange={handleTableChange}
           rowKey="id"
         />
-      </div>
+      </Container>
 
       <Modal
         title={isEditing ? 'Chỉnh sửa chất liệu' : 'Thêm chất liệu'}

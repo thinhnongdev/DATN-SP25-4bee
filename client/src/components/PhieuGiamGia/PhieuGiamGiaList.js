@@ -27,7 +27,8 @@ const { RangePicker } = DatePicker;
 const { Option } = Select;
 
 // Hàm kiểm tra trạng thái dựa trên thời gian
-const getStatusBasedOnTime = (startDate, endDate) => {
+const getStatusBasedOnTime = (startDate, endDate,soLuong) => {
+  if (soLuong <= 0) return 2;
   const now = new Date();
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -61,7 +62,7 @@ const PhieuGiamGiaList = () => {
   const updateStatusForAllData = useCallback((data) => {
     return data.map(item => ({
       ...item,
-      trangThai: getStatusBasedOnTime(item.ngayBatDau, item.ngayKetThuc)
+      trangThai: getStatusBasedOnTime(item.ngayBatDau, item.ngayKetThuc,item.soLuong)
     }));
   }, []);
 
@@ -231,7 +232,6 @@ const PhieuGiamGiaList = () => {
     { 
       title: "Mã", 
       dataIndex: "maPhieuGiamGia", 
-      align:"center",
       key: "maPhieuGiamGia", 
       width: "8%" 
     },

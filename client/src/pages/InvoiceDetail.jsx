@@ -194,6 +194,19 @@ function InvoiceDetail() {
     }
     return <Tag>Không xác định</Tag>;
   };
+    // Add this state for predefined reasons
+    const [predefinedReasons, setPredefinedReasons] = useState([
+      "Khách hàng thay đổi quyết định sau khi đặt hàng",
+      "Sản phẩm trong đơn hàng đã hết hàng tại kho",
+      "Thông tin giao hàng không chính xác hoặc thiếu",
+      "Không thể liên hệ được với khách hàng để xác nhận đơn",
+      "Khách yêu cầu đổi sản phẩm khác nên cần hủy đơn cũ",
+      "Sản phẩm không đáp ứng đúng kỳ vọng của khách hàng",
+      "Khách hàng đã đặt nhầm sản phẩm, cần hủy đơn", 
+      "Đơn hàng bị lỗi hệ thống, không thể tiếp tục xử lý",
+    ]);
+    
+  const [useCustomReason, setUseCustomReason] = useState(false);
   // Thêm các biến tính toán thanh toán
   const getPaymentSummary = () => {
     if (!paymentHistory || paymentHistory.length === 0) {
@@ -321,10 +334,13 @@ function InvoiceDetail() {
       }
     };
   }, []);
-    useEffect(() => {
-    if (invoice?.trangThai === 1 && (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1)) {
+  useEffect(() => {
+    if (
+      invoice?.trangThai === 1 &&
+      (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1)
+    ) {
       const isFreeShipping = checkFreeShipping(totalBeforeDiscount);
-      
+
       // Nếu đủ điều kiện miễn phí và phí vận chuyển khác 0, tự động cập nhật
       if (isFreeShipping && invoice.phiVanChuyen > 0) {
         calculateAndUpdateShippingFee(false);
@@ -343,7 +359,13 @@ function InvoiceDetail() {
         return () => clearTimeout(timer);
       }
     }
-  }, [totalBeforeDiscount, invoice?.trangThai, invoice?.loaiHoaDon, invoice?.phiVanChuyen, priceChangeAmount]);
+  }, [
+    totalBeforeDiscount,
+    invoice?.trangThai,
+    invoice?.loaiHoaDon,
+    invoice?.phiVanChuyen,
+    priceChangeAmount,
+  ]);
   useEffect(() => {
     if (showPriceChangePaymentDialog) {
       loadPaymentMethods();
@@ -540,57 +562,68 @@ function InvoiceDetail() {
   // Cập nhật hàm tính số tiền còn thiếu
   const calculateRemainingPayment = () => {
     if (!invoice) return 0;
-    
+
     console.log("Bắt đầu tính toán số tiền còn thiếu...");
-  
+
     // Bỏ qua giá trị từ backend, luôn ưu tiên tính lại từ lịch sử thanh toán
     if (!paymentHistory || !Array.isArray(paymentHistory)) {
-      console.log("Không có lịch sử thanh toán, trả về tổng tiền hóa đơn:", invoice?.tongTien || 0);
+      console.log(
+        "Không có lịch sử thanh toán, trả về tổng tiền hóa đơn:",
+        invoice?.tongTien || 0
+      );
       return invoice?.tongTien || 0;
     }
-  
+
     // Tính tổng tiền hóa đơn bao gồm tất cả yếu tố
     const productTotal = totalBeforeDiscount || 0;
     const shippingFee = invoice.phiVanChuyen || 0;
     const discountAmount = getDiscountAmount();
     const totalInvoiceAmount = productTotal + shippingFee - discountAmount;
-  
+
     // QUAN TRỌNG: Đảm bảo không tính trùng các khoản thanh toán
     const processedPaymentIds = new Set();
-    
+
     // Tính số tiền đã thanh toán (tất cả trạng thái 1, 2 và 3)
     const paidAmount = paymentHistory.reduce((sum, p) => {
       // Bỏ qua các khoản thanh toán đã tính
       if (processedPaymentIds.has(p.id)) return sum;
-      
+
       // Chỉ tính các khoản thanh toán có trạng thái hợp lệ
       if (p.trangThai === 1 || p.trangThai === 2 || p.trangThai === 3) {
         processedPaymentIds.add(p.id);
-        console.log(`Tính khoản thanh toán: ${p.id}, ${p.tenPhuongThucThanhToan}, ${p.tongTien || p.soTien || 0}, trạng thái: ${p.trangThai}`);
+        console.log(
+          `Tính khoản thanh toán: ${p.id}, ${p.tenPhuongThucThanhToan}, ${
+            p.tongTien || p.soTien || 0
+          }, trạng thái: ${p.trangThai}`
+        );
         return sum + Number(p.tongTien || p.soTien || 0);
       }
       return sum;
     }, 0);
-  
+
     // Tính số tiền đã hoàn lại (trạng thái = 4)
     const refundedAmount = paymentHistory.reduce((sum, p) => {
       // Bỏ qua các khoản thanh toán đã tính
       if (processedPaymentIds.has(p.id)) return sum;
-      
+
       if (p.trangThai === 4) {
         processedPaymentIds.add(p.id);
-        console.log(`Trừ khoản hoàn tiền: ${p.id}, ${p.tenPhuongThucThanhToan}, ${p.tongTien || p.soTien || 0}`);
+        console.log(
+          `Trừ khoản hoàn tiền: ${p.id}, ${p.tenPhuongThucThanhToan}, ${
+            p.tongTien || p.soTien || 0
+          }`
+        );
         return sum + Number(p.tongTien || p.soTien || 0);
       }
       return sum;
     }, 0);
-  
+
     // Số tiền thực tế đã thanh toán (đã trừ hoàn tiền)
     const actualPaidAmount = paidAmount - refundedAmount;
-  
+
     // Số tiền còn thiếu = tổng tiền cần trả - số tiền thực tế đã thanh toán
     const remainingAmount = totalInvoiceAmount - actualPaidAmount;
-  
+
     // Log chi tiết để debug
     console.log("Tính lại số tiền còn thiếu:", {
       productTotal,
@@ -600,18 +633,20 @@ function InvoiceDetail() {
       paidAmount,
       refundedAmount,
       actualPaidAmount,
-      remainingAmount
+      remainingAmount,
     });
-  
+
     // Thêm log chi tiết cho từng khoản thanh toán
-    console.table(paymentHistory.map(p => ({
-      id: p.id,
-      amount: p.tongTien || p.soTien,
-      status: p.trangThai,
-      method: p.tenPhuongThucThanhToan,
-      counted: p.trangThai === 1 || p.trangThai === 2 || p.trangThai === 3
-    })));
-    
+    console.table(
+      paymentHistory.map((p) => ({
+        id: p.id,
+        amount: p.tongTien || p.soTien,
+        status: p.trangThai,
+        method: p.tenPhuongThucThanhToan,
+        counted: p.trangThai === 1 || p.trangThai === 2 || p.trangThai === 3,
+      }))
+    );
+
     // Nếu có thanh toán thừa (số tiền còn thiếu âm), trả về 0
     return Math.max(0, Math.round(remainingAmount));
   };
@@ -956,51 +991,57 @@ function InvoiceDetail() {
           payment.maPhuongThucThanhToan === "BANK")
     );
   };
-// Hàm phát hiện tiền thừa do hoàn thành đơn hàng
-const detectExcessFromOrderCompletion = () => {
-  if (!orderHistory || orderHistory.length === 0) return false;
-  
-  // Tìm hành động gần nhất trong lịch sử liên quan đến hoàn thành đơn hàng
-  const recentStatusUpdates = orderHistory
-    .filter(record => 
-      record.moTa?.includes("Cập nhật trạng thái: Hoàn thành") || 
-      record.hanhDong?.includes("Điều chỉnh thanh toán") ||
-      record.moTa?.includes("Điều chỉnh thanh toán sau khi hoàn thành đơn hàng")
-    )
-    .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
-  
-  // Nếu có hành động hoàn thành đơn hàng trong thời gian gần đây (10 phút)
-  if (recentStatusUpdates.length > 0) {
-    const mostRecentUpdate = recentStatusUpdates[0];
-    const timeSinceUpdate = Date.now() - new Date(mostRecentUpdate.ngayTao).getTime();
-    const tenMinutesInMs = 10 * 60 * 1000;
-    
-    if (timeSinceUpdate < tenMinutesInMs && invoice?.trangThai === 5) {
-      console.log("Phát hiện tiền thừa do hoàn thành đơn hàng gần đây");
-      return true;
+  // Hàm phát hiện tiền thừa do hoàn thành đơn hàng
+  const detectExcessFromOrderCompletion = () => {
+    if (!orderHistory || orderHistory.length === 0) return false;
+
+    // Tìm hành động gần nhất trong lịch sử liên quan đến hoàn thành đơn hàng
+    const recentStatusUpdates = orderHistory
+      .filter(
+        (record) =>
+          record.moTa?.includes("Cập nhật trạng thái: Hoàn thành") ||
+          record.hanhDong?.includes("Điều chỉnh thanh toán") ||
+          record.moTa?.includes(
+            "Điều chỉnh thanh toán sau khi hoàn thành đơn hàng"
+          )
+      )
+      .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
+
+    // Nếu có hành động hoàn thành đơn hàng trong thời gian gần đây (10 phút)
+    if (recentStatusUpdates.length > 0) {
+      const mostRecentUpdate = recentStatusUpdates[0];
+      const timeSinceUpdate =
+        Date.now() - new Date(mostRecentUpdate.ngayTao).getTime();
+      const tenMinutesInMs = 10 * 60 * 1000;
+
+      if (timeSinceUpdate < tenMinutesInMs && invoice?.trangThai === 5) {
+        console.log("Phát hiện tiền thừa do hoàn thành đơn hàng gần đây");
+        return true;
+      }
     }
-  }
-  
-  return false;
-};
+
+    return false;
+  };
   const handleRefundExcessPayment = async () => {
     try {
       if (!selectedPaymentMethod) {
         toast.error("Vui lòng chọn phương thức hoàn tiền");
         return;
       }
-  
+
       setProcessingRefund(true);
-  
+
       // Kiểm tra có thanh toán chờ xác nhận hoặc trả sau không
       const hasPendingPayments = hasPendingOrCodPayments();
-      
+
       // Phát hiện tiền thừa do hoàn thành đơn hàng
       const isFromOrderCompletion = detectExcessFromOrderCompletion();
-      
+
       // Hiển thị trạng thái đang xử lý
-      const loadingToast = toast.loading(`Đang ${isFromOrderCompletion ? 'điều chỉnh' : 'hoàn'} tiền...`);
-  
+      const loadingToast = toast.loading(
+        `Đang ${isFromOrderCompletion ? "điều chỉnh" : "hoàn"} tiền...`
+      );
+
       if (hasPendingPayments) {
         // Nếu còn tiền chờ thanh toán, điều chỉnh trực tiếp
         try {
@@ -1013,7 +1054,7 @@ const detectExcessFromOrderCompletion = () => {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
-  
+
           toast.dismiss(loadingToast);
           toast.success(
             `Đã điều chỉnh trừ ${formatCurrency(
@@ -1023,14 +1064,17 @@ const detectExcessFromOrderCompletion = () => {
         } catch (error) {
           toast.dismiss(loadingToast);
           console.error("Lỗi khi điều chỉnh vào thanh toán chờ:", error);
-          toast.error("Lỗi khi điều chỉnh: " + (error.response?.data?.message || error.message));
+          toast.error(
+            "Lỗi khi điều chỉnh: " +
+              (error.response?.data?.message || error.message)
+          );
           setProcessingRefund(false);
           return;
         }
       } else {
         // Xác định lý do hoàn tiền dựa trên loại tiền thừa
         let refundReason = "";
-        
+
         if (isFromOrderCompletion) {
           // Nếu là do hoàn thành đơn hàng
           refundReason = "Điều chỉnh thanh toán sau khi hoàn thành đơn hàng";
@@ -1044,16 +1088,17 @@ const detectExcessFromOrderCompletion = () => {
                 record.ngayTao
             )
             .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
-  
+
           const mostRecentAction = recentActions[0];
-  
+
           if (mostRecentAction) {
             if (
               mostRecentAction.hanhDong?.includes("Thêm sản phẩm") ||
               mostRecentAction.hanhDong?.includes("Xóa sản phẩm") ||
               mostRecentAction.hanhDong?.includes("Cập nhật số lượng sản phẩm")
             ) {
-              refundReason = "Hoàn tiền thừa sau khi thay đổi sản phẩm trong đơn hàng";
+              refundReason =
+                "Hoàn tiền thừa sau khi thay đổi sản phẩm trong đơn hàng";
             } else if (priceNeedsConfirmation) {
               refundReason = "Hoàn tiền thừa do thay đổi giá sản phẩm";
             } else if (
@@ -1064,7 +1109,8 @@ const detectExcessFromOrderCompletion = () => {
             } else if (
               mostRecentAction.hanhDong?.includes("Áp dụng voucher") ||
               (invoice?.phieuGiamGia &&
-                new Date(mostRecentAction.ngayTao) > new Date(Date.now() - 5 * 60000))
+                new Date(mostRecentAction.ngayTao) >
+                  new Date(Date.now() - 5 * 60000))
             ) {
               refundReason = "Hoàn tiền thừa sau khi áp dụng voucher";
             } else {
@@ -1074,9 +1120,13 @@ const detectExcessFromOrderCompletion = () => {
             refundReason = "Hoàn tiền thừa cho khách hàng";
           }
         }
-  
-        console.log(`Lý do ${isFromOrderCompletion ? 'điều chỉnh' : 'hoàn tiền'}: ${refundReason}`);
-  
+
+        console.log(
+          `Lý do ${
+            isFromOrderCompletion ? "điều chỉnh" : "hoàn tiền"
+          }: ${refundReason}`
+        );
+
         // Gọi API hoàn tiền với số tiền thừa và lý do chính xác
         try {
           await api.post(
@@ -1090,23 +1140,28 @@ const detectExcessFromOrderCompletion = () => {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
-  
+
           toast.dismiss(loadingToast);
           toast.success(
-            `Đã ${isFromOrderCompletion ? 'điều chỉnh' : 'hoàn'} ${formatCurrency(excessPaymentAmount)} thành công`
+            `Đã ${
+              isFromOrderCompletion ? "điều chỉnh" : "hoàn"
+            } ${formatCurrency(excessPaymentAmount)} thành công`
           );
         } catch (error) {
           toast.dismiss(loadingToast);
           console.error("Lỗi khi hoàn tiền:", error);
-          toast.error("Lỗi khi hoàn tiền: " + (error.response?.data?.message || error.message));
+          toast.error(
+            "Lỗi khi hoàn tiền: " +
+              (error.response?.data?.message || error.message)
+          );
           setProcessingRefund(false);
           return;
         }
       }
-  
+
       // Cập nhật UI
       await Promise.all([refreshInvoice(), refreshPaymentHistory()]);
-  
+
       setShowExcessPaymentRefundDialog(false);
       setHasExcessPayment(false);
       setExcessPaymentAmount(0);
@@ -1187,6 +1242,7 @@ const detectExcessFromOrderCompletion = () => {
 
   const handleOpenCancelDialog = () => {
     setCancelReason(""); // Reset lý do khi mở dialog
+    // setUseCustomReason(false); // Đặt lại trạng thái lý do tùy chỉnh
     setOpenCancelDialog(true);
   };
 
@@ -1196,7 +1252,10 @@ const detectExcessFromOrderCompletion = () => {
       toast.error("Vui lòng nhập lý do hủy đơn hàng");
       return;
     }
-
+    if (cancelReason.trim().length < 20) {
+      toast.error("Lý do hủy đơn phải có ít nhất 20 ký tự");
+      return;
+    }
     try {
       const cancelToastId = toast.loading("Đang hủy đơn hàng...");
       await api.delete(
@@ -2170,7 +2229,6 @@ const detectExcessFromOrderCompletion = () => {
     return parts.join(", ");
   };
 
-
   const handleSaveRecipientInfo = async () => {
     try {
       // Validate dữ liệu đầu vào
@@ -2178,32 +2236,32 @@ const detectExcessFromOrderCompletion = () => {
         showErrorDialog("Vui lòng nhập tên người nhận");
         return;
       }
-  
+
       if (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1) {
         if (!province) {
           showErrorDialog("Vui lòng chọn tỉnh/thành phố");
           return;
         }
-  
+
         if (!district) {
           showErrorDialog("Vui lòng chọn quận/huyện");
           return;
         }
-  
+
         if (!ward) {
           showErrorDialog("Vui lòng chọn phường/xã");
           return;
         }
       }
-  
+
       setTrackingAddressLoading(true);
       const loadingToastId = toast.loading(
         "Đang cập nhật thông tin người nhận..."
       );
-  
+
       // Tạo địa chỉ đầy đủ
       let fullAddress = "";
-  
+
       if (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1) {
         // Nếu là đơn giao hàng, sử dụng format mới: địa chỉ chi tiết, wardId, districtId, provinceId
         if (detailAddress) {
@@ -2215,7 +2273,7 @@ const detectExcessFromOrderCompletion = () => {
         // Nếu không phải đơn giao hàng, chỉ lấy địa chỉ chi tiết
         fullAddress = detailAddress;
       }
-  
+
       // Tạo payload cập nhật
       const updateData = {
         tenNguoiNhan: recipientName,
@@ -2224,7 +2282,7 @@ const detectExcessFromOrderCompletion = () => {
         diaChi: fullAddress,
         ghiChu: note || "",
       };
-  
+
       // Gọi API cập nhật
       const response = await api.put(
         `/api/admin/hoa-don/${invoice.id}`,
@@ -2233,7 +2291,7 @@ const detectExcessFromOrderCompletion = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-  
+
       if (response.status === 200) {
         // Cập nhật lại state địa phương thay vì gọi API fetchInvoice
         setInvoice((prev) => ({
@@ -2244,16 +2302,19 @@ const detectExcessFromOrderCompletion = () => {
           diaChi: fullAddress,
           ghiChu: note || "",
         }));
-  
+
         // Cập nhật địa chỉ đã định dạng
         setFormattedAddress(fullAddress);
-  
+
         toast.dismiss(loadingToastId);
         message.success("Cập nhật thông tin người nhận thành công");
         setOpenEditRecipientDialog(false);
-        
+
         // Tự động tính lại phí vận chuyển nếu là đơn hàng giao hoặc online
-        if ((invoice.loaiHoaDon === 3 || invoice.loaiHoaDon === 1) && invoice.trangThai === 1) {
+        if (
+          (invoice.loaiHoaDon === 3 || invoice.loaiHoaDon === 1) &&
+          invoice.trangThai === 1
+        ) {
           // Sử dụng timeout để đảm bảo state đã được cập nhật
           setTimeout(async () => {
             await calculateAndUpdateShippingFee(false);
@@ -2262,7 +2323,7 @@ const detectExcessFromOrderCompletion = () => {
       } else {
         throw new Error("Lỗi khi cập nhật thông tin người nhận");
       }
-  
+
       setTrackingAddressLoading(false);
     } catch (error) {
       console.error("Lỗi khi lưu thông tin người nhận:", error);
@@ -2270,11 +2331,11 @@ const detectExcessFromOrderCompletion = () => {
       showErrorDialog("Đã xảy ra lỗi khi cập nhật. Vui lòng thử lại sau.");
     }
   };
-    const calculateAndUpdateShippingFee = async (showToast = true) => {
+  const calculateAndUpdateShippingFee = async (showToast = true) => {
     if (!invoice || (invoice.loaiHoaDon !== 3 && invoice.loaiHoaDon !== 1)) {
       return;
     }
-    
+
     try {
       // Kiểm tra điều kiện miễn phí vận chuyển
       if (checkFreeShipping(totalBeforeDiscount)) {
@@ -2282,57 +2343,59 @@ const detectExcessFromOrderCompletion = () => {
         if (invoice.phiVanChuyen > 0) {
           // Gọi API để cập nhật phí vận chuyển = 0
           const updateResponse = await axios({
-            method: 'post',
+            method: "post",
             url: `http://localhost:8080/api/admin/hoa-don/${id}/cap-nhat-phi-van-chuyen`,
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
               "Content-Type": "application/json",
             },
-            data: { fee: 0 }
+            data: { fee: 0 },
           });
-  
+
           // Cập nhật UI
           setInvoice((prev) => ({
             ...prev,
-            phiVanChuyen: 0
+            phiVanChuyen: 0,
           }));
-          
+
           setShippingFeeFromGHN(0);
-          
+
           if (showToast) {
             toast.success("Đơn hàng được miễn phí vận chuyển");
           }
         }
         return;
       }
-      
+
       // Nếu không đủ điều kiện miễn phí, tính phí vận chuyển mới
       const newShippingFee = await calculateShippingFeeFromGHN();
-      
+
       // Nếu phí vận chuyển khác với hiện tại, cập nhật
       if (newShippingFee !== null && newShippingFee !== invoice.phiVanChuyen) {
         const updateResponse = await axios({
-          method: 'post',
+          method: "post",
           url: `http://localhost:8080/api/admin/hoa-don/${id}/cap-nhat-phi-van-chuyen`,
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "Content-Type": "application/json",
           },
-          data: { fee: newShippingFee }
+          data: { fee: newShippingFee },
         });
-        
+
         // Cập nhật hóa đơn trong state
         setInvoice((prev) => ({
           ...prev,
-          phiVanChuyen: newShippingFee
+          phiVanChuyen: newShippingFee,
         }));
-        
+
         setShippingFeeFromGHN(newShippingFee);
-        
+
         if (showToast) {
-          toast.success(`Đã cập nhật phí vận chuyển: ${formatCurrency(newShippingFee)}`);
+          toast.success(
+            `Đã cập nhật phí vận chuyển: ${formatCurrency(newShippingFee)}`
+          );
         }
-        
+
         // Kiểm tra thanh toán thừa
         await checkExcessPayment();
       }
@@ -3618,52 +3681,75 @@ const detectExcessFromOrderCompletion = () => {
       toast.dismiss(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
     }
   };
-    const handleAddMultipleProducts = async (products) => {
-      if (!products || products.length === 0) {
-        showErrorDialog("Không có sản phẩm nào được chọn");
+  const handleAddMultipleProducts = async (products) => {
+    if (!products || products.length === 0) {
+      showErrorDialog("Không có sản phẩm nào được chọn");
+      return;
+    }
+  
+    try {
+      const addToastId = toast.loading("Đang thêm sản phẩm...");
+  
+      // Chuẩn bị dữ liệu với số lượng tùy chỉnh cho từng sản phẩm
+      const productList = products.map((product) => ({
+        sanPhamChiTietId: product.id,
+        soLuong: product.soLuongThem || 1, // Sử dụng số lượng đã chọn hoặc mặc định là 1
+      }));
+  
+      // Gọi API để thêm nhiều sản phẩm cùng lúc
+      await api.post(
+        `/api/admin/hoa-don/${id}/san-pham`,
+        {
+          productList: productList,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+  
+      // Làm mới danh sách sản phẩm và thông tin hóa đơn
+      await refreshInvoiceProducts();
+      await refreshInvoice();
+  
+      // Tính tổng số lượng sản phẩm đã thêm
+      const totalQuantity = productList.reduce((sum, item) => sum + item.soLuong, 0);
+  
+      toast.dismiss(addToastId);
+      toast.success(`Đã thêm ${totalQuantity} sản phẩm (${products.length} mặt hàng) vào đơn hàng`);
+      setOpenAddProductDialog(false);
+  
+      // Đặt lại pagination
+      setPagination({ current: 1, pageSize: 3 });
+    } catch (error) {
+      console.error("Lỗi khi thêm sản phẩm:", error);
+      toast.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
+    }
+  };
+   const handleConfirmDelete = async () => {
+    try {
+      if (invoiceProducts.length === 1) {
+        // Show modal suggesting order cancellation
+        Modal.confirm({
+          title: "Không thể xóa sản phẩm cuối cùng",
+          content: (
+            <div>
+              <p>Đơn hàng phải có ít nhất một sản phẩm.</p>
+              <p>Nếu muốn xóa sản phẩm cuối cùng, bạn nên hủy đơn hàng.</p>
+            </div>
+          ),
+          okText: "Hủy đơn hàng",
+          cancelText: "Đóng",
+          okButtonProps: { danger: true },
+          onOk: () => handleOpenCancelDialog(),
+        });
+        // Close the delete confirmation dialog
+        setOpenConfirmDelete(false);
         return;
       }
-    
-      try {
-        const addToastId = toast.loading("Đang thêm sản phẩm...");
-        
-        // Chuẩn bị dữ liệu
-        const productList = products.map(product => ({
-          sanPhamChiTietId: product.id,
-          soLuong: 1  // Mặc định số lượng là 1 cho mỗi sản phẩm
-        }));
-        
-        // Gọi API để thêm nhiều sản phẩm cùng lúc
-        await api.post(
-          `/api/admin/hoa-don/${id}/san-pham`,
-          {
-            productList: productList
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-    
-        // Làm mới danh sách sản phẩm và thông tin hóa đơn
-        await refreshInvoiceProducts();
-        await refreshInvoice();
-    
-        toast.dismiss(addToastId);
-        toast.success(`Đã thêm ${products.length} sản phẩm vào đơn hàng`);
-        setOpenAddProductDialog(false);
-        
-        // Đặt lại pagination
-        setPagination({ current: 1, pageSize: 3 });
-      } catch (error) {
-        console.error("Lỗi khi thêm sản phẩm:", error);
-        toast.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
-      }
-    };
-  const handleConfirmDelete = async () => {
-    try {
+  
       await api.delete(
         `/api/admin/hoa-don/${id}/chi-tiet/${deletingProductId}`,
         {
@@ -4716,7 +4802,7 @@ const detectExcessFromOrderCompletion = () => {
       console.error("❌ Lỗi khi tải thông tin địa chỉ:", error);
     }
   };
-    // Thêm hàm kiểm tra điều kiện miễn phí vận chuyển
+  // Thêm hàm kiểm tra điều kiện miễn phí vận chuyển
   const checkFreeShipping = (subtotal) => {
     const FREE_SHIPPING_THRESHOLD = 2000000; // 2 triệu đồng
     return subtotal >= FREE_SHIPPING_THRESHOLD;
@@ -4726,33 +4812,33 @@ const detectExcessFromOrderCompletion = () => {
       console.error("Không phải hóa đơn giao hàng hoặc online");
       return null;
     }
-  
+
     try {
       setLoadingShippingFee(true);
 
-  // Kiểm tra miễn phí vận chuyển ngay từ đầu
-  if (checkFreeShipping(totalBeforeDiscount)) {
-    console.log("Đơn hàng đủ điều kiện miễn phí vận chuyển");
-    setShippingFeeFromGHN(0);
-    return 0;
-  }
+      // Kiểm tra miễn phí vận chuyển ngay từ đầu
+      if (checkFreeShipping(totalBeforeDiscount)) {
+        console.log("Đơn hàng đủ điều kiện miễn phí vận chuyển");
+        setShippingFeeFromGHN(0);
+        return 0;
+      }
       // Phân tích địa chỉ
       const addressParts = invoice.diaChi?.split(/,\s*/);
       if (!addressParts || addressParts.length < 4) {
         console.error("Địa chỉ không đủ thông tin để tính phí vận chuyển");
         return null;
       }
-  
+
       // Lấy ra 3 phần cuối của địa chỉ (phường/xã, quận/huyện, tỉnh/thành phố)
       const wardInfo = addressParts[addressParts.length - 3].trim();
       const districtInfo = addressParts[addressParts.length - 2].trim();
       const provinceInfo = addressParts[addressParts.length - 1].trim();
-  
+
       // Kiểm tra xem có phải địa chỉ dạng ID không
       const isIdFormat = [wardInfo, districtInfo, provinceInfo].every((part) =>
         /^\d+$/.test(part)
       );
-  
+
       let addressData;
       if (isIdFormat) {
         // Sử dụng ID trực tiếp
@@ -4772,40 +4858,40 @@ const detectExcessFromOrderCompletion = () => {
           console.error("Không thể trích xuất ID từ địa chỉ");
           return null;
         }
-  
+
         addressData = {
           tinh: addressInfo.provinceId,
           huyen: addressInfo.districtId,
           xa: addressInfo.wardId,
         };
       }
-  
+
       const shopInfo = {
         district_id: 1482,
         ward_code: "11006",
       };
-  
+
       // Chuyển đổi địa chỉ sang định dạng GHN
       const ghnAddress = await mapAddressToGHNFormat(addressData);
       if (!ghnAddress) {
         console.error("Không thể chuyển đổi địa chỉ GHN:", addressData);
         return null;
       }
-  
+
       console.log("Địa chỉ GHN đã chuyển đổi:", ghnAddress);
-  
+
       const payload = {
         from_district_id: shopInfo.district_id,
         from_ward_code: shopInfo.ward_code,
         to_district_id: ghnAddress.to_district_id,
         to_ward_code: ghnAddress.to_ward_code,
         service_type_id: 2, // Giao hàng tiêu chuẩn
-        weight: 1000, // 1kg
+        weight: 1000, // 500g
         length: 30, // 30cm
         width: 20, // 20cm
         height: 10, // 10cm
       };
-  
+
       // Gọi API tính phí vận chuyển của GHN
       const response = await api.post(
         `/api/admin/hoa-don/phi-van-chuyen`,
@@ -4817,7 +4903,7 @@ const detectExcessFromOrderCompletion = () => {
           },
         }
       );
-  
+
       // Xử lý kết quả từ API
       if (response.data && typeof response.data === "number") {
         const fee = response.data > 0 ? response.data : 30000;
@@ -4825,7 +4911,7 @@ const detectExcessFromOrderCompletion = () => {
         setShippingFeeFromGHN(fee);
         return fee; // Đảm bảo luôn trả về fee
       }
-      
+
       return null; // Trả về null nếu không nhận được response hợp lệ
     } catch (error) {
       console.error("Lỗi khi tính phí vận chuyển từ GHN:", error);
@@ -4885,7 +4971,7 @@ const detectExcessFromOrderCompletion = () => {
   const handleRecalculateShipping = async () => {
     const loadingToastId = toast.loading("Đang tính phí vận chuyển...");
     setLoadingShippingFee(true);
-    
+
     try {
       await calculateAndUpdateShippingFee(false);
       toast.dismiss(loadingToastId);
@@ -5345,7 +5431,7 @@ const detectExcessFromOrderCompletion = () => {
                 title: "Trạng thái",
                 dataIndex: "trangThai",
                 key: "trangThai",
-                align:"center",
+                align: "center",
                 render: (_, record) => renderPaymentMethodStatus(record),
               },
               {
@@ -5386,24 +5472,81 @@ const detectExcessFromOrderCompletion = () => {
             được hoàn lại.
           </Typography>
           <Typography variant="body2" fontWeight="bold" mb={1}>
-            Vui lòng nhập lý do hủy đơn: <span style={{ color: "red" }}>*</span>
+            Chọn lý do hủy đơn: <span style={{ color: "red" }}>*</span>
           </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            variant="outlined"
-            value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
-            placeholder="Nhập lý do hủy đơn hàng..."
-            required
-            error={cancelReason.trim() === ""}
-            helperText={
-              cancelReason.trim() === ""
-                ? "Lý do hủy đơn không được để trống"
-                : ""
-            }
-          />
+          
+          {!useCustomReason ? (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <Radio.Group 
+                  style={{ width: "100%" }}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  value={cancelReason}
+                >
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    {predefinedReasons.map((reason, index) => (
+                      <Radio.Button 
+                        key={index} 
+                        value={reason}
+                        style={{
+                          width: "100%",
+                          height: "auto",
+                          padding: "10px",
+                          marginBottom: "8px",
+                          textAlign: "left",
+                          whiteSpace: "normal",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {reason}
+                      </Radio.Button>
+                    ))}
+                  </Space>
+                </Radio.Group>
+              </div>
+              <Button 
+                type="link" 
+                onClick={() => {
+                  setUseCustomReason(true);
+                  setCancelReason("");
+                }}
+                icon={<PlusOutlined />}
+              >
+                Lý do khác
+              </Button>
+            </>
+          ) : (
+            <>
+                            <TextField
+                fullWidth
+                multiline
+                rows={3}
+                variant="outlined"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Nhập lý do hủy đơn hàng..."
+                required
+                error={cancelReason.trim() === "" || cancelReason.trim().length < 20}
+                helperText={
+                  cancelReason.trim() === ""
+                    ? "Lý do hủy đơn không được để trống"
+                    : cancelReason.trim().length < 20
+                    ? `Lý do hủy đơn ít nhất 20 ký tự (còn thiếu ${20 - cancelReason.trim().length} ký tự)`
+                    : ""
+                }
+              />
+              <Button 
+                type="link" 
+                onClick={() => {
+                  setUseCustomReason(false);
+                  setCancelReason("");
+                }}
+                style={{ marginTop: 8, padding: 0 }}
+              >
+                Quay lại lý do có sẵn
+              </Button>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenCancelDialog(false)}>Đóng</Button>
@@ -5411,8 +5554,8 @@ const detectExcessFromOrderCompletion = () => {
             onClick={handleCancelOrder}
             variant="contained"
             color="error"
-            disabled={!cancelReason || cancelReason.trim() === ""}
-          >
+            disabled={!cancelReason || cancelReason.trim() === "" || cancelReason.trim().length < 20}
+            >
             Hủy đơn
           </Button>
         </DialogActions>
@@ -5579,13 +5722,23 @@ const detectExcessFromOrderCompletion = () => {
               width: 180,
               render: (_, record) => (
                 <Space direction="vertical" size={0}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Typography.Text strong>{record.tenSanPham}</Typography.Text>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <Typography.Text strong>
+                      {record.tenSanPham}
+                    </Typography.Text>
                     {record.giaThayDoi && (
                       <Tooltip title="Sản phẩm đã thay đổi giá, chỉ có thể giảm số lượng">
-                        <Badge 
-                          count={<InfoCircleOutlined style={{ color: '#ff4d4f' }} />} 
-                          offset={[0, 0]} 
+                        <Badge
+                          count={
+                            <InfoCircleOutlined style={{ color: "#ff4d4f" }} />
+                          }
+                          offset={[0, 0]}
                         />
                       </Tooltip>
                     )}
@@ -5698,7 +5851,7 @@ const detectExcessFromOrderCompletion = () => {
                 </div>
               ),
             },
-                        // Trong phần columns của Table sản phẩm, thêm tooltip cho InputNumber:
+            // Trong phần columns của Table sản phẩm, thêm tooltip cho InputNumber:
             {
               title: "Số lượng",
               key: "soLuong",
@@ -5706,24 +5859,38 @@ const detectExcessFromOrderCompletion = () => {
               align: "center",
               render: (_, record) => (
                 <div>
-                  <Tooltip 
-                    title={record.giaThayDoi ? "Sản phẩm đã thay đổi giá chỉ có thể giảm số lượng hoặc xóa" : ""}
+                  <Tooltip
+                    title={
+                      record.giaThayDoi
+                        ? "Sản phẩm đã thay đổi giá chỉ có thể giảm số lượng hoặc xóa"
+                        : ""
+                    }
                     placement="topLeft"
                   >
                     <InputNumber
                       min={1}
                       max={record.giaThayDoi ? record.soLuong : undefined}
                       value={record.soLuong}
-                      onChange={(value) => handleUpdateQuantity(record.id, value)}
+                      onChange={(value) =>
+                        handleUpdateQuantity(record.id, value)
+                      }
                       disabled={invoice.trangThai !== 1}
                       style={{
                         width: 80,
-                        backgroundColor: record.giaThayDoi ? "#f5f5f5" : undefined,
+                        backgroundColor: record.giaThayDoi
+                          ? "#f5f5f5"
+                          : undefined,
                       }}
                     />
                   </Tooltip>
                   {record.giaThayDoi && (
-                    <div style={{ fontSize: '12px', color: '#ff4d4f', marginTop: '4px' }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#ff4d4f",
+                        marginTop: "4px",
+                      }}
+                    >
                       Chỉ có thể giảm số lượng
                     </div>
                   )}
@@ -5743,7 +5910,7 @@ const detectExcessFromOrderCompletion = () => {
                 return formatCurrency(price * record.soLuong);
               },
             },
-            {
+       {
               title: "Hành động",
               key: "action",
               width: 80,
@@ -5755,8 +5922,25 @@ const detectExcessFromOrderCompletion = () => {
                   icon={<DeleteOutlined />}
                   disabled={invoice.trangThai !== 1}
                   onClick={() => {
-                    setDeletingProductId(record.id);
-                    setOpenConfirmDelete(true);
+                    // Check if this is the last product and prevent direct deletion
+                    if (invoiceProducts.length === 1) {
+                      Modal.confirm({
+                        title: "Không thể xóa sản phẩm cuối cùng",
+                        content: (
+                          <div>
+                            <p>Đơn hàng phải có ít nhất một sản phẩm.</p>
+                            <p>Nếu muốn xóa sản phẩm cuối cùng, bạn nên hủy đơn hàng.</p>
+                          </div>
+                        ),
+                        okText: "Hủy đơn hàng",
+                        cancelText: "Đóng",
+                        okButtonProps: { danger: true },
+                        onOk: () => handleOpenCancelDialog(),
+                      });
+                    } else {
+                      setDeletingProductId(record.id);
+                      setOpenConfirmDelete(true);
+                    }
                   }}
                 />
               ),
@@ -5793,7 +5977,13 @@ const detectExcessFromOrderCompletion = () => {
               <Text strong>Tổng tiền hàng:</Text>
               <Text>{formatCurrency(totalBeforeDiscount)}</Text>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
               <Text>
                 Phí vận chuyển{" "}
                 <Image
@@ -5817,14 +6007,16 @@ const detectExcessFromOrderCompletion = () => {
                   <Spin size="small" style={{ marginRight: 8 }} />
                 ) : (
                   <Text>
-                    {formatCurrency(checkFreeShipping(totalBeforeDiscount) 
-                      ? 0 
-                      : (shippingFeeFromGHN !== null
+                    {formatCurrency(
+                      checkFreeShipping(totalBeforeDiscount)
+                        ? 0
+                        : shippingFeeFromGHN !== null
                         ? shippingFeeFromGHN
-                        : invoice?.phiVanChuyen || 0))}
+                        : invoice?.phiVanChuyen || 0
+                    )}
                   </Text>
                 )}
-            
+
                 {(invoice.loaiHoaDon === 3 || invoice.loaiHoaDon === 1) && (
                   <Button
                     type="link"
@@ -5840,10 +6032,17 @@ const detectExcessFromOrderCompletion = () => {
                 )}
               </div>
             </div>
-            
+
             {/* Thông báo điều kiện miễn phí vận chuyển */}
             {totalBeforeDiscount < 2000000 && (
-              <div style={{ marginTop: 4, fontSize: '12px', fontStyle: 'italic', color: '#1890ff' }}>
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: "12px",
+                  fontStyle: "italic",
+                  color: "#1890ff",
+                }}
+              >
                 Miễn phí vận chuyển cho đơn hàng từ 2.000.000₫
               </div>
             )}
@@ -5916,9 +6115,11 @@ const detectExcessFromOrderCompletion = () => {
               <Text strong>Tổng tiền thanh toán:</Text>
               <Text type="danger" strong>
                 {formatCurrency(
-                  totalBeforeDiscount + 
-                  (shippingFeeFromGHN !== null ? shippingFeeFromGHN : (invoice?.phiVanChuyen || 0)) - 
-                  getDiscountAmount()
+                  totalBeforeDiscount +
+                    (shippingFeeFromGHN !== null
+                      ? shippingFeeFromGHN
+                      : invoice?.phiVanChuyen || 0) -
+                    getDiscountAmount()
                 )}
               </Text>
             </div>
@@ -5994,20 +6195,24 @@ const detectExcessFromOrderCompletion = () => {
               <WalletOutlined
                 style={{
                   fontSize: "24px",
-                  color: detectExcessFromOrderCompletion() ? "#1890ff" : "#52c41a",
+                  color: detectExcessFromOrderCompletion()
+                    ? "#1890ff"
+                    : "#52c41a",
                   marginRight: "12px",
                 }}
               />
               <span>
-                {detectExcessFromOrderCompletion() ? "Điều chỉnh tiền thừa" : "Hoàn tiền thừa"}
+                {detectExcessFromOrderCompletion()
+                  ? "Điều chỉnh tiền thừa"
+                  : "Hoàn tiền thừa"}
               </span>
             </div>
           }
           open={showExcessPaymentRefundDialog}
           onCancel={() => setShowExcessPaymentRefundDialog(false)}
           footer={[
-            <Button 
-              key="cancel" 
+            <Button
+              key="cancel"
               onClick={() => setShowExcessPaymentRefundDialog(false)}
               disabled={processingRefund}
             >
@@ -6028,22 +6233,26 @@ const detectExcessFromOrderCompletion = () => {
           destroyOnClose
         >
           <Alert
-            message={detectExcessFromOrderCompletion() 
-              ? "Phát hiện tiền thừa sau khi hoàn thành đơn hàng" 
-              : "Khách hàng đã thanh toán thừa tiền"}
-            description={detectExcessFromOrderCompletion()
-              ? "Hệ thống phát hiện phát sinh tiền thừa khi hoàn thành đơn hàng do chuyển thanh toán trả sau sang đã thanh toán."
-              : "Hệ thống phát hiện khách hàng đã thanh toán nhiều hơn tổng giá trị đơn hàng. Bạn nên hoàn lại số tiền thừa."}
+            message={
+              detectExcessFromOrderCompletion()
+                ? "Phát hiện tiền thừa sau khi hoàn thành đơn hàng"
+                : "Khách hàng đã thanh toán thừa tiền"
+            }
+            description={
+              detectExcessFromOrderCompletion()
+                ? "Hệ thống phát hiện phát sinh tiền thừa khi hoàn thành đơn hàng do chuyển thanh toán trả sau sang đã thanh toán."
+                : "Hệ thống phát hiện khách hàng đã thanh toán nhiều hơn tổng giá trị đơn hàng. Bạn nên hoàn lại số tiền thừa."
+            }
             type="warning"
             showIcon
             style={{ marginBottom: "20px" }}
           />
-      
+
           <div style={{ marginBottom: "24px" }}>
             <Typography.Text strong style={{ fontSize: "16px" }}>
               Chi tiết thanh toán:
             </Typography.Text>
-      
+
             <div
               style={{
                 marginTop: "12px",
@@ -6062,7 +6271,7 @@ const detectExcessFromOrderCompletion = () => {
                 <Text>Tổng tiền đơn hàng:</Text>
                 <Text>{formatCurrency(invoice?.tongTien || 0)}</Text>
               </div>
-      
+
               <div
                 style={{
                   display: "flex",
@@ -6073,11 +6282,12 @@ const detectExcessFromOrderCompletion = () => {
                 <Text>Phí vận chuyển:</Text>
                 <Text>{formatCurrency(invoice?.phiVanChuyen || 0)}</Text>
               </div>
-      
+
               {(() => {
                 // Lấy dữ liệu thanh toán
-                const { actualPaidAmount, refundedAmount, pendingAmount } = getPaymentSummary();
-      
+                const { actualPaidAmount, refundedAmount, pendingAmount } =
+                  getPaymentSummary();
+
                 return (
                   <>
                     <div
@@ -6088,9 +6298,11 @@ const detectExcessFromOrderCompletion = () => {
                       }}
                     >
                       <Text>Đã thanh toán:</Text>
-                      <Text type="success">{formatCurrency(actualPaidAmount)}</Text>
+                      <Text type="success">
+                        {formatCurrency(actualPaidAmount)}
+                      </Text>
                     </div>
-      
+
                     {refundedAmount > 0 && (
                       <div
                         style={{
@@ -6100,10 +6312,12 @@ const detectExcessFromOrderCompletion = () => {
                         }}
                       >
                         <Text>Đã hoàn tiền:</Text>
-                        <Text type="warning">-{formatCurrency(refundedAmount)}</Text>
+                        <Text type="warning">
+                          -{formatCurrency(refundedAmount)}
+                        </Text>
                       </div>
                     )}
-      
+
                     {pendingAmount > 0 && (
                       <div
                         style={{
@@ -6113,25 +6327,35 @@ const detectExcessFromOrderCompletion = () => {
                         }}
                       >
                         <Text>Chờ thanh toán/trả sau:</Text>
-                        <Text type="processing">{formatCurrency(pendingAmount)}</Text>
+                        <Text type="processing">
+                          {formatCurrency(pendingAmount)}
+                        </Text>
                       </div>
                     )}
                   </>
                 );
               })()}
-      
+
               <Divider style={{ margin: "8px 0" }} />
-      
+
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <Text strong>Số tiền thừa cần {detectExcessFromOrderCompletion() ? 'điều chỉnh' : 'hoàn'}:</Text>
+                <Text strong>
+                  Số tiền thừa cần{" "}
+                  {detectExcessFromOrderCompletion() ? "điều chỉnh" : "hoàn"}:
+                </Text>
                 <Text type="success" strong>
                   {formatCurrency(excessPaymentAmount)}
                 </Text>
               </div>
             </div>
           </div>
-      
-          <Form.Item label={`Chọn phương thức ${detectExcessFromOrderCompletion() ? 'điều chỉnh' : 'hoàn tiền'}`} required>
+
+          <Form.Item
+            label={`Chọn phương thức ${
+              detectExcessFromOrderCompletion() ? "điều chỉnh" : "hoàn tiền"
+            }`}
+            required
+          >
             <Radio.Group
               value={selectedPaymentMethod}
               onChange={(e) => setSelectedPaymentMethod(e.target.value)}
@@ -6670,10 +6894,15 @@ const detectExcessFromOrderCompletion = () => {
                 <Space direction="vertical" style={{ width: "100%" }}>
                   {paymentMethods
                     .filter((method) => {
-                      if (invoice?.loaiHoaDon === 1 || invoice?.loaiHoaDon === 3) {
-                        return true;
+                      if (
+                        invoice?.loaiHoaDon === 1 ||
+                        invoice?.loaiHoaDon === 3
+                      ) {
+                        return method.maPhuongThucThanhToan !== "VNPAY";
                       } else {
-                        return method.maPhuongThucThanhToan !== "COD";
+                        return (
+                          method.maPhuongThucThanhToan !== "COD"
+                        );
                       }
                     })
                     .map((method) => (
@@ -6716,14 +6945,14 @@ const detectExcessFromOrderCompletion = () => {
                             />
                           )}
                           {method.maPhuongThucThanhToan === "COD" && (
-                <CarOutlined
-                  style={{
-                    fontSize: "24px",
-                    color: "#fa8c16",
-                    marginRight: "12px",
-                  }}
-                />
-              )}
+                            <CarOutlined
+                              style={{
+                                fontSize: "24px",
+                                color: "#fa8c16",
+                                marginRight: "12px",
+                              }}
+                            />
+                          )}
                           <div>
                             <div style={{ fontWeight: "bold" }}>
                               {method.tenPhuongThucThanhToan}
@@ -7307,8 +7536,10 @@ const detectExcessFromOrderCompletion = () => {
               <Space direction="vertical" style={{ width: "100%" }}>
                 {paymentMethods
                   .filter(
-                    (method) => method.maPhuongThucThanhToan !== "COD"
-                  ) // Loại bỏ COD
+                    (method) =>
+                      method.maPhuongThucThanhToan !== "COD" &&
+                      method.maPhuongThucThanhToan !== "VNPAY"
+                  )
                   .map((method) => (
                     <Radio.Button
                       key={method.id}

@@ -1,12 +1,11 @@
 package com.example.server.Util;
 
-import com.example.server.entity.HoaDon;
-import com.example.server.entity.HoaDonChiTiet;
-import com.example.server.entity.PhieuGiamGia;
-import com.example.server.entity.SanPhamChiTiet;
+import com.example.server.constant.PaymentConstant;
+import com.example.server.entity.*;
 import com.example.server.service.GiaoHang.AddressCache;
 import com.itextpdf.barcodes.BarcodeQRCode;
 import com.itextpdf.io.font.PdfEncodings;
+import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.pdf.PdfDocument;
@@ -34,6 +33,7 @@ import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -138,7 +138,7 @@ public class PDFGenerator {
                     .setFontSize(14));
             Table table = new Table(new float[]{1, 4});
             table.setWidth(UnitValue.createPercentValue(100));
-            table.addCell(createCell("Tên khách hàng:", true).setBorder(null).setTextAlignment(TextAlignment.LEFT).setPadding(5));
+            table.addCell(createCell("Tên khách hàng:", true).setBorder(null).setTextAlignment(TextAlignment.LEFT).setPadding(2));
             table.addCell(createCell(hoaDon.getTenNguoiNhan(), false).setBorder(null).setTextAlignment(TextAlignment.LEFT).setWidth(UnitValue.createPercentValue(75)));
 
             // Nếu là hóa đơn giao hàng (loaiHoaDon = 3), hiển thị thêm địa chỉ
@@ -149,7 +149,7 @@ public class PDFGenerator {
                         .setBorder(null)
                         .setTextAlignment(TextAlignment.LEFT)
                         .setWidth(UnitValue.createPercentValue(75))
-                        .setPadding(5));
+                        .setPadding(2));
             }
 
 
@@ -167,7 +167,7 @@ public class PDFGenerator {
         table.addCell(createCell("Tên khách hàng:", true)
                 .setBorder(null)
                 .setTextAlignment(TextAlignment.LEFT)
-                .setPadding(5));
+                .setPadding(2));
 
         table.addCell(createCell(hoaDon.getTenNguoiNhan(), false)
                 .setBorder(null)
@@ -190,7 +190,7 @@ public class PDFGenerator {
                 .setBorder(null)
                 .setTextAlignment(TextAlignment.LEFT)
                 .setWidth(UnitValue.createPercentValue(75))
-                .setPadding(5));
+                .setPadding(2));
 
 
         if (hoaDon.getEmailNguoiNhan() != null && !hoaDon.getEmailNguoiNhan().isEmpty()) {
@@ -210,13 +210,15 @@ public class PDFGenerator {
 
 
     private void addProductsTable(Document document, List<HoaDonChiTiet> chiTiets) {
-        Table table = new Table(new float[]{4, 2, 2, 1, 2, 2});
+        Table table = new Table(new float[]{4, 2, 2, 1, 1, 1, 2, 2});
         table.setWidth(UnitValue.createPercentValue(100));
 
         // Thêm tiêu đề bảng
         table.addHeaderCell(createHeaderCell("Sản phẩm"));
         table.addHeaderCell(createHeaderCell("Màu sắc"));
         table.addHeaderCell(createHeaderCell("Kích thước"));
+        table.addHeaderCell(createHeaderCell("Chất liệu"));
+        table.addHeaderCell(createHeaderCell("Thương hiệu"));
         table.addHeaderCell(createHeaderCell("SL"));
         table.addHeaderCell(createHeaderCell("Đơn giá"));
         table.addHeaderCell(createHeaderCell("Thành tiền"));
@@ -229,6 +231,8 @@ public class PDFGenerator {
             table.addCell(createCell(sanPham.getSanPham().getTenSanPham(), false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(sanPham.getMauSac() != null ? sanPham.getMauSac().getTenMau() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(sanPham.getKichThuoc() != null ? sanPham.getKichThuoc().getTenKichThuoc() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(createCell(sanPham.getChatLieu() != null ? sanPham.getChatLieu().getTenChatLieu() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(createCell(sanPham.getThuongHieu() != null ? sanPham.getThuongHieu().getTenThuongHieu() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(String.valueOf(chiTiet.getSoLuong()), false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(formatCurrency(sanPham.getGia()), false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(formatCurrency(thanhTien), false).setTextAlignment(TextAlignment.CENTER));
@@ -356,7 +360,7 @@ public class PDFGenerator {
         return new Cell()
                 .add(new Paragraph(content))
                 .setBold()
-                .setPadding(5)
+                .setPadding(2)
                 .setTextAlignment(TextAlignment.CENTER)
                 .setBackgroundColor(com.itextpdf.kernel.colors.ColorConstants.LIGHT_GRAY);
     }
@@ -367,10 +371,499 @@ public class PDFGenerator {
             cell.setBold(); // Đậm chữ cho tiêu đề
         }
         return cell
-                .setPadding(5)
+                .setPadding(2)
                 .setTextAlignment(TextAlignment.LEFT);
     }
+//
+public byte[] generateDeliveryInvoicePDF(HoaDon hoaDon) {
+    validateInvoiceData(hoaDon);
 
+    try {
+        String tempFile = "delivery_invoice_" + hoaDon.getId() + ".pdf";
+        PdfWriter writer = new PdfWriter(tempFile);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+        document.setMargins(5, 5, 5, 5); // Cực kỳ mỏng
+
+        // Set up font
+        InputStream fontStream = getClass().getResourceAsStream("/fonts/NotoSans-VariableFont_wdth,wght.ttf");
+        if (fontStream == null) {
+            throw new RuntimeException("Không tìm thấy font file");
+        }
+        PdfFont font = PdfFontFactory.createFont(
+                IOUtils.toByteArray(fontStream),
+                PdfEncodings.IDENTITY_H
+        );
+        document.setFont(font);
+
+        // Calculate all amounts first (reuse same logic as invoice)
+        InvoiceAmounts amounts = calculateInvoiceAmounts(hoaDon);
+
+        // Header with logo and barcode
+        addDeliveryHeader(document, hoaDon, pdf);
+
+        // Sender and receiver information
+        addDeliverySenderReceiverInfo(document, hoaDon);
+
+        // Order information
+        addDeliveryOrderInfo(document, hoaDon);
+
+        // Product simplified list - without table
+        addSimplifiedProductList(document, hoaDon);
+
+        // Payment details - truyền thêm hoaDon để xử lý chi tiết thanh toán
+        addDeliveryPaymentSummary(document, hoaDon, amounts);
+
+        // Signature area
+        addDeliverySignatureArea(document);
+
+        document.close();
+        byte[] pdfContent = Files.readAllBytes(Paths.get(tempFile));
+        Files.delete(Paths.get(tempFile));
+        return pdfContent;
+
+    } catch (Exception e) {
+        log.error("Error generating delivery PDF for invoice {}: ", hoaDon.getId(), e);
+        throw new RuntimeException("Lỗi khi tạo PDF phiếu giao hàng", e);
+    }
+}
+
+    private void addDeliveryHeader(Document document, HoaDon hoaDon, PdfDocument pdf) {
+        Table header = new Table(2);
+        header.setWidth(UnitValue.createPercentValue(100));
+        header.setBackgroundColor(ColorConstants.WHITE);
+
+        // Left column - Logo and shop name
+        Cell logoCell = new Cell();
+        try {
+            InputStream logoStream = getClass().getResourceAsStream("/images/4bee-logo4.png");
+            if (logoStream != null) {
+                byte[] logoBytes = IOUtils.toByteArray(logoStream);
+                com.itextpdf.io.image.ImageData imageData = com.itextpdf.io.image.ImageDataFactory.create(logoBytes);
+                Image logoImage = new Image(imageData);
+                logoImage.setWidth(60);
+                logoCell.add(logoImage);
+            } else {
+                logoCell.add(new Paragraph(SHOP_NAME).setBold());
+            }
+        } catch (Exception e) {
+            logoCell.add(new Paragraph(SHOP_NAME).setBold());
+        }
+
+        logoCell.add(new Paragraph("PHIẾU GIAO HÀNG").setBold().setFontSize(12));
+        logoCell.setBorder(null);
+        logoCell.setPadding(2);
+        header.addCell(logoCell);
+
+        // Right column - Barcode
+        Cell barcodeCell = new Cell();
+        try {
+            // Xử lý mã hóa đơn null
+            String maHoaDon = hoaDon.getMaHoaDon();
+            if (maHoaDon == null || maHoaDon.trim().isEmpty()) {
+                maHoaDon = "NO_ID_" + hoaDon.getId();
+            }
+
+            com.itextpdf.barcodes.Barcode128 barcode = new com.itextpdf.barcodes.Barcode128(pdf);
+            barcode.setCode(maHoaDon);
+            barcode.setCodeType(com.itextpdf.barcodes.Barcode128.CODE128);
+            Image barcodeImage = new Image(barcode.createFormXObject(pdf));
+            barcodeImage.setWidth(150);
+            barcodeImage.setHeight(30);
+            barcodeCell.add(barcodeImage);
+        } catch (Exception e) {
+            String maHoaDon = hoaDon.getMaHoaDon() != null ? hoaDon.getMaHoaDon() : "Không có mã";
+            barcodeCell.add(new Paragraph(maHoaDon));
+        }
+
+        barcodeCell.setBorder(null);
+        barcodeCell.setPadding(2);
+        barcodeCell.setTextAlignment(TextAlignment.RIGHT);
+        header.addCell(barcodeCell);
+
+        document.add(header);
+        document.add(new Paragraph("---------------------------------------------------")
+                .setFontSize(7)
+                .setMarginTop(2)
+                .setMarginBottom(2)
+                .setTextAlignment(TextAlignment.CENTER));
+    }
+
+    private void addDeliverySenderReceiverInfo(Document document, HoaDon hoaDon) {
+        Table addressTable = new Table(2);
+        addressTable.setWidth(UnitValue.createPercentValue(100));
+
+        // Sender info
+        Cell senderCell = new Cell();
+        senderCell.add(new Paragraph("NGƯỜI GỬI:").setBold().setFontSize(10));
+        senderCell.add(new Paragraph(SHOP_NAME).setFontSize(10));
+        senderCell.add(new Paragraph(SHOP_ADDRESS).setFontSize(9));
+        senderCell.add(new Paragraph("SĐT: " + SHOP_PHONE).setFontSize(9));
+        senderCell.setBorder(null);
+        senderCell.setPadding(2);
+        addressTable.addCell(senderCell);
+
+        // Receiver info
+        Cell receiverCell = new Cell();
+        receiverCell.add(new Paragraph("NGƯỜI NHẬN:").setBold().setFontSize(10));
+
+        // Xử lý trường hợp khách hàng lẻ hoặc tên null
+        String tenNguoiNhan = "Khách hàng lẻ";
+        if (hoaDon.getTenNguoiNhan() != null && !hoaDon.getTenNguoiNhan().trim().isEmpty()) {
+            tenNguoiNhan = hoaDon.getTenNguoiNhan();
+        }
+        receiverCell.add(new Paragraph(tenNguoiNhan).setFontSize(10));
+
+        // Xử lý số điện thoại null
+        if (hoaDon.getSoDienThoai() != null && !hoaDon.getSoDienThoai().trim().isEmpty()) {
+            receiverCell.add(new Paragraph("SĐT: " + hoaDon.getSoDienThoai()).setFontSize(9));
+        }
+
+        // Địa chỉ đầy đủ - chỉ hiển thị nếu có địa chỉ
+        if (hoaDon.getDiaChi() != null && !hoaDon.getDiaChi().trim().isEmpty()) {
+            String diaChiFormatted = addressCache.getFormattedDiaChi(hoaDon.getDiaChi());
+            receiverCell.add(new Paragraph(diaChiFormatted).setFontSize(9));
+        }
+
+        receiverCell.setBorder(null);
+        receiverCell.setPadding(2);
+        addressTable.addCell(receiverCell);
+
+        document.add(addressTable);
+    }
+
+    private void addDeliveryOrderInfo(Document document, HoaDon hoaDon) {
+        Table infoTable = new Table(2);
+        infoTable.setWidth(UnitValue.createPercentValue(100));
+
+        // Order information
+        Cell orderInfoCell = new Cell();
+
+        // Xử lý mã hóa đơn null
+        String maHoaDon = "Không có mã";
+        if (hoaDon.getMaHoaDon() != null && !hoaDon.getMaHoaDon().trim().isEmpty()) {
+            maHoaDon = hoaDon.getMaHoaDon();
+        }
+        orderInfoCell.add(new Paragraph("Mã đơn hàng: " + maHoaDon).setFontSize(10));
+
+        // Xử lý ngày tạo null
+        if (hoaDon.getNgayTao() != null) {
+            orderInfoCell.add(new Paragraph("Ngày đặt hàng: " +
+                    hoaDon.getNgayTao().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))).setFontSize(9));
+        }
+
+        // Xử lý ghi chú nếu có
+        if (hoaDon.getGhiChu() != null && !hoaDon.getGhiChu().trim().isEmpty()) {
+            orderInfoCell.add(new Paragraph("Ghi chú: " + hoaDon.getGhiChu()).setFontSize(9));
+        }
+
+        orderInfoCell.setBorder(null);
+        orderInfoCell.setPadding(2);
+        infoTable.addCell(orderInfoCell);
+
+        // COD Label if applicable
+        Cell paymentCell = new Cell();
+        if (isPaymentCOD(hoaDon)) {
+            paymentCell.add(new Paragraph("THANH TOÁN KHI NHẬN HÀNG").setBold()
+                    .setFontColor(ColorConstants.WHITE)
+                    .setBackgroundColor(ColorConstants.ORANGE)
+                    .setFontSize(10)
+                    .setPadding(2)
+                    .setTextAlignment(TextAlignment.CENTER));
+        } else {
+            paymentCell.add(new Paragraph("ĐÃ THANH TOÁN").setBold()
+                    .setFontColor(ColorConstants.WHITE)
+                    .setBackgroundColor(ColorConstants.GREEN)
+                    .setFontSize(10)
+                    .setPadding(2)
+                    .setTextAlignment(TextAlignment.CENTER));
+        }
+        paymentCell.setBorder(null);
+        paymentCell.setPadding(2);
+        paymentCell.setTextAlignment(TextAlignment.RIGHT);
+        infoTable.addCell(paymentCell);
+
+        document.add(infoTable);
+        document.add(new Paragraph("---------------------------------------------------")
+                .setFontSize(7)
+                .setMarginTop(2)
+                .setMarginBottom(2)
+                .setTextAlignment(TextAlignment.CENTER));
+    }
+
+    private void addSimplifiedProductList(Document document, HoaDon hoaDon) {
+        document.add(new Paragraph("HÀNG HÓA")
+                .setBold()
+                .setTextAlignment(TextAlignment.LEFT)
+                .setFontSize(9)
+                .setMarginTop(0)
+                .setMarginBottom(2));
+
+        // Bo viền trên
+        document.add(new Paragraph("---------------------------------------------------")
+                .setFontSize(7)
+                .setMarginTop(2)
+                .setMarginBottom(2)
+                .setTextAlignment(TextAlignment.CENTER));
+
+        for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
+            SanPhamChiTiet spct = chiTiet.getSanPhamChiTiet();
+
+            // Lấy thông tin sản phẩm
+            String tenSanPham = (spct.getSanPham() != null && spct.getSanPham().getTenSanPham() != null)
+                    ? spct.getSanPham().getTenSanPham()
+                    : "Sản phẩm không xác định";
+
+            String soLuongVaGia = "(" + chiTiet.getSoLuong() + " x " + formatCurrency(spct.getGia()) + ")";
+
+            StringBuilder attributes = new StringBuilder();
+            if (spct.getMauSac() != null && spct.getMauSac().getTenMau() != null) {
+                attributes.append("Màu: ").append(spct.getMauSac().getTenMau());
+            }
+            if (spct.getKichThuoc() != null && spct.getKichThuoc().getTenKichThuoc() != null) {
+                if (attributes.length() > 0) attributes.append(" | ");
+                attributes.append("Kích thước: ").append(spct.getKichThuoc().getTenKichThuoc());
+            }
+
+            // Tạo paragraph trên 1 dòng
+            Paragraph productLine = new Paragraph()
+                    .setFontSize(8.5f) // Thay vì 9
+                    .setMarginTop(0)
+                    .setMarginBottom(0)
+                    .setPadding(0)
+                    .add(new com.itextpdf.layout.element.Text(tenSanPham + " ").setBold().setFontSize(10))
+                    .add(new com.itextpdf.layout.element.Text(soLuongVaGia + " ").setFontSize(9));
+
+            if (attributes.length() > 0) {
+                productLine.add(new com.itextpdf.layout.element.Text("| " + attributes.toString()).setFontSize(9));
+            }
+
+            productLine.setTextAlignment(TextAlignment.LEFT);
+            document.add(productLine);
+        }
+
+        // Bo viền dưới
+        document.add(new Paragraph("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
+                .setFontSize(8)
+                .setTextAlignment(TextAlignment.CENTER));
+    }
+
+
+    private void addDeliveryPaymentSummary(Document document, HoaDon hoaDon, InvoiceAmounts amounts) {
+        document.add(new Paragraph("THÔNG TIN THANH TOÁN").setBold()
+                .setFontSize(10)
+                .setTextAlignment(TextAlignment.RIGHT)
+                .setPaddingTop(3));
+
+        // Tính toán chi tiết về tình trạng thanh toán
+        PaymentDetails paymentDetails = calculatePaymentDetails(hoaDon);
+
+        Table summaryTable = new Table(2);
+        summaryTable.setWidth(UnitValue.createPercentValue(60));
+        summaryTable.setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.RIGHT);
+
+        // Xác định nội dung hiển thị dựa trên tình trạng thanh toán
+        if (paymentDetails.isFullyPaid()) {
+            // Trường hợp đã thanh toán đủ
+            summaryTable.addCell(createCell("Đã thanh toán:", true)
+                    .setBorder(null)
+                    .setBold());
+            summaryTable.addCell(createCell(formatCurrency(amounts.getTongThanhToan()), false)
+                    .setTextAlignment(TextAlignment.RIGHT)
+                    .setBorder(null)
+                    .setBold());
+        }
+        else if (paymentDetails.getAmountDue().compareTo(BigDecimal.ZERO) > 0) {
+            // Trường hợp cần thu tiền
+            // Sau dòng "Tiền thu người nhận:"
+            summaryTable.addCell(createCell("Tiền thu người nhận:", true)
+                    .setBorder(null)
+                    .setBold());
+            summaryTable.addCell(createCell(formatCurrency(paymentDetails.getAmountDue()), false)
+                    .setTextAlignment(TextAlignment.RIGHT)
+                    .setBorder(null)
+                    .setBold());
+
+// Thêm chú thích nhỏ
+            Cell noteCell = new Cell(1, 2)
+                    .add(new Paragraph("(Đã bao gồm phí vận chuyển cũng như giảm giá)")
+                            .setFontSize(7)
+                            .setItalic()
+                            .setTextAlignment(TextAlignment.RIGHT))
+                    .setBorder(null)
+                    .setPaddingTop(0)
+                    .setPaddingBottom(2);
+            summaryTable.addCell(noteCell);
+
+
+            // Hiển thị đã thanh toán trước nếu có
+            if (paymentDetails.getAmountPaid().compareTo(BigDecimal.ZERO) > 0) {
+                summaryTable.addCell(createCell("Đã thanh toán trước:", true)
+                        .setBorder(null));
+                summaryTable.addCell(createCell(formatCurrency(paymentDetails.getAmountPaid()), false)
+                        .setTextAlignment(TextAlignment.RIGHT)
+                        .setBorder(null));
+            }
+        }
+
+        // Sử dụng hasRefund() thay vì so sánh trực tiếp
+        if (paymentDetails.hasRefund()) {
+            summaryTable.addCell(createCell("Đã hoàn tiền:", true)
+                    .setBorder(null));
+            summaryTable.addCell(createCell(formatCurrency(paymentDetails.getAmountRefunded()), false)
+                    .setTextAlignment(TextAlignment.RIGHT)
+                    .setBorder(null));
+        }
+
+        // Luôn hiển thị tổng giá trị đơn hàng
+        summaryTable.addCell(createCell("Tổng giá trị đơn hàng:", true)
+                .setBorder(null));
+        summaryTable.addCell(createCell(formatCurrency(amounts.getTongThanhToan()), false)
+                .setTextAlignment(TextAlignment.RIGHT)
+                .setBorder(null));
+
+        document.add(summaryTable);
+    }
+
+    private void addDeliverySignatureArea(Document document) {
+        document.add(new Paragraph("---------------------------------------------------")
+                .setFontSize(7)
+                .setMarginTop(2)
+                .setMarginBottom(2)
+                .setTextAlignment(TextAlignment.CENTER));
+
+        Table signatureTable = new Table(2);
+        signatureTable.setWidth(UnitValue.createPercentValue(100));
+
+        Cell shopSignCell = new Cell();
+        shopSignCell.add(new Paragraph("Chữ ký người gửi").setFontSize(9).setTextAlignment(TextAlignment.CENTER));
+        shopSignCell.add(new Paragraph("\n\n").setFontSize(9));
+        shopSignCell.setBorder(null);
+        shopSignCell.setPadding(2);
+        signatureTable.addCell(shopSignCell);
+
+        Cell customerSignCell = new Cell();
+        customerSignCell.add(new Paragraph("Chữ ký người nhận").setFontSize(9).setTextAlignment(TextAlignment.CENTER));
+        customerSignCell.add(new Paragraph("(Xác nhận hàng nguyên vẹn, không bóc mở)").setFontSize(8).setTextAlignment(TextAlignment.CENTER));
+        customerSignCell.add(new Paragraph("\n\n").setFontSize(9));
+        customerSignCell.setBorder(null);
+        customerSignCell.setPadding(2);
+        signatureTable.addCell(customerSignCell);
+
+        document.add(signatureTable);
+
+        // Policy note at bottom
+        document.add(new Paragraph("Nếu có vấn đề cần shop hỗ trợ hãy liên hãy liên hệ qua thông tin bên dưới. Cảm ơn quý khách đã mua hàng")
+                .setFontSize(8)
+                .setTextAlignment(TextAlignment.CENTER));
+
+        document.add(new Paragraph("Hotline: " + SHOP_PHONE)
+                .setFontSize(8)
+                .setTextAlignment(TextAlignment.CENTER));
+    }
+    /**
+     * Class lưu trữ chi tiết tình trạng thanh toán của hóa đơn
+     */
+    @Data
+    @AllArgsConstructor
+    private static class PaymentDetails {
+        private BigDecimal totalInvoiceAmount;    // Tổng giá trị hóa đơn
+        private BigDecimal amountPaid;            // Tổng đã thanh toán
+        private BigDecimal amountRefunded;        // Tổng đã hoàn tiền
+        private BigDecimal amountDue;             // Số tiền còn phải thu
+
+        /**
+         * Kiểm tra xem hóa đơn đã thanh toán đủ chưa
+         */
+        public boolean isFullyPaid() {
+            return amountDue.compareTo(BigDecimal.ZERO) <= 0;
+        }
+
+        /**
+         * Kiểm tra xem hóa đơn có hoàn tiền không
+         */
+        public boolean hasRefund() {
+            return amountRefunded.compareTo(BigDecimal.ZERO) > 0;
+        }
+    }
+
+    /**
+     * Tính toán chi tiết về tình trạng thanh toán của hóa đơn
+     */
+    private PaymentDetails calculatePaymentDetails(HoaDon hoaDon) {
+        BigDecimal totalAmount = hoaDon.getTongTien();
+        if (hoaDon.getPhiVanChuyen() != null && hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
+            totalAmount = totalAmount.add(hoaDon.getPhiVanChuyen());
+        }
+
+        BigDecimal totalPaid = BigDecimal.ZERO;
+        BigDecimal totalRefunded = BigDecimal.ZERO;
+
+        // Mảng các mã phương thức thanh toán đã sử dụng
+        StringBuilder paymentMethodsUsed = new StringBuilder();
+
+        if (hoaDon.getThanhToanHoaDons() != null && !hoaDon.getThanhToanHoaDons().isEmpty()) {
+            for (ThanhToanHoaDon payment : hoaDon.getThanhToanHoaDons()) {
+                // Xử lý các thanh toán đã hoàn thành
+                if (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID) {
+                    totalPaid = totalPaid.add(payment.getSoTien());
+
+                    // Lưu thông tin về phương thức thanh toán đã sử dụng
+                    String methodCode = payment.getPhuongThucThanhToan().getMaPhuongThucThanhToan();
+                    if (paymentMethodsUsed.indexOf(methodCode) == -1) {
+                        if (paymentMethodsUsed.length() > 0) {
+                            paymentMethodsUsed.append(", ");
+                        }
+                        paymentMethodsUsed.append(methodCode);
+                    }
+                }
+                // Xử lý các khoản hoàn tiền
+                else if (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_REFUND) {
+                    totalRefunded = totalRefunded.add(payment.getSoTien());
+                }
+            }
+        }
+
+        // Tính số tiền còn phải thu = Tổng tiền - (Đã thanh toán - Đã hoàn tiền)
+        BigDecimal netPaid = totalPaid.subtract(totalRefunded);
+        BigDecimal amountDue = totalAmount.subtract(netPaid);
+
+        // Làm tròn để tránh sai số thập phân
+        if (amountDue.abs().compareTo(new BigDecimal("0.01")) < 0) {
+            amountDue = BigDecimal.ZERO;
+        }
+
+        log.debug("Chi tiết thanh toán - HĐ {}: Tổng={}, Đã TT={}, Đã hoàn={}, Còn phải thu={}, PT={}",
+                hoaDon.getMaHoaDon(),
+                formatCurrency(totalAmount),
+                formatCurrency(totalPaid),
+                formatCurrency(totalRefunded),
+                formatCurrency(amountDue),
+                paymentMethodsUsed.toString());
+
+        return new PaymentDetails(totalAmount, totalPaid, totalRefunded, amountDue);
+    }
+
+    /**
+     * Kiểm tra xem đơn hàng có phải thanh toán COD không
+     */
+    private boolean isPaymentCOD(HoaDon hoaDon) {
+        // Nếu không có thông tin thanh toán, kiểm tra bằng cách khác
+        if (hoaDon.getThanhToanHoaDons() == null || hoaDon.getThanhToanHoaDons().isEmpty()) {
+            return true; // Mặc định coi là COD nếu không có thông tin
+        }
+
+        // Trường hợp 1: Có thanh toán trạng thái COD
+        boolean hasCodPayment = hoaDon.getThanhToanHoaDons().stream()
+                .anyMatch(payment -> payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD);
+        if (hasCodPayment) return true;
+
+        // Trường hợp 2: Tính số tiền đã thanh toán
+        PaymentDetails details = calculatePaymentDetails(hoaDon);
+
+        // Nếu còn tiền phải thu => COD
+        return details.getAmountDue().compareTo(BigDecimal.ZERO) > 0;
+    }
 
     private String formatCurrency(BigDecimal amount) {
         DecimalFormat formatter = new DecimalFormat("#,###");

@@ -178,7 +178,7 @@ public class BanHangServiceImpl implements BanHangService {
 
         // 1. Khởi tạo hóa đơn mới
         HoaDon hoaDon = new HoaDon();
-        hoaDon.setId(UUID.randomUUID().toString());
+        hoaDon.setId(UUID.randomUUID().toString().substring(0, 8));
         hoaDon.setMaHoaDon(generateMaHoaDon());
         hoaDon.setNgayTao(LocalDateTime.now());
         hoaDon.setTrangThai(HoaDonConstant.TRANG_THAI_CHO_XAC_NHAN);
@@ -506,9 +506,11 @@ public class BanHangServiceImpl implements BanHangService {
                     HoaDonConstant.TRANG_THAI_DA_XAC_NHAN,
                     HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG));
         } else {
-            trangThaiCanLuu.addAll(Arrays.asList(
-                    HoaDonConstant.TRANG_THAI_DA_XAC_NHAN,
-                    HoaDonConstant.TRANG_THAI_HOAN_THANH));
+//            trangThaiCanLuu.addAll(Arrays.asList(
+//                    HoaDonConstant.TRANG_THAI_DA_XAC_NHAN,
+//                    HoaDonConstant.TRANG_THAI_HOAN_THANH));
+            trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN);
+            trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_HOAN_THANH);
         }
 
         for (Integer trangThai : trangThaiCanLuu) {
@@ -549,7 +551,7 @@ public class BanHangServiceImpl implements BanHangService {
             case PaymentConstant.PAYMENT_METHOD_CASH:
                 return PaymentConstant.PAYMENT_STATUS_PAID; // Tiền mặt -> Đã thanh toán ngay
             case PaymentConstant.PAYMENT_METHOD_BANK:
-                return PaymentConstant.PAYMENT_STATUS_UNPAID; // Chuyển khoản -> Cần xác nhận
+                return PaymentConstant.PAYMENT_STATUS_PAID;
             default:
                 log.warn(" Phát hiện phương thức thanh toán không hợp lệ: {}", phuongThucId);
                 return PaymentConstant.PAYMENT_STATUS_UNPAID; // Mặc định là chưa thanh toán

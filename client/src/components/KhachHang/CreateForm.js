@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import React, { useCallback, useRef } from 'react';
 import { toast } from "react-toastify";
 import {
   Form,
@@ -11,83 +12,26 @@ import {
   Row,
   Col,
   Divider,
+  Spin,
 } from "antd";
 import { getPostApi } from "./KhachHangApi";
 import axios from "axios";
-import FormItem from "antd/es/form/FormItem";
+import { Modal } from "antd";
+import moment from "moment";
 
 const { Option } = Select;
 
-function CreateForm({ getAllKhachHang, handleClose }) {
+function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
   const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(false);
+
+  const hasFetchedRef = useRef(false);
+
+  // State cho danh sách địa chỉ
   const [tinhThanhList, setTinhThanhList] = useState([]);
   const [quanHuyenList, setQuanHuyenList] = useState([]);
   const [xaPhuongList, setXaPhuongList] = useState([]);
-
-  const [selectedTinh, setSelectedTinh] = useState(null);
-  const [selectedHuyen, setSelectedHuyen] = useState(null);
-  const [selectedXa, setSelectedXa] = useState(null);
-  const API_TOKEN = "4f7fc40f-023f-11f0-aff4-822fc4284d92";
-
-  useEffect(() => {
-    // Lấy danh sách tỉnh/thành phố
-    axios
-      .get(
-        "https://online-gateway.ghn.vn/shiip/public-api/master-data/province",
-        {
-          headers: { Token: API_TOKEN, "Content-Type": "application/json" },
-        }
-      )
-      .then((res) => setTinhThanhList(res.data.data))
-      .catch((err) => console.error("Lỗi lấy tỉnh thành:", err));
-  }, []);
-
-  useEffect(() => {
-    console.log("Danh sách tỉnh/thành đã cập nhật:", tinhThanhList);
-  }, [tinhThanhList]);
-
-  const handleProvinceChange = (value) => {
-    setFormData({
-      ...formData,
-      diaChi: { ...formData.diaChi, tinh: value, huyen: "", xa: "" },
-    });
-
-    // Lấy danh sách quận/huyện
-    axios
-      .post(
-        "https://online-gateway.ghn.vn/shiip/public-api/master-data/district",
-        { province_id: value },
-        { headers: { Token: API_TOKEN } }
-      )
-      .then((res) => setQuanHuyenList(res.data.data))
-      .catch((err) => console.error("Lỗi lấy quận huyện:", err));
-  };
-
-  console.log("Huyen", quanHuyenList);
-  // Khi chọn quận/huyện → Cập nhật danh sách xã/phường
-  const handleDistrictChange = (value) => {
-    setFormData({
-      ...formData,
-      diaChi: { ...formData.diaChi, huyen: value, xa: "" },
-    });
-
-    // Lấy danh sách phường/xã
-    axios
-      .post(
-        "https://online-gateway.ghn.vn/shiip/public-api/master-data/ward",
-        { district_id: value },
-        { headers: { Token: API_TOKEN } }
-      )
-      .then((res) => setXaPhuongList(res.data.data))
-      .catch((err) => console.error("Lỗi lấy phường xã:", err));
-  };
-  console.log(xaPhuongList)
-  const handleWardChange = (value) => {
-    setFormData({
-      ...formData,
-      diaChi: { ...formData.diaChi, xa: value },
-    });
-  };
 
   const [formData, setFormData] = useState({
     tenKhachHang: "",
@@ -105,256 +49,381 @@ function CreateForm({ getAllKhachHang, handleClose }) {
       },
     ],
   });
-  console.log(formData);
-  const [errors, setErrors] = useState({});
 
-  const handleDateChange = (date, dateString) => {
-    console.log("Ngày sinh được chọn:", dateString); // Debug
-    setFormData((prevState) => ({
-      ...prevState,
-      ngaySinh: dateString, // Lưu dưới dạng chuỗi "DD/MM/YYYY"
-    }));
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    console.log(`Thay đổi: ${name} = ${value}`);
-    setFormData((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
-
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [name]: (name, value),
-    }));
-  };
-
-  const handleGenderChange = (gender) => {
-    setFormData((prevState) => ({
-      ...prevState,
-      gioiTinh: gender.target.value,
-    }));
-  };
-
-  const checkDuplicateFields = async () => {
-    try {
-      const existingCustomers = await getAllKhachHang();
-
-      if (!existingCustomers) {
-        toast.error("Không thể lấy dữ liệu khách hàng!");
-        return false;
-      }
-
-      let duplicateErrors = {}; // Chỉ lưu lỗi trùng lặp mới
-
-      // Kiểm tra trùng lặp Email
-      if (existingCustomers.some((cus) => cus.email === formData.email)) {
-        duplicateErrors.email = "Email đã được sử dụng!";
-      }
-
-      // Kiểm tra trùng lặp Số điện thoại
-      if (
-        existingCustomers.some(
-          (cus) => cus.soDienThoai === formData.soDienThoai
-        )
-      ) {
-        duplicateErrors.soDienThoai = "Số điện thoại đã được sử dụng!";
-      }
-
-      if (Object.keys(duplicateErrors).length > 0) {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          ...duplicateErrors, // Chỉ cập nhật lỗi trùng lặp
-        }));
-        return false; // Dữ liệu không hợp lệ
-      }
-
-      return true; // Dữ liệu hợp lệ
-    } catch (error) {
-      console.error("Lỗi kiểm tra trùng lặp:", error);
-      return false;
-    }
-  };
+  // Fetch dữ liệu tỉnh/thành phố từ backend thay vì gọi API GHN trực tiếp
   useEffect(() => {
-    console.log("Khách hàng mới:", formData);
-  }, [formData]);
-
-  const handleSubmit = async (e) => {
-    // e.preventDefault();
-
-    const isUnique = await checkDuplicateFields(); // Chờ kiểm tra xong
-    if (!isUnique) {
-      toast.error("Thông tin nhập vào đã tồn tại, vui lòng kiểm tra lại!");
-      return;
-    }
-    console.log("tỉnh selected", selectedTinh);
-    console.log("huyện selected", selectedHuyen);
-    console.log("xã selected", selectedXa);
-    const newKhachHang = {
-      tenKhachHang: formData.tenKhachHang,
-      email: formData.email,
-      soDienThoai: formData.soDienThoai,
-      ngaySinh: formData.ngaySinh,
-      gioiTinh: formData.gioiTinh === "Nam" ? true : false,
-      diaChi: [
-        {
-          tinh: formData.diaChi.tinh,
-          huyen: formData.diaChi.huyen,
-          xa: formData.diaChi.xa,
-          diaChiCuThe: formData.diaChi.diaChiCuThe,
-        },
-      ],
+    const fetchProvinces = async () => {
+      if (hasFetchedRef.current) return;
+      try {
+        setAddressLoading(true);
+        // Thay đường dẫn API GHN bằng API của backend
+        const response = await axios.get(
+          "http://localhost:8080/api/admin/hoa-don/dia-chi/tinh",
+          {
+            headers: { 
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              "Content-Type": "application/json" 
+            },
+          }
+        );
+        // Đảm bảo format dữ liệu tương thích
+        setTinhThanhList(
+          response.data.map(province => ({
+            ProvinceID: province.id || province.ProvinceID,
+            ProvinceName: province.name || province.ProvinceName
+          }))
+        );
+      } catch (err) {
+        console.error("Lỗi khi lấy danh sách tỉnh:", err);
+        toast.error("Không thể tải danh sách tỉnh/thành phố");
+      } finally {
+        setAddressLoading(false);
+      }
     };
 
-    console.log("Thông tin khách hàng mới:", newKhachHang);
+    fetchProvinces();
+  }, []);
+
+  // Xử lý khi chọn tỉnh/thành phố
+  const handleProvinceChange = useCallback(async (value) => {
     try {
+      setAddressLoading(true);
+      // Cập nhật state
+      setFormData(prev => ({
+        ...prev,
+        diaChi: [{ ...prev.diaChi[0], tinh: value, huyen: "", xa: "" }]
+      }));
+      
+      // Reset các select box phụ thuộc
+      form.setFieldsValue({ huyen: undefined, xa: undefined });
+      setQuanHuyenList([]);
+      setXaPhuongList([]);
+
+      // Gọi API backend để lấy danh sách quận/huyện
+      const response = await axios.get(
+        `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${value}`,
+        {
+          headers: { 
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json" 
+          }
+        }
+      );
+      
+      // Đảm bảo format dữ liệu tương thích
+      setQuanHuyenList(
+        response.data.map(district => ({
+          DistrictID: district.id || district.DistrictID,
+          DistrictName: district.name || district.DistrictName
+        }))
+      );
+    } catch (err) {
+      console.error("Lỗi khi lấy danh sách quận/huyện:", err);
+      toast.error("Không thể tải danh sách quận/huyện");
+    } finally {
+      setAddressLoading(false);
+    }
+  },[form]);
+
+  // Xử lý khi chọn quận/huyện
+  const handleDistrictChange = useCallback(async (value) => {
+    try {
+      setAddressLoading(true);
+      // Cập nhật state
+      setFormData(prev => ({
+        ...prev,
+        diaChi: [{ ...prev.diaChi[0], huyen: value, xa: "" }]
+      }));
+      
+      // Reset select box phụ thuộc
+      form.setFieldsValue({ xa: undefined });
+      setXaPhuongList([]);
+
+      // Gọi API backend để lấy danh sách phường/xã
+      const response = await axios.get(
+        `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${value}`,
+        {
+          headers: { 
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json" 
+          }
+        }
+      );
+      
+      // Đảm bảo format dữ liệu tương thích
+      setXaPhuongList(
+        response.data.map(ward => ({
+          WardCode: ward.id || ward.WardCode,
+          WardName: ward.name || ward.WardName
+        }))
+      );
+    } catch (err) {
+      console.error("Lỗi khi lấy danh sách phường/xã:", err);
+      toast.error("Không thể tải danh sách phường/xã");
+    } finally {
+      setAddressLoading(false);
+    }
+  },[form]);
+
+  // Xử lý khi chọn phường/xã
+  const handleWardChange = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      diaChi: [{ ...prev.diaChi[0], xa: value }]
+    }));
+  };
+
+  // Xử lý khi submit form
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      
+      // Chuẩn bị dữ liệu khách hàng
+      const newKhachHang = {
+        tenKhachHang: formData.tenKhachHang,
+        email: formData.email,
+        soDienThoai: formData.soDienThoai,
+        ngaySinh: formData.ngaySinh,
+        gioiTinh: formData.gioiTinh,
+        diaChi: [{
+          tinh: String(formData.diaChi[0].tinh),
+          huyen: String(formData.diaChi[0].huyen),
+          xa: String(formData.diaChi[0].xa),
+          diaChiCuThe: formData.diaChi[0].diaChiCuThe,
+        }],
+      };
+
+      // Gọi API để tạo khách hàng mới
       const response = await getPostApi(newKhachHang);
+      
       if (response && response.data) {
         toast.success("Khách hàng mới đã được tạo!");
-        getAllKhachHang();
-        handleClose();
+        
+        // Làm mới danh sách khách hàng
+        if (typeof getAllKhachHang === 'function') {
+          getAllKhachHang();
+        }
+        
+        // QUAN TRỌNG: Truyền dữ liệu khách hàng vào hàm callback
+        if (typeof handleClose === 'function') {
+          handleClose(response.data);
+        }
       }
     } catch (error) {
       toast.error("Có lỗi khi tạo khách hàng!");
-      console.error("ERROR", error);
+      console.error("ERROR:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Xác nhận trước khi submit
+  const handleConfirmSubmit = () => {
+    // Kiểm tra form validation trước khi hiển thị modal xác nhận
+    form.validateFields()
+      .then(() => {
+        Modal.confirm({
+          title: "Xác nhận lưu khách hàng",
+          content: "Bạn có chắc chắn muốn lưu thông tin khách hàng này?",
+          okText: "Lưu",
+          cancelText: "Hủy",
+          onOk: handleSubmit
+        });
+      })
+      .catch(info => {
+        console.log('Validate Failed:', info);
+      });
   };
 
   return (
     <div>
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form 
+        form={form} 
+        layout="vertical" 
+        initialValues={{
+          gioiTinh: formData.gioiTinh,
+        }}
+        onValuesChange={(changedValues, allValues) => {
+          // Cập nhật formData khi form values thay đổi
+          if (changedValues.tenKhachHang !== undefined) {
+            setFormData(prev => ({ ...prev, tenKhachHang: changedValues.tenKhachHang }));
+          }
+          if (changedValues.email !== undefined) {
+            setFormData(prev => ({ ...prev, email: changedValues.email }));
+          }
+          if (changedValues.soDienThoai !== undefined) {
+            setFormData(prev => ({ ...prev, soDienThoai: changedValues.soDienThoai }));
+          }
+          if (changedValues.gioiTinh !== undefined) {
+            setFormData(prev => ({ ...prev, gioiTinh: changedValues.gioiTinh }));
+          }
+          if (changedValues.diaChiCuThe !== undefined) {
+            setFormData(prev => ({
+              ...prev,
+              diaChi: [{ ...prev.diaChi[0], diaChiCuThe: changedValues.diaChiCuThe }]
+            }));
+          }
+        }}
+      >
         <Card style={{ padding: "20px", borderRadius: "10px" }}>
-          <h5 style={{ margin: 0 }}>Thông tin khách hàng</h5>
+          <h2 style={{ position: "relative", left: 0, textAlign: "left" }}>
+            Thông tin khách hàng
+          </h2>
           <Divider />
 
-          <Row gutter={16}>
+          <Row gutter={24}>
+            {/* Cột trái */}
             <Col span={12}>
               <Form.Item
                 label="Họ và tên"
                 name="tenKhachHang"
-                rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}
+                rules={[
+                  { required: true, message: "Vui lòng nhập tên khách hàng!" },
+                  {
+                    pattern: /^[a-zA-ZÀ-ỹ\s]+$/,
+                    message: "Tên không được chứa số hoặc ký tự đặc biệt!",
+                  },
+                ]}
               >
-                <Input
-                  placeholder="Nhập họ và tên"
-                  name="tenKhachHang"
-                  onChange={handleChange}
-                />
+                <Input placeholder="Nhập họ và tên" />
               </Form.Item>
 
               <Form.Item
                 label="Ngày sinh"
                 name="ngaySinh"
-                rules={[{ required: true, message: "Vui lòng chọn ngày sinh" }]}
+                rules={[
+                  { required: true, message: "Vui lòng chọn ngày sinh!" },
+                ]}
               >
                 <DatePicker
-                  name="ngaySinh"
                   format="YYYY-MM-DD"
                   style={{ width: "100%" }}
                   placeholder="Nhập ngày sinh"
-                  onChange={handleDateChange}
+                  onChange={(date, dateString) =>
+                    setFormData(prev => ({ ...prev, ngaySinh: dateString }))
+                  }
+                  disabledDate={(current) =>
+                    current && current > moment().endOf("day")
+                  }
                 />
               </Form.Item>
 
               <Form.Item
-                label="Email"
                 name="email"
+                label="Email"
                 rules={[
+                  { required: true, message: "Vui lòng nhập email!" },
+                  { type: "email", message: "Email không hợp lệ!" },
+                ]}
+              >
+                <Input placeholder="Nhập email" />
+              </Form.Item>
+
+              <Form.Item
+                name="soDienThoai"
+                label="Số điện thoại"
+                rules={[
+                  { required: true, message: "Vui lòng nhập số điện thoại!" },
                   {
-                    required: true,
-                    type: "email",
-                    message: "Vui lòng nhập email hợp lệ",
+                    pattern: /^(0[3|5|7|8|9])+([0-9]{8})$/,
+                    message: "Số điện thoại không hợp lệ!",
                   },
                 ]}
               >
-                <Input
-                  type="email"
-                  name="email"
-                  placeholder="Nhập email"
-                  onChange={handleChange}
-                />
+                <Input placeholder="Nhập số điện thoại" />
               </Form.Item>
 
               <Form.Item
-                label="Số điện thoại"
-                name="soDienThoai"
+                name="gioiTinh"
+                label="Giới tính"
                 rules={[
-                  { required: true, message: "Vui lòng nhập số điện thoại" },
+                  { required: true, message: "Vui lòng chọn giới tính!" },
                 ]}
               >
-                <Input
-                  placeholder="Nhập số điện thoại"
-                  name="soDienThoai"
-                  onChange={handleChange}
-                />
-              </Form.Item>
-
-              <Form.Item
-                label="Giới tính"
-                name="gioiTinh"
-                rules={[{ required: true, message: "Vui lòng chọn giới tính" }]}
-              >
-                <Radio.Group onChange={handleGenderChange} name="gioiTinh">
-                  <Radio value="Nam">Nam</Radio>
-                  <Radio value="Nữ">Nữ</Radio>
+                <Radio.Group style={{ display: "flex", justifyContent: "flex-start" }}>
+                  <Radio value={true}>Nam</Radio>
+                  <Radio value={false}>Nữ</Radio>
                 </Radio.Group>
               </Form.Item>
             </Col>
 
-            <Col span={6}>
-              <Form.Item strong>Tỉnh/Thành phố</Form.Item>
-            </Col>
-            <Col span={18}>
-              <Select
-                placeholder="Chọn tỉnh/thành phố"
-                style={{ width: "100%" }}
-                onChange={handleProvinceChange}
-                value={formData.diaChi.tinh}
+            {/* Cột phải */}
+            <Col span={12}>
+              <Form.Item
+                label="Tỉnh/Thành phố"
+                name="tinh"
+                rules={[
+                  { required: true, message: "Vui lòng chọn tỉnh/thành phố" },
+                ]}
               >
-                {tinhThanhList.map((item) => (
-                  <Option key={item.ProvinceID} value={item.ProvinceID}>
-                    {item.ProvinceName}
-                  </Option>
-                ))}
-              </Select>
-            </Col>
+                <Select
+                  placeholder={addressLoading ? "Đang tải..." : "Chọn tỉnh/thành phố"}
+                  style={{ width: "100%" }}
+                  onChange={handleProvinceChange}
+                  loading={addressLoading}
+                  disabled={addressLoading}
+                  showSearch
+                  filterOption={(input, option) =>
+                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }
+                >
+                  {tinhThanhList.map((item) => (
+                    <Option key={item.ProvinceID} value={item.ProvinceID}>
+                      {item.ProvinceName}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
 
-            <Col span={6}>
-              <Form.Item strong>Quận/huyện</Form.Item>
-            </Col>
-            <Col span={18}>
-              <Select
-                placeholder="Chọn quận/huyện"
-                onChange={handleDistrictChange}
-                disabled={!formData.diaChi.tinh}
-                style={{ width: "100%" }}
-                value={formData.diaChi.huyen}
+              <Form.Item
+                label="Quận/Huyện"
+                name="huyen"
+                rules={[
+                  { required: true, message: "Vui lòng chọn quận/huyện" },
+                ]}
               >
-                {quanHuyenList.map((item) => (
-                  <Option key={item.DistrictID} value={item.DistrictID}>
-                    {item.DistrictName}
-                  </Option>
-                ))}
-              </Select>
-            </Col>
+                <Select
+                  placeholder={addressLoading ? "Đang tải..." : "Chọn quận/huyện"}
+                  style={{ width: "100%" }}
+                  disabled={!formData.diaChi[0].tinh || addressLoading}
+                  onChange={handleDistrictChange}
+                  loading={addressLoading}
+                  showSearch
+                  filterOption={(input, option) =>
+                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }
+                >
+                  {quanHuyenList.map((item) => (
+                    <Option key={item.DistrictID} value={item.DistrictID}>
+                      {item.DistrictName}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
 
-            <Col span={6}>
-              <Form.Item strong>Phường/xã</Form.Item>
-            </Col>
-            <Col span={18}>
-              <Select
-                placeholder="Chọn phường/xã"
-                style={{ width: "100%" }}
-                disabled={!formData.diaChi.huyen}
-                onChange={handleWardChange}
-                value={formData.diaChi.xa}
+              <Form.Item
+                label="Phường/Xã"
+                name="xa"
+                rules={[{ required: true, message: "Vui lòng chọn phường/xã" }]}
               >
-                {xaPhuongList.map((item) => (
-                  <Option key={item.WardCode} value={item.WardCode}>
-                    {item.WardName}
-                  </Option>
-                ))}
-              </Select>
+                <Select
+                  placeholder={addressLoading ? "Đang tải..." : "Chọn phường/xã"}
+                  style={{ width: "100%" }}
+                  disabled={!formData.diaChi[0].huyen || addressLoading}
+                  onChange={handleWardChange}
+                  loading={addressLoading}
+                  showSearch
+                  filterOption={(input, option) =>
+                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }
+                >
+                  {xaPhuongList.map((item) => (
+                    <Option key={item.WardCode} value={item.WardCode}>
+                      {item.WardName}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
 
               <Form.Item
                 label="Địa chỉ cụ thể"
@@ -363,26 +432,34 @@ function CreateForm({ getAllKhachHang, handleClose }) {
                   { required: true, message: "Vui lòng nhập địa chỉ cụ thể" },
                 ]}
               >
-                <Input
-                  placeholder="Nhập địa chỉ cụ thể"
-                  value={formData.diaChi.diaChiCuThe}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      diaChi: {
-                        ...formData.diaChi,
-                        diaChiCuThe: e.target.value,
-                      },
-                    })
-                  }
-                />
+                <Input placeholder="Nhập địa chỉ cụ thể" />
               </Form.Item>
             </Col>
           </Row>
 
           <div style={{ textAlign: "right" }}>
-            <Button type="primary" htmlType="submit" style={{ width: "150px" }}>
-              Lưu khách hàng
+            <Button
+              type="default"
+              onClick={() => {
+                if (typeof onCancel === 'function') {
+                  onCancel();
+                } else if (typeof handleClose === 'function') {
+                  handleClose();
+                }
+              }}
+              style={{ marginRight: "10px" }}
+              disabled={loading}
+            >
+              Trở về
+            </Button>
+            <Button
+              type="primary"
+              style={{ width: "150px" }}
+              onClick={handleConfirmSubmit}
+              loading={loading}
+              disabled={loading || addressLoading}
+            >
+              {loading ? "Đang lưu..." : "Lưu khách hàng"}
             </Button>
           </div>
         </Card>
@@ -391,4 +468,4 @@ function CreateForm({ getAllKhachHang, handleClose }) {
   );
 }
 
-export default CreateForm;
+export default React.memo(CreateForm); 

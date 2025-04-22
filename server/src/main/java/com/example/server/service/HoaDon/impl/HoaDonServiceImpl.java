@@ -14,6 +14,7 @@ import com.example.server.mapper.interfaces.IHoaDonMapper;
 import com.example.server.repository.HoaDon.*;
 import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import com.example.server.service.BanHang.impl.BanHangServiceImpl;
+import com.example.server.service.GiaoHang.AddressCache;
 import com.example.server.service.HoaDon.interfaces.ICurrentUserService;
 import com.example.server.service.HoaDon.interfaces.IHoaDonService;
 import com.example.server.service.HoaDon.interfaces.IPaymentProcessorService;
@@ -56,7 +57,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
     private final IHoaDonValidator hoaDonValidator;
     private final ICurrentUserService currentUserService;
     private final IPaymentProcessorService paymentProcessorService;
-
+    private final AddressCache addressCache;
     @PersistenceContext
     private EntityManager entityManager;
 
@@ -129,6 +130,12 @@ public class HoaDonServiceImpl implements IHoaDonService {
         hoaDon.setNgaySua(LocalDateTime.now());
         hoaDon.setNguoiSua(currentUserService.getCurrentUsername());
 
+        String formattedAddress;
+        if (StringUtils.hasText(request.getDiaChi())) {
+            formattedAddress = addressCache.getFormattedDiaChi(request.getDiaChi().trim());
+        } else {
+            formattedAddress = "Không có";
+        }
         // Lưu lịch sử thay đổi nếu cần
         LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
         lichSuHoaDon.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
@@ -141,7 +148,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
         lichSuHoaDon.setTrangThai(1);
         lichSuHoaDon.setHanhDong("Cập nhật thông tin người nhận");
         lichSuHoaDon.setMoTa("Cập nhật thông tin người nhận: " + request.getTenNguoiNhan() +
-                ", Địa chỉ: " + request.getDiaChi() +
+                ", Địa chỉ: " + formattedAddress +
                 ", SĐT: " + (request.getSoDienThoai() != null ? request.getSoDienThoai() : "---"));
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
@@ -650,8 +657,9 @@ public class HoaDonServiceImpl implements IHoaDonService {
         BigDecimal tongTienThucTe = tongTienDaThanhToan.subtract(tongTienHoanTra);
 
         // 4. Tính số tiền còn thiếu - QUAN TRỌNG: Sử dụng tổng tiền từ hóa đơn đã bao gồm phí vận chuyển
-        BigDecimal tongTienHoaDon = hoaDon.getTongTien();
-        BigDecimal soTienConThieu = tongTienHoaDon.subtract(tongTienThucTe).add(hoaDon.getPhiVanChuyen());
+        BigDecimal tongTienHoaDon = hoaDon.getTongTien() != null ? hoaDon.getTongTien() : BigDecimal.ZERO;
+        BigDecimal phiVanChuyen = hoaDon.getPhiVanChuyen() != null ? hoaDon.getPhiVanChuyen() : BigDecimal.ZERO;
+        BigDecimal soTienConThieu = tongTienHoaDon.subtract(tongTienThucTe).add(phiVanChuyen);
 
         log.info("Hóa đơn {}: Tổng tiền = {}, Đã thanh toán = {}, Đã hoàn = {}, Thực thanh toán = {}, Còn thiếu = {}, Sẽ thanh toán thêm = {}",
                 hoaDon.getMaHoaDon(),
@@ -735,150 +743,278 @@ public class HoaDonServiceImpl implements IHoaDonService {
     }
 
     // Thêm phương thức mới này vào class HoaDonServiceImpl
+//    @Transactional
+//    public HoaDonResponse updateVNPayPayment(String hoaDonId) {
+//        log.info("Cập nhật thanh toán VNPay cho hóa đơn: {}", hoaDonId);
+//
+//        // Thực hiện với retry để đảm bảo không mất thông tin thanh toán
+//        int maxRetries = 3;
+//        RuntimeException lastException = null;
+//
+//        for (int attempt = 0; attempt < maxRetries; attempt++) {
+//            try {
+//                // Sử dụng lock pessimistic để tránh đồng thời cập nhật
+//                HoaDon hoaDon = hoaDonRepository.findHoaDonForUpdate(hoaDonId);
+//                if (hoaDon == null) {
+//                    throw new ResourceNotFoundException("Không tìm thấy hóa đơn với id: " + hoaDonId);
+//                }
+//
+//                // Lấy tất cả phương thức thanh toán để kiểm tra
+//                List<PhuongThucThanhToan> allPaymentMethods = phuongThucThanhToanRepository.findAll();
+//                log.info("Danh sách phương thức thanh toán: {}",
+//                        allPaymentMethods.stream()
+//                                .map(p -> p.getId() + ":" + p.getMaPhuongThucThanhToan())
+//                                .collect(Collectors.joining(", "))
+//                );
+//
+//                // Tìm phương thức thanh toán VNPAY
+//                PhuongThucThanhToan phuongThucVNPay = phuongThucThanhToanRepository
+//                        .findByMaPhuongThucThanhToan("VNPAY")
+//                        .orElseThrow(() -> {
+//                            log.error("Không tìm thấy phương thức thanh toán với mã: {}", PaymentConstant.PAYMENT_METHOD_VNPAY);
+//                            return new ResourceNotFoundException("Không tìm thấy phương thức thanh toán VNPAY");
+//                        });
+//
+//                log.info("Đã tìm thấy phương thức thanh toán VNPAY: ID={}, Mã={}",
+//                        phuongThucVNPay.getId(), phuongThucVNPay.getMaPhuongThucThanhToan());
+//
+//                // Kiểm tra danh sách thanh toán hiện tại của hóa đơn
+//                log.info("Hóa đơn có {} khoản thanh toán", hoaDon.getThanhToanHoaDons().size());
+//                for (ThanhToanHoaDon payment : hoaDon.getThanhToanHoaDons()) {
+//                    log.info("ThanhToan: ID={}, Phương thức={}, Mã={}, Số tiền={}",
+//                            payment.getId(),
+//                            payment.getPhuongThucThanhToan().getId(),
+//                            payment.getPhuongThucThanhToan().getMaPhuongThucThanhToan(),
+//                            payment.getSoTien());
+//                }
+//
+//                // Tìm thanh toán VNPAY trong hóa đơn
+//                Optional<ThanhToanHoaDon> existingVNPayPayment = hoaDon.getThanhToanHoaDons().stream()
+//                        .filter(p -> p.getPhuongThucThanhToan().getMaPhuongThucThanhToan().equals("VNPAY"))
+//                        .findFirst();
+//
+//                ThanhToanHoaDon thanhToan;
+//
+//                if (existingVNPayPayment.isPresent()) {
+//                    log.info("Tìm thấy khoản thanh toán VNPAY hiện có: ID={}, Số tiền={}",
+//                            existingVNPayPayment.get().getId(), existingVNPayPayment.get().getSoTien());
+//
+//                    // Cập nhật thanh toán hiện có
+//                    thanhToan = existingVNPayPayment.get();
+//                    thanhToan.setTrangThai(PaymentConstant.PAYMENT_STATUS_PAID);
+//                    thanhToan.setNgaySua(LocalDateTime.now());
+//                    thanhToan.setNguoiSua(currentUserService.getCurrentUsername());
+//                    log.info("Đã cập nhật trạng thái thanh toán VNPAY thành PAID");
+//                } else {
+//                    log.info("Không tìm thấy khoản thanh toán VNPAY trong hóa đơn, tạo mới");
+//
+//                    // Tính số tiền cần thanh toán (số tiền còn thiếu)
+//                    BigDecimal paidAmount = hoaDon.getThanhToanHoaDons().stream()
+//                            .filter(p -> p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID)
+//                            .map(ThanhToanHoaDon::getSoTien)
+//                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//                    BigDecimal totalAmount = hoaDon.getTongTien();
+//                    // Thêm phí vận chuyển vào tổng tiền
+//                    if (hoaDon.getPhiVanChuyen() != null && hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
+//                        totalAmount = totalAmount.add(hoaDon.getPhiVanChuyen());
+//                    }
+//
+//                    BigDecimal remainingAmount = totalAmount.subtract(paidAmount);
+//
+//                    log.info("Tổng tiền hóa đơn: {}, Đã thanh toán: {}, Còn lại: {}",
+//                            totalAmount, paidAmount, remainingAmount);
+//
+//                    // Tạo mới thanh toán VNPAY
+//                    thanhToan = new ThanhToanHoaDon();
+//                    thanhToan.setHoaDon(hoaDon);
+//                    thanhToan.setPhuongThucThanhToan(phuongThucVNPay);
+//                    thanhToan.setSoTien(remainingAmount.compareTo(BigDecimal.ZERO) > 0 ? remainingAmount : totalAmount);
+//                    thanhToan.setTrangThai(PaymentConstant.PAYMENT_STATUS_PAID);
+//                    thanhToan.setNgayTao(LocalDateTime.now());
+//                    thanhToan.setNguoiTao(currentUserService.getCurrentUsername());
+//                    thanhToan.setMoTa("Thanh toán qua VNPAY");
+//
+//                    hoaDon.getThanhToanHoaDons().add(thanhToan);
+//                    log.info("Đã tạo khoản thanh toán VNPAY mới với số tiền: {}", thanhToan.getSoTien());
+//                }
+//
+//                // Lưu thanh toán
+//                thanhToanHoaDonRepository.save(thanhToan);
+//
+//                // Cập nhật trạng thái hóa đơn nếu đã thanh toán đủ
+//                if (isPaymentComplete(hoaDon)) {
+//                    // Nếu là đơn tại quầy, hoàn tất luôn
+//                    if (hoaDon.getLoaiHoaDon() == HoaDonConstant.TAI_QUAY) {
+//                        hoaDon.setTrangThai(HoaDonConstant.TRANG_THAI_HOAN_THANH);
+//                        log.info("Đơn hàng tại quầy -> chuyển trạng thái HOÀN THÀNH");
+//                    }
+//                    // Nếu là đơn online và đang chờ xác nhận, chuyển sang đã xác nhận
+//                    else if (hoaDon.getTrangThai() == HoaDonConstant.TRANG_THAI_CHO_XAC_NHAN) {
+//                        hoaDon.setTrangThai(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN);
+//                        log.info("Đơn hàng online -> chuyển trạng thái ĐÃ XÁC NHẬN");
+//                    }
+//                }
+//
+//                hoaDon.setNgaySua(LocalDateTime.now());
+//                hoaDon = hoaDonRepository.save(hoaDon);
+//                log.info("Đã lưu hóa đơn sau khi cập nhật thanh toán VNPAY");
+//
+//                // Lưu lịch sử thanh toán
+//                LichSuHoaDon lichSu = new LichSuHoaDon();
+//                lichSu.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
+//                lichSu.setHoaDon(hoaDon);
+//                lichSu.setHanhDong("Cập nhật thanh toán VNPAY");
+//                lichSu.setMoTa("Thanh toán qua VNPAY thành công: " + formatCurrency(thanhToan.getSoTien()));
+//                lichSu.setTrangThai(hoaDon.getTrangThai());
+//                lichSu.setNgayTao(LocalDateTime.now());
+//                lichSuHoaDonRepository.save(lichSu);
+//                log.info("Đã lưu lịch sử thanh toán VNPAY");
+//
+//                // Trả về response thành công
+//                return hoaDonMapper.entityToResponse(hoaDon);
+//
+//            } catch (RuntimeException e) {
+//                log.error("Lỗi khi cập nhật thanh toán VNPay (lần thử {}): {}", attempt + 1, e.getMessage());
+//                lastException = e;
+//
+//                // Đợi trước khi thử lại
+//                try {
+//                    Thread.sleep(500 * (attempt + 1));
+//                } catch (InterruptedException ie) {
+//                    Thread.currentThread().interrupt();
+//                }
+//            }
+//        }
+//
+//        // Nếu đã thử tối đa và vẫn thất bại
+//        log.error("Không thể cập nhật thanh toán VNPay sau {} lần thử", maxRetries);
+//        throw lastException != null ? lastException : new RuntimeException("Không thể cập nhật thanh toán VNPay");
+//    }
+//    // Thêm phương thức kiểm tra đã thanh toán đủ chưa
+//    private boolean isPaymentComplete(HoaDon hoaDon) {
+//        BigDecimal totalPaid = hoaDon.getThanhToanHoaDons().stream()
+//                .filter(p -> p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID)
+//                .map(ThanhToanHoaDon::getSoTien)
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//        BigDecimal totalRequired = hoaDon.getTongTien();
+//        if (hoaDon.getPhiVanChuyen() != null) {
+//            totalRequired = totalRequired.add(hoaDon.getPhiVanChuyen());
+//        }
+//
+//        return totalPaid.compareTo(totalRequired) >= 0;
+//    }
     @Transactional
     public HoaDonResponse updateVNPayPayment(String hoaDonId) {
         log.info("Cập nhật thanh toán VNPay cho hóa đơn: {}", hoaDonId);
 
-        // Thực hiện với retry để đảm bảo không mất thông tin thanh toán
-        int maxRetries = 3;
-        RuntimeException lastException = null;
+        HoaDon hoaDon = hoaDonRepository.findHoaDonForUpdate(hoaDonId);
+        if (hoaDon == null) {
+            throw new ResourceNotFoundException("Không tìm thấy hóa đơn với id: " + hoaDonId);
+        }
 
-        for (int attempt = 0; attempt < maxRetries; attempt++) {
-            try {
-                // Sử dụng lock pessimistic để tránh đồng thời cập nhật
-                HoaDon hoaDon = hoaDonRepository.findHoaDonForUpdate(hoaDonId);
-                if (hoaDon == null) {
-                    throw new ResourceNotFoundException("Không tìm thấy hóa đơn với id: " + hoaDonId);
-                }
+        // Tìm phương thức thanh toán VNPAY
+        PhuongThucThanhToan phuongThucVNPay = phuongThucThanhToanRepository
+                .findByMaPhuongThucThanhToan("VNPAY")
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương thức VNPAY"));
 
-                // Lấy tất cả phương thức thanh toán để kiểm tra
-                List<PhuongThucThanhToan> allPaymentMethods = phuongThucThanhToanRepository.findAll();
-                log.info("Danh sách phương thức thanh toán: {}",
-                        allPaymentMethods.stream()
-                                .map(p -> p.getId() + ":" + p.getMaPhuongThucThanhToan())
-                                .collect(Collectors.joining(", "))
-                );
+        // Check nếu đã có thanh toán VNPAY trong hóa đơn
+        Optional<ThanhToanHoaDon> existingPaymentOpt = hoaDon.getThanhToanHoaDons().stream()
+                .filter(p -> p.getPhuongThucThanhToan().getMaPhuongThucThanhToan().equals("VNPAY"))
+                .findFirst();
 
-                // Tìm phương thức thanh toán VNPAY
-                PhuongThucThanhToan phuongThucVNPay = phuongThucThanhToanRepository
-                        .findByMaPhuongThucThanhToan("VNPAY")
-                        .orElseThrow(() -> {
-                            log.error("Không tìm thấy phương thức thanh toán với mã: {}", PaymentConstant.PAYMENT_METHOD_VNPAY);
-                            return new ResourceNotFoundException("Không tìm thấy phương thức thanh toán VNPAY");
-                        });
+        ThanhToanHoaDon thanhToan;
+        if (existingPaymentOpt.isPresent()) {
+            // Đã có VNPAY => cập nhật trạng thái
+            thanhToan = existingPaymentOpt.get();
+            thanhToan.setTrangThai(PaymentConstant.PAYMENT_STATUS_PAID);
+            thanhToan.setNgaySua(LocalDateTime.now());
+            thanhToan.setNguoiSua(currentUserService.getCurrentUsername());
+            thanhToanHoaDonRepository.save(thanhToan);
+            log.info("Đã cập nhật thanh toán VNPAY thành PAID");
+        } else {
+            // Nếu chưa có, tạo mới khoản thanh toán VNPAY
+            BigDecimal totalAmount = hoaDon.getTongTien();
+            if (hoaDon.getPhiVanChuyen() != null) {
+                totalAmount = totalAmount.add(hoaDon.getPhiVanChuyen());
+            }
 
-                log.info("Đã tìm thấy phương thức thanh toán VNPAY: ID={}, Mã={}",
-                        phuongThucVNPay.getId(), phuongThucVNPay.getMaPhuongThucThanhToan());
+            thanhToan = new ThanhToanHoaDon();
+            thanhToan.setHoaDon(hoaDon);
+            thanhToan.setPhuongThucThanhToan(phuongThucVNPay);
+            thanhToan.setSoTien(totalAmount);
+            thanhToan.setTrangThai(PaymentConstant.PAYMENT_STATUS_PAID);
+            thanhToan.setMoTa("Thanh toán VNPAY");
+            thanhToan.setNgayTao(LocalDateTime.now());
+            thanhToan.setNguoiTao(currentUserService.getCurrentUsername());
 
-                // Kiểm tra danh sách thanh toán hiện tại của hóa đơn
-                log.info("Hóa đơn có {} khoản thanh toán", hoaDon.getThanhToanHoaDons().size());
-                for (ThanhToanHoaDon payment : hoaDon.getThanhToanHoaDons()) {
-                    log.info("ThanhToan: ID={}, Phương thức={}, Mã={}, Số tiền={}",
-                            payment.getId(),
-                            payment.getPhuongThucThanhToan().getId(),
-                            payment.getPhuongThucThanhToan().getMaPhuongThucThanhToan(),
-                            payment.getSoTien());
-                }
+            thanhToanHoaDonRepository.save(thanhToan);
+            hoaDon.getThanhToanHoaDons().add(thanhToan);
+            log.info("Đã tạo khoản thanh toán VNPAY mới với số tiền: {}", totalAmount);
+        }
 
-                // Tìm thanh toán VNPAY trong hóa đơn
-                Optional<ThanhToanHoaDon> existingVNPayPayment = hoaDon.getThanhToanHoaDons().stream()
-                        .filter(p -> p.getPhuongThucThanhToan().getMaPhuongThucThanhToan().equals("VNPAY"))
-                        .findFirst();
+        // Cập nhật trạng thái hóa đơn nếu đủ tiền
+        if (isPaymentComplete(hoaDon)) {
+            if (hoaDon.getLoaiHoaDon() == HoaDonConstant.TAI_QUAY) {
+                // Đơn tại quầy cần 2 bước:
 
-                ThanhToanHoaDon thanhToan;
+                // 1. Ghi lịch sử "Đã xác nhận"
+                saveLichSuHoaDonTrangThai(hoaDon, HoaDonConstant.TRANG_THAI_DA_XAC_NHAN, "Xác nhận thanh toán thành công");
 
-                if (existingVNPayPayment.isPresent()) {
-                    log.info("Tìm thấy khoản thanh toán VNPAY hiện có: ID={}, Số tiền={}",
-                            existingVNPayPayment.get().getId(), existingVNPayPayment.get().getSoTien());
-
-                    // Cập nhật thanh toán hiện có
-                    thanhToan = existingVNPayPayment.get();
-                    thanhToan.setTrangThai(PaymentConstant.PAYMENT_STATUS_PAID);
-                    thanhToan.setNgaySua(LocalDateTime.now());
-                    thanhToan.setNguoiSua("VNPAY");
-                    log.info("Đã cập nhật trạng thái thanh toán VNPAY thành PAID");
-                } else {
-                    log.info("Không tìm thấy khoản thanh toán VNPAY trong hóa đơn, tạo mới");
-
-                    // Tính số tiền cần thanh toán (số tiền còn thiếu)
-                    BigDecimal paidAmount = hoaDon.getThanhToanHoaDons().stream()
-                            .filter(p -> p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID)
-                            .map(ThanhToanHoaDon::getSoTien)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                    BigDecimal totalAmount = hoaDon.getTongTien();
-                    BigDecimal remainingAmount = totalAmount.subtract(paidAmount);
-
-                    log.info("Tổng tiền hóa đơn: {}, Đã thanh toán: {}, Còn lại: {}",
-                            totalAmount, paidAmount, remainingAmount);
-
-                    // Tạo mới thanh toán VNPAY
-                    thanhToan = new ThanhToanHoaDon();
-                    thanhToan.setHoaDon(hoaDon);
-                    thanhToan.setPhuongThucThanhToan(phuongThucVNPay);
-                    thanhToan.setSoTien(remainingAmount.compareTo(BigDecimal.ZERO) > 0 ? remainingAmount : totalAmount);
-                    thanhToan.setTrangThai(PaymentConstant.PAYMENT_STATUS_PAID);
-                    thanhToan.setNgayTao(LocalDateTime.now());
-                    thanhToan.setNguoiTao("VNPAY");
-                    thanhToan.setMoTa("Thanh toán qua VNPAY");
-
-                    hoaDon.getThanhToanHoaDons().add(thanhToan);
-                    log.info("Đã tạo khoản thanh toán VNPAY mới với số tiền: {}", thanhToan.getSoTien());
-                }
-
-                // Lưu thanh toán
-                thanhToanHoaDonRepository.save(thanhToan);
-
-                // Cập nhật trạng thái hóa đơn nếu đã thanh toán đủ
-                if (isPaymentComplete(hoaDon)) {
-                    // Nếu là đơn tại quầy, hoàn tất luôn
-                    if (hoaDon.getLoaiHoaDon() == HoaDonConstant.TAI_QUAY) {
-                        hoaDon.setTrangThai(HoaDonConstant.TRANG_THAI_HOAN_THANH);
-                        log.info("Đơn hàng tại quầy -> chuyển trạng thái HOÀN THÀNH");
-                    }
-                    // Nếu là đơn online và đang chờ xác nhận, chuyển sang đã xác nhận
-                    else if (hoaDon.getTrangThai() == HoaDonConstant.TRANG_THAI_CHO_XAC_NHAN) {
-                        hoaDon.setTrangThai(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN);
-                        log.info("Đơn hàng online -> chuyển trạng thái ĐÃ XÁC NHẬN");
-                    }
-                }
-
+                // 2. Set trạng thái "Hoàn thành" và ghi tiếp lịch sử
+                hoaDon.setTrangThai(HoaDonConstant.TRANG_THAI_HOAN_THANH);
                 hoaDon.setNgaySua(LocalDateTime.now());
-                hoaDon = hoaDonRepository.save(hoaDon);
-                log.info("Đã lưu hóa đơn sau khi cập nhật thanh toán VNPAY");
+                hoaDonRepository.save(hoaDon);
 
-                // Lưu lịch sử thanh toán
-                LichSuHoaDon lichSu = new LichSuHoaDon();
-                lichSu.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
-                lichSu.setHoaDon(hoaDon);
-                lichSu.setHanhDong("Cập nhật thanh toán VNPAY");
-                lichSu.setMoTa("Thanh toán qua VNPAY thành công: " + formatCurrency(thanhToan.getSoTien()));
-                lichSu.setTrangThai(hoaDon.getTrangThai());
-                lichSu.setNgayTao(LocalDateTime.now());
-                lichSuHoaDonRepository.save(lichSu);
-                log.info("Đã lưu lịch sử thanh toán VNPAY");
+                saveLichSuHoaDonTrangThai(hoaDon, HoaDonConstant.TRANG_THAI_HOAN_THANH, "Hoàn thành hóa đơn sau thanh toán");
 
-                // Trả về response thành công
-                return hoaDonMapper.entityToResponse(hoaDon);
+                log.info("Hóa đơn tại quầy -> chuyển qua: ĐÃ XÁC NHẬN rồi HOÀN THÀNH");
+            }
+            else if (hoaDon.getLoaiHoaDon() == HoaDonConstant.ONLINE || hoaDon.getLoaiHoaDon() == HoaDonConstant.GIAO_HANG) {
 
-            } catch (RuntimeException e) {
-                log.error("Lỗi khi cập nhật thanh toán VNPay (lần thử {}): {}", attempt + 1, e.getMessage());
-                lastException = e;
+                saveLichSuHoaDonTrangThai(hoaDon, HoaDonConstant.TRANG_THAI_DA_XAC_NHAN, "Xác nhận thanh toán thành công");
+                // Đơn online hoặc giao hàng
+                hoaDon.setTrangThai(HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG);
+                hoaDon.setNgaySua(LocalDateTime.now());
+                hoaDonRepository.save(hoaDon);
 
-                // Đợi trước khi thử lại
-                try {
-                    Thread.sleep(500 * (attempt + 1));
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
+                saveLichSuHoaDonTrangThai(hoaDon, HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG, "Đã xác nhận thanh toán, chờ giao hàng");
+
+                log.info("Hóa đơn online/giao hàng -> chuyển trạng thái: CHỜ GIAO HÀNG");
             }
         }
 
-        // Nếu đã thử tối đa và vẫn thất bại
-        log.error("Không thể cập nhật thanh toán VNPay sau {} lần thử", maxRetries);
-        throw lastException != null ? lastException : new RuntimeException("Không thể cập nhật thanh toán VNPay");
+
+        hoaDon.setNgaySua(LocalDateTime.now());
+        hoaDonRepository.save(hoaDon);
+
+        // Ghi lịch sử hóa đơn
+        LichSuHoaDon lichSu = new LichSuHoaDon();
+        lichSu.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
+        lichSu.setHoaDon(hoaDon);
+        lichSu.setHanhDong("Xác nhận thanh toán VNPAY");
+        lichSu.setMoTa("Thanh toán qua VNPAY thành công số tiền: " + formatCurrency(thanhToan.getSoTien()));
+        lichSu.setTrangThai(hoaDon.getTrangThai());
+        lichSu.setNgayTao(LocalDateTime.now());
+        lichSuHoaDonRepository.save(lichSu);
+
+        log.info("Đã lưu lịch sử xác nhận VNPAY thành công.");
+
+        return hoaDonMapper.entityToResponse(hoaDon);
     }
-    // Thêm phương thức kiểm tra đã thanh toán đủ chưa
+    private void saveLichSuHoaDonTrangThai(HoaDon hoaDon, int trangThai, String moTa) {
+        LichSuHoaDon lichSu = new LichSuHoaDon();
+        lichSu.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
+        lichSu.setHoaDon(hoaDon);
+        lichSu.setTrangThai(trangThai);
+        lichSu.setHanhDong("Cập nhật trạng thái hóa đơn");
+        lichSu.setMoTa(moTa);
+        lichSu.setNgayTao(LocalDateTime.now());
+        lichSu.setNhanVien(currentUserService.getCurrentNhanVien());
+        lichSuHoaDonRepository.save(lichSu);
+    }
+
     private boolean isPaymentComplete(HoaDon hoaDon) {
         BigDecimal totalPaid = hoaDon.getThanhToanHoaDons().stream()
                 .filter(p -> p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID)
@@ -892,6 +1028,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
         return totalPaid.compareTo(totalRequired) >= 0;
     }
+
+
     @Override
     public Optional<HoaDon> findById(String id) {
         return hoaDonRepository.findById(id);
@@ -909,6 +1047,19 @@ public class HoaDonServiceImpl implements IHoaDonService {
         } catch (Exception e) {
             log.error("Error generating PDF for invoice {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("Lỗi khi tạo PDF: " + e.getMessage());
+        }
+    }
+    @Override
+    public byte[] generateDeliveryInvoicePDF(String id) {
+        try {
+            HoaDon hoaDon = hoaDonRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại với id: " + id));
+
+            validateInvoiceForPrinting(hoaDon);
+            return pdfGenerator.generateDeliveryInvoicePDF(hoaDon);
+        } catch (Exception e) {
+            log.error("Error generating delivery PDF for invoice {}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("Lỗi khi tạo PDF giao hàng: " + e.getMessage());
         }
     }
 

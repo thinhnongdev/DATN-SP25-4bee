@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import Container from 'react-bootstrap/Container';
 import axios from 'axios';
-import { Button, Table, Row, Modal, Input, Form, Col, Breadcrumb, message } from 'antd';
+import { Button, Table, Row, Modal, Input, Form, Col, Breadcrumb } from 'antd';
 import { toast } from 'react-toastify';
 import { TbEyeEdit } from 'react-icons/tb';
 import { SearchOutlined, FileExcelOutlined } from '@ant-design/icons';
@@ -91,7 +92,7 @@ const ThuongHieu = () => {
         setThuongHieu((prev) =>
           prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
         );
-        message.success('Sửa thương hiệu thành công');
+        toast.success('Sửa thương hiệu thành công');
       } else {
         // Thêm mới
         const response = await axios.post('http://localhost:8080/api/admin/addthuonghieu', values,
@@ -183,7 +184,7 @@ const ThuongHieu = () => {
       >
         <Breadcrumb.Item>Thương hiệu</Breadcrumb.Item>
       </Breadcrumb>
-      <div
+      <Container
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -224,7 +225,7 @@ const ThuongHieu = () => {
           onChange={handleTableChange}
           rowKey="id"
         />
-      </div>
+      </Container>
 
       <Modal
         title={isEditing ? 'Chỉnh sửa thương hiệu' : 'Thêm thương hiệu'}

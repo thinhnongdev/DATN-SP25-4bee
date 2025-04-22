@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { getAllApi } from "./KhachHangApi";
 import { TbEyeEdit } from "react-icons/tb";
+import { FilterOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 
@@ -140,7 +141,9 @@ const KhachHang = ({ onAddClick, onViewClick }) => {
   return (
     <div style={{ maxWidth: "2000px", margin: "0 auto", padding: "20px" }}>
       {/* Phần bộ lọc */}
-      <h4>Danh sách khách hàng</h4>
+      <h1 style={{ position: "relative", left: 0, textAlign: "left" }}>
+        Danh sách khách hàng
+      </h1>
       <div
         style={{
           background: "#fff",
@@ -149,7 +152,19 @@ const KhachHang = ({ onAddClick, onViewClick }) => {
           marginBottom: "20px",
         }}
       >
-        <h5 style={{ marginBottom: "10px" }}>Bộ lọc</h5>
+        <h5
+          style={{
+            marginBottom: "15px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <FilterOutlined
+            style={{ marginRight: "8px", fontSize: "18px", color: "black" }}
+          />
+          Bộ lọc
+        </h5>
         <div
           style={{
             display: "flex",

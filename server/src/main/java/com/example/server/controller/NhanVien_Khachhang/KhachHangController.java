@@ -5,6 +5,7 @@ import com.example.server.entity.DiaChi;
 import com.example.server.entity.KhachHang;
 import com.example.server.service.NhanVien_KhachHang.KhachHangService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,13 +54,22 @@ public class KhachHangController {
     // Thêm endpoint mới để tạo địa chỉ cho khách hàng
     @PostMapping("/diaChi")
     public ResponseEntity<DiaChi> addAddressForCustomer(@RequestBody Map<String, Object> request) {
-        String khachHangId = (String) request.get("khachHangId");
+        // Sửa để xử lý cả trường hợp Integer và String
+        String khachHangId;
+        Object rawKhachHangId = request.get("khachHangId");
+
+        if (rawKhachHangId instanceof Integer) {
+            khachHangId = String.valueOf(rawKhachHangId);
+        } else {
+            khachHangId = (String) rawKhachHangId;
+        }
+
         Map<String, Object> diaChiMap = (Map<String, Object>) request.get("diaChi");
 
         DiaChi diaChi = new DiaChi();
-        diaChi.setTinh((String) diaChiMap.get("tinh"));
-        diaChi.setHuyen((String) diaChiMap.get("huyen"));
-        diaChi.setXa((String) diaChiMap.get("xa"));
+        diaChi.setTinh(String.valueOf(diaChiMap.get("tinh")));
+        diaChi.setHuyen(String.valueOf(diaChiMap.get("huyen")));
+        diaChi.setXa(String.valueOf(diaChiMap.get("xa")));
         diaChi.setMoTa((String) diaChiMap.get("moTa"));
         diaChi.setDiaChiCuThe((String) diaChiMap.get("diaChiCuThe"));
         diaChi.setTrangThai(1);
@@ -67,5 +77,4 @@ public class KhachHangController {
         DiaChi savedAddress = khachHangService.addAddressForCustomer(khachHangId, diaChi);
         return ResponseEntity.ok(savedAddress);
     }
-
 }

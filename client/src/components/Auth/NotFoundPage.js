@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Forbidden403 = () => {
+const NotFoundPage = () => {
   return (
     <>
       <style>{`
@@ -705,4 +705,4 @@ const Forbidden403 = () => {
   );
 };
 
-export default Forbidden403;
+export default NotFoundPage;

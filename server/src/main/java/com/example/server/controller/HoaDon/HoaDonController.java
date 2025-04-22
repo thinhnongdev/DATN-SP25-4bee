@@ -270,8 +270,14 @@ public class HoaDonController {
                         .body("Hóa đơn không có thông tin tổng tiền");
             }
 
-            // Tạo file PDF
-            byte[] pdfBytes = hoaDonService.generateInvoicePDF(id);
+            byte[] pdfBytes;
+            if (hoaDon.getLoaiHoaDon() == 3 || hoaDon.getLoaiHoaDon() == 1) { // Nếu là đơn hàng online/giao hàng
+                log.info("Generating delivery invoice PDF for online order");
+                pdfBytes = hoaDonService.generateDeliveryInvoicePDF(id);
+            } else {
+                log.info("Generating standard invoice PDF for in-store order");
+                pdfBytes = hoaDonService.generateInvoicePDF(id);
+            }
 
             if (pdfBytes == null || pdfBytes.length == 0) {
                 return ResponseEntity
@@ -350,7 +356,13 @@ public class HoaDonController {
                         .map(ThanhToanHoaDon::getSoTien)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                BigDecimal remainingAmount = hoaDon.getTongTien().subtract(paidAmount);
+                // Tính tổng tiền phải trả = tổng tiền hóa đơn + phí vận chuyển
+                BigDecimal totalRequired = hoaDon.getTongTien();
+                if (hoaDon.getPhiVanChuyen() != null && hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
+                    totalRequired = totalRequired.add(hoaDon.getPhiVanChuyen());
+                }
+
+                BigDecimal remainingAmount = totalRequired.subtract(paidAmount);
 
                 if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) {
                     return ResponseEntity.badRequest().body("Đơn hàng đã được thanh toán đủ");

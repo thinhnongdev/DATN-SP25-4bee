@@ -63,6 +63,18 @@ public class NhanVien {
     @Column(name = "can_cuoc_cong_dan")
     private String canCuocCongDan;
 
+    @Column(name = "xa")
+    private String xa;
+
+    @Column(name = "huyen")
+    private String huyen;
+
+    @Column(name = "tinh")
+    private String tinh;
+
+    @Column(name = "dia_chi_cu_the")
+    private String diaChiCuThe;
+
     public NhanVien(String id) {
         this.id = id;
     }

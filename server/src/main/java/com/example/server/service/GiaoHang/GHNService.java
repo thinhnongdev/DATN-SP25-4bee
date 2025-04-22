@@ -53,10 +53,10 @@ public class GHNService {
         // Đặt giá trị mặc định cho kích thước để GHN không cần trọng lượng
         request.setService_type_id(2);//tiêu chuẩn
         request.setQuantity(1);
-        request.setHeight(5);
+        request.setHeight(10);
         request.setLength(30);
-        request.setWidth(25);
-        request.setWeight(400);  // Đặt về 0 để không ảnh hưởng đến phí
+        request.setWidth(20);
+        request.setWeight(1000);  // Đặt về 0 để không ảnh hưởng đến phí
         request.setInsurance_value(0); // bảo hiểm
 
         String url = ghnApiUrl + "v2/shipping-order/fee";

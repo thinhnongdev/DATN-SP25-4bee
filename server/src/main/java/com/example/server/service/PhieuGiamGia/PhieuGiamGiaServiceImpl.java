@@ -6,6 +6,7 @@ import com.example.server.dto.PhieuGiamGia.UpdatePhieuGiamGiaRequest;
 import com.example.server.entity.KhachHang;
 import com.example.server.entity.PhieuGiamGia;
 import com.example.server.entity.PhieuGiamGiaKhachHang;
+import com.example.server.repository.HoaDon.HoaDonRepository;
 import com.example.server.repository.HoaDon.PhieuGiamGiaKhachHangRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
 import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
@@ -58,6 +59,9 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
 
     @Autowired
+    private HoaDonRepository hoaDonRepository;
+    @Autowired
+
     private ModelMapper modelMapper;
 
 
@@ -372,14 +376,23 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
 
 
+
     @Transactional
     @Override
     public PhieuGiamGiaDTO update(UpdatePhieuGiamGiaRequest request, String id) {
         ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalDateTime now = LocalDateTime.now(zoneId);
 
+        // Tìm phiếu giảm giá
         PhieuGiamGia existingEntity = repository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Phiếu giảm giá không tồn tại"));
+
+        // Kiểm tra xem phiếu đã được sử dụng chưa
+        if (hoaDonRepository.existsByIdPhieuGiamGia(id)) {
+            logger.warn("Không thể cập nhật phiếu giảm giá [{}] vì đã được sử dụng.", existingEntity.getMaPhieuGiamGia());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể cập nhật phiếu giảm giá vì phiếu này đã được sử dụng.");
+        }
 
         // Lưu trạng thái cũ để kiểm tra thay đổi
         PhieuGiamGia oldEntity = new PhieuGiamGia();
@@ -396,7 +409,8 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
         if (hasUpdates) {
             List<KhachHang> allCustomers = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(existingEntity.getId())
-                    .stream().map(PhieuGiamGiaKhachHang::getKhachHang)
+                    .stream()
+                    .map(PhieuGiamGiaKhachHang::getKhachHang)
                     .collect(Collectors.toList());
 
             allCustomers.forEach(khachHang -> sendEmailUpdateAsync(khachHang, existingEntity, oldEntity));
@@ -404,12 +418,14 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
         // Danh sách khách hàng hiện có trong phiếu
         Set<String> existingCustomerIds = phieuGiamGiaKhachHangRepository.findByPhieuGiamGiaId(existingEntity.getId())
-                .stream().map(kh -> kh.getKhachHang().getId()).collect(Collectors.toSet());
+                .stream()
+                .map(kh -> kh.getKhachHang().getId())
+                .collect(Collectors.toSet());
 
         // Danh sách khách hàng được chọn mới từ request
         Set<String> newCustomerIds = request.getKhachHangsToAdd() != null ? new HashSet<>(request.getKhachHangsToAdd()) : new HashSet<>();
 
-        // **Thêm khách hàng mới vào phiếu**
+        // Thêm khách hàng mới vào phiếu
         List<PhieuGiamGiaKhachHang> newEntries = newCustomerIds.stream()
                 .filter(idKH -> !existingCustomerIds.contains(idKH))
                 .map(idKH -> {
@@ -427,16 +443,16 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
 
         phieuGiamGiaKhachHangRepository.saveAll(newEntries);
 
-        // **Xử lý khách hàng bị hủy nếu có**
+        // Xử lý khách hàng bị hủy nếu có
         if (request.getKhachHangsToCancel() != null && !request.getKhachHangsToCancel().isEmpty()) {
             handleCustomerCancellation(existingEntity, request.getKhachHangsToCancel());
 
-            // Gửi email thông báo hủy với `findByIdIn()`
+            // Gửi email thông báo hủy
             List<KhachHang> customersToCancel = khachHangRepository.findByIdIn(request.getKhachHangsToCancel());
             customersToCancel.forEach(customer -> sendEmailCancellationAsync(customer, existingEntity));
         }
 
-        // **Cập nhật lại số lượng phiếu**
+        // Cập nhật lại số lượng phiếu
         if (existingEntity.getKieuGiamGia() == 2) {
             existingEntity.setSoLuong((int) phieuGiamGiaKhachHangRepository.countByPhieuGiamGiaId(existingEntity.getId()));
         }

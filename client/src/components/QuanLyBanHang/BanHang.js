@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useLocation } from "react-router-dom";
 import "./BanHangCss.css";
 import CreateForm from "../KhachHang/CreateForm";
@@ -123,7 +129,7 @@ const BanHang = () => {
   const [activeTab, setActiveTab] = useState(null);
   const [products, setProducts] = useState([]); // Danh sách sản phẩm trong tab
   const [searchText, setSearchText] = useState("");
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 3 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 5 });
   const [activeKey, setActiveKey] = useState(null); // Giữ tab đang mở
   const [orderProducts, setOrderProducts] = useState({}); // Products in each order tab
   const [loading, setLoading] = useState(false);
@@ -176,232 +182,418 @@ const BanHang = () => {
   const [pollingInterval, setPollingInterval] = useState(null);
   // Thêm vào khai báo state ở đầu component BanHang
   const [processingVnpay, setProcessingVnpay] = useState(false);
-  
-  // Thêm hàm xử lý thanh toán VNPAY
+
+  // Tối ưu hàm xử lý thanh toán VNPAY
   const handleVnpayPayment = async (hoaDonId) => {
     try {
       setProcessingVnpay(true);
-      message.loading({ content: "Đang xử lý thanh toán VNPAY...", key: "vnpayProcessing", duration: 0 });
-      
+      message.loading({
+        content: "Đang xử lý thanh toán VNPAY...",
+        key: "vnpayProcessing",
+        duration: 0,
+      });
+
       // Lấy thông tin order hiện tại
       const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
-      
+      if (!currentOrder) {
+        message.error({
+          content: "Không thể tìm thấy thông tin đơn hàng",
+          key: "vnpayProcessing",
+        });
+        setProcessingVnpay(false);
+        return;
+      }
+
+      // Kiểm tra đơn hàng có sản phẩm không
+      const currentProducts = orderProducts[hoaDonId] || [];
+      if (!currentProducts || currentProducts.length === 0) {
+        message.error({
+          content: "Vui lòng thêm sản phẩm vào đơn hàng trước khi thanh toán",
+          key: "vnpayProcessing",
+        });
+        setProcessingVnpay(false);
+        return;
+      }
+
+      // Kiểm tra thay đổi giá sản phẩm trước khi thanh toán
+      if (!priceChangesConfirmed[hoaDonId]) {
+        const hasPriceChanges = await checkPriceChanges(false);
+        if (hasPriceChanges) {
+          message.warning({
+            content:
+              "Có sản phẩm thay đổi giá, vui lòng xác nhận thay đổi giá trước khi thanh toán VNPAY!",
+            key: "vnpayProcessing",
+          });
+          setOpenPriceChangeDialog(true);
+          setProcessingVnpay(false);
+          return;
+        }
+      }
+
+      // Lấy tổng tiền chính xác bao gồm phí vận chuyển từ totals
+      const orderTotal = Math.round(totals[hoaDonId]?.finalTotal || 0); // Làm tròn số tiền
+
       // Tìm thanh toán VNPAY trong danh sách thanh toán
       const vnpayPayment = currentOrder?.thanhToans?.find(
         (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
       );
-      
+
       if (!vnpayPayment || vnpayPayment.soTien <= 0) {
-        message.error({ content: "Vui lòng nhập số tiền thanh toán VNPAY", key: "vnpayProcessing" });
+        message.error({
+          content: "Vui lòng nhập số tiền thanh toán VNPAY",
+          key: "vnpayProcessing",
+        });
         setProcessingVnpay(false);
         return;
       }
-      
-      // Gọi API để tạo URL thanh toán VNPAY
-      const response = await api.post(
-        `/api/admin/hoa-don/${hoaDonId}/create-vnpay-payment`,
-        {
-          // Thêm thông tin thanh toán vào body request
-          paymentAmount: vnpayPayment.soTien,
-          paymentId: vnpayPayment.id || `${hoaDonId}_VNPAY`
-        },
-        {
-          params: {
-            returnUrl: window.location.origin + "/admin/ban-hang"
-          },
-          headers: { Authorization: `Bearer ${token}` }
-        }
+
+      // Hiển thị thông tin debug chi tiết hơn
+      console.log("VNPAY payment details:", {
+        hoaDonId,
+        orderTotal,
+        originalAmount: vnpayPayment.soTien,
+        includesShipping: true,
+        shippingFee: totals[hoaDonId]?.shippingFee || 0,
+        discount: totals[hoaDonId]?.discountAmount || 0,
+      });
+
+      // QUAN TRỌNG: Cập nhật số tiền vnpayPayment để đảm bảo bằng tổng số tiền thanh toán
+      // điều này đảm bảo phí vận chuyển được tính vào
+      if (vnpayPayment.soTien !== orderTotal) {
+        console.log(
+          `Cập nhật số tiền thanh toán VNPAY từ ${vnpayPayment.soTien} thành ${orderTotal}`
+        );
+
+        // Cập nhật số tiền trong state
+        setTabs((prev) =>
+          prev.map((tab) =>
+            tab.key === hoaDonId
+              ? {
+                  ...tab,
+                  order: {
+                    ...tab.order,
+                    thanhToans: tab.order.thanhToans.map((p) =>
+                      p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                        ? { ...p, soTien: orderTotal }
+                        : p
+                    ),
+                  },
+                }
+              : tab
+          )
+        );
+      }
+
+      // Xử lý các phương thức thanh toán khác nếu có (để tổng tiền không vượt quá đơn hàng)
+      const otherPayments = currentOrder.thanhToans.filter(
+        (p) => p.maPhuongThucThanhToan !== PAYMENT_METHOD.VNPAY && p.soTien > 0
       );
-      
-      if (response.data) {
-        // Mở cửa sổ mới cho thanh toán VNPAY
-        window.open(response.data, "_blank");
-        
-        // Lưu ID hóa đơn vào localStorage để kiểm tra khi quay lại
-        localStorage.setItem("vnpayHoaDonId", hoaDonId);
-        
-        message.success({ 
-          content: "Đã chuyển hướng đến trang thanh toán VNPAY. Vui lòng hoàn tất thanh toán trước khi xác nhận đơn hàng.", 
-          key: "vnpayProcessing" 
+
+      if (otherPayments.length > 0) {
+        // Hiển thị cảnh báo nếu có phương thức thanh toán khác
+        Modal.confirm({
+          title: "Xác nhận thanh toán VNPAY",
+          content:
+            "Đơn hàng này đã có phương thức thanh toán khác. Bạn có muốn chỉ sử dụng VNPAY để thanh toán toàn bộ đơn hàng?",
+          okText: "Thanh toán chỉ bằng VNPAY",
+          cancelText: "Hủy",
+          onOk: async () => {
+            // Cập nhật state để chỉ sử dụng VNPAY
+            setTabs((prev) =>
+              prev.map((tab) =>
+                tab.key === hoaDonId
+                  ? {
+                      ...tab,
+                      order: {
+                        ...tab.order,
+                        thanhToans: tab.order.thanhToans.map((p) =>
+                          p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                            ? { ...p, soTien: orderTotal }
+                            : { ...p, soTien: 0 }
+                        ),
+                      },
+                    }
+                  : tab
+              )
+            );
+
+            // Tiếp tục xử lý thanh toán VNPAY
+            await processVnpayPayment(hoaDonId, orderTotal, currentOrder);
+          },
+          onCancel: () => {
+            setProcessingVnpay(false);
+          },
         });
-        
-        setProcessingVnpay(false);
       } else {
-        message.error({ 
-          content: "Không thể tạo liên kết thanh toán VNPAY", 
-          key: "vnpayProcessing" 
-        });
-        setProcessingVnpay(false);
+        // Nếu không có phương thức thanh toán khác, tiếp tục với VNPAY
+        await processVnpayPayment(hoaDonId, orderTotal, currentOrder);
       }
     } catch (error) {
       console.error("Lỗi khi xử lý thanh toán VNPAY:", error);
-      message.error({ 
-        content: "Lỗi khi xử lý thanh toán VNPAY: " + (error.response?.data || error.message), 
-        key: "vnpayProcessing" 
+      message.error({
+        content:
+          "Lỗi khi xử lý thanh toán VNPAY: " +
+          (error.response?.data?.message || error.message),
+        key: "vnpayProcessing",
       });
       setProcessingVnpay(false);
     }
   };
-  
-  // Thêm hàm xác nhận thanh toán VNPAY
+
+  // Tách phần gọi API ra thành một hàm riêng để dễ quản lý
+  const processVnpayPayment = async (hoaDonId, orderTotal, currentOrder) => {
+    try {
+      // Gọi API để tạo URL thanh toán VNPAY với tổng tiền chính xác
+      const response = await api.post(
+        `/api/admin/hoa-don/${hoaDonId}/create-vnpay-payment`,
+        {
+          paymentAmount: orderTotal, // Quan trọng: Sử dụng orderTotal
+          paymentId: `${hoaDonId}_VNPAY`,
+          orderInfo: `Thanh toan don hang ${currentOrder.maHoaDon || hoaDonId}`,
+        },
+        {
+          params: {
+            returnUrl: window.location.origin + "/admin/ban-hang",
+          },
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data) {
+        // Lưu ID hóa đơn vào localStorage để kiểm tra khi quay lại
+        localStorage.setItem("vnpayHoaDonId", hoaDonId);
+
+        // Hiển thị thông báo xác nhận trước khi chuyển hướng
+        Modal.success({
+          title: "Chuyển hướng đến cổng thanh toán VNPAY",
+          content: (
+            <>
+              <p>
+                Bạn sẽ được chuyển đến cổng thanh toán VNPAY để hoàn tất giao
+                dịch.
+              </p>
+              <p>
+                Số tiền thanh toán: <b>{formatCurrency(orderTotal)}</b>
+              </p>
+              <p>
+                Vui lòng không đóng trình duyệt cho đến khi hoàn tất quá trình
+                thanh toán.
+              </p>
+            </>
+          ),
+          okText: "Đến trang thanh toán",
+          onOk: () => {
+            // Mở cửa sổ mới cho thanh toán VNPAY
+            window.open(response.data, "_blank");
+
+            message.success({
+              content:
+                "Đã chuyển hướng đến trang thanh toán VNPAY. Vui lòng hoàn tất thanh toán.",
+              key: "vnpayProcessing",
+              duration: 10,
+            });
+          },
+        });
+      } else {
+        message.error({
+          content: "Không thể tạo liên kết thanh toán VNPAY",
+          key: "vnpayProcessing",
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi tạo URL thanh toán VNPAY:", error);
+      message.error({
+        content:
+          "Lỗi khi tạo URL thanh toán: " +
+          (error.response?.data?.message || error.message),
+        key: "vnpayProcessing",
+      });
+    } finally {
+      setProcessingVnpay(false);
+    }
+  };
+
+  // Tối ưu hàm xác nhận thanh toán VNPAY
   const confirmVnpayPayment = async (hoaDonId) => {
     try {
       setProcessingVnpay(true);
-      message.loading({ content: "Đang xác nhận thanh toán VNPAY...", key: "vnpayConfirm", duration: 0 });
-      
+      message.loading({
+        content: "Đang xác nhận thanh toán VNPAY...",
+        key: "vnpayConfirm",
+        duration: 0,
+      });
+
       // Lấy tất cả tham số từ URL trả về từ VNPAY
       const urlParams = new URLSearchParams(window.location.search);
       const vnpParams = {};
-      
+
       // Chuyển tất cả tham số vnp_ từ URL vào đối tượng để gửi đến server
       urlParams.forEach((value, key) => {
-        if (key.startsWith('vnp_')) {
+        if (key.startsWith("vnp_")) {
           vnpParams[key] = value;
         }
       });
-      
+
       console.log("VNPAY response params:", vnpParams);
-      
+
+      if (Object.keys(vnpParams).length === 0) {
+        message.error({
+          content: "Không tìm thấy thông tin thanh toán VNPAY",
+          key: "vnpayConfirm",
+        });
+        setProcessingVnpay(false);
+        return;
+      }
+
       // Gửi tất cả tham số vnp_ lên server để xác nhận thanh toán
       const response = await api.post(
         `/api/admin/hoa-don/${hoaDonId}/confirm-vnpay-payment`,
         vnpParams,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       if (response.data) {
-        message.success({ 
-          content: "Thanh toán VNPAY đã được xác nhận thành công!", 
-          key: "vnpayConfirm" 
+        message.success({
+          content: "Thanh toán VNPAY đã được xác nhận thành công!",
+          key: "vnpayConfirm",
         });
-        
+
         // Cập nhật lại thông tin đơn hàng
         await fetchInvoiceById(hoaDonId);
         localStorage.removeItem("vnpayHoaDonId");
+
+        // Xóa các tham số VNPAY khỏi URL để tránh xử lý lại
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
       }
     } catch (error) {
       console.error("Lỗi khi xác nhận thanh toán VNPAY:", error);
-      message.error({ 
-        content: "Không thể xác nhận thanh toán VNPAY: " + (error.response?.data || error.message), 
-        key: "vnpayConfirm" 
+      message.error({
+        content:
+          "Không thể xác nhận thanh toán VNPAY: " +
+          (error.response?.data?.message || error.message),
+        key: "vnpayConfirm",
       });
     } finally {
       setProcessingVnpay(false);
     }
   };
-  
+
   // Thêm useEffect để kiểm tra trạng thái VNPAY khi quay lại trang
   useEffect(() => {
     const checkVnpayPayment = async () => {
       try {
+        // Lấy thông tin hoaDonId từ localStorage
         const hoaDonId = localStorage.getItem("vnpayHoaDonId");
+
+        // Lấy tham số từ URL
         const urlParams = new URLSearchParams(window.location.search);
         const vnpResponseCode = urlParams.get("vnp_ResponseCode");
-        const vnpOrderInfo = urlParams.get("vnp_OrderInfo");
-        
-        console.log("VNPAY params check:", { 
-          hoaDonId, 
-          vnpResponseCode, 
-          vnpOrderInfo,
-          hasParams: urlParams.toString().includes("vnp_")
-        });
-        
+
         if (hoaDonId && urlParams.toString().includes("vnp_")) {
           // Thu thập tất cả tham số vnp_
           const vnpParams = {};
           urlParams.forEach((value, key) => {
-            if (key.startsWith('vnp_')) {
+            if (key.startsWith("vnp_")) {
               vnpParams[key] = value;
             }
           });
-          
+
           if (vnpResponseCode === "00") {
             // Thanh toán thành công
-            message.loading({ content: "Đang xác nhận thanh toán VNPAY...", key: "vnpayConfirm" });
-            
+            message.loading({
+              content: "Đang xác nhận thanh toán VNPAY...",
+              key: "vnpayConfirm",
+            });
+
+            // Trước khi gửi xác nhận, cập nhật lại số tiền thanh toán VNPAY nếu cần
+            // const currentOrder = tabs.find(
+            //   (tab) => tab.key === hoaDonId
+            // )?.order;
+            // const orderTotal = totals[hoaDonId]?.finalTotal || 0;
+
+            // if (currentOrder?.thanhToans) {
+            //   // Cập nhật số tiền VNPAY trong state để đảm bảo khớp với tổng đơn hàng
+            //   setTabs((prev) =>
+            //     prev.map((tab) =>
+            //       tab.key === hoaDonId
+            //         ? {
+            //             ...tab,
+            //             order: {
+            //               ...tab.order,
+            //               thanhToans: tab.order.thanhToans.map((p) =>
+            //                 p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+            //                   ? { ...p, soTien: orderTotal }
+            //                   : p
+            //               ),
+            //             },
+            //           }
+            //         : tab
+            //     )
+            //   );
+            // }
+
             // Gửi tất cả tham số từ VNPAY để backend xử lý
             const response = await api.post(
               `/api/admin/hoa-don/${hoaDonId}/confirm-vnpay-payment`,
               vnpParams,
               { headers: { Authorization: `Bearer ${token}` } }
             );
-            
+
             if (response.data) {
-              message.success({ 
-                content: "Đã xác nhận thanh toán VNPAY thành công!", 
-                key: "vnpayConfirm" 
+              message.success({
+                content: "Thanh toán VNPay đã được xác nhận thành công!",
+                key: "vnpayConfirm",
               });
-              
-              // Fetch lại hóa đơn để cập nhật thông tin mới
-              await fetchInvoiceById(hoaDonId);
-              
-              // THÊM MỚI: Hoàn tất đơn hàng
-              Modal.confirm({
-                title: "Thanh toán VNPAY thành công",
-                content: "Đơn hàng đã được thanh toán qua VNPAY. Bạn có muốn hoàn tất đơn hàng ngay bây giờ?",
-                okText: "Hoàn tất đơn hàng",
-                cancelText: "Để sau",
-                onOk: async () => {
-                  try {
-                    // Get the current order to extract payment information
-                    const order = tabs.find((tab) => tab.key === hoaDonId)?.order;
-                    if (!order || !order.thanhToans) {
-                      message.error("Không thể tìm thấy thông tin thanh toán");
-                      return;
-                    }
-                      
-                    // Filter valid payments (only those with amount > 0)
-                    const validPayments = order.thanhToans
-                      .filter(p => p && p.soTien > 0)
-                      .map(payment => ({
-                        id: payment.id || `${hoaDonId}_${payment.maPhuongThucThanhToan}`,
-                        maPhuongThucThanhToan: payment.maPhuongThucThanhToan,
-                        soTien: payment.soTien
-                      }));
-                      
-                    // Gọi API để hoàn tất đơn hàng với thông tin thanh toán
-                    await api.post(
-                      `/api/admin/ban-hang/${hoaDonId}/complete`,
-                      {
-                        thanhToans: validPayments,
-                      },
-                      {
-                        headers: {
-                          Authorization: `Bearer ${token}`,
-                        },
-                      }
-                    );
-                      
-                    // Hoàn tất quy trình đơn hàng và in hóa đơn
-                    await completeOrderProcess(hoaDonId);
-                  } catch (error) {
-                    console.error("Lỗi khi hoàn tất đơn hàng sau thanh toán VNPAY:", error);
-                    message.error("Không thể hoàn tất đơn hàng. Vui lòng thử lại.");
-                  }
-                },
-              });
+
+              // In hóa đơn ngay sau khi xác nhận thành công
+              await completeOrderProcess(hoaDonId);
+
+              // Xóa tham số VNPay khỏi URL
+              window.history.replaceState(
+                {},
+                document.title,
+                window.location.pathname
+              );
             }
           } else {
-            message.error("Thanh toán VNPAY không thành công hoặc đã bị hủy");
+            message.error({
+              content: `Thanh toán VNPAY không thành công (Mã lỗi: ${
+                vnpResponseCode || "không xác định"
+              })`,
+              key: "vnpayConfirm",
+            });
           }
-          
+
           // Xóa dữ liệu trong localStorage và URL param để tránh xác nhận lại
           localStorage.removeItem("vnpayHoaDonId");
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
         }
       } catch (error) {
         console.error("Lỗi khi kiểm tra kết quả thanh toán VNPAY:", error);
-        message.error("Không thể xác nhận thanh toán VNPAY: " + (error.response?.data || error.message));
+        message.error(
+          "Không thể xác nhận thanh toán VNPAY: " +
+            (error.response?.data?.message || error.message)
+        );
       }
     };
-    
+
     checkVnpayPayment();
   }, []);
-  
-  // Thêm hàm hiển thị nút thanh toán VNPAY
+
+  // Tối ưu hàm render nút thanh toán VNPAY
   const renderVnpaySection = (order, payment) => {
     if (!payment || payment.soTien <= 0) return null;
-    
+
+    const paymentAmount = formatCurrency(payment.soTien);
+
     return (
       <div style={{ textAlign: "center", marginTop: 12 }}>
         <Button
@@ -409,16 +601,18 @@ const BanHang = () => {
           icon={<CreditCardOutlined />}
           onClick={() => handleVnpayPayment(order.id)}
           loading={processingVnpay}
-          style={{ 
+          style={{
             width: "100%",
-            background: "#2a5ada", 
-            borderColor: "#2a5ada"
+            background: "#2a5ada",
+            borderColor: "#2a5ada",
+            height: "40px",
+            fontSize: "14px",
           }}
         >
-          Thanh toán qua VNPAY
+          Thanh toán {paymentAmount} qua VNPAY
         </Button>
         <div style={{ marginTop: 8, fontSize: "12px", color: "#888" }}>
-          Thanh toán trực tuyến qua cổng VNPAY
+          Thanh toán trực tuyến an toàn qua cổng VNPAY
         </div>
       </div>
     );
@@ -441,7 +635,7 @@ const BanHang = () => {
       setLoading(false);
     }
   }, [hoaDonId, loading]);
-  
+
   useEffect(() => {
     // Chỉ tạo polling interval khi có hoaDonId active
     if (hoaDonId) {
@@ -766,44 +960,35 @@ const BanHang = () => {
   // Thêm vào component BanHang
   const giaoHangRef = useRef(null);
   useEffect(() => {
+    if (!selectedAddress || selectedLoaiHoaDon !== 3) return;
+
     const checkShippingCalculationStatus = () => {
       if (giaoHangRef.current) {
-        // Cập nhật trạng thái tính toán
         const isCalculating = giaoHangRef.current.calculatingFee;
-        setCalculatingShippingFee(isCalculating);
-
-        // Lấy phí vận chuyển hiện tại từ component GiaoHang
         const currentShippingFee = giaoHangRef.current.shippingFee;
 
-        // Tìm tab hiện tại để cập nhật phí vận chuyển
+        setCalculatingShippingFee((prev) =>
+          prev !== isCalculating ? isCalculating : prev
+        );
+
         if (activeKey && currentShippingFee > 0) {
-          // Cập nhật tabs với phí vận chuyển mới
           setTabs((prevTabs) =>
             prevTabs.map((tab) => {
-              if (tab.key === activeKey) {
-                // Chỉ cập nhật nếu phí vận chuyển đã thay đổi
-                if (tab.order.phiVanChuyen !== currentShippingFee) {
-                  console.log(
-                    "Cập nhật phí vận chuyển từ GiaoHang:",
-                    currentShippingFee
-                  );
-                  return {
-                    ...tab,
-                    order: {
-                      ...tab.order,
-                      phiVanChuyen: currentShippingFee,
-                    },
-                  };
-                }
+              if (
+                tab.key === activeKey &&
+                tab.order.phiVanChuyen !== currentShippingFee
+              ) {
+                return {
+                  ...tab,
+                  order: { ...tab.order, phiVanChuyen: currentShippingFee },
+                };
               }
               return tab;
             })
           );
 
-          // Cập nhật totals với phí vận chuyển mới
           setTotals((prevTotals) => {
             const currentTotal = prevTotals[activeKey] || {};
-            // Chỉ cập nhật nếu phí vận chuyển đã thay đổi
             if (currentTotal.shippingFee !== currentShippingFee) {
               return {
                 ...prevTotals,
@@ -823,19 +1008,22 @@ const BanHang = () => {
       }
     };
 
-    // Kiểm tra trạng thái mỗi 300ms
-    const intervalId = setInterval(checkShippingCalculationStatus, 300);
+    const intervalId = setInterval(checkShippingCalculationStatus, 5000); //  tăng thời gian
 
     return () => clearInterval(intervalId);
-  }, [activeKey]);
+  }, [selectedAddress, selectedLoaiHoaDon, activeKey]);
+
   // Update generateQR function to set qrUrl as well
   const generateQR = (hoaDonId, amount) => {
     const account = "102876619993"; // Số tài khoản nhận
     const bank = "VietinBank"; // Ngân hàng (Vietinbank)
+
     // Lấy mã hóa đơn từ đối tượng order của tab hiện tại
-    // const currentOrder = tabs.find(tab => tab.key === hoaDonId)?.order;
-    // const maHoaDon = currentOrder?.maHoaDon || hoaDonId;
-    const description = `SEVQR thanh toan don hang ${hoaDonId}`; // Nội dung thanh toán
+    const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
+    const maHoaDon = currentOrder?.maHoaDon || hoaDonId;
+
+    // Thay đổi nội dung thanh toán theo yêu cầu
+    const description = `SEVQR thanh toan ${maHoaDon}`; // Nội dung thanh toán mới
     const template = "compact"; // Kiểu hiển thị QR
 
     // Tạo URL QR Code
@@ -897,7 +1085,10 @@ const BanHang = () => {
       message.error("Vui lòng chọn một địa chỉ hợp lệ.");
       return;
     }
-
+    // So sánh với địa chỉ hiện tại để tránh cập nhật không cần thiết
+    if (selectedAddress && selectedAddress.id === address.id) {
+      return; // Không cập nhật nếu địa chỉ không thay đổi
+    }
     setSelectedAddress(address);
     console.log("Đã chọn địa chỉ giao hàng:", address);
 
@@ -907,7 +1098,7 @@ const BanHang = () => {
     }
 
     const payload = {
-      diaChiId: address.id, // Đúng key như backend mong đợi
+      diaChiId: address.id,
       diaChiCuThe: address.diaChiCuThe,
       xa: address.xa,
       huyen: address.huyen,
@@ -927,13 +1118,15 @@ const BanHang = () => {
         }
       );
 
-      setTabs((prev) =>
-        prev.map((tab) =>
-          tab.key === activeKey
-            ? { ...tab, order: { ...tab.order, diaChi: address } }
-            : tab
-        )
-      );
+      if (activeKey) {
+        setTabs((prevTabs) =>
+          prevTabs.map((tab) =>
+            tab.key === activeKey
+              ? { ...tab, order: { ...tab.order, diaChiGiaoHang: address } }
+              : tab
+          )
+        );
+      }
     } catch (error) {
       console.error("Lỗi khi cập nhật địa chỉ vào hóa đơn:", error);
       // message.error("Không thể cập nhật địa chỉ giao hàng, vui lòng thử lại.");
@@ -1141,9 +1334,7 @@ const BanHang = () => {
   const fetchPendingOrders = async (isInitializing = false) => {
     try {
       const response = await api.get("/api/admin/ban-hang/hoadontaiquay", {
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const orders = response.data;
 
@@ -1195,6 +1386,8 @@ const BanHang = () => {
         localStorage.setItem("pendingOrders", JSON.stringify(newTabs));
         localStorage.setItem("orderProducts", JSON.stringify(productsMap));
         localStorage.setItem("orderTotals", JSON.stringify(totalsMap));
+
+        return orders;
       } else {
         // Nếu không có đơn hàng, xóa dữ liệu cũ
         setTabs([]);
@@ -1217,21 +1410,33 @@ const BanHang = () => {
     const initializeData = async () => {
       try {
         await fetchProducts();
-        // When fetchPendingOrders is called for the first time, pass true to indicate initialization
-        await fetchPendingOrders(true);
+        const orders = await fetchPendingOrders(true); // 🔥 nhận danh sách đơn hàng
+
+        if (Array.isArray(orders) && orders.length > 0) {
+          const firstOrderId = orders[0].id;
+          setActiveKey(firstOrderId); // 🔥 set Active tab
+          await fetchInvoiceById(firstOrderId); // 🔥 fetch đúng hóa đơn theo id đầu tiên
+
+          // Nếu muốn tính lại tổng tiền:
+          const newTotals = calculateOrderTotals(firstOrderId);
+          setTotals((prev) => ({
+            ...prev,
+            [firstOrderId]: newTotals,
+          }));
+
+          setTotalBeforeDiscount(newTotals.subtotal);
+          setTotalAmount(newTotals.finalTotal);
+        } else {
+          console.warn("Không có đơn hàng nào được trả về từ API.");
+        }
+
         await fetchPaymentMethods();
         await loadCustomers();
-
-        // If activeKey exists, refresh the invoice data to ensure totals are calculated correctly
-        if (activeKey) {
-          await refreshInvoiceData(activeKey);
-        }
       } catch (error) {
         console.error("Lỗi khi khởi tạo dữ liệu:", error);
         message.error("Không thể tải dữ liệu ban đầu");
       }
     };
-
     initializeData();
   }, []); // Chỉ chạy một lần khi component mount
 
@@ -1414,115 +1619,78 @@ const BanHang = () => {
     );
   };
   // 3. Add product to order
-  const handleAddProductToOrder = async (product) => {
+  const handleAddProductToOrder = async (product, quantity = 1) => {
     if (!activeKey) {
-      message.error("Vui lòng chọn hoặc tạo đơn hàng trước");
+      message.warning("Vui lòng tạo hoặc chọn hóa đơn trước!");
       return;
     }
 
     try {
       const addToastId = message.loading("Đang thêm sản phẩm...");
 
-      // Gọi API để thêm sản phẩm vào hóa đơn
-      const response = await api.post(
-        `/api/admin/hoa-don/${activeKey}/san-pham`,
-        {
-          sanPhamChiTietId: product.id,
-          soLuong: product.quantity || 1,
-        },
+      // Sử dụng quantity được truyền vào thay vì mặc định là 1
+      const request = {
+        sanPhamChiTietId: product.id,
+        soLuong: quantity,
+      };
+
+      const response = await axios.post(
+        `http://localhost:8080/api/admin/ban-hang/${activeKey}/add-product`,
+        request,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
           },
         }
       );
 
-      // Lấy ID mới của chi tiết hóa đơn từ response
-      const hoaDonChiTietId = response.data?.id;
+      if (response.data) {
+        // Cập nhật thông tin đơn hàng từ response
+        const updatedOrder = response.data;
 
-      // Tạo đối tượng sản phẩm đầy đủ để thêm vào state
-      let newProduct = {
-        ...response.data,
-        id: hoaDonChiTietId, // Sử dụng id từ API trả về
-        sanPhamChiTietId: product.id,
-        tenSanPham: product.tenSanPham,
-        maSanPham: product.maSanPham,
-        maSanPhamChiTiet: product.maSanPhamChiTiet || "",
-        chatLieu: product.chatLieu || "---",
-        mauSac: product.mauSac || "---",
-        maMauSac: product.maMauSac || "#FFFFFF",
-        kichThuoc: product.kichThuoc || "---",
-        danhMuc: product.danhMuc || "---",
-        thuongHieu: product.thuongHieu || "---",
-        kieuDang: product.kieuDang || "---",
-        kieuCoAo: product.kieuCoAo || "---",
-        kieuTayAo: product.kieuTayAo || "---",
-        hoaTiet: product.hoaTiet || "---",
-        gia: product.gia,
-        soLuong: product.quantity || 1,
-        thanhTien: product.gia * (product.quantity || 1),
-        hinhAnh: [],
-      };
+        // Cập nhật danh sách sản phẩm
+        const orderData = orderProducts[activeKey] || {};
+        const newOrder = {
+          ...orderData,
+          ...updatedOrder,
+        };
 
-      // Cố gắng lấy hình ảnh nếu có
-      try {
-        const imgResponse = await api.get(
-          `/api/admin/sanphamchitiet/${product.id}/hinhanh`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        // Cập nhật state orderProducts
+        setOrderProducts((prev) => ({
+          ...prev,
+          [activeKey]: newOrder,
+        }));
+
+        // Tính lại totals
+        const newTotals = calculateOrderTotals(
+          activeKey,
+          updatedOrder.hoaDonChiTiets || [],
+          updatedOrder
         );
 
-        if (imgResponse.data && Array.isArray(imgResponse.data)) {
-          newProduct.hinhAnh = imgResponse.data.map((img) => img.anhUrl);
-        }
-      } catch (imageError) {
-        console.error("Không thể lấy hình ảnh sản phẩm:", imageError);
+        setTotals((prev) => ({
+          ...prev,
+          [activeKey]: newTotals,
+        }));
+
+        // Kiểm tra nếu cần cập nhật giá
+        checkPriceChanges(false);
+
+        // Hiển thị thông báo thành công
+        message.success(`Đã thêm ${quantity} sản phẩm vào đơn hàng!`);
+
+        // Tải lại danh sách sản phẩm để cập nhật UI
+        await fetchInvoiceProducts(activeKey);
       }
-
-      // Cập nhật tồn kho trong cache
-      updateProductInventoryInCache(product.id, -(product.quantity || 1));
-
-      // Tải lại danh sách sản phẩm để đảm bảo thông tin nhất quán với server
-      await fetchInvoiceProducts(activeKey);
-
-      // Tải lại thông tin hóa đơn
-      await fetchInvoiceById(activeKey);
-
-      // Tính toán lại tổng tiền sau khi thêm sản phẩm
-      const newTotals = calculateOrderTotals(activeKey);
-      setTotals((prev) => ({
-        ...prev,
-        [activeKey]: newTotals,
-      }));
-
-      // Cập nhật UI hiển thị
-      setTotalBeforeDiscount(newTotals.subtotal);
-      setTotalAmount(newTotals.finalTotal);
-
-      // Tự động áp dụng voucher tốt nhất nếu có thể
-      await autoApplyBestVoucher(activeKey);
-
-      // Cập nhật gợi ý voucher và sản phẩm
-      setTimeout(() => {
-        findBestVoucherAndSuggest(activeKey);
-      }, 300);
-
-      message.destroy(addToastId);
-      message.success(
-        `Đã thêm ${product.tenSanPham || "sản phẩm"} vào đơn hàng`
-      );
-
-      // Đặt lại pagination để hiển thị trang chứa sản phẩm mới
-      setPagination({ current: 1, pageSize: 3 });
-
-      // Fetch dữ liệu mới ngay lập tức sau khi thêm sản phẩm
-      await fetchLatestData();
     } catch (error) {
-      console.error("Lỗi khi thêm sản phẩm:", error);
-      message.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
-
-      // Tải lại dữ liệu từ server để đảm bảo tính nhất quán
-      await fetchInvoiceProducts(activeKey);
+      console.error("Error adding product:", error);
+      let errorMessage = "Lỗi khi thêm sản phẩm";
+      if (error.response?.data?.message) {
+        errorMessage += ": " + error.response.data.message;
+      }
+      message.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
   const handleAddMultipleProducts = async (products) => {
@@ -1539,10 +1707,10 @@ const BanHang = () => {
     try {
       const addToastId = message.loading("Đang thêm sản phẩm...");
 
-      // Chuẩn bị dữ liệu
+      // Chuẩn bị dữ liệu với số lượng tùy chỉnh cho từng sản phẩm
       const productList = products.map((product) => ({
         sanPhamChiTietId: product.id,
-        soLuong: 1, // Mặc định số lượng là 1 cho mỗi sản phẩm
+        soLuong: product.soLuongThem || 1, // Sử dụng số lượng đã chọn hoặc mặc định là 1
       }));
 
       // Gọi API để thêm nhiều sản phẩm cùng lúc
@@ -1559,9 +1727,10 @@ const BanHang = () => {
         }
       );
 
-      // Cập nhật cache tồn kho cho tất cả sản phẩm
+      // Cập nhật cache tồn kho cho tất cả sản phẩm với số lượng tương ứng
       products.forEach((product) => {
-        updateProductInventoryInCache(product.id, -1);
+        const quantity = product.soLuongThem || 1;
+        updateProductInventoryInCache(product.id, -quantity);
       });
 
       // Làm mới danh sách sản phẩm và thông tin hóa đơn
@@ -1588,7 +1757,16 @@ const BanHang = () => {
       }, 300);
 
       message.destroy(addToastId);
-      message.success(`Đã thêm ${products.length} sản phẩm vào đơn hàng`);
+
+      // Tính tổng số lượng sản phẩm đã thêm
+      const totalQuantityAdded = productList.reduce(
+        (sum, item) => sum + item.soLuong,
+        0
+      );
+      message.success(
+        `Đã thêm ${totalQuantityAdded} sản phẩm (${products.length} mặt hàng) vào đơn hàng`
+      );
+
       setOpenProductTable(false);
 
       // Đặt lại pagination
@@ -1919,30 +2097,39 @@ const BanHang = () => {
     try {
       const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
       const currentProducts = orderProducts[hoaDonId] || [];
-  
+
       // Kiểm tra có sản phẩm trong đơn hàng hay không
       if (!currentProducts || currentProducts.length === 0) {
-        message.error("Vui lòng thêm sản phẩm vào đơn hàng trước khi xác nhận!");
+        message.error(
+          "Vui lòng thêm sản phẩm vào đơn hàng trước khi xác nhận!"
+        );
         return;
       }
-  
-      // Kiểm tra có sản phẩm nào đã thay đổi giá hay không
-      // CHỈ kiểm tra nếu chưa được xác nhận trước đó
+
       if (!priceChangesConfirmed[hoaDonId]) {
         const hasPriceChanges = await checkPriceChanges(false);
         if (hasPriceChanges) {
-          message.warning("Có sản phẩm thay đổi giá, vui lòng xác nhận thay đổi giá trước!");
+          message.warning(
+            "Có sản phẩm thay đổi giá, vui lòng xác nhận thay đổi giá trước khi thanh toán VNPAY!"
+          );
           setOpenPriceChangeDialog(true);
+          setProcessingVnpay(false);
           return;
         }
       }
-  
+
       // Kiểm tra phương thức thanh toán
-      if (!currentOrder || !currentOrder.thanhToans || currentOrder.thanhToans.length === 0) {
-        message.error("Vui lòng chọn phương thức thanh toán trước khi xác nhận đơn hàng!");
+      if (
+        !currentOrder ||
+        !currentOrder.thanhToans ||
+        currentOrder.thanhToans.length === 0
+      ) {
+        message.error(
+          "Vui lòng chọn phương thức thanh toán trước khi xác nhận đơn hàng!"
+        );
         return;
       }
-  
+
       // Kiểm tra địa chỉ giao hàng nếu là đơn giao hàng
       if (currentOrder.loaiHoaDon === 3) {
         if (!selectedAddress) {
@@ -1955,121 +2142,174 @@ const BanHang = () => {
                 },
               }
             );
-  
+
             const addressDetails = addressDetailsResponse.data;
-            if (!addressDetails || !addressDetails.tinh || !addressDetails.huyen || !addressDetails.xa) {
-              message.error("Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục.");
+            if (
+              !addressDetails ||
+              !addressDetails.tinh ||
+              !addressDetails.huyen ||
+              !addressDetails.xa
+            ) {
+              message.error(
+                "Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục."
+              );
               return;
             }
           } catch (error) {
             console.error("Lỗi khi kiểm tra địa chỉ hóa đơn:", error);
-            message.error("Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục.");
+            message.error(
+              "Vui lòng nhập địa chỉ giao hàng trước khi tiếp tục."
+            );
             return;
           }
         }
       }
-  
+
       // Kiểm tra tổng số tiền thanh toán có khớp không
       const totalNeeded = totals[hoaDonId]?.finalTotal || 0;
       const { remaining } = calculateChange(hoaDonId);
-  
+
       // Nếu còn thiếu tiền, thông báo lỗi
       if (remaining > 0) {
-        message.error(`Số tiền thanh toán chưa đủ. Còn thiếu ${formatCurrency(remaining)}`);
+        message.error(
+          `Số tiền thanh toán chưa đủ. Còn thiếu ${formatCurrency(remaining)}`
+        );
         return;
       }
-  
+
       // Lọc danh sách thanh toán chỉ lấy những cái có số tiền > 0
       const validPayments = currentOrder.thanhToans.filter(
         (p) => p && p.soTien > 0
       );
-  
+
       const cashPayment = validPayments.find(
         (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
       );
-      
+
       const transferPayment = validPayments.find(
         (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
       );
-      
+
       const vnpayPayment = validPayments.find(
         (p) => p && p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
       );
-  
+
       // Bước 0: Xử lý thanh toán VNPAY trước (nếu có) vì cần chuyển hướng tới cổng thanh toán
       if (vnpayPayment && vnpayPayment.soTien > 0) {
         try {
           setProcessingVnpay(true);
-          message.loading({ content: "Đang xử lý thanh toán VNPAY...", key: "vnpayProcessing", duration: 0 });
-          
+          message.loading({
+            content: "Đang xử lý thanh toán VNPAY...",
+            key: "vnpayProcessing",
+            duration: 0,
+          });
+
+          // Lấy tổng tiền chính xác bao gồm phí vận chuyển
+          const orderTotal = totals[hoaDonId]?.finalTotal || 0;
+
+          // Cập nhật số tiền VNPAY nếu cần
+          if (vnpayPayment.soTien !== orderTotal) {
+            vnpayPayment.soTien = orderTotal;
+
+            // Cập nhật state
+            setTabs((prev) =>
+              prev.map((tab) =>
+                tab.key === hoaDonId
+                  ? {
+                      ...tab,
+                      order: {
+                        ...tab.order,
+                        thanhToans: tab.order.thanhToans.map((p) =>
+                          p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                            ? { ...p, soTien: orderTotal }
+                            : p
+                        ),
+                      },
+                    }
+                  : tab
+              )
+            );
+          }
+
           // Gọi API để tạo URL thanh toán VNPAY
           const response = await api.post(
             `/api/admin/hoa-don/${hoaDonId}/create-vnpay-payment`,
-            {},
+            {
+              paymentAmount: orderTotal, // Sử dụng orderTotal
+              paymentId: vnpayPayment.id || `${hoaDonId}_VNPAY`,
+              orderInfo: `Thanh toan don hang ${
+                currentOrder.maHoaDon || hoaDonId
+              }`,
+            },
             {
               params: {
-                returnUrl: window.location.origin + "/admin/ban-hang"
+                returnUrl: window.location.origin + "/admin/ban-hang",
               },
-              headers: { Authorization: `Bearer ${token}` }
+              headers: { Authorization: `Bearer ${token}` },
             }
           );
-          
+
           if (response.data) {
             // Mở cửa sổ mới cho thanh toán VNPAY
             window.open(response.data, "_blank");
-            
+
             // Lưu ID hóa đơn vào localStorage để kiểm tra khi quay lại
             localStorage.setItem("vnpayHoaDonId", hoaDonId);
-            
-            message.success({ 
-              content: "Đã chuyển hướng đến trang thanh toán VNPAY. Vui lòng hoàn tất thanh toán trước khi xác nhận đơn hàng.", 
-              key: "vnpayProcessing" 
+
+            message.success({
+              content:
+                "Đã chuyển hướng đến trang thanh toán VNPAY. Vui lòng hoàn tất thanh toán trước khi xác nhận đơn hàng.",
+              key: "vnpayProcessing",
             });
-            
+
             setProcessingVnpay(false);
             return; // Kết thúc hàm, đợi người dùng quay lại từ VNPAY
           } else {
-            message.error({ 
-              content: "Không thể tạo liên kết thanh toán VNPAY", 
-              key: "vnpayProcessing" 
+            message.error({
+              content: "Không thể tạo liên kết thanh toán VNPAY",
+              key: "vnpayProcessing",
             });
             setProcessingVnpay(false);
             return;
           }
         } catch (error) {
           console.error("Lỗi khi xử lý thanh toán VNPAY:", error);
-          message.error("Lỗi khi xử lý thanh toán VNPAY: " + (error.response?.data || error.message));
+          message.error(
+            "Lỗi khi xử lý thanh toán VNPAY: " +
+              (error.response?.data?.message || error.message)
+          );
           setProcessingVnpay(false);
           return;
         }
       }
-  
+
       // Bước 1: Xử lý thanh toán QR trước (nếu có)
       let qrPaymentSuccess = true;
       if (transferPayment && transferPayment.soTien > 0) {
         // Tạo mã QR với số tiền cần chuyển khoản
         generateQR(hoaDonId, transferPayment.soTien);
-  
+
         try {
           // Chờ người dùng quét mã và thanh toán
           const loadingMsg = message.loading(
-            "Vui lòng quét mã QR và hoàn tất thanh toán", 0
+            "Vui lòng quét mã QR và hoàn tất thanh toán",
+            0
           );
-  
+
           // Tạo một biến để lưu hàm cancel bên ngoài promise
           let cancelPaymentCheck = null;
-  
+
           // Tạo một Promise có thể cancel
           const paymentPromise = new Promise(async (resolve, reject) => {
             let isPaid = false;
             let attempts = 0;
             const maxAttempts = 60; // Chờ tối đa 60 giây
-  
+
             // Lưu trữ function để có thể cancel check payment loop
             cancelPaymentCheck = () => {
               reject(new Error("Payment cancelled"));
             };
-  
+
             while (!isPaid && attempts < maxAttempts) {
               isPaid = await checkPayment(hoaDonId, transferPayment.soTien);
               if (isPaid) {
@@ -2079,22 +2319,22 @@ const BanHang = () => {
               await new Promise((r) => setTimeout(r, 2000));
               attempts++;
             }
-  
+
             if (!isPaid) {
               reject(new Error("Payment timeout"));
             }
           });
-  
+
           // Hiển thị QR code trong modal hiện có thay vì sử dụng Modal.info
           setIsModalVisiblePaymentQR(true);
-  
+
           // Bổ sung xử lý hủy thanh toán cho modal
           const handleQrModalCancel = () => {
             if (cancelPaymentCheck) cancelPaymentCheck();
             setIsModalVisiblePaymentQR(false);
             loadingMsg(); // Hủy thông báo loading
           };
-  
+
           setModalHandlers({
             onCancel: handleQrModalCancel,
             onOk: () => {
@@ -2102,20 +2342,22 @@ const BanHang = () => {
               loadingMsg();
             },
           });
-  
+
           await paymentPromise;
-  
+
           loadingMsg();
           setIsModalVisiblePaymentQR(false);
           message.success("Đã nhận được thanh toán chuyển khoản!");
         } catch (error) {
           setIsModalVisiblePaymentQR(false);
-          message.error("Chưa nhận được thanh toán chuyển khoản, vui lòng thử lại!");
+          message.error(
+            "Chưa nhận được thanh toán chuyển khoản, vui lòng thử lại!"
+          );
           qrPaymentSuccess = false;
           return;
         }
       }
-  
+
       // Bước 2: Nếu thanh toán QR thành công (hoặc không có QR), hiển thị hộp thoại xác nhận
       if (qrPaymentSuccess) {
         Modal.confirm({
@@ -2123,12 +2365,29 @@ const BanHang = () => {
           content: (
             <div>
               <p>Bạn có chắc chắn muốn xác nhận đơn hàng này?</p>
-              <p>Mã đơn: <strong>{currentOrder.maHoaDon}</strong></p>
-              <p>Số lượng sản phẩm: <strong>{currentProducts.length}</strong></p>
-              <p>Tổng tiền thanh toán: <strong style={{ color: "#ff4d4f" }}>{formatCurrency(totalNeeded)}</strong></p>
-              <p>Hình thức: <strong>{currentOrder.loaiHoaDon === 3 ? "Giao hàng" : "Tại quầy"}</strong></p>
+              <p>
+                Mã đơn: <strong>{currentOrder.maHoaDon}</strong>
+              </p>
+              <p>
+                Số lượng sản phẩm: <strong>{currentProducts.length}</strong>
+              </p>
+              <p>
+                Tổng tiền thanh toán:{" "}
+                <strong style={{ color: "#ff4d4f" }}>
+                  {formatCurrency(totalNeeded)}
+                </strong>
+              </p>
+              <p>
+                Hình thức:{" "}
+                <strong>
+                  {currentOrder.loaiHoaDon === 3 ? "Giao hàng" : "Tại quầy"}
+                </strong>
+              </p>
               {currentOrder.khachHang && (
-                <p>Khách hàng: <strong>{currentOrder.khachHang.tenKhachHang}</strong></p>
+                <p>
+                  Khách hàng:{" "}
+                  <strong>{currentOrder.khachHang.tenKhachHang}</strong>
+                </p>
               )}
             </div>
           ),
@@ -2138,13 +2397,13 @@ const BanHang = () => {
             // Điều chỉnh số tiền thanh toán trước khi gửi API
             const adjustedPayments = validPayments.map((p, index) => {
               let adjustedAmount = p.soTien;
-  
+
               // Nếu là phương thức thanh toán cuối và tổng thanh toán vượt quá
               if (index === validPayments.length - 1) {
                 const previousTotal = validPayments
                   .slice(0, -1)
                   .reduce((sum, payment) => sum + payment.soTien, 0);
-  
+
                 // Điều chỉnh số tiền của phương thức cuối để tổng bằng đúng giá trị đơn hàng
                 if (previousTotal < totalNeeded) {
                   adjustedAmount = totalNeeded - previousTotal;
@@ -2156,14 +2415,14 @@ const BanHang = () => {
               else {
                 adjustedAmount = Math.min(p.soTien, totalNeeded);
               }
-  
+
               return {
                 id: p.id || `${hoaDonId}_${p.maPhuongThucThanhToan}`,
                 maPhuongThucThanhToan: p.maPhuongThucThanhToan,
                 soTien: adjustedAmount,
               };
             });
-  
+
             // Gửi API hoàn tất thanh toán với số tiền đã điều chỉnh
             await api.post(
               `/api/admin/ban-hang/${hoaDonId}/complete`,
@@ -2176,18 +2435,18 @@ const BanHang = () => {
                 },
               }
             );
-  
+
             // Xử lý tiền thừa nếu có
             const { change } = calculateChange(hoaDonId);
             if (change > 0) {
               message.success(`Tiền thừa: ${formatCurrency(change)}`);
             }
-  
+
             await completeOrderProcess(hoaDonId);
           },
         });
       }
-  
+
       // Fetch dữ liệu mới sau khi xác nhận
       await fetchLatestData();
     } catch (error) {
@@ -2237,24 +2496,6 @@ const BanHang = () => {
   const handleDirectPrint = () => {
     const iframe = document.getElementById("pdf-preview");
     iframe.contentWindow.print();
-  };
-
-  // 10. Print invoice
-  const handlePrintInvoice = async (hoaDonId) => {
-    try {
-      const response = await api.get(`/api/admin/hoa-don/${hoaDonId}/print`, {
-        responseType: "blob",
-        headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
-        },
-      });
-
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url);
-    } catch (error) {
-      message.error("Lỗi khi in hóa đơn");
-    }
   };
 
   // Cập nhật lại findBestVoucherAndSuggest để sử dụng hàm helper
@@ -2939,14 +3180,14 @@ const BanHang = () => {
             columns={columns}
             pagination={{
               current: pagination.current,
-              pageSize: 3,
+              pageSize: 5,
               showSizeChanger: false,
               total: orderProducts[order.id]?.length || 0,
               showTotal: (total) => `Tổng ${total} sản phẩm`,
               size: "small",
               position: ["bottomCenter"],
               onChange: (page) => {
-                setPagination({ current: page, pageSize: 3 });
+                setPagination({ current: page, pageSize: 5 });
               },
             }}
             rowKey="id"
@@ -3011,7 +3252,24 @@ const BanHang = () => {
                   span={24}
                   style={{ display: "flex", alignItems: "center" }}
                 >
-                  <Avatar size={40} style={{ marginRight: 8 }} />
+                  <Avatar
+                    size={40}
+                    style={{
+                      marginRight: 8,
+                      backgroundColor: order.khachHang ? "#1890ff" : "#d9d9d9",
+                      color: "#ffffff",
+                      fontSize: 18,
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    {order.khachHang?.tenKhachHang ? (
+                      order.khachHang.tenKhachHang.charAt(0).toUpperCase()
+                    ) : (
+                      <UserOutlined />
+                    )}
+                  </Avatar>
                   <Text>{order.khachHang?.tenKhachHang || "Khách lẻ"}</Text>
                 </Col>
               </Row>
@@ -3151,12 +3409,12 @@ const BanHang = () => {
                   order.thanhToans.some(
                     (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
                   );
-              
+
                 // Nếu là chuyển khoản và có cả 2 phương thức, không hiển thị ô nhập mà sẽ tự động tính
                 const isAutoCalculated =
                   payment.maPhuongThucThanhToan === PAYMENT_METHOD.QR &&
                   hasBothPaymentMethods;
-              
+
                 return (
                   <Card
                     key={payment.maPhuongThucThanhToan}
@@ -3166,13 +3424,14 @@ const BanHang = () => {
                       borderLeft: `4px solid ${
                         payment.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
                           ? "#52c41a"
-                          : payment.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                          : payment.maPhuongThucThanhToan ===
+                            PAYMENT_METHOD.VNPAY
                           ? "#2a5ada"
                           : "#1890ff"
                       }`,
                       backgroundColor: "#fff",
                     }}
-                    bodyStyle={{ padding: "12px 16px" }}
+                    styles={{ body: { padding: "12px 16px" } }}
                   >
                     <Row align="middle">
                       <Col span={12}>
@@ -3232,7 +3491,7 @@ const BanHang = () => {
                         )}
                       </Col>
                     </Row>
-              
+
                     {/* Hiển thị mã QR nếu là phương thức chuyển khoản và có số tiền */}
                     {payment.maPhuongThucThanhToan === PAYMENT_METHOD.QR &&
                       payment.soTien > 0 && (
@@ -3257,10 +3516,11 @@ const BanHang = () => {
                           </Button>
                         </div>
                       )}
-              
+
                     {/* Hiển thị nút thanh toán VNPAY nếu là phương thức VNPAY và có số tiền */}
                     {payment.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY &&
-                      payment.soTien > 0 && renderVnpaySection(order, payment)}
+                      payment.soTien > 0 &&
+                      renderVnpaySection(order, payment)}
                   </Card>
                 );
               })}
@@ -3819,7 +4079,9 @@ const BanHang = () => {
                                               <Card
                                                 size="small"
                                                 hoverable
-                                                bodyStyle={{ padding: "12px" }}
+                                                styles={{
+                                                  body: { padding: "12px" },
+                                                }}
                                                 style={{
                                                   width: "100%", // Đảm bảo card chiếm toàn bộ độ rộng của List.Item
                                                   height: "100%", // Đảm bảo chiều cao đồng đều
@@ -4154,6 +4416,13 @@ const BanHang = () => {
       return;
     }
 
+    if (openCustomerDialog || openVoucherDialog) {
+      message.warning(
+        "Vui lòng đóng cửa sổ đang mở trước khi thêm khách hàng mới"
+      );
+      return;
+    }
+
     // Mở modal thêm khách hàng mới
     setIsCreateCustomerModalVisible(true);
   };
@@ -4164,25 +4433,21 @@ const BanHang = () => {
   // Hàm tải lại danh sách khách hàng sau khi thêm mới
   const refreshCustomers = async (newCustomerData = null) => {
     try {
-      // Nếu có dữ liệu khách hàng mới được truyền trực tiếp từ form
-      if (newCustomerData) {
-        console.log(
-          "Sử dụng dữ liệu khách hàng mới từ CreateForm:",
-          newCustomerData
-        );
+      // Nếu có dữ liệu khách hàng mới được truyền từ form
+      if (newCustomerData && newCustomerData.id) {
+        console.log("Nhận dữ liệu khách hàng mới từ form:", newCustomerData);
 
         // Cập nhật danh sách khách hàng
         setCustomers((prev) => [newCustomerData, ...prev]);
 
-        // Sử dụng dữ liệu khách hàng vừa tạo
         try {
           // Gọi API để liên kết khách hàng với hóa đơn
           await axios.put(
             `http://localhost:8080/api/admin/ban-hang/${activeKey}/customer`,
-            { customerId: newCustomerData.id }, // Request body
+            { customerId: newCustomerData.id },
             {
               headers: {
-                Authorization: `Bearer ${token}`, // Headers go here as third parameter
+                Authorization: `Bearer ${token}`,
               },
             }
           );
@@ -4203,17 +4468,24 @@ const BanHang = () => {
             )
           );
 
+          // Kiểm tra nếu đơn là giao hàng, tự động chọn địa chỉ đầu tiên
+          const currentTab = tabs.find((tab) => tab.key === activeKey);
+          if (currentTab?.order?.loaiHoaDon === 3 && giaoHangRef.current) {
+            setTimeout(() => {
+              giaoHangRef.current.selectFirstAddress();
+            }, 300);
+          }
+
           message.success(
             `Đã tạo và chọn khách hàng: ${newCustomerData.tenKhachHang}`
           );
         } catch (error) {
           console.error("Lỗi khi liên kết khách hàng với hóa đơn:", error);
-          console.error("Chi tiết:", error.response?.data);
           message.error("Không thể liên kết khách hàng mới với hóa đơn");
         }
 
         // Đóng modal
-        handleCloseCreateCustomerModal();
+        setIsCreateCustomerModalVisible(false);
         return;
       }
 
@@ -4222,63 +4494,80 @@ const BanHang = () => {
         "http://localhost:8080/api/admin/khach_hang",
         {
           headers: {
-            Authorization: `Bearer ${token}`, // Thêm token vào header
+            Authorization: `Bearer ${token}`,
           },
         }
       );
-      setCustomers(response.data);
+      setCustomers(response.data || []);
     } catch (error) {
       console.error("Lỗi khi làm mới danh sách khách hàng:", error);
       message.error("Không thể cập nhật thông tin khách hàng mới");
     }
   };
 
-  // Thêm component wrapper để tương thích với CreateForm
+  // Sửa lỗi CustomerFormWrapper để ngăn render và API call liên tục
+
   const CustomerFormWrapper = ({ onCustomerCreated }) => {
     const [customersList, setCustomersList] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    // Sử dụng ref để chỉ gọi API một lần
+    const hasLoadedRef = useRef(false);
 
-    // Tải danh sách khách hàng khi component được mount
     useEffect(() => {
-      const loadAllCustomers = async () => {
-        try {
-          setIsLoading(true);
-          const response = await axios.get(
-            "http://localhost:8080/api/admin/khach_hang",
-            {
-              headers: {
-                Authorization: `Bearer ${token}`, // Thêm token vào header
-              },
-            }
-          );
-          setCustomersList(response.data || []);
-        } catch (error) {
-          console.error("Lỗi khi tải danh sách khách hàng:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
+      // Chỉ gọi API nếu chưa từng gọi
+      if (!hasLoadedRef.current) {
+        const loadAllCustomers = async () => {
+          try {
+            setIsLoading(true);
+            const response = await axios.get(
+              "http://localhost:8080/api/admin/khach_hang",
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+            setCustomersList(response.data || []);
+            hasLoadedRef.current = true;
+          } catch (error) {
+            console.error("Lỗi khi tải danh sách khách hàng:", error);
+            message.error("Không thể tải danh sách khách hàng");
+          } finally {
+            setIsLoading(false);
+          }
+        };
 
-      loadAllCustomers();
-    }, []);
-
-    // Hàm trả về danh sách khách hàng khi CreateForm cần kiểm tra trùng lặp
-    const getCustomerList = () => {
-      return customersList;
-    };
-
-    // Xử lý khi khách hàng mới được tạo từ CreateForm
-    const handleCustomerCreated = (newCustomerData) => {
-      console.log("Khách hàng mới được tạo:", newCustomerData);
-      if (newCustomerData && onCustomerCreated) {
-        onCustomerCreated(newCustomerData);
+        loadAllCustomers();
       }
-    };
+    }, [token]);
+
+    // Memoize hàm để tránh re-render không cần thiết
+    const getCustomerList = useCallback(() => {
+      return customersList;
+    }, [customersList]);
+
+    // Xử lý khi khách hàng mới được tạo
+    const handleCustomerCreated = useCallback(
+      (newCustomerData) => {
+        if (newCustomerData && onCustomerCreated) {
+          // Gọi callback để cập nhật state trong component cha
+          onCustomerCreated(newCustomerData);
+        }
+      },
+      [onCustomerCreated]
+    );
+
+    const handleCloseForm = useCallback(() => {
+      if (typeof onCustomerCreated === "function") {
+        // When closing without creating, just call the function with no args
+        onCustomerCreated();
+      }
+    }, [onCustomerCreated]);
 
     if (isLoading) {
       return (
         <div style={{ textAlign: "center", margin: "20px 0" }}>
-          <Spin tip="Đang tải..." />
+          <Spin tip="Đang tải danh sách khách hàng..." />
         </div>
       );
     }
@@ -4286,9 +4575,8 @@ const BanHang = () => {
     return (
       <CreateForm
         getAllKhachHang={getCustomerList}
-        handleClose={(newCustomerData) =>
-          handleCustomerCreated(newCustomerData)
-        }
+        handleClose={handleCustomerCreated}
+        onCancel={handleCloseForm}
       />
     );
   };
@@ -4377,19 +4665,24 @@ const BanHang = () => {
   // Update handlePaymentMethodChange to include IDs for payment methods
   const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
     const orderTotal = totals[hoaDonId]?.finalTotal || 0;
-    
+
     // Kiểm tra xem có chọn cả VNPAY và QR không
-    const hasVnpayAndQr = selectedMethods.includes(PAYMENT_METHOD.VNPAY) && 
-                          selectedMethods.includes(PAYMENT_METHOD.QR);
-                          
+    const hasVnpayAndQr =
+      selectedMethods.includes(PAYMENT_METHOD.VNPAY) &&
+      selectedMethods.includes(PAYMENT_METHOD.QR);
+
     // Nếu đồng thời chọn cả VNPAY và QR, ưu tiên giữ lại VNPAY và loại bỏ QR
     if (hasVnpayAndQr) {
-      selectedMethods = selectedMethods.filter(method => method !== PAYMENT_METHOD.QR);
-      message.info("Chỉ được chọn một trong hai phương thức VNPAY hoặc QR. Đã tự động chọn VNPAY.");
+      selectedMethods = selectedMethods.filter(
+        (method) => method !== PAYMENT_METHOD.QR
+      );
+      message.info(
+        "Chỉ được chọn một trong hai phương thức VNPAY hoặc QR. Đã tự động chọn VNPAY."
+      );
     }
-    
+
     const hasCash = selectedMethods.includes(PAYMENT_METHOD.CASH);
-  
+
     // Map selected methods to payment objects with proper structure
     const selectedPayments = selectedMethods
       .map((methodCode) => {
@@ -4397,20 +4690,19 @@ const BanHang = () => {
         const method = paymentMethods.find(
           (m) => m.maPhuongThucThanhToan === methodCode
         );
-  
+
         if (!method) {
           console.error("Payment method not found:", methodCode);
           return null;
         }
-  
+
         // Calculate default amount based on payment method
         let defaultAmount = 0;
-        
+
         if (selectedMethods.length === 1) {
           // Nếu chỉ có một phương thức thanh toán, gán toàn bộ số tiền vào đó
           defaultAmount = orderTotal;
-        } 
-        else if (hasCash) {
+        } else if (hasCash) {
           // Nếu có tiền mặt và có phương thức khác
           if (methodCode === PAYMENT_METHOD.CASH) {
             // Nếu là tiền mặt, mặc định là 0
@@ -4420,10 +4712,10 @@ const BanHang = () => {
             defaultAmount = orderTotal;
           }
         }
-  
+
         // Create payment object with unique ID
         const paymentId = `${hoaDonId}_${methodCode}`;
-  
+
         return {
           id: paymentId,
           maPhuongThucThanhToan: method.maPhuongThucThanhToan,
@@ -4432,7 +4724,7 @@ const BanHang = () => {
         };
       })
       .filter(Boolean); // Remove any null values
-  
+
     // Update tabs state with new payments
     setTabs((prev) =>
       prev.map((tab) =>
@@ -4447,7 +4739,7 @@ const BanHang = () => {
           : tab
       )
     );
-  
+
     // Generate QR code if QR payment is selected
     if (selectedMethods.includes(PAYMENT_METHOD.QR)) {
       generateQR(hoaDonId, orderTotal);
@@ -4458,25 +4750,25 @@ const BanHang = () => {
   const handlePaymentAmountChange = (hoaDonId, methodCode, amount) => {
     const orderTotal = totals[hoaDonId]?.finalTotal || 0;
     const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
-  
+
     if (!currentOrder?.thanhToans) return;
-  
+
     // Kiểm tra có cả phương thức tiền mặt và phương thức khác không
     const hasCashMethod = currentOrder.thanhToans.some(
       (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
     );
-  
+
     const hasVnpayMethod = currentOrder.thanhToans.some(
       (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
     );
-  
+
     const hasQrMethod = currentOrder.thanhToans.some(
       (p) => p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
     );
-  
+
     const hasNonCashMethods = hasVnpayMethod || hasQrMethod;
     const hasBothMethods = hasCashMethod && hasNonCashMethods;
-  
+
     // Nếu là thanh toán tiền mặt và số tiền vượt quá tổng đơn hàng
     if (methodCode === PAYMENT_METHOD.CASH && amount > orderTotal) {
       // Người dùng đưa tiền nhiều hơn, chỉ dùng phương thức tiền mặt và vô hiệu hóa các phương thức khác
@@ -4499,7 +4791,7 @@ const BanHang = () => {
               : tab
           )
         );
-  
+
         message.info("Đơn hàng sẽ thanh toán bằng tiền mặt và có tiền thừa");
       } else {
         // Nếu chỉ có một phương thức thanh toán tiền mặt, cập nhật bình thường
@@ -4528,7 +4820,7 @@ const BanHang = () => {
       if (hasBothMethods) {
         const cashAmount = amount || 0;
         const remainingAmount = Math.max(0, orderTotal - cashAmount);
-  
+
         // Ưu tiên thanh toán cho phương thức thanh toán hiện có
         // Ưu tiên cho VNPAY nếu có, sau đó đến QR
         if (hasVnpayMethod && !hasQrMethod) {
@@ -4543,7 +4835,9 @@ const BanHang = () => {
                       thanhToans: tab.order.thanhToans.map((p) => {
                         if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
                           return { ...p, soTien: cashAmount };
-                        } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY) {
+                        } else if (
+                          p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                        ) {
                           return { ...p, soTien: remainingAmount };
                         }
                         return p;
@@ -4565,7 +4859,9 @@ const BanHang = () => {
                       thanhToans: tab.order.thanhToans.map((p) => {
                         if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
                           return { ...p, soTien: cashAmount };
-                        } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR) {
+                        } else if (
+                          p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
+                        ) {
                           return { ...p, soTien: remainingAmount };
                         }
                         return p;
@@ -4591,9 +4887,13 @@ const BanHang = () => {
                       thanhToans: tab.order.thanhToans.map((p) => {
                         if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
                           return { ...p, soTien: cashAmount };
-                        } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY) {
+                        } else if (
+                          p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                        ) {
                           return { ...p, soTien: remainingAmount };
-                        } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR) {
+                        } else if (
+                          p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
+                        ) {
                           return { ...p, soTien: 0 };
                         }
                         return p;
@@ -4629,11 +4929,11 @@ const BanHang = () => {
     // Xử lý khi người dùng nhập số tiền cho VNPAY
     else if (methodCode === PAYMENT_METHOD.VNPAY) {
       const vnpayAmount = amount || 0;
-      
+
       // Nếu có tiền mặt, tự động điều chỉnh số tiền tiền mặt
       if (hasCashMethod) {
         const remainingForCash = Math.max(0, orderTotal - vnpayAmount);
-        
+
         setTabs((prev) =>
           prev.map((tab) =>
             tab.key === hoaDonId
@@ -4644,9 +4944,13 @@ const BanHang = () => {
                     thanhToans: tab.order.thanhToans.map((p) => {
                       if (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY) {
                         return { ...p, soTien: vnpayAmount };
-                      } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
+                      } else if (
+                        p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
+                      ) {
                         return { ...p, soTien: remainingForCash };
-                      } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR) {
+                      } else if (
+                        p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
+                      ) {
                         // Nếu có QR, set về 0
                         return { ...p, soTien: 0 };
                       }
@@ -4670,7 +4974,9 @@ const BanHang = () => {
                     thanhToans: tab.order.thanhToans.map((p) =>
                       p.maPhuongThucThanhToan === methodCode
                         ? { ...p, soTien: vnpayAmount }
-                        : (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR ? { ...p, soTien: 0 } : p)
+                        : p.maPhuongThucThanhToan === PAYMENT_METHOD.QR
+                        ? { ...p, soTien: 0 }
+                        : p
                     ),
                   },
                 }
@@ -4682,11 +4988,11 @@ const BanHang = () => {
     // Xử lý khi người dùng nhập số tiền cho QR
     else if (methodCode === PAYMENT_METHOD.QR) {
       const qrAmount = amount || 0;
-      
+
       // Nếu có tiền mặt, tự động điều chỉnh số tiền tiền mặt
       if (hasCashMethod) {
         const remainingForCash = Math.max(0, orderTotal - qrAmount);
-        
+
         setTabs((prev) =>
           prev.map((tab) =>
             tab.key === hoaDonId
@@ -4697,9 +5003,13 @@ const BanHang = () => {
                     thanhToans: tab.order.thanhToans.map((p) => {
                       if (p.maPhuongThucThanhToan === PAYMENT_METHOD.QR) {
                         return { ...p, soTien: qrAmount };
-                      } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH) {
+                      } else if (
+                        p.maPhuongThucThanhToan === PAYMENT_METHOD.CASH
+                      ) {
                         return { ...p, soTien: remainingForCash };
-                      } else if (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY) {
+                      } else if (
+                        p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                      ) {
                         // Nếu có VNPAY, set về 0
                         return { ...p, soTien: 0 };
                       }
@@ -4710,7 +5020,7 @@ const BanHang = () => {
               : tab
           )
         );
-        
+
         // Tạo QR code
         if (qrAmount > 0) {
           generateQR(hoaDonId, qrAmount);
@@ -4728,14 +5038,16 @@ const BanHang = () => {
                     thanhToans: tab.order.thanhToans.map((p) =>
                       p.maPhuongThucThanhToan === methodCode
                         ? { ...p, soTien: qrAmount }
-                        : (p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY ? { ...p, soTien: 0 } : p)
+                        : p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
+                        ? { ...p, soTien: 0 }
+                        : p
                     ),
                   },
                 }
               : tab
           )
         );
-        
+
         // Tạo QR code
         if (qrAmount > 0) {
           generateQR(hoaDonId, qrAmount);
@@ -5593,7 +5905,7 @@ const BanHang = () => {
   // Update useEffect for tab changes to ensure totals are calculated
   useEffect(() => {
     if (activeKey) {
-      setPagination({ current: 1, pageSize: 3 });
+      setPagination({ current: 1, pageSize: 5 });
       fetchInvoiceProducts(activeKey).then(() => {
         setTimeout(() => {
           const newTotals = calculateOrderTotals(activeKey);
@@ -6394,7 +6706,7 @@ const BanHang = () => {
         footer={null}
         width={750}
         className="customer-selection-modal"
-        bodyStyle={{ padding: 24, paddingTop: 0 }}
+        styles={{ body: { padding: 24, paddingTop: 0 } }}
         style={{ top: 40 }}
       >
         {/* Ô tìm kiếm */}
@@ -6764,13 +7076,21 @@ const BanHang = () => {
       />
       {/* Modal thêm khách hàng mới */}
       <Modal
-        title="Thêm Khách Hàng Mới"
+        title="Thêm khách hàng mới"
         open={isCreateCustomerModalVisible}
         onCancel={handleCloseCreateCustomerModal}
+        width={800}
         footer={null}
-        width={900}
+        destroyOnClose={true}
       >
-        <CustomerFormWrapper onCustomerCreated={refreshCustomers} />
+        <CustomerFormWrapper
+          onCustomerCreated={(newCustomerData) => {
+            if (newCustomerData) {
+              refreshCustomers(newCustomerData);
+            }
+            handleCloseCreateCustomerModal();
+          }}
+        />
       </Modal>
       {/* Add PreviewModal component */}
       <PreviewModal />
@@ -6828,7 +7148,9 @@ const BanHang = () => {
         open={openPriceChangeDialog}
         onCancel={() => setOpenPriceChangeDialog(false)}
         width={900}
-        bodyStyle={{ padding: "16px", maxHeight: "70vh", overflow: "auto" }}
+        styles={{
+          body: { padding: "16px", maxHeight: "70vh", overflow: "auto" },
+        }}
         centered
         footer={
           <div
@@ -6892,7 +7214,7 @@ const BanHang = () => {
                 boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                 border: "1px solid #f0f0f0",
               }}
-              bodyStyle={{ padding: 16 }}
+              styles={{ body: { padding: 16 } }}
             >
               <List.Item
                 style={{ padding: 0 }}

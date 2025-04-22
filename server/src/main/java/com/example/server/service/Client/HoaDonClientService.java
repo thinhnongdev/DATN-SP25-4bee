@@ -6,7 +6,7 @@ import com.example.server.dto.Client.request.ProductUpdateRequest;
 import com.example.server.dto.Client.request.ThongTinGiaoHangClientRequest;
 import com.example.server.dto.Client.response.HoaDonChiTietClientResponse;
 import com.example.server.dto.Client.response.HoaDonClientResponse;
-import com.example.server.dto.Client.response.ThanhToanHoaDonClientResponse;
+import com.example.server.dto.HoaDon.request.HoaDonChiTietRequest;
 import com.example.server.entity.*;
 import com.example.server.repository.HoaDon.*;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
@@ -253,10 +253,22 @@ public class HoaDonClientService {
         lichSuHoaDon.setTrangThai(1);
         lichSuHoaDon.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElse(null));
         lichSuHoaDon.setNgayTao(LocalDateTime.now());
-        lichSuHoaDon.setHanhDong("Thanh toán đơn hàng");
-        lichSuHoaDon.setMoTa("Khách hàng thanh toán đơn hàng #" + thongTinGiaoHangClientRequest.getMaHoaDon());
+        lichSuHoaDon.setHanhDong("Khách hàng tạo đơn hàng");
+        lichSuHoaDon.setMoTa("Khách hàng tạo đơn hàng #" + thongTinGiaoHangClientRequest.getMaHoaDon());
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
+        List<HoaDonChiTiet> hoaDonChiTietList=hoaDonChiTietRepository.findByHoaDon(hoaDon);
+        for (HoaDonChiTiet h:hoaDonChiTietList){
+            LichSuHoaDon lichSuHoaDon2 = new LichSuHoaDon();
+            lichSuHoaDon2.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
+            lichSuHoaDon2.setHoaDon(hoaDon);
+            lichSuHoaDon2.setTrangThai(1);
+            lichSuHoaDon2.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElse(null));
+            lichSuHoaDon2.setNgayTao(LocalDateTime.now());
+            lichSuHoaDon2.setHanhDong("Khách hàng thêm sản phẩm vào đơn hàng");
+            lichSuHoaDon2.setMoTa("Khách hàng thêm sản phẩm: " + h.getSanPhamChiTiet().getMaSanPhamChiTiet()+" - Số lượng:"+h.getSoLuong());
+            lichSuHoaDonRepository.save(lichSuHoaDon2);
+        }
         return hoaDon1;
     };
 
@@ -328,5 +340,22 @@ public class HoaDonClientService {
                 hoaDonChiTietRepository.save(hoaDonChiTiet);
             }
         }
+    }
+    public HoaDon huyHoaDonChoXacNhan(String id,String moTa,String idKhachHang) {
+        HoaDon hoaDon=hoaDonRepository.findById(id).orElseThrow();
+        if(hoaDon.getLoaiHoaDon()==1&&hoaDon.getTrangThai()==1){
+            hoaDon.setTrangThai(6);//hủy đơn hàng
+            LichSuHoaDon lichSuHoaDon=new LichSuHoaDon();
+            lichSuHoaDon.setId(UUID.randomUUID().toString());
+            lichSuHoaDon.setTrangThai(1);
+            lichSuHoaDon.setMoTa(moTa);
+            lichSuHoaDon.setKhachHang(khachHangRepository.findById(idKhachHang).orElse(null));
+            lichSuHoaDon.setHanhDong("Khách hàng hủy đơn hàng chờ xác nhận");
+            lichSuHoaDon.setHoaDon(hoaDonRepository.findById(id).orElse(null));
+            lichSuHoaDon.setNgayTao(LocalDateTime.now());
+            lichSuHoaDonRepository.save(lichSuHoaDon);
+           return  hoaDonRepository.save(hoaDon);
+        }
+        return null;
     }
 }

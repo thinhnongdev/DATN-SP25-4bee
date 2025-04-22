@@ -1,19 +1,22 @@
 package com.example.server.controller.Client;
 
 import com.example.server.dto.Client.request.CartProductRequest;
+import com.example.server.dto.Client.request.LichSuHoaDonClientRequest;
 import com.example.server.dto.Client.request.OrderRequest;
 import com.example.server.dto.Client.request.OrderUpdateRequest;
-import com.example.server.dto.Client.request.UpdateDiaChiClientRequest;
 import com.example.server.dto.Client.response.HoaDonClientResponse;
+import com.example.server.dto.HoaDon.response.LichSuHoaDonResponse;
 import com.example.server.entity.HoaDon;
+import com.example.server.entity.LichSuHoaDon;
+import com.example.server.repository.HoaDon.LichSuHoaDonRepository;
 import com.example.server.service.Client.HoaDonChiTietClientService;
 import com.example.server.service.Client.HoaDonClientService;
+import com.example.server.service.HoaDon.impl.LichSuHoaDonService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -24,6 +27,8 @@ public class HoaDonClientController {
     HoaDonClientService hoaDonClientService;
     @Autowired
     HoaDonChiTietClientService hoaDonChiTietClientService;
+    @Autowired
+    private LichSuHoaDonService lichSuHoaDonService;
 
     @PostMapping("/order/createPending")
     public ResponseEntity<?> createCart(@RequestBody OrderRequest orderRequest) {
@@ -40,39 +45,8 @@ public class HoaDonClientController {
 
     @GetMapping("/order/hoaDonChiTiet/{hoaDonId}")
     public ResponseEntity<?> getHoaDonChiTiet(@PathVariable String hoaDonId) {
-//        try {
-//            List<HoaDonChiTietClientResponse> chiTietClientResponses = hoaDonChiTietClientService.getHoaDonChiTietList(hoaDonId);
-//            if (chiTietClientResponses == null || chiTietClientResponses.isEmpty()) {
-//                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy chi tiết hóa đơn cho ID:" + hoaDonId);
-//            }
-//            return ResponseEntity.ok(chiTietClientResponses);
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi lấy hóa đơn chi tiết:" + e.getMessage());
-//        }
         return ResponseEntity.ok(hoaDonChiTietClientService.getHoaDonChiTietList(hoaDonId));
     }
-
-//    @PutMapping("/order/thaydoidiachihoadonchoxacnhan/{idHoaDon}")
-//    public ResponseEntity<?> updateDiaChiHoaDonChoXacNhan(@PathVariable("idHoaDon") String idHoaDon, @RequestBody UpdateDiaChiClientRequest request) {
-//        if (idHoaDon == null || idHoaDon.isEmpty()) {
-//            return ResponseEntity.badRequest().body("Id hóa đơn không được để trống");
-//        }
-//        if (request.getDiaChi() == null || request.getDiaChi().isEmpty()) {
-//            return ResponseEntity.badRequest().body("địa chỉ cập nhật không được để trống");
-//        }if (request.getShippingFee() == null) {
-//            return ResponseEntity.badRequest().body("phí ship cập nhật không được để trống");
-//        }
-//        try {
-//            HoaDon hoaDon = hoaDonClientService.updateDiaChiDonChoXacNhan(idHoaDon, request.getDiaChi(), request.getShippingFee(),request.getTotalPayment(), request.getDiaChi());
-//            if (hoaDon == null) {
-//                return ResponseEntity.badRequest().body("Chỉ hóa đơn chờ xác nhận mới được thay đổi địa chỉ");
-//            }
-//            return ResponseEntity.ok(hoaDon);
-//        } catch (RuntimeException e) {
-//            return ResponseEntity.badRequest().body("Có lỗi xảy ra, vui lòng thử lại!");
-//        }
-//
-//    }
 
     @PostMapping("/order/addHoaDonChiTiet")
     public ResponseEntity<?> addHoaDonChiTiet(@RequestBody CartProductRequest cartProductRequest) {
@@ -156,5 +130,29 @@ public class HoaDonClientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi cập nhật hóa đơn" + e.getMessage());
         }
 
+    }
+    @DeleteMapping("/huydonchoxacnhan/{id}")
+    public ResponseEntity<?> huyDonChoXacNhan(@PathVariable("id")String id, @RequestBody LichSuHoaDonClientRequest lichSuHoaDonClientRequest){
+        if (id == null || id.isEmpty()) {
+            return ResponseEntity.badRequest().body("Id hóa đơn không được để trống");
+        }
+        try {
+            HoaDon hoaDon = hoaDonClientService.huyHoaDonChoXacNhan(id,lichSuHoaDonClientRequest.getMoTa(),lichSuHoaDonClientRequest.getIdKhachHang());
+            return ResponseEntity.ok(hoaDon);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi hủy hóa đơn" + e.getMessage());
+        }
+    }
+    @GetMapping("/order/findLichSuHoaDon/{id}")
+    public ResponseEntity<?> findLichSuHoaDoById(@PathVariable String id) {
+        if (id == null || id.isEmpty()) {
+            return ResponseEntity.badRequest().body("Id không được để trống");
+        }
+        try {
+            List<LichSuHoaDonResponse> lichSuHoaDon = lichSuHoaDonService.getByHoaDonId(id);
+            return ResponseEntity.ok(lichSuHoaDon);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm lịch sử hóa đơn" + e.getMessage());
+        }
     }
 }

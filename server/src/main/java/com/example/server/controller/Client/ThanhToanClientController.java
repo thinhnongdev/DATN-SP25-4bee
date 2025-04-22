@@ -79,13 +79,15 @@ public class ThanhToanClientController {
                     request.getPhieuGiamGia()
             );
             System.out.println(request.getThongTinGiaoHang().getPhuongThucThanhToan());
+
+            hoaDonChiTietClientService.addHoaDonChiTiet(request.getSanPhamChiTietList(), hoaDon);
+
             thanhToanClientService.createThanhToanHoaDon(
                     request.getThongTinGiaoHang().getPhuongThucThanhToan(),
                     hoaDon,
                     request.getTongTienThanhToan(),
                     request.getThongTinGiaoHang()
             );
-            hoaDonChiTietClientService.addHoaDonChiTiet(request.getSanPhamChiTietList(), hoaDon);
             String provinceName = ghnService.getProvinceName(Long.parseLong(request.getThongTinGiaoHang().getProvince()));
             String districtName = ghnService.getDistrictName(Long.parseLong(request.getThongTinGiaoHang().getProvince()), Long.parseLong(request.getThongTinGiaoHang().getDistrict()));
             String wardName = ghnService.getWardName(Long.parseLong(request.getThongTinGiaoHang().getDistrict()), request.getThongTinGiaoHang().getWard());

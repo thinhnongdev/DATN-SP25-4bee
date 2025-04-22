@@ -43,12 +43,12 @@ public class ThanhToanClientService {
     private LichSuHoaDonService lichSuHoaDonService;
 
     public List<ThanhToanHoaDonClientResponse> findThanhToanHoaDon(String idHoaDon) {
-        List<ThanhToanHoaDonClientResponse> thanhToanHoaDons=thanhToanHoaDonRepository.findByHoaDonIdForClient(idHoaDon);
+        List<ThanhToanHoaDonClientResponse> thanhToanHoaDons = thanhToanHoaDonRepository.findByHoaDonIdForClient(idHoaDon);
 
         return thanhToanHoaDons;
     }
 
-    public ThanhToanHoaDon createThanhToanHoaDon(String phuongThucThanhToan, HoaDon hoaDon, BigDecimal tienThanhToan,ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest) {
+    public ThanhToanHoaDon createThanhToanHoaDon(String phuongThucThanhToan, HoaDon hoaDon, BigDecimal tienThanhToan, ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest) {
         ThanhToanHoaDon thanhToanHoaDon = new ThanhToanHoaDon();
         //thanhToanHoaDon.setId(UUID.randomUUID().toString());
         thanhToanHoaDon.setPhuongThucThanhToan(phuongThucThanhToanHoaDonRepository.findByMaPhuongThucThanhToan(phuongThucThanhToan).orElseThrow());
@@ -70,7 +70,7 @@ public class ThanhToanClientService {
                 .map(PhuongThucThanhToan::getTenPhuongThucThanhToan)
                 .orElse(phuongThucThanhToan);
 
-        lichSuHoaDon.setHanhDong("Thanh toán đơn hàng");
+        lichSuHoaDon.setHanhDong("Khách hàng thanh toán đơn hàng ");
         lichSuHoaDon.setMoTa("Khách hàng " + thongTinGiaoHangClientRequest.getHoTen() +
                 " thanh toán " + String.format("%,.0f", tienThanhToan) + " đ" +
                 " bằng " + tenPhuongThuc + " (" + trangThaiThanhToan + ")");
@@ -155,7 +155,7 @@ public class ThanhToanClientService {
                     giamGia = phieuGiamGia.getGiaTriGiam();
                 }
             }
-            System.out.println("số tiền được giảm"+giamGia);
+            System.out.println("số tiền được giảm" + giamGia);
             htmlContent = htmlContent
                     .replace("{{tenKhachHang}}", khachHang.getHoTen())
                     .replace("{{email}}", khachHang.getEmail())
@@ -163,7 +163,7 @@ public class ThanhToanClientService {
                     .replace("{{diaChi}}", khachHang.getDiaChiCuThe())
                     .replace("{{ghiChu}}", khachHang.getGhiChu() != null ? khachHang.getGhiChu() : "Không có")
                     .replace("{{giamGia}}", String.format("%,.0f", giamGia))
-                    .replace("{{phiShip}}", String.format("%,.0f",(tienThanhToan.add(giamGia).subtract(tongTienHang))))
+                    .replace("{{phiShip}}", String.format("%,.0f", (tienThanhToan.add(giamGia).subtract(tongTienHang))))
                     .replace("{{tongTien}}", String.format("%,.0f", tienThanhToan));
             String chiTietSanPham = "";
             int stt = 1;

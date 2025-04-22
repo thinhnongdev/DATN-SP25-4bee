@@ -1,12 +1,40 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { Button, Radio } from "antd";
-import { Input } from "antd";
+import {
+  Button,
+  Radio,
+  Input,
+  Form,
+  Row,
+  Col,
+  Card,
+  Select,
+  DatePicker,
+  Divider,
+  Modal,
+  message,
+} from "antd";
 import { getPostApi, scanQRCode } from "./NhanVienApi";
 import axios from "axios";
-import QrScanner from "react-qr-scanner";
+import dayjs from "dayjs";
+import moment from "moment/moment";
+
+const { Option } = Select;
+
 function CreateForm({ handleClose, getAllNhanVien }) {
+  const [tinhThanhList, setTinhThanhList] = useState([]);
+  const [quanHuyenList, setQuanHuyenList] = useState([]);
+  const [xaPhuongList, setXaPhuongList] = useState([]);
+
+  const [selectedTinh, setSelectedTinh] = useState(null);
+  const [selectedHuyen, setSelectedHuyen] = useState(null);
+
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [form] = Form.useForm();
   const [scanning, setScanning] = useState(false);
+  const fileInputRef = useRef(null);
+  const API_TOKEN = "4f7fc40f-023f-11f0-aff4-822fc4284d92";
+
   const [formData, setFormData] = useState({
     tenNhanVien: "",
     email: "",
@@ -16,7 +44,66 @@ function CreateForm({ handleClose, getAllNhanVien }) {
     trangThai: true,
     anh: "",
     canCuocCongDan: "",
+    tinh: "",
+    huyen: "",
+    xa: "",
+    diaChiCuThe: "",
   });
+
+  useEffect(() => {
+    // Lấy danh sách tỉnh/thành phố
+    axios
+      .get(
+        "https://online-gateway.ghn.vn/shiip/public-api/master-data/province",
+        {
+          headers: { Token: API_TOKEN, "Content-Type": "application/json" },
+        }
+      )
+      .then((res) => setTinhThanhList(res.data.data))
+      .catch((err) => console.error("Lỗi lấy tỉnh thành:", err));
+  }, []);
+
+  const handleProvinceChange = (value) => {
+    setSelectedTinh(value);
+    setFormData({
+      ...formData,
+      tinh: value,
+      huyen: null,
+      xa: null,
+      diaChiCuThe: null,
+    });
+    // Lấy danh sách quận/huyện
+    axios
+      .post(
+        "https://online-gateway.ghn.vn/shiip/public-api/master-data/district",
+        { province_id: value },
+        { headers: { Token: API_TOKEN } }
+      )
+      .then((res) => setQuanHuyenList(res.data.data))
+      .catch((err) => console.error("Lỗi lấy quận huyện:", err));
+  };
+
+  const handleDistrictChange = (value) => {
+    setSelectedHuyen(value);
+    setFormData({ ...formData, huyen: value, xa: null });
+    // Lấy danh sách phường/xã
+    axios
+      .post(
+        "https://online-gateway.ghn.vn/shiip/public-api/master-data/ward?district_id",
+        { district_id: value },
+        { headers: { Token: API_TOKEN } }
+      )
+      .then((res) => setXaPhuongList(res.data.data))
+      .catch((err) => console.error("Lỗi lấy phường xã:", err));
+  };
+
+  const showModal = () => {
+    setIsModalVisible(true);
+  };
+
+  const handleCancel = () => {
+    setIsModalVisible(false);
+  };
 
   const handleScan = async (data) => {
     if (data) {
@@ -32,136 +119,22 @@ function CreateForm({ handleClose, getAllNhanVien }) {
           anh: nhanVien.anh || "",
         });
         toast.success("Đã tìm thấy nhân viên từ mã QR!");
-        setScanning(false); // Dừng camera sau khi quét thành công
+        setIsModalVisible(false);
       } catch (error) {
         toast.error("Không tìm thấy nhân viên từ QR!");
       }
     }
   };
 
-  const handleError = (err) => {
-    console.error("Lỗi khi quét QR:", err);
-    toast.error("Lỗi khi quét mã QR!");
-  };
-
-  const [errors, setErrors] = useState({});
-  const fileInputRef = useRef(null);
-
-  const validateField = (name, value) => {
-    let errorMsg = "";
-
-    if (name === "tenNhanVien" && !value.trim()) {
-      errorMsg = "Tên nhân viên không được để trống!";
-    }
-
-    if (name === "email") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!value.trim()) errorMsg = "Email không được để trống!";
-      else if (!emailRegex.test(value)) errorMsg = "Email không hợp lệ!";
-    }
-
-    if (name === "soDienThoai") {
-      const phoneRegex = /^(0[1-9])[0-9]{8}$/;
-      if (!value.trim()) errorMsg = "Số điện thoại không được để trống!";
-      else if (!phoneRegex.test(value))
-        errorMsg = "Số điện thoại không hợp lệ!";
-    }
-
-    if (name === "ngaySinh") {
-      if (!value) errorMsg = "Ngày sinh không được để trống!";
-      else {
-        const today = new Date();
-        const selectedDate = new Date(value);
-        if (selectedDate > today) {
-          errorMsg = "Ngày sinh không được lớn hơn ngày hiện tại!";
-        }
-      }
-    }
-
-    if (name === "gioiTinh" && !value) {
-      errorMsg = "Vui lòng chọn giới tính!";
-    }
-
-    return errorMsg;
-  };
-
-  const validateForm = () => {
-    let newErrors = {};
-
-    Object.keys(formData).forEach((key) => {
-      const error = validateField(key, formData[key]);
-      if (error) newErrors[key] = error;
-    });
-
-    setErrors(newErrors);
-
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleChangeCCCD = (e) => {
-    const { name, value } = e.target;
-
-    setFormData((prevState) => ({
-      ...prevState,
-      [name]: name === "canCuocCongDan" ? value.replace(/\D/g, "") : value, // Chỉ cho phép số
-    }));
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
-
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [name]: validateField(name, value),
-    }));
-  };
-
-  const handleGenderChange = (gender) => {
-    setFormData((prevState) => ({
-      ...prevState,
-      gioiTinh: gender,
-    }));
-
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      gioiTinh: validateField("gioiTinh", gender),
-    }));
-  };
-
-  const checkDuplicateFields = async () => {
+  const checkEmailExists = async (email) => {
     try {
-      const existingEmployees = await getAllNhanVien();
-
-      if (!existingEmployees) {
-        toast.error("Không thể lấy dữ liệu nhân viên!");
-        return false;
-      }
-
-      let duplicateErrors = {};
-
-      if (existingEmployees.some((emp) => emp.email === formData.email)) {
-        duplicateErrors.email = "Email đã được sử dụng!";
-      }
-      if (
-        existingEmployees.some(
-          (emp) => emp.soDienThoai === formData.soDienThoai
-        )
-      ) {
-        duplicateErrors.soDienThoai = "Số điện thoại đã được sử dụng!";
-      }
-
-      setErrors(duplicateErrors);
-      return Object.keys(duplicateErrors).length === 0;
+      const response = await axios.get(`/api/nhan-vien/check-email?email=${encodeURIComponent(email)}`);
+      return response.data.exists;
     } catch (error) {
-      console.error("Lỗi kiểm tra trùng lặp:", error);
-      toast.error("Lỗi khi kiểm tra dữ liệu trùng lặp!");
+      console.error("Lỗi kiểm tra email:", error);
       return false;
     }
-  };
+  };  
 
   const handleUploadImage = async (files) => {
     console.log("đường dẫn ảnh:", files);
@@ -209,22 +182,9 @@ function CreateForm({ handleClose, getAllNhanVien }) {
   }, [formData]);
 
   //Submit
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      toast.error("Vui lòng nhập đầy đủ thông tin!");
-      return;
-    }
-
+  const handleSubmit = async () => {
     if (!formData.anh) {
       toast.error("Vui lòng tải lên ảnh nhân viên!");
-      return;
-    }
-
-    const isUnique = await checkDuplicateFields();
-    if (!isUnique) {
-      toast.error("Thông tin nhập vào đã tồn tại, vui lòng kiểm tra lại!");
       return;
     }
 
@@ -237,214 +197,404 @@ function CreateForm({ handleClose, getAllNhanVien }) {
       trangThai: formData.trangThai,
       anh: String(formData.anh),
       canCuocCongDan: formData.canCuocCongDan,
+      tinh: formData.tinh,
+      huyen: formData.huyen,
+      xa: formData.xa,
+      diaChiCuThe: formData.diaChiCuThe,
     };
+
+    console.log("Dữ liệu gửi đi:", newNhanVien);
 
     try {
       const response = await getPostApi(newNhanVien);
+      console.log("Kết quả API:", response);
+
       if (response && response.data) {
         toast.success("Nhân viên mới đã được tạo!");
-        console.log("Nhân viên mới:", response.data);
         getAllNhanVien();
         handleClose();
       }
     } catch (error) {
       toast.error("Có lỗi khi tạo nhân viên!");
       console.error("ERROR", error);
-      if (error.response) {
-        console.error("Lỗi từ Cloudinary:", error.response.data);
-        toast.error(`Lỗi tải ảnh: ${error.response.data.error.message}`);
-      } else {
-        toast.error("Không thể tải ảnh lên, vui lòng thử lại.");
-      }
     }
   };
 
   return (
-    <div className="NhanVien">
-      <div className="">
-        {/* Khung thông tin nhân viên */}
-        <div className="card" style={{ padding: "20px", borderRadius: "10px" }}>
-          <h5 className="card-title">Thông tin nhân viên</h5>
-          <hr />
-          <form onSubmit={handleSubmit} className="form">
-            <div className="row">
-              {/* Cột trái: Ảnh đại diện + Mã nhân viên */}
-              <div className="col-md-4 d-flex flex-column align-items-center">
-                {/* Ảnh nhân viên */}
-                <div
-                  className="image-section"
-                  style={{
-                    textAlign: "center",
-                    cursor: "pointer",
-                    marginBottom: "20px",
-                  }}
-                  onClick={() => fileInputRef.current.click()}
-                >
+    <Card className="create-form-container">
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Row gutter={24}>
+          <Col span={8}>
+            <h5>Thông tin nhân viên</h5>
+            <Divider />
+
+            <div className="left-section">
+              <div
+                className="avatar-section"
+                onClick={() => fileInputRef.current.click()}
+                style={{
+                  width: "150px",
+                  height: "150px",
+                  borderRadius: "50%",
+                  border: "2px dashed #ddd",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  marginLeft: 100,
+                  marginBottom: 55,
+                }}
+              >
+                {formData.anh ? (
                   <img
-                    src={formData.anh || "https://via.placeholder.com/150"}
+                    src={formData.anh}
                     alt="Ảnh nhân viên"
                     style={{
-                      width: "150px",
-                      height: "150px",
+                      width: "100%",
+                      height: "100%",
                       borderRadius: "50%",
                       objectFit: "cover",
-                      border: "2px solid #ccc",
-                      marginBottom: "10px",
                     }}
                   />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    onChange={(e) => handleUploadImage(e.target.files)}
-                  />
-                  <p style={{ fontSize: "12px", color: "#555" }}>
-                    Nhấp vào ảnh để chọn
-                  </p>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Quét mã QR CCCD</label>
-                  <Button onClick={() => setScanning(!scanning)}>
-                    {scanning ? "Tắt Camera" : "Mở Camera"}
-                  </Button>
-                  {scanning && (
-                    <QrScanner
-                      delay={300}
-                      onError={handleError}
-                      onScan={handleScan}
-                      style={{ width: "100%", maxWidth: 400, marginTop: 10 }}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Cột phải: Thông tin còn lại */}
-              <div className="col-md-8">
-                {/* Họ tên */}
-                <div className="mb-4">
-                  <label className="form-label">
-                    Họ và tên <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    name="tenNhanVien"
-                    value={formData.tenNhanVien}
-                    onChange={handleChange}
-                  />
-                  {errors.tenNhanVien && (
-                    <p className="text-danger">{errors.tenNhanVien}</p>
-                  )}
-                </div>
-
-                {/* Ngày sinh */}
-                <div className="mb-4">
-                  <label className="form-label">
-                    Ngày sinh <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <Input
-                    type="date"
-                    name="ngaySinh"
-                    value={formData.ngaySinh}
-                    onChange={handleChange}
-                  />
-                  {errors.ngaySinh && (
-                    <p className="text-danger">{errors.ngaySinh}</p>
-                  )}
-                </div>
-
-                {/* Email */}
-                <div className="mb-4">
-                  <label className="form-label">
-                    Email <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <Input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                  {errors.email && (
-                    <p className="text-danger">{errors.email}</p>
-                  )}
-                </div>
-
-                {/* Số điện thoại */}
-                <div className="mb-4">
-                  <label className="form-label">
-                    Số điện thoại <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    name="soDienThoai"
-                    value={formData.soDienThoai}
-                    onChange={handleChange}
-                  />
-                  {errors.soDienThoai && (
-                    <p className="text-danger">{errors.soDienThoai}</p>
-                  )}
-                </div>
-
-                {/* Giới tính */}
-                <div className="mb-4">
-                  <label className="form-label">
-                    Giới tính <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <div>
-                    <label className="me-3">
-                      <Radio
-                        name="gioiTinh"
-                        checked={formData.gioiTinh === "Nam"}
-                        onChange={() => handleGenderChange("Nam")}
-                      />{" "}
-                      Nam
-                    </label>
-                    <label>
-                      <Radio
-                        name="gioiTinh"
-                        checked={formData.gioiTinh === "Nữ"}
-                        onChange={() => handleGenderChange("Nữ")}
-                      />{" "}
-                      Nữ
-                    </label>
-                  </div>
-                  {errors.gioiTinh && (
-                    <p className="text-danger">{errors.gioiTinh}</p>
-                  )}
-                </div>
-
-                <div className="mb-4">
-                  <label className="form-label">
-                    Căn cước công dân <span style={{ color: "red" }}>*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    name="canCuocCongDan"
-                    value={formData.canCuocCongDan}
-                    onChange={handleChangeCCCD}
-                  />
-                  {errors.soDienThoai && (
-                    <p className="text-danger">{errors.canCuocCongDan}</p>
-                  )}
-                </div>
-
-
-                {/* Nút lưu nhân viên */}
-                <div className="" style={{ marginLeft: 610 }}>
-                  <button
-                    className="btn btn-primary"
-                    style={{ color: "#fff", width: "150px" }}
+                ) : (
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      color: "#999",
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                    }}
                   >
-                    Thêm nhân viên
-                  </button>
-                </div>
+                    <span>Chọn ảnh</span>
+                    <span
+                      style={{ fontSize: "20px", cursor: "pointer" }}
+                    ></span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  onChange={(e) => handleUploadImage(e.target.files)}
+                />
               </div>
+
+              <Form.Item
+                name="tenNhanVien"
+                label="Tên nhân viên"
+                rules={[
+                  { required: true, message: "Vui lòng nhập tên nhân viên!" },
+                  {
+                    pattern: /^[a-zA-ZÀ-ỹ\s]+$/,
+                    message: "Tên không được chứa số hoặc ký tự đặc biệt!",
+                  },
+                ]}
+              >
+                <Input
+                  placeholder="Nhập tên nhân viên"
+                  value={formData.tenNhanVien}
+                  onChange={(e) =>
+                    setFormData({ ...formData, tenNhanVien: e.target.value })
+                  }
+                />
+              </Form.Item>
             </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          </Col>
+
+          <Col span={16}>
+            <div className="right-section">
+              {/* <Button
+                title="Quét mã QR"
+                block
+                onClick={showModal}
+                style={{
+                  marginBottom: "16px",
+                  width: "80px",
+                  marginLeft: "700px",
+                  position: "absolute",
+                }}
+              >
+                Quét QR
+              </Button>
+
+              <Modal
+                open={isModalVisible}
+                onCancel={handleCancel}
+                footer={null}
+                centered
+              >
+                <QrScanner
+                  delay={300}
+                  onError={handleError}
+                  onScan={handleScan}
+                  style={{ width: "100%" }}
+                />
+              </Modal> */}
+              <h5>Thông tin chi tiết</h5>
+              <Divider />
+
+              <Form.Item
+                name="canCuocCongDan"
+                label="Số CCCD"
+                rules={[
+                  { required: true, message: "Vui lòng nhập số CCCD!" },
+                  {
+                    pattern: /^[0-9]{12}$/,
+                    message:
+                      "Số CCCD phải gồm 12 chữ số và không chứa kí tự đặc biệt!",
+                  },
+                ]}
+              >
+                <Input
+                  placeholder="Nhập số CCCD"
+                  onChange={(e) =>
+                    setFormData({ ...formData, canCuocCongDan: e.target.value })
+                  }
+                  value={formData.canCuocCongDan}
+                />
+              </Form.Item>
+
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="gioiTinh"
+                    label="Giới tính"
+                    rules={[
+                      { required: true, message: "Vui lòng chọn giới tính!" },
+                    ]}
+                  >
+                    <Radio.Group
+                      value={formData.gioiTinh}
+                      onChange={(e) =>
+                        setFormData({ ...formData, gioiTinh: e.target.value })
+                      }
+                      style={{ display: "flex", justifyContent: "flex-start" }}
+                    >
+                      <Radio value={true}>Nam</Radio>
+                      <Radio value={false}>Nữ</Radio>
+                    </Radio.Group>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="ngaySinh"
+                    label="Ngày sinh"
+                    rules={[
+                      { required: true, message: "Vui lòng chọn ngày sinh!" },
+                      // {
+                      //   validator: (_, value) => {
+                      //     if (!value) return Promise.resolve();
+
+                      //     // Tính toán tuổi chính xác
+                      //     const today = moment();
+                      //     const age = today.diff(value, "years");
+
+                      //     // Kiểm tra tuổi phải từ 18 đến 60
+                      //     if (age < 18) {
+                      //       return Promise.reject(
+                      //         "Nhân viên phải từ 18 tuổi trở lên!"
+                      //       );
+                      //     }
+                      //     if (age > 60) {
+                      //       return Promise.reject(
+                      //         "Nhân viên phải dưới 60 tuổi!"
+                      //       );
+                      //     }
+
+                      //     // Kiểm tra nếu tuổi chưa đủ 18 hoặc lớn hơn 60 khi chưa qua ngày sinh trong năm nay
+                      //     const nextBirthday = moment(value).add(age, "years");
+                      //     if (today.isBefore(nextBirthday)) {
+                      //       return Promise.reject(
+                      //         "Nhân viên phải từ 18 tuổi trở lên!"
+                      //       );
+                      //     }
+
+                      //     return Promise.resolve();
+                      //   },
+                      // },
+                    ]}
+                  >
+                    <DatePicker
+                      style={{ width: "100%" }}
+                      placeholder="YYYY-MM-DD"
+                      value={
+                        formData.ngaySinh ? moment(formData.ngaySinh) : null
+                      }
+                      onChange={(date, dateString) =>
+                        setFormData({ ...formData, ngaySinh: dateString })
+                      }
+                      disabledDate={(current) =>
+                        current && current > moment().endOf("day")
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item
+                name="email"
+                label="Email"
+                rules={[
+                  { required: true, message: "Vui lòng nhập email!" },
+                  { type: "email", message: "Email không hợp lệ!" },
+                  {
+                    validator: async (_, value) => {
+                      if (!value) return Promise.resolve(); // Không check nếu không có giá trị
+              
+                      const exists = await checkEmailExists(value);
+                      if (exists) {
+                        return Promise.reject("Email đã tồn tại trong hệ thống!");
+                      }
+              
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
+                <Input
+                  placeholder="Nhập email"
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  value={formData.email}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="soDienThoai"
+                label="Số điện thoại"
+                rules={[
+                  { required: true, message: "Vui lòng nhập số điện thoại!" },
+                  {
+                    pattern: /^(0[3|5|7|8|9])+([0-9]{8})$/,
+                    message: "Số điện thoại không hợp lệ!",
+                  },
+                ]}
+              >
+                <Input
+                  placeholder="Nhập số điện thoại"
+                  onChange={(e) =>
+                    setFormData({ ...formData, soDienThoai: e.target.value })
+                  }
+                  value={formData.soDienThoai}
+                />
+              </Form.Item>
+
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    label="Tỉnh/Thành phố"
+                    name="tinh"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Vui lòng chọn tỉnh/thành phố",
+                      },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Chọn tỉnh/thành phố"
+                      style={{ width: "100%" }}
+                      onChange={handleProvinceChange}
+                      value={formData.tinh}
+                    >
+                      {tinhThanhList.map((item) => (
+                        <Option key={item.ProvinceID} value={item.ProvinceID}>
+                          {item.ProvinceName}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Quận/Huyện"
+                    name="huyen"
+                    rules={[
+                      { required: true, message: "Vui lòng chọn quận/huyện" },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Chọn quận/huyện"
+                      style={{ width: "100%" }}
+                      onChange={handleDistrictChange}
+                      value={formData.huyen}
+                    >
+                      {quanHuyenList.map((item) => (
+                        <Option key={item.DistrictID} value={item.DistrictID}>
+                          {item.DistrictName}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Phường/Xã"
+                    name="xa"
+                    rules={[
+                      { required: true, message: "Vui lòng chọn phường/xã" },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Chọn phường/xã"
+                      style={{ width: "100%" }}
+                      onChange={(value) =>
+                        setFormData({ ...formData, xa: value })
+                      }
+                      value={formData.xa}
+                    >
+                      {xaPhuongList.map((item) => (
+                        <Option key={item.WardCode} value={item.WardCode}>
+                          {item.WardName}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    label="Địa chỉ cụ thể"
+                    name="diaChiCuThe"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Vui lòng nhập địa chỉ cụ thể",
+                      },
+                    ]}
+                  >
+                    <Input
+                      placeholder="Nhập địa chỉ cụ thể"
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          diaChiCuThe: e.target.value,
+                        })
+                      }
+                      value={formData.diaChiCuThe}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Form.Item style={{ textAlign: "right", marginTop: "24px" }}>
+                <Button
+                  type="default"
+                  onClick={handleClose} // Hàm xử lý đóng form hoặc trở về danh sách
+                  style={{ marginRight: "10px" }}
+                >
+                  Trở về
+                </Button>
+                <Button type="primary" htmlType="submit">
+                  Thêm nhân viên
+                </Button>
+              </Form.Item>
+            </div>
+          </Col>
+        </Row>
+      </Form>
+    </Card>
   );
 }
 

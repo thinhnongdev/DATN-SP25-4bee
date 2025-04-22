@@ -48,15 +48,31 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
             @Param("toDate") LocalDateTime toDate
     );
 
-    @Query(value = """
+        @Query(value = """
                 SELECT * FROM hoa_don hd
-                WHERE hd.loai_hoa_don IN (2, 3) 
+                WHERE hd.loai_hoa_don IN (2, 3)
                 AND hd.trang_thai = 1
                 AND NOT EXISTS (
                     SELECT 1 FROM thanh_toan_hoa_don tthd WHERE tthd.id_hoa_don = hd.id
                 )
             """, nativeQuery = true)
     List<HoaDon> getHoaDonTheoLoai();
+
+//@Query(value = """
+//        SELECT * FROM hoa_don hd
+//        WHERE hd.loai_hoa_don IN (2, 3)
+//        AND hd.trang_thai = 1
+//        AND (
+//            NOT EXISTS (SELECT 1 FROM thanh_toan_hoa_don tthd WHERE tthd.id_hoa_don = hd.id)
+//            OR EXISTS (
+//                SELECT 1 FROM thanh_toan_hoa_don tthd
+//                JOIN phuong_thuc_thanh_toan pttt ON tthd.id_phuong_thuc_thanh_toan = pttt.id
+//                WHERE tthd.id_hoa_don = hd.id
+//                AND pttt.ma_phuong_thuc_thanh_toan = 'VNPAY'
+//            )
+//        )
+//    """, nativeQuery = true)
+//List<HoaDon> getHoaDonTheoLoai();
 
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -249,5 +265,10 @@ public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
             " h.hoaDon.id, h.sanPhamChiTiet.id,h.id, h.soLuong, h.trangThai, h.giaTaiThoiDiemThem, h.ngayThemVaoGio) " +
             "FROM HoaDonChiTiet h WHERE h.hoaDon.id = :hoaDonId AND h.trangThai = 1")
     List<HoaDonChiTietClientResponse> findByHoaDonId(@Param("hoaDonId") String hoaDonId);
+
+
+    @Query("SELECT CASE WHEN COUNT(h) > 0 THEN true ELSE false END " +
+            "FROM HoaDon h WHERE h.phieuGiamGia.id = :idPhieuGiamGia")
+    boolean existsByIdPhieuGiamGia(@Param("idPhieuGiamGia") String idPhieuGiamGia);
 
 }
