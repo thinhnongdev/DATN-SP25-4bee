@@ -83,10 +83,10 @@ public class ThongKeService {
     private static final Map<Integer, String> TRANG_THAI_MAP = Map.of(
             1, "Chờ xác nhận",
             2, "Đã xác nhận",
-            3, "Đang giao",
-            4, "Hoàn thành",
-            5, "Đã hủy",
-            6, "Đã hoàn hàng"
+            3, "Chờ giao hàng",
+            4, "Đang giao",
+            5, "Hoàn thành",
+            6, "Đã huỷ"
     );
 
     public List<HoaDonDTO> getOrderStatistics() {

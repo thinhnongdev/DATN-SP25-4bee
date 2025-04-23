@@ -3,8 +3,7 @@ package com.example.server.service.SanPham.impl;
 
 import com.example.server.dto.SanPham.request.SanPhamChiTietCreationRequest;
 import com.example.server.dto.SanPham.request.SanPhamChiTietUpdateRequest;
-import com.example.server.entity.AnhSanPham;
-import com.example.server.entity.SanPhamChiTiet;
+import com.example.server.entity.*;
 import com.example.server.repository.SanPham.*;
 import com.example.server.repository.SanPham.ChatLieuRepository;
 import com.example.server.service.SanPham.SanPhamChiTietService;
@@ -75,36 +74,67 @@ public class SanPhamChiTietServiceImpl implements SanPhamChiTietService {
     }
 
     @Override
-    public void saveSanPhamChiTiet(SanPhamChiTietCreationRequest sanPhamChiTietCreationRequest) {
-        SanPhamChiTiet sanPhamChiTiet = new SanPhamChiTiet();
-        sanPhamChiTiet.setMaSanPhamChiTiet("SPCT" + System.currentTimeMillis());
-        sanPhamChiTiet.setSanPham(sanPhamRepository.findByTen(sanPhamChiTietCreationRequest.getTenSanPham()).get());
-        sanPhamChiTiet.setChatLieu(chatLieuRepository.findById(sanPhamChiTietCreationRequest.getChatLieu()).get());
-        sanPhamChiTiet.setKieuDang(kieuDangRepository.findById(sanPhamChiTietCreationRequest.getKieuDang()).get());
-        sanPhamChiTiet.setThuongHieu(thuongHieuRepository.findById(sanPhamChiTietCreationRequest.getThuongHieu()).get());
-        sanPhamChiTiet.setKieuCoAo(kieuCoAoRepository.findById(sanPhamChiTietCreationRequest.getKieuCoAo()).get());
-        sanPhamChiTiet.setKieuCuc(kieuCucRepository.findById(sanPhamChiTietCreationRequest.getKieuCuc()).get());
-        sanPhamChiTiet.setKieuTayAo(kieuTayAoRepository.findById(sanPhamChiTietCreationRequest.getKieuTayAo()).get());
-        sanPhamChiTiet.setTuiAo(kieuTuiAoRepository.findById(sanPhamChiTietCreationRequest.getKieuTuiAo()).get());
-        sanPhamChiTiet.setKieuCoTayAo(kieuCoTayAoRepository.findById(sanPhamChiTietCreationRequest.getKieuCoTayAo()).get());
-        sanPhamChiTiet.setDanhMuc(danhMucRepository.findById(sanPhamChiTietCreationRequest.getDanhMuc()).get());
-        sanPhamChiTiet.setHoaTiet(hoaTietRepository.findById(sanPhamChiTietCreationRequest.getHoaTiet()).get());
-        sanPhamChiTiet.setMauSac(mauSacRepository.findByTen(sanPhamChiTietCreationRequest.getMauSac()).get());
-        sanPhamChiTiet.setKichThuoc(kichThuocRepository.findByTen(sanPhamChiTietCreationRequest.getSize()).get());
-        sanPhamChiTiet.setSoLuong(sanPhamChiTietCreationRequest.getSoLuong());
-        sanPhamChiTiet.setGia(sanPhamChiTietCreationRequest.getGia());
-        sanPhamChiTiet.setMoTa(sanPhamChiTietCreationRequest.getMoTa());
-        sanPhamChiTiet.setTrangThai(true);
-        sanPhamChiTiet.setNgayTao(LocalDateTime.now());
-        sanPhamChiTietRepository.save(sanPhamChiTiet);
-        for (int i = 0; i < sanPhamChiTietCreationRequest.getImages().size(); i++) {
-            AnhSanPham anhSanPham = new AnhSanPham();
-            anhSanPham.setMaAnh("IMG" + System.currentTimeMillis());
-            anhSanPham.setAnhUrl(sanPhamChiTietCreationRequest.getImages().get(i));
-            anhSanPham.setSanPhamChiTiet(sanPhamChiTietRepository.findById(sanPhamChiTiet.getId()).get());
-            anhSanPham.setTrangThai(true);
-            anhSanPham.setMoTa("");
-            anhSanPhamRepository.save(anhSanPham);
+    public void saveSanPhamChiTiet(SanPhamChiTietCreationRequest request) {
+        // Lấy các entity liên quan
+        SanPham sanPham = sanPhamRepository.findByTen(request.getTenSanPham()).orElseThrow();
+        MauSac mauSac = mauSacRepository.findByTen(request.getMauSac()).orElseThrow();
+        KichThuoc kichThuoc = kichThuocRepository.findByTen(request.getSize()).orElseThrow();
+        ChatLieu chatLieu = chatLieuRepository.findById(request.getChatLieu()).orElseThrow();
+        KieuDang kieuDang = kieuDangRepository.findById(request.getKieuDang()).orElseThrow();
+        ThuongHieu thuongHieu = thuongHieuRepository.findById(request.getThuongHieu()).orElseThrow();
+        KieuCoAo kieuCoAo = kieuCoAoRepository.findById(request.getKieuCoAo()).orElseThrow();
+        KieuCuc kieuCuc = kieuCucRepository.findById(request.getKieuCuc()).orElseThrow();
+        KieuTayAo kieuTayAo = kieuTayAoRepository.findById(request.getKieuTayAo()).orElseThrow();
+        KieuTuiAo kieuTuiAo = kieuTuiAoRepository.findById(request.getKieuTuiAo()).orElseThrow();
+        KieuCoTayAo kieuCoTayAo = kieuCoTayAoRepository.findById(request.getKieuCoTayAo()).orElseThrow();
+        DanhMuc danhMuc = danhMucRepository.findById(request.getDanhMuc()).orElseThrow();
+        HoaTiet hoaTiet = hoaTietRepository.findById(request.getHoaTiet()).orElseThrow();
+
+        // Kiểm tra sản phẩm chi tiết đã tồn tại chưa
+        Optional<SanPhamChiTiet> existing = sanPhamChiTietRepository.findByThuocTinh(
+                sanPham.getId(), mauSac.getId(), kichThuoc.getId(), chatLieu.getId(),
+                kieuDang.getId(), thuongHieu.getId(), kieuCoAo.getId(), kieuCuc.getId(),
+                kieuTayAo.getId(), kieuTuiAo.getId(), kieuCoTayAo.getId(), danhMuc.getId(), hoaTiet.getId()
+        );
+
+        if (existing.isPresent()) {
+            SanPhamChiTiet existingSPCT = existing.get();
+            existingSPCT.setSoLuong(existingSPCT.getSoLuong() + request.getSoLuong());
+            sanPhamChiTietRepository.save(existingSPCT);
+        } else {
+            // Tạo mới nếu chưa tồn tại
+            SanPhamChiTiet sanPhamChiTiet = new SanPhamChiTiet();
+            sanPhamChiTiet.setMaSanPhamChiTiet("SPCT" + System.currentTimeMillis());
+            sanPhamChiTiet.setSanPham(sanPham);
+            sanPhamChiTiet.setChatLieu(chatLieu);
+            sanPhamChiTiet.setKieuDang(kieuDang);
+            sanPhamChiTiet.setThuongHieu(thuongHieu);
+            sanPhamChiTiet.setKieuCoAo(kieuCoAo);
+            sanPhamChiTiet.setKieuCuc(kieuCuc);
+            sanPhamChiTiet.setKieuTayAo(kieuTayAo);
+            sanPhamChiTiet.setTuiAo(kieuTuiAo);
+            sanPhamChiTiet.setKieuCoTayAo(kieuCoTayAo);
+            sanPhamChiTiet.setDanhMuc(danhMuc);
+            sanPhamChiTiet.setHoaTiet(hoaTiet);
+            sanPhamChiTiet.setMauSac(mauSac);
+            sanPhamChiTiet.setKichThuoc(kichThuoc);
+            sanPhamChiTiet.setSoLuong(request.getSoLuong());
+            sanPhamChiTiet.setGia(request.getGia());
+            sanPhamChiTiet.setMoTa(request.getMoTa());
+            sanPhamChiTiet.setTrangThai(true);
+            sanPhamChiTiet.setNgayTao(LocalDateTime.now());
+            sanPhamChiTietRepository.save(sanPhamChiTiet);
+
+            // Lưu ảnh
+            for (String url : request.getImages()) {
+                AnhSanPham anh = new AnhSanPham();
+                anh.setMaAnh("IMGSP" + System.currentTimeMillis());
+                anh.setAnhUrl(url);
+                anh.setSanPhamChiTiet(sanPhamChiTiet);
+                anh.setTrangThai(true);
+                anh.setMoTa("");
+                anhSanPhamRepository.save(anh);
+            }
         }
     }
 
@@ -138,5 +168,4 @@ public class SanPhamChiTietServiceImpl implements SanPhamChiTietService {
             anhSanPham.setMoTa("");
             anhSanPhamRepository.save(anhSanPham);
         }
-    }
-}
+    }}

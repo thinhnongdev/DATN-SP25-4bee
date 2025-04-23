@@ -90,6 +90,18 @@ public class HoaDonClientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
         }
     }
+    @GetMapping("/order/updatePriceAtAddTime/{idHoaDon}")
+    public ResponseEntity<?> UpdateGiaHoaDonChiTiet(@PathVariable String idHoaDon) {
+        if (idHoaDon == null || idHoaDon.isEmpty()) {
+            return ResponseEntity.badRequest().body("Email khách hàng không được để trống");
+        }
+        try {
+             hoaDonClientService.UpdateHoaDonChoXacNhan(idHoaDon);
+            return ResponseEntity.ok("Update thành công hóa đơn");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
+        }
+    }
 
     @GetMapping("/order/findHoaDon/{email}")
     public ResponseEntity<?> findHoaDon(@PathVariable String email) {

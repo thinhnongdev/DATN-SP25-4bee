@@ -132,7 +132,29 @@ public class HoaDonController {
                     .body(null);
         }
     }
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "Hủy đơn hàng và hoàn tiền trong một giao dịch")
+    public ResponseEntity<HoaDonResponse> cancelOrder(
+            @PathVariable String id,
+            @RequestBody CancelOrderRequest request) {
+        try {
+            HoaDonResponse response = service.cancelAndRefundOrder(
+                    id, request.getLyDo(), request.getAmountToRefund(), request.getRefundMethod());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Lỗi khi hủy đơn và hoàn tiền: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
 
+    // Lớp yêu cầu cho API hủy đơn
+    @lombok.Data
+    public static class CancelOrderRequest {
+        private String lyDo;
+        private BigDecimal amountToRefund;
+        private String refundMethod;
+    }
     @DeleteMapping("/{id}")
     @Operation(summary = "Hủy hóa đơn và hoàn lại sản phẩm")
     public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id,  @RequestParam(required = false) String lyDo) {

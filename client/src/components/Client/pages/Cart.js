@@ -13,6 +13,7 @@ import {
   List,
   Modal,
   Radio,
+  Tag,
 } from 'antd';
 import { CheckCircleOutlined, DeleteOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
@@ -27,6 +28,7 @@ const Cart = () => {
   const [cartProducts, setCartProducts] = useState([]);
   const [voucherList, setVoucherList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [idHoaDon, setIdHoaDon] = useState(null);
   const navigate = useNavigate();
   const fetchProductImage = async (productDetailId) => {
     try {
@@ -41,51 +43,116 @@ const Cart = () => {
   };
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    const fetchCartProducts = async () => {
       try {
-        const cartItems = JSON.parse(localStorage.getItem('cart')) || []; // Lấy giỏ hàng từ localStorage
-        console.log('giỏ hàng ', cartItems);
-        if (cartItems.length === 0) {
-          setCartProducts([]);
-          setLoading(false);
-          return;
+        setLoading(true);
+        const token = localStorage.getItem('token');
+  
+        // Nếu có token (đã đăng nhập) thì lấy giỏ hàng từ hóa đơn đang chờ
+        if (token) {
+          const decodedToken = jwtDecode(token);
+          const email = decodedToken?.sub;
+  
+          const hoaDonResponse = await axios.get(
+            `http://localhost:8080/api/client/order/findHoaDonPending/${email}`,
+          );
+          const idHoaDon = hoaDonResponse.data?.id;
+          setIdHoaDon(idHoaDon);
+  
+          if (!idHoaDon) {
+            message.warning('Không tìm thấy hóa đơn đang chờ.');
+            setCartProducts([]);
+            return;
+          }
+  
+          const response = await axios.get(
+            `http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${idHoaDon}`,
+          );
+          const productList = response.data;
+  
+          const productsWithDetails = await Promise.all(
+            productList.map(async (item) => {
+              const [images, currentProduct] = await Promise.all([
+                fetchProductImage(item.id),
+                axios.get(`http://localhost:8080/api/client/chitietsanpham/${item.id}`),
+              ]);
+  
+              return {
+                ...currentProduct.data,
+                images: images.map((img) => img.anhUrl),
+                quantity: item.soLuongMua,
+                giaTaiThoiDiemThem: item.giaTaiThoiDiemThem,
+                idChiTietSanPham: item.idHoaDonChiTiet,
+              };
+            }),
+          );
+  
+          setCartProducts(productsWithDetails);
+        } else {
+          // Nếu chưa đăng nhập, lấy giỏ hàng từ localStorage
+          const cartItems = JSON.parse(localStorage.getItem('cart')) || [];
+          if (cartItems.length === 0) {
+            setCartProducts([]);
+            return;
+          }
+  
+          const productRequests = cartItems.map((item) =>
+            axios.get(`http://localhost:8080/api/client/chitietsanpham/${item.id}`),
+          );
+          const responses = await Promise.all(productRequests);
+          const products = responses.map((res) => res.data);
+  
+          const productWithImages = await Promise.all(
+            products.map(async (product) => {
+              const images = await fetchProductImage(product.id);
+              const cartItem = cartItems.find((item) => item.id === product.id);
+              return {
+                ...product,
+                images: images.map((img) => img.anhUrl),
+                quantity: cartItem ? cartItem.quantity : 1,
+                giaTaiThoiDiemThem: product.gia, // ban đầu = giá hiện tại
+              };
+            }),
+          );
+  
+          setCartProducts(productWithImages);
         }
-        // Gọi API lấy thông tin từng sản phẩm theo ID
-        const productRequests = cartItems.map((item) =>
-          axios.get(`http://localhost:8080/api/client/chitietsanpham/${item.id}`),
-        );
-        const responses = await Promise.all(productRequests);
-        let products = responses.map((res) => res.data);
-
-        // Gọi API lấy ảnh cho từng sản phẩm và gộp vào dữ liệu
-        const productWithImages = await Promise.all(
-          products.map(async (product) => {
-            const images = await fetchProductImage(product.id);
-            const cartItem = cartItems.find((item) => item.id === product.id);
-            return {
-              ...product,
-              images: images.map((img) => img.anhUrl),
-              quantity: cartItem ? cartItem.quantity : 1, // Thêm số lượng từ localStorage
-            };
-          }),
-        );
-
-        console.log('Sản phẩm có ảnh và số lượng:', productWithImages);
-        setCartProducts(productWithImages); // Lưu vào state để hiển thị giỏ hàng
       } catch (error) {
-        console.error('Lỗi khi lấy sản phẩm:', error);
-        message.error('Không thể tải thông tin sản phẩm.');
+        console.error('Lỗi khi tải giỏ hàng:', error);
+        //message.error('Không thể tải thông tin giỏ hàng.');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchProduct();
-  }, []);
-
-
-
   
+    fetchCartProducts();
+  }, []);
+  
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const updatedProducts = await Promise.all(
+          cartProducts.map(async (product) => {
+            const res = await axios.get(
+              `http://localhost:8080/api/client/chitietsanpham/${product.id}`,
+            );
+            return {
+              ...product,
+              gia: res.data.gia, // cập nhật giá hiện tại
+            };
+          }),
+        );
+
+        setCartProducts(updatedProducts);
+      } catch (err) {
+        console.error('Lỗi khi cập nhật giá hiện tại:', err);
+      }
+    }, 3000); // mỗi 30 giây
+
+    return () => clearInterval(interval); // dọn dẹp
+  }, [cartProducts]);
+
   const getEmailFromToken = () => {
     const token = localStorage.getItem('token'); // Hoặc lấy từ cookie nếu bạn lưu ở đó
     if (!token) return null;
@@ -127,7 +194,6 @@ const Cart = () => {
     } else {
       fetchVoucherCaNhan(email);
     }
-
     fetchVoucherCongKhai();
   }, []);
 
@@ -233,6 +299,9 @@ const Cart = () => {
 
   const handleCheckout = async () => {
     try {
+      if(idHoaDon != null) {
+        await axios.get('http://localhost:8080/api/client/order/updatePriceAtAddTime/' + idHoaDon);
+      }
       console.log('Đang chuyển hướng đến trang checkout...');
       navigate('/checkout', { state: { cartProducts, selectedVoucher } });
     } catch (error) {
@@ -255,6 +324,8 @@ const Cart = () => {
           />
           <div>
             <Text strong>{record.sanPham.tenSanPham}</Text>
+            <br />
+            <span>{record.maSanPhamChiTiet}</span>
           </div>
         </Space>
       ),
@@ -275,7 +346,30 @@ const Cart = () => {
       title: 'Đơn giá',
       dataIndex: 'gia',
       key: 'gia',
-      render: (price) => `${price.toLocaleString('vi-VN')}₫`,
+      render: (_, record) => {
+        const giaHienTai = record.gia;
+        const giaTaiThoiDiemThem = record.giaTaiThoiDiemThem;
+
+        const isChanged = giaHienTai !== giaTaiThoiDiemThem;
+
+        return (
+          <div>
+            <Text strong>{giaHienTai.toLocaleString('vi-VN')}₫</Text>
+
+            {isChanged && (
+              <div>
+                <Text type="secondary" delete>
+                  {giaTaiThoiDiemThem.toLocaleString('vi-VN')}₫
+                </Text>
+                <Tag color="warning">
+                  Đã thay đổi: {giaTaiThoiDiemThem.toLocaleString('vi-VN')}₫ →{' '}
+                  {giaHienTai.toLocaleString('vi-VN')}₫
+                </Tag>
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Số lượng',

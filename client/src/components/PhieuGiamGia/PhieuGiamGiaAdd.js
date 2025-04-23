@@ -3,20 +3,22 @@ import { Form, Input, Button, DatePicker, Select, Table, notification, Row, Col 
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-// time
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 
-const { Option } = Select;
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
+const { Option } = Select;
 
 const PhieuGiamGiaAdd = () => {
   const [form] = Form.useForm();
   const [customers, setCustomers] = useState([]);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [discountType, setDiscountType] = useState(1);
+  const [discountType, setDiscountType] = useState(1); // Quản lý loaiPhieuGiamGia (% hoặc VND)
+  const [voucherType, setVoucherType] = useState(1); // Quản lý kieuGiamGia (Công khai hoặc Cá nhân)
   const [searchValue, setSearchValue] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -42,9 +44,7 @@ const PhieuGiamGiaAdd = () => {
 
       setLoading(true);
       try {
-        const response = await axios.get(KHACH_HANG_URL, {
-          headers: getAuthHeaders(),
-        });
+        const response = await axios.get(KHACH_HANG_URL, { headers: getAuthHeaders() });
         const data = response.data || [];
         setCustomers(data);
         setFilteredCustomers(data);
@@ -62,15 +62,22 @@ const PhieuGiamGiaAdd = () => {
     fetchCustomers();
   }, [token]);
 
+  // Xử lý thay đổi loaiPhieuGiamGia (% hoặc VND)
   const handleDiscountTypeChange = (value) => {
     setDiscountType(value);
+    form.setFieldsValue({ giaTriGiam: null }); // Reset giá trị giảm khi đổi loại
+  };
+
+  // Xử lý thay đổi kieuGiamGia (Công khai hoặc Cá nhân)
+  const handleVoucherTypeChange = (value) => {
+    setVoucherType(value);
     setSelectedCustomers([]);
     form.setFieldsValue({ soLuong: value === 2 ? 1 : null });
   };
 
   const handleCustomerSelect = (selectedRowKeys) => {
     setSelectedCustomers(selectedRowKeys);
-    if (discountType === 2) {
+    if (voucherType === 2) {
       form.setFieldsValue({ soLuong: selectedRowKeys.length });
     }
   };
@@ -85,7 +92,7 @@ const PhieuGiamGiaAdd = () => {
   };
 
   const onFinish = async (values) => {
-    if (discountType === 2 && selectedCustomers.length === 0) {
+    if (voucherType === 2 && selectedCustomers.length === 0) {
       notification.error({
         message: "Lỗi",
         description: "Vui lòng chọn ít nhất một khách hàng cho phiếu giảm giá cá nhân.",
@@ -94,18 +101,15 @@ const PhieuGiamGiaAdd = () => {
     }
 
     const requestData = {
-      ...values, // Giữ nguyên giá trị gốc từ DatePicker
+      ...values,
       loaiPhieuGiamGia: discountType,
-      idKhachHang: discountType === 2 ? selectedCustomers : [],
+      idKhachHang: voucherType === 2 ? selectedCustomers : [],
       trangThai: 1,
     };
 
     setLoading(true);
     try {
-      console.log("Dữ liệu gửi đi:", JSON.stringify(requestData)); // Debug dữ liệu gửi đi
-      await axios.post(API_URL, requestData, {
-        headers: getAuthHeaders(),
-      });
+      await axios.post(API_URL, requestData, { headers: getAuthHeaders() });
       toast.success("Thêm phiếu giảm giá thành công");
       form.resetFields();
       setSelectedCustomers([]);
@@ -135,7 +139,7 @@ const PhieuGiamGiaAdd = () => {
           form={form}
           onFinish={onFinish}
           layout="vertical"
-          initialValues={{ kieuGiamGia: 1, loaiGiaTriGiam: 1 }}
+          initialValues={{ kieuGiamGia: 1, loaiPhieuGiamGia: 1 }}
           disabled={loading}
         >
           <Form.Item
@@ -155,23 +159,38 @@ const PhieuGiamGiaAdd = () => {
                   { required: true, message: "Vui lòng nhập giá trị giảm" },
                   ({ getFieldValue }) => ({
                     validator(_, value) {
-                      if (!value || parseFloat(value) <= 0) {
-                        return Promise.reject(new Error("Giá trị giảm phải lớn hơn 0"));
+                      const loai = getFieldValue("loaiPhieuGiamGia");
+                      const giaTriToiThieu = getFieldValue("giaTriToiThieu");
+                      const numberValue = parseFloat(value);
+
+                      if (!numberValue || numberValue <= 0) {
+                        return Promise.reject("Giá trị giảm phải lớn hơn 0");
                       }
-                      if (getFieldValue("loaiPhieuGiamGia") === 1 && parseFloat(value) > 100) {
-                        return Promise.reject(new Error("Giá trị giảm phần trăm không được vượt quá 100%"));
+
+                      if (loai === 1 && numberValue > 100) {
+                        return Promise.reject("Giảm phần trăm không được vượt quá 100%");
                       }
+
+                      if (
+                        loai === 2 &&
+                        giaTriToiThieu &&
+                        numberValue >= parseFloat(giaTriToiThieu)
+                      ) {
+                        return Promise.reject("Giá trị giảm phải nhỏ hơn giá trị tối thiểu");
+                      }
+
                       return Promise.resolve();
                     },
                   }),
                 ]}
+                dependencies={["loaiPhieuGiamGia", "giaTriToiThieu"]}
               >
                 <Input
                   type="number"
                   placeholder="Nhập giá trị"
                   addonAfter={
                     <Form.Item name="loaiPhieuGiamGia" noStyle>
-                      <Select>
+                      <Select onChange={handleDiscountTypeChange}>
                         <Option value={1}>%</Option>
                         <Option value={2}>VND</Option>
                       </Select>
@@ -186,21 +205,34 @@ const PhieuGiamGiaAdd = () => {
                 label="Giá trị tối thiểu"
                 rules={[
                   { required: true, message: "Vui lòng nhập giá trị tối thiểu" },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
+                  {
+                    validator: (_, value) => {
                       const parsedValue = parseFloat(value);
                       if (parsedValue < 10000) {
-                        return Promise.reject(new Error("Giá trị tối thiểu phải từ 10.000 VNĐ trở lên"));
+                        return Promise.reject("Giá trị tối thiểu phải từ 10.000 VNĐ");
                       }
-                      if (parsedValue > parseFloat(getFieldValue("soTienGiamToiDa"))) {
-                        return Promise.reject(new Error("Giá trị tối thiểu không được lớn hơn giá trị giảm tối đa"));
+                      return Promise.resolve();
+                    },
+                  },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      const loai = getFieldValue("loaiPhieuGiamGia");
+                      const giaTriGiam = getFieldValue("giaTriGiam");
+
+                      if (
+                        loai === 2 &&
+                        giaTriGiam &&
+                        parseFloat(value) <= parseFloat(giaTriGiam)
+                      ) {
+                        return Promise.reject("Giá trị tối thiểu phải lớn hơn giá trị giảm");
                       }
                       return Promise.resolve();
                     },
                   }),
                 ]}
+                dependencies={["loaiPhieuGiamGia", "giaTriGiam"]}
               >
-                <Input type="number" placeholder="Nhập giá trị tối thiểu" />
+                <Input type="number" placeholder="Nhập giá trị tối thiểu" addonAfter="VND" />
               </Form.Item>
             </Col>
           </Row>
@@ -212,30 +244,42 @@ const PhieuGiamGiaAdd = () => {
               { required: true, message: "Vui lòng nhập số tiền giảm tối đa" },
               ({ getFieldValue }) => ({
                 validator(_, value) {
-                  const parsedValue = parseFloat(value);
-                  if (parsedValue <= 0) {
-                    return Promise.reject(new Error("Số tiền giảm tối đa phải lớn hơn 0"));
+                  const loai = getFieldValue("loaiPhieuGiamGia");
+                  const giaTriGiam = parseFloat(getFieldValue("giaTriGiam"));
+                  const giaTriToiThieu = parseFloat(getFieldValue("giaTriToiThieu"));
+                  const soTienGiamToiDa = parseFloat(value);
+
+                  if (soTienGiamToiDa <= 0) {
+                    return Promise.reject("Số tiền giảm tối đa phải lớn hơn 0");
                   }
+
+                  if (loai === 1 && giaTriToiThieu && giaTriGiam) {
+                    const tinhToan = (giaTriToiThieu * giaTriGiam) / 100;
+                    if (soTienGiamToiDa < tinhToan) {
+                      return Promise.reject(
+                        `Số tiền giảm tối đa phải ≥ ${tinhToan} VNĐ (${giaTriGiam}% của ${giaTriToiThieu})`
+                      );
+                    }
+                  }
+
                   return Promise.resolve();
                 },
               }),
             ]}
+            dependencies={["loaiPhieuGiamGia", "giaTriGiam", "giaTriToiThieu"]}
           >
-            <Input type="number" placeholder="Nhập số tiền giảm tối đa" />
+            <Input type="number" placeholder="Nhập số tiền giảm tối đa" addonAfter="VND" />
           </Form.Item>
 
           <Form.Item
             name="soLuong"
             label="Số lượng phiếu"
-            rules={[
-              { required: true, message: "Vui lòng nhập số lượng phiếu" },
-             
-            ]}
+            rules={[{ required: true, message: "Vui lòng nhập số lượng phiếu" }]}
           >
             <Input
               type="number"
               placeholder="Nhập số lượng phiếu"
-              disabled={discountType === 2}
+              disabled={voucherType === 2}
             />
           </Form.Item>
 
@@ -244,7 +288,7 @@ const PhieuGiamGiaAdd = () => {
             label="Kiểu giảm giá"
             rules={[{ required: true, message: "Vui lòng chọn kiểu giảm giá" }]}
           >
-            <Select onChange={handleDiscountTypeChange}>
+            <Select onChange={handleVoucherTypeChange}>
               <Option value={1}>Công khai</Option>
               <Option value={2}>Cá nhân</Option>
             </Select>
@@ -257,10 +301,11 @@ const PhieuGiamGiaAdd = () => {
                 label="Ngày bắt đầu"
                 rules={[
                   { required: true, message: "Vui lòng chọn ngày bắt đầu" },
-                  { validator: (_, value) =>
-                    value && dayjs(value).isBefore(dayjs())
-                      ? Promise.reject(new Error("Ngày bắt đầu không được trong quá khứ"))
-                      : Promise.resolve()
+                  {
+                    validator: (_, value) =>
+                      value && dayjs(value).isBefore(dayjs())
+                        ? Promise.reject("Ngày bắt đầu không được trong quá khứ")
+                        : Promise.resolve(),
                   },
                 ]}
               >
@@ -277,7 +322,7 @@ const PhieuGiamGiaAdd = () => {
                     validator(_, value) {
                       const startDate = getFieldValue("ngayBatDau");
                       if (startDate && value && dayjs(value).isBefore(dayjs(startDate))) {
-                        return Promise.reject(new Error("Ngày kết thúc phải sau ngày bắt đầu"));
+                        return Promise.reject("Ngày kết thúc phải sau ngày bắt đầu");
                       }
                       return Promise.resolve();
                     },
@@ -301,7 +346,7 @@ const PhieuGiamGiaAdd = () => {
         </Form>
       </div>
 
-      {discountType === 2 && (
+      {voucherType === 2 && (
         <div style={{ flex: 3 }}>
           <h5>Danh sách khách hàng</h5>
           <Input.Search

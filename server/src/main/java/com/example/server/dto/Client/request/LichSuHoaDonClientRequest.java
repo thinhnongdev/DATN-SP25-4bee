@@ -1,8 +1,6 @@
 package com.example.server.dto.Client.request;
-
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
 @Getter
 @Setter
 @AllArgsConstructor
@@ -10,5 +8,4 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class LichSuHoaDonClientRequest {
     String moTa;
-    String idKhachHang;
-}
+    String idKhachHang;}

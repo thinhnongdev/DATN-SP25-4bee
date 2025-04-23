@@ -10,6 +10,7 @@ import com.example.server.repository.HoaDon.HoaDonRepository;
 import com.example.server.repository.HoaDon.PhieuGiamGiaKhachHangRepository;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
 import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
+import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
@@ -32,6 +33,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -57,11 +60,10 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     @Autowired
     private JavaMailSender mailSender;
 
-
     @Autowired
     private HoaDonRepository hoaDonRepository;
-    @Autowired
 
+    @Autowired
     private ModelMapper modelMapper;
 
 
@@ -302,65 +304,55 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     @Async("emailTaskExecutor")
     public void sendEmailAsync(KhachHang khachHang, PhieuGiamGia phieuGiamGia) {
         try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+            // Định dạng ngày giờ cho múi giờ Việt Nam
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
                     .withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
+            String ngayBatDauFormatted = phieuGiamGia.getNgayBatDau()
+                    .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                    .format(formatter);
             String ngayKetThucFormatted = phieuGiamGia.getNgayKetThuc()
                     .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
                     .format(formatter);
 
-            String htmlContent = """
-            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-                <div style="background-color: #007bff; color: #fff; padding: 20px; text-align: center;">
-                    <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
-                    <p style="font-size: 18px;">Bạn vừa nhận được phiếu giảm giá!</p>
-                </div>
-                <div style="background-color: #f8f9fa; padding: 20px;">
-                    <p style="font-size: 16px;">Chi tiết phiếu giảm giá:</p>
-                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                        <tr>
-                            <th style="padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu</th>
-                            <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
-                        </tr>
-                        <tr>
-                            <th style="padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu</th>
-                            <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
-                        </tr>
-                        <tr>
-                            <th style="padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
-                            <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
-                        </tr>
-                    </table>
-                    <p>Hãy sử dụng phiếu trước <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi!</p>
-                </div>
-                <div style="background-color: #f1f1f1; padding: 10px; text-align: center;">
-                    <p style="font-size: 14px; color: #6c757d;">Trân trọng,<br>Đội ngũ hỗ trợ</p>
-                </div>
-            </div>
-            """;
+            // Tải mẫu HTML từ tệp tài nguyên
+            String htmlContent = new String(Files.readAllBytes(
+                    Paths.get(getClass().getResource("/templates/email/voucher.html").toURI())));
 
-            htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
-                    .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia())
-                    .replace("{{maPhieuGiamGia}}", phieuGiamGia.getMaPhieuGiamGia())
-                    .replace("{{ngayKetThuc}}", ngayKetThucFormatted);
+            // Định dạng giá trị giảm giá dựa trên loại phiếu
+            String giaTriGiam = phieuGiamGia.getLoaiPhieuGiamGia() == 1
+                    ? phieuGiamGia.getGiaTriGiam().toString() + "%"
+                    : phieuGiamGia.getGiaTriGiam().toString() + " VNĐ";
 
-            // Gửi email bằng JavaMailSender
-            sendHtmlEmail(khachHang.getEmail(), "Thông báo phiếu giảm giá cá nhân", htmlContent);
+            // Thay thế các placeholder
+            htmlContent = htmlContent
+                    .replace("{{tenKhachHang}}", khachHang.getTenKhachHang() != null ? khachHang.getTenKhachHang() : "")
+                    .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia() != null ? phieuGiamGia.getTenPhieuGiamGia() : "")
+                    .replace("{{giaTriGiam}}", giaTriGiam)
+                    .replace("{{giaTriToiDa}}", phieuGiamGia.getSoTienGiamToiDa() != null ? phieuGiamGia.getSoTienGiamToiDa().toString() + " VNĐ" : "0 VNĐ")
+                    .replace("{{maPhieuGiamGia}}", phieuGiamGia.getMaPhieuGiamGia() != null ? phieuGiamGia.getMaPhieuGiamGia() : "")
+                    .replace("{{ngayBatDau}}", ngayBatDauFormatted)
+                    .replace("{{ngayKetThuc}}", ngayKetThucFormatted)
+                    .replace("{{giaTriToiThieu}}", phieuGiamGia.getGiaTriToiThieu() != null ? phieuGiamGia.getGiaTriToiThieu().toString() + " VNĐ" : "0 VNĐ");
+
+            // Gửi email HTML
+            sendHtmlEmail(khachHang.getEmail(), "Phiếu Giảm Giá Cá Nhân từ 4bee", htmlContent);
+
+            logger.info("Gửi email thành công tới {}", khachHang.getEmail());
 
         } catch (Exception e) {
-            logger.error("Lỗi khi gửi email: {}", e.getMessage());
+            logger.error("Lỗi khi gửi email tới {}: {}", khachHang.getEmail(), e.getMessage(), e);
         }
     }
 
-    private void sendHtmlEmail(String to, String subject, String htmlContent) throws Exception {
+    private void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
         helper.setTo(to);
         helper.setSubject(subject);
-        helper.setText(htmlContent, true); // true để gửi email dạng HTML
-
+        helper.setText(htmlContent, true);
         mailSender.send(message);
     }
+
 
     // Lấy danh sách khách hàng theo mã phiếu giảm giá
     public List<KhachHang> getKhachHangByMaPhieuGiamGia(String maPhieuGiamGia) {
@@ -460,7 +452,6 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
         repository.save(existingEntity);
         return convertToDTO(existingEntity);
     }
-
     @Transactional
     public void addCustomerToPhieuGiamGia(String phieuGiamGiaId, List<String> khachHangIds) {
         PhieuGiamGia phieuGiamGia = repository.findById(phieuGiamGiaId)
@@ -510,60 +501,53 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     @Async("emailTaskExecutor")
     public void sendEmailToCustomer(KhachHang khachHang, PhieuGiamGia phieuGiamGia) {
         try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            // Định dạng ngày giờ cho múi giờ Việt Nam
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                    .withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
+            String ngayBatDauFormatted = phieuGiamGia.getNgayBatDau()
+                    .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                    .format(formatter);
+            String ngayKetThucFormatted = phieuGiamGia.getNgayKetThuc()
+                    .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                    .format(formatter);
 
-            helper.setTo(khachHang.getEmail());
-            helper.setSubject("Bạn nhận được một phiếu giảm giá mới!");
+            // Tải mẫu HTML từ tệp tài nguyên
+            String htmlContent = new String(Files.readAllBytes(
+                    Paths.get(getClass().getResource("/templates/email/voucher.html").toURI())));
 
-            String htmlContent = """
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background-color: #007bff; color: #fff; padding: 30px; text-align: center;">
-                <h2 style="margin: 0;">Chào {{tenKhachHang}},</h2>
-                <p style="font-size: 18px;">Chúng tôi vui mừng thông báo rằng bạn vừa nhận được một phiếu giảm giá đặc biệt!</p>
-            </div>
-            <div style="background-color: #f8f9fa; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
-                <p style="font-size: 16px; margin-bottom: 20px;">Dưới đây là chi tiết phiếu giảm giá của bạn:</p>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Mã phiếu giảm giá</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{maPhieuGiamGia}}</td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Tên phiếu giảm giá</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{tenPhieuGiamGia}}</td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: left; padding: 10px; background-color: #e9ecef; border: 1px solid #ddd;">Hạn sử dụng</th>
-                        <td style="padding: 10px; border: 1px solid #ddd;">{{ngayKetThuc}}</td>
-                    </tr>
-                </table>
-                <p style="font-size: 16px; margin-top: 20px;">Hãy sử dụng phiếu giảm giá này trước ngày <strong>{{ngayKetThuc}}</strong> để không bỏ lỡ ưu đãi đặc biệt này.</p>
-                <p style="font-size: 16px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
-            </div>
-            <div style="text-align: center; margin-top: 30px; font-size: 14px; color: #6c757d;">
-                <p>Trân trọng,<br>Đội ngũ hỗ trợ</p>
-            </div>
-        </div>
-        """;
+            // Định dạng giá trị giảm giá dựa trên loại phiếu
+            String giaTriGiam = phieuGiamGia.getLoaiPhieuGiamGia() == 1
+                    ? phieuGiamGia.getGiaTriGiam().toString() + "%"
+                    : phieuGiamGia.getGiaTriGiam().toString() + " VNĐ";
 
-            // Thay thế các placeholder bằng dữ liệu thực tế
-            htmlContent = htmlContent.replace("{{tenKhachHang}}", khachHang.getTenKhachHang())
-                    .replace("{{maPhieuGiamGia}}", phieuGiamGia.getMaPhieuGiamGia())
-                    .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia())
-                    .replace("{{ngayKetThuc}}", phieuGiamGia.getNgayKetThuc().toString());
+            // Thay thế các placeholder
+            htmlContent = htmlContent
+                    .replace("{{tenKhachHang}}", khachHang.getTenKhachHang() != null ? khachHang.getTenKhachHang() : "")
+                    .replace("{{tenPhieuGiamGia}}", phieuGiamGia.getTenPhieuGiamGia() != null ? phieuGiamGia.getTenPhieuGiamGia() : "")
+                    .replace("{{giaTriGiam}}", giaTriGiam)
+                    .replace("{{giaTriToiDa}}", phieuGiamGia.getSoTienGiamToiDa() != null ? phieuGiamGia.getSoTienGiamToiDa().toString() + " VNĐ" : "0 VNĐ")
+                    .replace("{{maPhieuGiamGia}}", phieuGiamGia.getMaPhieuGiamGia() != null ? phieuGiamGia.getMaPhieuGiamGia() : "")
+                    .replace("{{ngayBatDau}}", ngayBatDauFormatted)
+                    .replace("{{ngayKetThuc}}", ngayKetThucFormatted)
+                    .replace("{{giaTriToiThieu}}", phieuGiamGia.getGiaTriToiThieu() != null ? phieuGiamGia.getGiaTriToiThieu().toString() + " VNĐ" : "0 VNĐ");
 
-            helper.setText(htmlContent, true);
+            // Gửi email HTML
+            sendHtmlEmail2(khachHang.getEmail(), "Phiếu Giảm Giá Cá Nhân từ 4bee", htmlContent);
 
-            // Gửi email
-            mailSender.send(mimeMessage);
-
-            logger.info("Đã gửi email phiếu giảm giá đến khách hàng [{}] - [{}]",
-                    khachHang.getId(), khachHang.getEmail());
+            logger.info("Gửi email thành công tới {}", khachHang.getEmail());
 
         } catch (Exception e) {
-            logger.error("Lỗi khi gửi email phiếu giảm giá: {}", e.getMessage());
+            logger.error("Lỗi khi gửi email tới {}: {}", khachHang.getEmail(), e.getMessage(), e);
         }
+    }
+
+    private void sendHtmlEmail2(String to, String subject, String htmlContent) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        helper.setTo(to);
+        helper.setSubject(subject);
+        helper.setText(htmlContent, true);
+        mailSender.send(message);
     }
 
 

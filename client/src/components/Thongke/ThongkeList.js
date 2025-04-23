@@ -304,10 +304,10 @@ const ThongkeList = () => {
         const allStatuses = [
           "Chờ xác nhận",
           "Đã xác nhận",
+          "Chờ giao hàng",
           "Đang giao",
           "Hoàn thành",
-          "Đã hủy",
-          "Đã hoàn hàng",
+          "Đã huỷ",
         ];
 
         const total = data.reduce((sum, item) => sum + item.soLuong, 0);
@@ -396,10 +396,10 @@ const ThongkeList = () => {
     switch (status) {
       case 1: return "Chờ xác nhận";
       case 2: return "Đã xác nhận";
-      case 3: return "Đang giao";
-      case 4: return "Hoàn thành";
-      case 5: return "Đã hủy";
-      case 6: return "Đã hoàn hàng";
+      case 3: return "Chờ giao hàng";
+      case 4: return "Đang giao";
+      case 5: return "Hoàn thành";
+      case 6: return "Đã huỷ";
       default: return "Không xác định";
     }
   };

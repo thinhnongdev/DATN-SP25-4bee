@@ -44,7 +44,7 @@ public class HoaDonChiTietClientService {
             lichSuHoaDon.setTrangThai(1);
             lichSuHoaDon.setNgayTao(LocalDateTime.now());
             lichSuHoaDon.setKhachHang(null);
-            lichSuHoaDon.setHanhDong("Thêm sản phẩm vào đơn hàng");
+            lichSuHoaDon.setHanhDong("Thêm sản phẩm");
             lichSuHoaDon.setMoTa("Thêm vào giỏ đơn hàng: "+sanPhamChiTiet.getMaSanPhamChiTiet()+"- Số lượng: "+sanPhamChiTietList.get(i).getQuantity());
             lichSuHoaDon.setHoaDon(hoaDon);
             lichSuHoaDonRepository.save(lichSuHoaDon);

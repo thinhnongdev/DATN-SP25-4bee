@@ -594,8 +594,8 @@ public byte[] generateDeliveryInvoicePDF(HoaDon hoaDon) {
     private void addSimplifiedProductList(Document document, HoaDon hoaDon) {
         document.add(new Paragraph("HÀNG HÓA")
                 .setBold()
-                .setTextAlignment(TextAlignment.LEFT)
-                .setFontSize(9)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setFontSize(10)
                 .setMarginTop(0)
                 .setMarginBottom(2));
 

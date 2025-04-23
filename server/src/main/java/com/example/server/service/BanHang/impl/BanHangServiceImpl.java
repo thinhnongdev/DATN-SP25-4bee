@@ -502,13 +502,9 @@ public class BanHangServiceImpl implements BanHangService {
         // 4. Lưu lịch sử trạng thái
         List<Integer> trangThaiCanLuu = new ArrayList<>();
         if (loaiHoaDon == 3) {
-            trangThaiCanLuu.addAll(Arrays.asList(
-                    HoaDonConstant.TRANG_THAI_DA_XAC_NHAN,
-                    HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG));
+            trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN);
+            trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG);
         } else {
-//            trangThaiCanLuu.addAll(Arrays.asList(
-//                    HoaDonConstant.TRANG_THAI_DA_XAC_NHAN,
-//                    HoaDonConstant.TRANG_THAI_HOAN_THANH));
             trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN);
             trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_HOAN_THANH);
         }
@@ -1059,7 +1055,7 @@ public class BanHangServiceImpl implements BanHangService {
         return hoaDonMapper.entityToResponse(savedHoaDon);
     }
 
-    private void createLichSuHoaDon(HoaDon hoaDon, String hanhDong, String moTa){
+    private void createLichSuHoaDon(HoaDon hoaDon, String hanhDong, String moTa) {
         LichSuHoaDon lichSu = new LichSuHoaDon();
         lichSu.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
         lichSu.setHoaDon(hoaDon);

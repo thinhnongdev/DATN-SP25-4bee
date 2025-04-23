@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-import { notification } from "antd";
 import api from "../utils/api";
 import ProductTable from "../components/HoaDon/ProductTable";
 import {
@@ -30,6 +28,7 @@ import {
   Image,
   Checkbox,
   message,
+  notification,
   Alert,
   Badge,
 } from "antd";
@@ -194,18 +193,18 @@ function InvoiceDetail() {
     }
     return <Tag>Không xác định</Tag>;
   };
-    // Add this state for predefined reasons
-    const [predefinedReasons, setPredefinedReasons] = useState([
-      "Khách hàng thay đổi quyết định sau khi đặt hàng",
-      "Sản phẩm trong đơn hàng đã hết hàng tại kho",
-      "Thông tin giao hàng không chính xác hoặc thiếu",
-      "Không thể liên hệ được với khách hàng để xác nhận đơn",
-      "Khách yêu cầu đổi sản phẩm khác nên cần hủy đơn cũ",
-      "Sản phẩm không đáp ứng đúng kỳ vọng của khách hàng",
-      "Khách hàng đã đặt nhầm sản phẩm, cần hủy đơn", 
-      "Đơn hàng bị lỗi hệ thống, không thể tiếp tục xử lý",
-    ]);
-    
+  // Add this state for predefined reasons
+  const [predefinedReasons, setPredefinedReasons] = useState([
+    "Khách hàng thay đổi quyết định sau khi đặt hàng",
+    "Sản phẩm trong đơn hàng đã hết hàng tại kho",
+    "Thông tin giao hàng không chính xác hoặc thiếu",
+    "Không thể liên hệ được với khách hàng để xác nhận đơn",
+    "Khách yêu cầu đổi sản phẩm khác nên cần hủy đơn cũ",
+    "Sản phẩm không đáp ứng đúng kỳ vọng của khách hàng",
+    "Khách hàng đã đặt nhầm sản phẩm, cần hủy đơn",
+    "Đơn hàng bị lỗi hệ thống, không thể tiếp tục xử lý",
+  ]);
+
   const [useCustomReason, setUseCustomReason] = useState(false);
   // Thêm các biến tính toán thanh toán
   const getPaymentSummary = () => {
@@ -553,7 +552,7 @@ function InvoiceDetail() {
       }
     } catch (error) {
       console.error("Lỗi khi tải phương thức thanh toán:", error);
-      toast.error("Không thể tải danh sách phương thức thanh toán");
+      message.error("Không thể tải danh sách phương thức thanh toán");
     } finally {
       setLoadingPaymentMethods(false);
     }
@@ -652,19 +651,18 @@ function InvoiceDetail() {
   };
   const handleConfirmPayment = async () => {
     if (!selectedPaymentMethod) {
-      toast.error("Vui lòng chọn phương thức thanh toán");
+      message.error("Vui lòng chọn phương thức thanh toán");
       return;
     }
 
     if (paymentAmount <= 0) {
-      toast.error("Số tiền thanh toán không hợp lệ");
+      message.error("Số tiền thanh toán không hợp lệ");
       return;
     }
 
     try {
       setProcessingPayment(true);
-      const paymentToastId = toast.loading("Đang xử lý thanh toán...");
-
+      const hideProcessing = message.loading("Đang xử lý thanh toán...", 0);
       // Chuẩn bị dữ liệu thanh toán
       const paymentData = {
         soTien: paymentAmount,
@@ -708,11 +706,11 @@ function InvoiceDetail() {
       // Đóng các modal và hiển thị thông báo
       setOpenPaymentModal(false);
       setOpenConfirmDialog(false);
-      toast.dismiss(paymentToastId);
-      toast.success("Đã thanh toán thành công");
+      hideProcessing();
+      message.success("Đã thanh toán thành công");
     } catch (error) {
       console.error("Lỗi khi xử lý thanh toán:", error);
-      toast.error(
+      message.error(
         error.response?.data?.message || "Không thể xử lý thanh toán"
       );
     } finally {
@@ -881,20 +879,19 @@ function InvoiceDetail() {
 
   const handleAdditionalPayment = async () => {
     if (!selectedPaymentMethod) {
-      toast.error("Vui lòng chọn phương thức thanh toán");
+      message.error("Vui lòng chọn phương thức thanh toán");
       return;
     }
 
     if (paymentAmount <= 0) {
-      toast.error("Số tiền thanh toán không hợp lệ");
+      message.error("Số tiền thanh toán không hợp lệ");
       return;
     }
 
     try {
       setProcessingPayment(true);
-      const paymentToastId = toast.loading(
-        "Đang kiểm tra số tiền cần thanh toán..."
-      );
+      const hideLoading = message.loading("Đang kiểm tra số tiền cần thanh toán...", 0);
+
 
       // Tính lại số tiền còn thiếu để kiểm tra trước khi gửi request
       const remainingPayment = calculateRemainingPayment();
@@ -905,8 +902,8 @@ function InvoiceDetail() {
 
       // Nếu không còn thiếu tiền
       if (remainingPayment <= 0) {
-        toast.dismiss(paymentToastId);
-        toast.error("Khách hàng đã thanh toán đủ. Không cần thanh toán thêm.");
+        hideLoading();
+        message.error("Khách hàng đã thanh toán đủ. Không cần thanh toán thêm.");
         setProcessingPayment(false);
         setOpenPaymentModal(false);
         return;
@@ -915,8 +912,8 @@ function InvoiceDetail() {
       // Nếu số tiền thanh toán vượt quá số tiền còn thiếu quá nhiều
       if (paymentAmount > remainingPayment * 1.1) {
         // cho phép vượt 10%
-        toast.dismiss(paymentToastId);
-        toast.error(
+        hideLoading();
+        message.error(
           `Số tiền thanh toán không được vượt quá số tiền còn thiếu (${formatCurrency(
             remainingPayment
           )}) quá nhiều`
@@ -926,8 +923,8 @@ function InvoiceDetail() {
       }
 
       // Cập nhật toast
-      toast.update(paymentToastId, { render: "Đang xử lý thanh toán..." });
-
+      hideLoading();
+      const hideProcessing = message.loading("Đang xử lý thanh toán...", 0);
       // Chuẩn bị dữ liệu thanh toán
       const paymentData = {
         soTien: paymentAmount,
@@ -963,11 +960,11 @@ function InvoiceDetail() {
 
       // Đóng modal và hiển thị thông báo
       setOpenPaymentModal(false);
-      toast.dismiss(paymentToastId);
-      toast.success("Đã thanh toán phụ phí thành công");
+      hideProcessing();
+      message.success("Đã thanh toán phụ phí thành công");
     } catch (error) {
       console.error("Lỗi khi xử lý thanh toán phụ phí:", error);
-      toast.error(
+      message.error(
         error.response?.data?.message || "Không thể xử lý thanh toán phụ phí"
       );
     } finally {
@@ -1025,7 +1022,7 @@ function InvoiceDetail() {
   const handleRefundExcessPayment = async () => {
     try {
       if (!selectedPaymentMethod) {
-        toast.error("Vui lòng chọn phương thức hoàn tiền");
+        message.error("Vui lòng chọn phương thức hoàn tiền");
         return;
       }
 
@@ -1038,7 +1035,7 @@ function InvoiceDetail() {
       const isFromOrderCompletion = detectExcessFromOrderCompletion();
 
       // Hiển thị trạng thái đang xử lý
-      const loadingToast = toast.loading(
+      const loadingToast = message.loading(
         `Đang ${isFromOrderCompletion ? "điều chỉnh" : "hoàn"} tiền...`
       );
 
@@ -1055,16 +1052,16 @@ function InvoiceDetail() {
             }
           );
 
-          toast.dismiss(loadingToast);
-          toast.success(
+          loadingToast();
+          message.success(
             `Đã điều chỉnh trừ ${formatCurrency(
               excessPaymentAmount
             )} vào thanh toán chờ/trả sau`
           );
         } catch (error) {
-          toast.dismiss(loadingToast);
+          loadingToast();
           console.error("Lỗi khi điều chỉnh vào thanh toán chờ:", error);
-          toast.error(
+          message.error(
             "Lỗi khi điều chỉnh: " +
               (error.response?.data?.message || error.message)
           );
@@ -1141,16 +1138,16 @@ function InvoiceDetail() {
             }
           );
 
-          toast.dismiss(loadingToast);
-          toast.success(
+          loadingToast();
+          message.success(
             `Đã ${
               isFromOrderCompletion ? "điều chỉnh" : "hoàn"
             } ${formatCurrency(excessPaymentAmount)} thành công`
           );
         } catch (error) {
-          toast.dismiss(loadingToast);
+          loadingToast();
           console.error("Lỗi khi hoàn tiền:", error);
-          toast.error(
+          message.error(
             "Lỗi khi hoàn tiền: " +
               (error.response?.data?.message || error.message)
           );
@@ -1166,7 +1163,7 @@ function InvoiceDetail() {
       setHasExcessPayment(false);
       setExcessPaymentAmount(0);
     } catch (error) {
-      toast.error(
+      message.error(
         "Lỗi khi xử lý: " + (error.response?.data?.message || error.message)
       );
       console.error("Error handling excess payment:", error);
@@ -1249,35 +1246,102 @@ function InvoiceDetail() {
   // 3. Thêm hàm xử lý hủy đơn với lý do
   const handleCancelOrder = async () => {
     if (!cancelReason || cancelReason.trim() === "") {
-      toast.error("Vui lòng nhập lý do hủy đơn hàng");
+      message.error("Vui lòng nhập lý do hủy đơn hàng");
       return;
     }
     if (cancelReason.trim().length < 20) {
-      toast.error("Lý do hủy đơn phải có ít nhất 20 ký tự");
+      message.error("Lý do hủy đơn phải có ít nhất 20 ký tự");
       return;
     }
+    
     try {
-      const cancelToastId = toast.loading("Đang hủy đơn hàng...");
-      await api.delete(
-        `/api/admin/hoa-don/${id}?lyDo=${encodeURIComponent(cancelReason)}`,
+      // Kiểm tra nếu đơn hàng đã có thanh toán
+      const hasPayments = paymentHistory && paymentHistory.filter(p => p.trangThai === 1).length > 0;
+      
+      if (hasPayments) {
+        // Hiện dialog xác nhận hoàn tiền
+        Modal.confirm({
+          title: "Đơn hàng đã có thanh toán",
+          content: "Đơn hàng này đã có thanh toán. Hệ thống sẽ tự động hoàn tiền cho khách hàng. Bạn có muốn tiếp tục?",
+          okText: "Tiếp tục hủy đơn",
+          cancelText: "Quay lại",
+          onOk: async () => {
+            await processCancelOrder();
+          }
+        });
+      } else {
+        // Nếu không có thanh toán, hủy bình thường
+        await processCancelOrder();
+      }
+    } catch (error) {
+      console.error("Lỗi khi kiểm tra thanh toán:", error);
+      message.error("Đã có lỗi xảy ra. Vui lòng thử lại.");
+    }
+  };
+  
+  // Tách logic hủy đơn thành function riêng để tái sử dụng
+  const processCancelOrder = async () => {
+    // Hiển thị thông báo đang xử lý
+    const cancelToastId = message.loading("Đang hủy đơn hàng...", 0);
+    
+    try {
+      // Tính toán số tiền đã thanh toán để hiển thị thông tin
+      const { actualPaidAmount, refundedAmount } = getPaymentSummary();
+      const amountToRefund = actualPaidAmount - refundedAmount;
+      
+      // Chọn phương thức hoàn tiền mặc định (nếu cần hoàn tiền)
+      let refundMethod = null;
+      
+      if (amountToRefund > 0) {
+        // Tìm phương thức từ các thanh toán đã thực hiện
+        const paidPayments = paymentHistory.filter(p => p.trangThai === 1);
+        if (paidPayments.length > 0) {
+          // Ưu tiên phương thức thanh toán gần nhất
+          refundMethod = paidPayments[0].maPhuongThucThanhToan;
+        }
+        
+        // Nếu không tìm thấy, mặc định là tiền mặt
+        if (!refundMethod) refundMethod = "CASH";
+      }
+  
+      // Gửi tất cả thông tin trong một API call
+      await api.post(
+        `/api/admin/hoa-don/${id}/cancel`,
+        {
+          lyDo: cancelReason,
+          amountToRefund: amountToRefund > 0 ? amountToRefund : 0,
+          refundMethod: refundMethod
+        },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
-      toast.dismiss(cancelToastId);
-      toast.success("Đã hủy đơn hàng và hoàn lại sản phẩm, mã giảm giá.");
-
+      
+      // Ngừng thông báo xử lý
+      cancelToastId();
+  
+      // Thông báo thành công
+      if (amountToRefund > 0) {
+        message.success(`Đã hủy đơn hàng và hoàn lại ${formatCurrency(amountToRefund)} cho khách hàng.`);
+      } else {
+        message.success("Đã hủy đơn hàng thành công.");
+      }
+  
+      // Đóng dialog hủy đơn
       setOpenCancelDialog(false);
-      // Cập nhật lại dữ liệu hóa đơn
+      
+      // Cập nhật lại dữ liệu
       await fetchInvoice();
       await fetchOrderHistory();
+      await fetchPaymentHistory();
+      
     } catch (error) {
+      // Xử lý lỗi
+      cancelToastId();
       console.error("Lỗi khi hủy đơn hàng:", error);
-      toast.error(error.response?.data?.message || "Lỗi khi hủy đơn hàng!");
+      message.error(error.response?.data?.message || "Lỗi khi hủy đơn hàng!");
     }
   };
-
   // Thêm các hàm trợ giúp từ GiaoHang.js để xử lý địa chỉ
   const addressHelpers = {
     // Lưu thông tin địa chỉ vào cache
@@ -1348,7 +1412,7 @@ function InvoiceDetail() {
           Authorization: `Bearer ${token}`,
         },
       });
-      toast.success("Tải thông tin hóa đơn thành công");
+      message.success("Tải thông tin hóa đơn thành công");
       if (response.data) {
         console.log(" Dữ liệu hóa đơn từ API:", response.data);
         setInvoice(response.data);
@@ -1395,7 +1459,7 @@ function InvoiceDetail() {
       }
     } catch (error) {
       console.error("Lỗi khi tải hóa đơn:", error);
-      toast.error("Lỗi khi tải thông tin hóa đơn");
+      message.error("Lỗi khi tải thông tin hóa đơn");
     } finally {
       setLoading(false);
     }
@@ -1408,7 +1472,7 @@ function InvoiceDetail() {
   // Cải thiện hàm kiểm tra thay đổi giá sản phẩm, thêm tham số để không hiển thị loading toàn trang
   const checkPriceChanges = async (showLoading = true) => {
     try {
-      const priceCheckToastId = toast.loading("Đang kiểm tra thay đổi giá...");
+      const priceCheckToastId = message.loading("Đang kiểm tra thay đổi giá...",0);
 
       if (showLoading) {
         setCheckingPrice(true);
@@ -1418,7 +1482,7 @@ function InvoiceDetail() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      toast.dismiss(priceCheckToastId);
+      priceCheckToastId();
 
       // Lưu kết quả kiểm tra
       const hasPriceChanges =
@@ -1451,17 +1515,17 @@ function InvoiceDetail() {
 
         setChangedProducts(formattedItems);
         setOpenPriceChangeDialog(true);
-        toast.warning(`Có ${formattedItems.length} sản phẩm thay đổi giá`);
+        message.warning(`Có ${formattedItems.length} sản phẩm thay đổi giá`);
       } else if (showLoading) {
         // Chỉ hiển thị thông báo khi người dùng chủ động kiểm tra
-        toast.success("Giá sản phẩm không có thay đổi");
+        message.success("Giá sản phẩm không có thay đổi");
       }
 
       return hasPriceChanges;
     } catch (error) {
       console.error("Lỗi khi kiểm tra thay đổi giá:", error);
       if (showLoading) {
-        toast.error("Không thể kiểm tra thay đổi giá sản phẩm");
+        message.error("Không thể kiểm tra thay đổi giá sản phẩm");
       }
       return false;
     } finally {
@@ -1473,7 +1537,7 @@ function InvoiceDetail() {
   // Thêm hàm xử lý cập nhật giá một sản phẩm
   const handleUpdateProductPrice = async (hoaDonChiTietId, useCurrentPrice) => {
     try {
-      const updateToastId = toast.loading(
+      const updateToastId = message.loading(
         useCurrentPrice ? "Đang cập nhật giá mới..." : "Đang giữ giá cũ..."
       );
 
@@ -1524,8 +1588,8 @@ function InvoiceDetail() {
           setPriceNeedsConfirmation(false);
         }
 
-        toast.dismiss(updateToastId);
-        toast.success(
+        updateToastId();
+        message.success(
           useCurrentPrice
             ? "Đã cập nhật giá mới cho sản phẩm"
             : "Đã giữ nguyên giá cũ cho sản phẩm"
@@ -1536,7 +1600,7 @@ function InvoiceDetail() {
       }
     } catch (error) {
       console.error("Lỗi khi cập nhật giá sản phẩm:", error);
-      toast.error("Không thể cập nhật giá sản phẩm. Vui lòng thử lại.");
+      message.error("Không thể cập nhật giá sản phẩm. Vui lòng thử lại.");
 
       // Làm mới dữ liệu từ server để đảm bảo đồng bộ
       await refreshInvoiceProducts();
@@ -1584,7 +1648,7 @@ function InvoiceDetail() {
           }
         );
 
-        toast.success(
+        message.success(
           "Đã cập nhật giảm giá vào thanh toán chờ xác nhận/trả sau"
         );
         setShowPriceChangePaymentDialog(false);
@@ -1601,7 +1665,7 @@ function InvoiceDetail() {
 
       // Xử lý theo hướng thông thường
       if (!selectedPaymentMethod) {
-        toast.error("Vui lòng chọn phương thức thanh toán/hoàn tiền");
+        message.error("Vui lòng chọn phương thức thanh toán/hoàn tiền");
         return;
       }
 
@@ -1621,7 +1685,7 @@ function InvoiceDetail() {
         }
       );
 
-      toast.success(
+      message.success(
         priceChangeAmount > 0
           ? `Đã cập nhật giá và thu thêm ${formatCurrency(priceChangeAmount)}`
           : `Đã cập nhật giá và hoàn ${formatCurrency(
@@ -1640,7 +1704,7 @@ function InvoiceDetail() {
       setShowPriceChangePaymentDialog(false);
     } catch (error) {
       console.error("Lỗi khi xử lý thanh toán thay đổi giá:", error);
-      toast.error(
+      message.error(
         "Lỗi khi xử lý thanh toán: " +
           (error.response?.data?.message || error.message)
       );
@@ -1671,7 +1735,7 @@ function InvoiceDetail() {
         }
       }
 
-      const updateToastId = toast.loading("Đang cập nhật giá sản phẩm...");
+      const updateToastId = message.loading("Đang cập nhật giá sản phẩm...");
 
       await api.put(
         `/api/admin/hoa-don/${id}/cap-nhat-gia`,
@@ -1685,8 +1749,8 @@ function InvoiceDetail() {
       // Cập nhật UI không gây loading toàn trang
       await Promise.all([refreshInvoiceProducts(), refreshInvoice()]);
 
-      toast.dismiss(updateToastId);
-      toast.success(
+      updateToastId();
+      message.success(
         shouldUseCurrentPrices
           ? "Đã cập nhật tất cả sản phẩm sang giá mới"
           : "Đã giữ nguyên giá ban đầu cho tất cả sản phẩm"
@@ -1698,7 +1762,7 @@ function InvoiceDetail() {
       setOpenPriceChangeDialog(false);
     } catch (error) {
       console.error("Lỗi khi cập nhật giá sản phẩm:", error);
-      toast.error("Không thể cập nhật giá sản phẩm. Vui lòng thử lại.");
+      message.error("Không thể cập nhật giá sản phẩm. Vui lòng thử lại.");
     }
   };
   // Thêm hàm này để hiển thị loại thanh toán
@@ -1824,7 +1888,7 @@ function InvoiceDetail() {
       setProducts(productsWithImages);
     } catch (error) {
       console.error("Lỗi khi tải danh sách sản phẩm:", error);
-      toast.error("Lỗi khi tải danh sách sản phẩm");
+      message.error("Lỗi khi tải danh sách sản phẩm");
     }
   };
 
@@ -1852,7 +1916,7 @@ function InvoiceDetail() {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          toast.info(
+          message.info(
             "Mã giảm giá không còn áp dụng được do thay đổi số lượng sản phẩm"
           );
           appliedVoucher = null;
@@ -1887,7 +1951,7 @@ function InvoiceDetail() {
           );
           finalTotal = totalWithShipping - discount;
 
-          toast.info(
+          message.info(
             `Đã tự động áp dụng mã giảm giá ${bestVoucher.maPhieuGiamGia}`
           );
         } catch (error) {
@@ -1940,7 +2004,7 @@ function InvoiceDetail() {
       updateTotalBeforeDiscount(productsWithImages);
     } catch (error) {
       console.error("Lỗi khi tải danh sách sản phẩm:", error);
-      toast.error("Lỗi khi tải danh sách sản phẩm trong hóa đơn");
+      message.error("Lỗi khi tải danh sách sản phẩm trong hóa đơn");
     }
   };
 
@@ -1962,7 +2026,7 @@ function InvoiceDetail() {
       console.log("Danh sách voucher từ API:", response.data);
       setVouchers(response.data);
     } catch (error) {
-      toast.error("Không thể tải danh sách mã giảm giá");
+      message.error("Không thể tải danh sách mã giảm giá");
     }
   };
   // Thêm vào component
@@ -2052,7 +2116,7 @@ function InvoiceDetail() {
         setSelectedVoucher(best);
 
         if (best) {
-          toast.info(`Đã tự động chọn mã giảm giá tốt nhất`);
+          message.info(`Đã tự động chọn mã giảm giá tốt nhất`);
         }
       });
     }
@@ -2060,12 +2124,12 @@ function InvoiceDetail() {
 
   const handleApplyVoucher = async () => {
     if (!selectedVoucher) {
-      toast.error("Vui lòng chọn một mã giảm giá");
+      message.error("Vui lòng chọn một mã giảm giá");
       return;
     }
 
     if (totalBeforeDiscount <= 0) {
-      toast.error(
+      message.error(
         "Không thể áp dụng mã giảm giá cho đơn hàng không có sản phẩm"
       );
       return;
@@ -2097,7 +2161,7 @@ function InvoiceDetail() {
       const newTotal = totalWithShipping - discountAmount;
 
       if (newTotal < 0) {
-        toast.error("Tổng tiền sau giảm giá không hợp lệ!");
+        message.error("Tổng tiền sau giảm giá không hợp lệ!");
         return;
       }
 
@@ -2109,7 +2173,7 @@ function InvoiceDetail() {
 
       setOpenVoucherDialog(false);
       setSelectedVoucher(null);
-      toast.success(`Đã áp dụng mã giảm giá ${selectedVoucher.maPhieuGiamGia}`);
+      message.success(`Đã áp dụng mã giảm giá ${selectedVoucher.maPhieuGiamGia}`);
       fetchPaymentHistory(); // Cập nhật lịch sử thanh toán ngay lập tức
       await refreshInvoice();
       await checkExcessPayment();
@@ -2122,7 +2186,7 @@ function InvoiceDetail() {
 
   const handleRemoveVoucher = async () => {
     if (!invoice.phieuGiamGia) {
-      toast.error("Không có mã giảm giá để xóa");
+      message.error("Không có mã giảm giá để xóa");
       return;
     }
 
@@ -2137,7 +2201,7 @@ function InvoiceDetail() {
         (totalBeforeDiscount || 0) + (invoice?.phiVanChuyen || 0);
 
       if (totalWithShipping <= 0) {
-        toast.error("Tổng tiền sau khi xóa voucher không hợp lệ!");
+        message.error("Tổng tiền sau khi xóa voucher không hợp lệ!");
         return;
       }
 
@@ -2147,7 +2211,7 @@ function InvoiceDetail() {
         phieuGiamGia: null,
       }));
 
-      toast.success("Đã xóa mã giảm giá");
+      message.success("Đã xóa mã giảm giá");
       fetchPaymentHistory(); // Cập nhật lịch sử thanh toán ngay lập tức
     } catch (error) {
       showErrorDialog("Lỗi khi xóa mã giảm giá");
@@ -2175,7 +2239,7 @@ function InvoiceDetail() {
       const discountedTotal = response.data.tongTien;
       const discountAmount = originalTotal - discountedTotal;
 
-      toast.success(
+      message.success(
         `Cập nhật mã giảm giá ${selectedVoucher.maPhieuGiamGia} - ` +
           `${
             selectedVoucher.loaiPhieuGiamGia === 1
@@ -2198,7 +2262,7 @@ function InvoiceDetail() {
       console.error("Error updating voucher:", error);
       const errorMessage =
         error.response?.data?.message || "Lỗi khi cập nhật phiếu giảm giá";
-      toast.error(errorMessage);
+      message.error(errorMessage);
     }
   };
 
@@ -2255,9 +2319,7 @@ function InvoiceDetail() {
       }
 
       setTrackingAddressLoading(true);
-      const loadingToastId = toast.loading(
-        "Đang cập nhật thông tin người nhận..."
-      );
+      const hideLoading = message.loading("Đang cập nhật thông tin người nhận...",0 );
 
       // Tạo địa chỉ đầy đủ
       let fullAddress = "";
@@ -2306,7 +2368,7 @@ function InvoiceDetail() {
         // Cập nhật địa chỉ đã định dạng
         setFormattedAddress(fullAddress);
 
-        toast.dismiss(loadingToastId);
+        hideLoading();
         message.success("Cập nhật thông tin người nhận thành công");
         setOpenEditRecipientDialog(false);
 
@@ -2361,7 +2423,7 @@ function InvoiceDetail() {
           setShippingFeeFromGHN(0);
 
           if (showToast) {
-            toast.success("Đơn hàng được miễn phí vận chuyển");
+            message.success("Đơn hàng được miễn phí vận chuyển");
           }
         }
         return;
@@ -2391,7 +2453,7 @@ function InvoiceDetail() {
         setShippingFeeFromGHN(newShippingFee);
 
         if (showToast) {
-          toast.success(
+          message.success(
             `Đã cập nhật phí vận chuyển: ${formatCurrency(newShippingFee)}`
           );
         }
@@ -2402,7 +2464,7 @@ function InvoiceDetail() {
     } catch (error) {
       console.error("Lỗi khi tính lại phí vận chuyển:", error);
       if (showToast) {
-        toast.error("Không thể tính lại phí vận chuyển. Vui lòng thử lại.");
+        message.error("Không thể tính lại phí vận chuyển. Vui lòng thử lại.");
       }
     }
   };
@@ -3606,7 +3668,7 @@ function InvoiceDetail() {
     }
 
     try {
-      const addToastId = toast.loading("Đang thêm sản phẩm...");
+      const addToastId = message.loading("Đang thêm sản phẩm...",0);
 
       // Gọi API để thêm sản phẩm vào hóa đơn
       const response = await api.post(
@@ -3670,15 +3732,14 @@ function InvoiceDetail() {
       // Cập nhật tổng tiền và invoice
       await refreshInvoice();
 
-      toast.dismiss(addToastId);
-      toast.success(`Đã thêm ${product.tenSanPham || "sản phẩm"} vào đơn hàng`);
+      addToastId();
+      message.success(`Đã thêm ${product.tenSanPham || "sản phẩm"} vào đơn hàng`);
       setOpenAddProductDialog(false);
 
       // Đặt lại pagination để hiển thị trang chứa sản phẩm mới
       setPagination({ current: 1, pageSize: 3 });
     } catch (error) {
       console.error("Lỗi khi thêm sản phẩm:", error);
-      toast.dismiss(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
     }
   };
   const handleAddMultipleProducts = async (products) => {
@@ -3686,16 +3747,16 @@ function InvoiceDetail() {
       showErrorDialog("Không có sản phẩm nào được chọn");
       return;
     }
-  
+
     try {
-      const addToastId = toast.loading("Đang thêm sản phẩm...");
-  
+      const addToastId = message.loading("Đang thêm sản phẩm...");
+
       // Chuẩn bị dữ liệu với số lượng tùy chỉnh cho từng sản phẩm
       const productList = products.map((product) => ({
         sanPhamChiTietId: product.id,
         soLuong: product.soLuongThem || 1, // Sử dụng số lượng đã chọn hoặc mặc định là 1
       }));
-  
+
       // Gọi API để thêm nhiều sản phẩm cùng lúc
       await api.post(
         `/api/admin/hoa-don/${id}/san-pham`,
@@ -3709,26 +3770,31 @@ function InvoiceDetail() {
           },
         }
       );
-  
+
       // Làm mới danh sách sản phẩm và thông tin hóa đơn
       await refreshInvoiceProducts();
       await refreshInvoice();
-  
+
       // Tính tổng số lượng sản phẩm đã thêm
-      const totalQuantity = productList.reduce((sum, item) => sum + item.soLuong, 0);
-  
-      toast.dismiss(addToastId);
-      toast.success(`Đã thêm ${totalQuantity} sản phẩm (${products.length} mặt hàng) vào đơn hàng`);
+      const totalQuantity = productList.reduce(
+        (sum, item) => sum + item.soLuong,
+        0
+      );
+
+    addToastId();
+      message.success(
+        `Đã thêm ${totalQuantity} sản phẩm (${products.length} mặt hàng) vào đơn hàng`
+      );
       setOpenAddProductDialog(false);
-  
+
       // Đặt lại pagination
       setPagination({ current: 1, pageSize: 3 });
     } catch (error) {
       console.error("Lỗi khi thêm sản phẩm:", error);
-      toast.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
+      message.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
     }
   };
-   const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async () => {
     try {
       if (invoiceProducts.length === 1) {
         // Show modal suggesting order cancellation
@@ -3749,7 +3815,7 @@ function InvoiceDetail() {
         setOpenConfirmDelete(false);
         return;
       }
-  
+
       await api.delete(
         `/api/admin/hoa-don/${id}/chi-tiet/${deletingProductId}`,
         {
@@ -3758,7 +3824,7 @@ function InvoiceDetail() {
           },
         }
       );
-      toast.success("Xóa sản phẩm thành công");
+      message.success("Xóa sản phẩm thành công");
       setInvoiceProducts((prevProducts) => {
         const updatedProducts = prevProducts.filter(
           (product) => product.id !== deletingProductId
@@ -3778,28 +3844,31 @@ function InvoiceDetail() {
 
   const handleUpdateQuantity = async (hoaDonChiTietId, newQuantity) => {
     if (newQuantity < 1) {
-      toast.error("Số lượng phải lớn hơn 0");
+      message.error("Số lượng phải lớn hơn 0");
       return;
     }
-
+  
     // Kiểm tra sản phẩm tồn tại trong danh sách
     const product = invoiceProducts.find((p) => p.id === hoaDonChiTietId);
     if (!product) {
-      toast.error("Không tìm thấy sản phẩm trong đơn hàng");
+      message.error("Không tìm thấy sản phẩm trong đơn hàng");
       return;
     }
-
+  
     // Kiểm tra sản phẩm có thay đổi giá không
     if (product && product.giaThayDoi) {
       if (newQuantity > product.soLuong) {
-        toast.warning("Không thể tăng số lượng sản phẩm đã thay đổi giá");
+        message.warning("Không thể tăng số lượng sản phẩm đã thay đổi giá");
         return;
       }
     }
-
+  
+    // Lưu biến để xác định thông báo loading được tạo hay chưa
+    let updateToastId = null;
+  
     try {
-      const updateToastId = toast.loading("Đang cập nhật số lượng...");
-
+      updateToastId = message.loading("Đang cập nhật số lượng...", 0);
+  
       // Cập nhật UI ngay lập tức để trải nghiệm người dùng tốt hơn
       const updatedProducts = invoiceProducts.map((p) =>
         p.id === hoaDonChiTietId
@@ -3810,12 +3879,12 @@ function InvoiceDetail() {
             }
           : p
       );
-
+  
       setInvoiceProducts(updatedProducts);
-
+  
       // Tính toán tổng mới trước khi gọi API
       updateTotalBeforeDiscount(updatedProducts);
-
+  
       // Gọi API để cập nhật số lượng
       await api.put(
         `/api/admin/hoa-don/${id}/chi-tiet/${hoaDonChiTietId}/so-luong`,
@@ -3827,21 +3896,23 @@ function InvoiceDetail() {
           },
         }
       );
-
+  
       // Cập nhật tổng hóa đơn và kiểm tra thanh toán thừa/còn thiếu
       await updateInvoiceTotal(updatedProducts);
-
+  
       // Làm mới lịch sử thanh toán và kiểm tra thanh toán thừa
       await refreshPaymentHistory();
       await checkExcessPayment();
-
-      toast.dismiss(updateToastId);
-      toast.success("Cập nhật số lượng thành công");
+  
+      // Chỉ đóng thông báo loading nếu nó đã được tạo
+      if (updateToastId) updateToastId();
+      message.success("Cập nhật số lượng thành công");
     } catch (error) {
+      // Đảm bảo đóng thông báo loading khi có lỗi
+      if (updateToastId) updateToastId();
+      
       console.error("Lỗi khi cập nhật số lượng:", error);
-      showErrorDialog(
-        error.response?.data?.message || "Lỗi khi cập nhật số lượng"
-      );
+      message.error(error.response?.data?.message || "Lỗi khi cập nhật số lượng");
 
       // Khôi phục dữ liệu ban đầu nếu có lỗi
       await fetchInvoiceProducts();
@@ -3916,7 +3987,7 @@ function InvoiceDetail() {
   const handleConfirmStatusChange = async () => {
     try {
       setProcessingStatusChange(true);
-      const statusToastId = toast.loading(`Đang xử lý chuyển trạng thái...`);
+      const hideMessage = message.loading("Đang xử lý chuyển trạng thái...", 0); // 0 = không tự đóng
 
       // Kiểm tra số tiền cần thanh toán
       const remainingPayment = calculateRemainingPayment();
@@ -3931,7 +4002,7 @@ function InvoiceDetail() {
 
       // Chỉ mở modal thanh toán khi còn thiếu tiền VÀ không có thanh toán COD/bank chờ xác nhận
       if (remainingPayment > 1000 && !hasPendingOrCodPayments) {
-        toast.dismiss(statusToastId);
+        hideMessage(); // đóng message
         setPaymentAmount(remainingPayment);
         setOpenPaymentModal(true);
         setProcessingStatusChange(false);
@@ -3979,11 +4050,11 @@ function InvoiceDetail() {
       await refreshPaymentHistory();
 
       setOpenConfirmDialog(false);
-      toast.dismiss(statusToastId);
-      toast.success(`Đã chuyển trạng thái thành công`);
+      hideMessage();
+      message.success(`Đã chuyển trạng thái thành công`);
     } catch (error) {
       console.error("Lỗi khi chuyển trạng thái:", error);
-      toast.error(error.response?.data?.message || "Lỗi khi chuyển trạng thái");
+      message.error(error.response?.data?.message || "Lỗi khi chuyển trạng thái");
     } finally {
       setProcessingStatusChange(false);
     }
@@ -4046,7 +4117,7 @@ function InvoiceDetail() {
       }
     } catch (error) {
       console.error("Error fetching payment history:", error);
-      toast.error("Lỗi khi tải lịch sử thanh toán");
+      message.error("Lỗi khi tải lịch sử thanh toán");
     } finally {
       setLoadingPayments(false);
     }
@@ -4151,7 +4222,7 @@ function InvoiceDetail() {
       }
     } catch (error) {
       console.error("Lỗi khi lấy lịch sử đơn hàng:", error);
-      toast.error("Không thể tải lịch sử đơn hàng");
+      message.error("Không thể tải lịch sử đơn hàng");
     } finally {
       setLoadingHistory(false);
     }
@@ -4805,7 +4876,13 @@ function InvoiceDetail() {
   // Thêm hàm kiểm tra điều kiện miễn phí vận chuyển
   const checkFreeShipping = (subtotal) => {
     const FREE_SHIPPING_THRESHOLD = 2000000; // 2 triệu đồng
-    return subtotal >= FREE_SHIPPING_THRESHOLD;
+
+    // Tính tổng tiền hàng sau khi trừ giảm giá (nếu có)
+    const discountAmount = getDiscountAmount();
+    const subtotalAfterDiscount = subtotal - discountAmount;
+
+    // Kiểm tra điều kiện miễn phí vận chuyển
+    return subtotalAfterDiscount >= FREE_SHIPPING_THRESHOLD;
   };
   const calculateShippingFeeFromGHN = async () => {
     if (!invoice || (invoice.loaiHoaDon !== 3 && invoice.loaiHoaDon !== 1)) {
@@ -4962,23 +5039,23 @@ function InvoiceDetail() {
       }
     } catch (error) {
       console.error("Error fetching payment history:", error);
-      toast.error("Lỗi khi tải lịch sử thanh toán");
+      message.error("Lỗi khi tải lịch sử thanh toán");
     } finally {
       setLoadingPayments(false);
     }
   };
   // Cải tiến hàm handleRecalculateShipping để đảm bảo phí vận chuyển được cập nhật đúng
   const handleRecalculateShipping = async () => {
-    const loadingToastId = toast.loading("Đang tính phí vận chuyển...");
+    const hideLoading = message.loading("Đang tính phí vận chuyển...",0);
     setLoadingShippingFee(true);
 
     try {
       await calculateAndUpdateShippingFee(false);
-      toast.dismiss(loadingToastId);
-      toast.success("Đã cập nhật phí vận chuyển thành công");
+      hideLoading();
+      message.success("Đã cập nhật phí vận chuyển thành công");
     } catch (error) {
-      toast.dismiss(loadingToastId);
-      toast.error("Không thể tính lại phí vận chuyển. Vui lòng thử lại.");
+      hideLoading();
+      message.error("Không thể tính lại phí vận chuyển. Vui lòng thử lại.");
     } finally {
       setLoadingShippingFee(false);
     }
@@ -5474,19 +5551,19 @@ function InvoiceDetail() {
           <Typography variant="body2" fontWeight="bold" mb={1}>
             Chọn lý do hủy đơn: <span style={{ color: "red" }}>*</span>
           </Typography>
-          
+
           {!useCustomReason ? (
             <>
               <div style={{ marginBottom: 16 }}>
-                <Radio.Group 
+                <Radio.Group
                   style={{ width: "100%" }}
                   onChange={(e) => setCancelReason(e.target.value)}
                   value={cancelReason}
                 >
                   <Space direction="vertical" style={{ width: "100%" }}>
                     {predefinedReasons.map((reason, index) => (
-                      <Radio.Button 
-                        key={index} 
+                      <Radio.Button
+                        key={index}
                         value={reason}
                         style={{
                           width: "100%",
@@ -5504,8 +5581,8 @@ function InvoiceDetail() {
                   </Space>
                 </Radio.Group>
               </div>
-              <Button 
-                type="link" 
+              <Button
+                type="link"
                 onClick={() => {
                   setUseCustomReason(true);
                   setCancelReason("");
@@ -5517,7 +5594,7 @@ function InvoiceDetail() {
             </>
           ) : (
             <>
-                            <TextField
+              <TextField
                 fullWidth
                 multiline
                 rows={3}
@@ -5526,17 +5603,21 @@ function InvoiceDetail() {
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Nhập lý do hủy đơn hàng..."
                 required
-                error={cancelReason.trim() === "" || cancelReason.trim().length < 20}
+                error={
+                  cancelReason.trim() === "" || cancelReason.trim().length < 20
+                }
                 helperText={
                   cancelReason.trim() === ""
                     ? "Lý do hủy đơn không được để trống"
                     : cancelReason.trim().length < 20
-                    ? `Lý do hủy đơn ít nhất 20 ký tự (còn thiếu ${20 - cancelReason.trim().length} ký tự)`
+                    ? `Lý do hủy đơn ít nhất 20 ký tự (còn thiếu ${
+                        20 - cancelReason.trim().length
+                      } ký tự)`
                     : ""
                 }
               />
-              <Button 
-                type="link" 
+              <Button
+                type="link"
                 onClick={() => {
                   setUseCustomReason(false);
                   setCancelReason("");
@@ -5554,8 +5635,12 @@ function InvoiceDetail() {
             onClick={handleCancelOrder}
             variant="contained"
             color="error"
-            disabled={!cancelReason || cancelReason.trim() === "" || cancelReason.trim().length < 20}
-            >
+            disabled={
+              !cancelReason ||
+              cancelReason.trim() === "" ||
+              cancelReason.trim().length < 20
+            }
+          >
             Hủy đơn
           </Button>
         </DialogActions>
@@ -5910,7 +5995,7 @@ function InvoiceDetail() {
                 return formatCurrency(price * record.soLuong);
               },
             },
-       {
+            {
               title: "Hành động",
               key: "action",
               width: 80,
@@ -5929,7 +6014,10 @@ function InvoiceDetail() {
                         content: (
                           <div>
                             <p>Đơn hàng phải có ít nhất một sản phẩm.</p>
-                            <p>Nếu muốn xóa sản phẩm cuối cùng, bạn nên hủy đơn hàng.</p>
+                            <p>
+                              Nếu muốn xóa sản phẩm cuối cùng, bạn nên hủy đơn
+                              hàng.
+                            </p>
                           </div>
                         ),
                         okText: "Hủy đơn hàng",
@@ -6900,9 +6988,7 @@ function InvoiceDetail() {
                       ) {
                         return method.maPhuongThucThanhToan !== "VNPAY";
                       } else {
-                        return (
-                          method.maPhuongThucThanhToan !== "COD"
-                        );
+                        return method.maPhuongThucThanhToan !== "COD" && method.maPhuongThucThanhToan !=="VNPAY";
                       }
                     })
                     .map((method) => (

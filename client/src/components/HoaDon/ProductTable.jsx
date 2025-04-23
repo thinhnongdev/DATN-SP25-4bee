@@ -458,7 +458,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
       setSelectedProducts([]);
       
       // Hiển thị thông báo thành công
-      message.success(`Đã thêm ${productsWithQuantities.length} sản phẩm vào đơn hàng!`);
+      // message.success(`Đã thêm ${productsWithQuantities.length} sản phẩm vào đơn hàng!`);
       
       // Đóng modal nếu cần
       if (onClose) onClose();

@@ -21,6 +21,7 @@ public interface PhieuGiamGiaRepository extends JpaRepository<PhieuGiamGia, Stri
         JpaSpecificationExecutor<PhieuGiamGia> {
     @Query("SELECT p FROM PhieuGiamGia p WHERE p.kieuGiamGia=1 and p.trangThai=1 ORDER BY p.ngayTao DESC")
     List<PhieuGiamGia> findAllCongKhai();
+
     @Query("SELECT p.phieuGiamGia FROM PhieuGiamGiaKhachHang p WHERE p.khachHang.email=:email and p.trangThai=true and p.phieuGiamGia.trangThai=1 ORDER BY p.ngayTao DESC")
     List<PhieuGiamGia> findAllCaNhan( @Param("email") String email);
 

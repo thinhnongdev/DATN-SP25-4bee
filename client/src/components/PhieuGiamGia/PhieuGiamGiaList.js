@@ -233,7 +233,8 @@ const PhieuGiamGiaList = () => {
       title: "Mã", 
       dataIndex: "maPhieuGiamGia", 
       key: "maPhieuGiamGia", 
-      width: "8%" 
+      width: "8%",
+      aligh:"center" 
     },
     { 
       title: "Tên", 
@@ -241,13 +242,13 @@ const PhieuGiamGiaList = () => {
       key: "tenPhieuGiamGia", 
       width: "15%", 
       ellipsis: false ,
-       align: "center"
+      align: "center"
     },
     {
       title: "Kiểu giảm giá",
-      dataIndex: "loaiPhieuGiamGia",
-      key: "loaiPhieuGiamGia",
-      render: kieu => <Tag color={kieu === 1 ? "geekblue" : "purple"}>{kieu === 1 ? "%" : "VND"}</Tag>,
+      dataIndex: "kieuGiamGia",
+      key: "kieuGiamGia",
+      render: kieu => <Tag color={kieu === 1 ? "geekblue" : "purple"}>{kieu === 1 ? "Công khai" : "Cá nhân"}</Tag>,
       width: "8%",
       align: "center"
     },
@@ -303,6 +304,7 @@ const PhieuGiamGiaList = () => {
       title: "Trạng thái",
       dataIndex: "trangThai",
       key: "trangThai",
+      align: "center",
       render: renderStatusTag,
       width: "10%",
       filters: Object.entries(statusConfig).map(([value, { text }]) => ({ text, value: Number(value) })),

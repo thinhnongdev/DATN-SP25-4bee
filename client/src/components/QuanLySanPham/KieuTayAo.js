@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import Container from 'react-bootstrap/Container';
 import axios from 'axios';
 import { Button, Table, Row, Modal, Input, Form, Col, Breadcrumb } from 'antd';
 import { toast } from 'react-toastify';
@@ -184,7 +183,7 @@ const KieuTayAo = () => {
       >
         <Breadcrumb.Item>Kiểu tay áo</Breadcrumb.Item>
       </Breadcrumb>
-      <Container
+      <div
         style={{
           boxShadow: '0 4px 8px rgba(24, 24, 24, 0.1)',
           borderRadius: '8px',
@@ -225,7 +224,7 @@ const KieuTayAo = () => {
           onChange={handleTableChange}
           rowKey="id"
         />
-      </Container>
+      </div>
 
       <Modal
         title={isEditing ? 'Chỉnh sửa kiểu tay áo' : 'Thêm kiểu tay áo'}
