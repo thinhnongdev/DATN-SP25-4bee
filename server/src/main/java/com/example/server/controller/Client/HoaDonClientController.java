@@ -64,7 +64,37 @@ public class HoaDonClientController {
 
         try {
             hoaDonClientService.addSanPhamVaoHoaDonChiTiet(cartProductRequest);
+            System.out.println("Them thanh cong");
             return ResponseEntity.ok("Thêm sản phẩm vào hóa đơn thành công");
+        } catch (RuntimeException e) {
+            // Ghi log lỗi để dễ debug
+            System.err.println("Lỗi khi thêm sản phẩm vào hóa đơn: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi: " + e.getMessage());
+        } catch (Exception e) {
+            // Ghi log lỗi không mong muốn
+            System.err.println("Lỗi không xác định: " + e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Đã xảy ra lỗi không xác định. Vui lòng thử lại.");
+        }
+    }
+    @PostMapping("/order/addSanPhamVaoGio")
+    public ResponseEntity<?> addSanPhamVaoGio(@RequestBody CartProductRequest cartProductRequest) {
+        if (cartProductRequest == null) {
+            return ResponseEntity.badRequest().body("Dữ liệu không hợp lệ");
+        }
+        if (cartProductRequest.getEmail() == null || cartProductRequest.getEmail().isEmpty()) {
+            return ResponseEntity.badRequest().body("Email khách hàng không được để trống");
+        }
+        if (cartProductRequest.getSanPhamChiTiet() == null
+                || cartProductRequest.getSanPhamChiTiet().getId() == null
+                || cartProductRequest.getSanPhamChiTiet().getQuantity() == null) {
+            return ResponseEntity.badRequest().body("Thông tin sản phẩm không hợp lệ");
+        }
+
+        try {
+            hoaDonClientService.addSanPhamVaoGioHang(cartProductRequest);
+            return ResponseEntity.ok("Thêm sản phẩm vào giỏ thành công");
         } catch (RuntimeException e) {
             // Ghi log lỗi để dễ debug
             System.err.println("Lỗi khi thêm sản phẩm vào hóa đơn: " + e.getMessage());

@@ -47,46 +47,45 @@ const Cart = () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-  
+
         // Nếu có token (đã đăng nhập) thì lấy giỏ hàng từ hóa đơn đang chờ
         if (token) {
           const decodedToken = jwtDecode(token);
           const email = decodedToken?.sub;
-  
+
           const hoaDonResponse = await axios.get(
             `http://localhost:8080/api/client/order/findHoaDonPending/${email}`,
           );
           const idHoaDon = hoaDonResponse.data?.id;
           setIdHoaDon(idHoaDon);
-  
+
           if (!idHoaDon) {
             message.warning('Không tìm thấy hóa đơn đang chờ.');
             setCartProducts([]);
             return;
           }
-  
+
           const response = await axios.get(
             `http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${idHoaDon}`,
           );
           const productList = response.data;
-  
+
           const productsWithDetails = await Promise.all(
             productList.map(async (item) => {
               const [images, currentProduct] = await Promise.all([
                 fetchProductImage(item.id),
                 axios.get(`http://localhost:8080/api/client/chitietsanpham/${item.id}`),
               ]);
-  
+
               return {
                 ...currentProduct.data,
                 images: images.map((img) => img.anhUrl),
                 quantity: item.soLuongMua,
                 giaTaiThoiDiemThem: item.giaTaiThoiDiemThem,
-                idChiTietSanPham: item.idHoaDonChiTiet,
               };
             }),
           );
-  
+          console.log('productsWithDetails', productsWithDetails);
           setCartProducts(productsWithDetails);
         } else {
           // Nếu chưa đăng nhập, lấy giỏ hàng từ localStorage
@@ -95,13 +94,13 @@ const Cart = () => {
             setCartProducts([]);
             return;
           }
-  
+
           const productRequests = cartItems.map((item) =>
             axios.get(`http://localhost:8080/api/client/chitietsanpham/${item.id}`),
           );
           const responses = await Promise.all(productRequests);
           const products = responses.map((res) => res.data);
-  
+
           const productWithImages = await Promise.all(
             products.map(async (product) => {
               const images = await fetchProductImage(product.id);
@@ -114,7 +113,7 @@ const Cart = () => {
               };
             }),
           );
-  
+
           setCartProducts(productWithImages);
         }
       } catch (error) {
@@ -124,7 +123,7 @@ const Cart = () => {
         setLoading(false);
       }
     };
-  
+
     fetchCartProducts();
   }, []);
   
@@ -239,6 +238,7 @@ const Cart = () => {
           axios
             .post('http://localhost:8080/api/client/order/addHoaDonChiTiet', cartData)
             .then((response) => {
+              console.log('cart update',cartData)
               console.log('Cập nhật số lượng trong database:', response.data);
             })
             .catch((error) => {
@@ -349,28 +349,30 @@ const Cart = () => {
       render: (_, record) => {
         const giaHienTai = record.gia;
         const giaTaiThoiDiemThem = record.giaTaiThoiDiemThem;
-
+    
         const isChanged = giaHienTai !== giaTaiThoiDiemThem;
-
+    
         return (
           <div>
-            <Text strong>{giaHienTai.toLocaleString('vi-VN')}₫</Text>
-
-            {isChanged && (
-              <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Text strong>{giaHienTai.toLocaleString('vi-VN')}₫</Text>
+              {isChanged && (
                 <Text type="secondary" delete>
                   {giaTaiThoiDiemThem.toLocaleString('vi-VN')}₫
                 </Text>
-                <Tag color="warning">
-                  Đã thay đổi: {giaTaiThoiDiemThem.toLocaleString('vi-VN')}₫ →{' '}
-                  {giaHienTai.toLocaleString('vi-VN')}₫
-                </Tag>
-              </div>
+              )}
+            </div>
+            {isChanged && (
+              <Tag color="warning" style={{ marginTop: 4 }}>
+                Đã thay đổi: {giaTaiThoiDiemThem.toLocaleString('vi-VN')}₫ →{' '}
+                {giaHienTai.toLocaleString('vi-VN')}₫
+              </Tag>
             )}
           </div>
         );
       },
-    },
+    }
+,    
     {
       title: 'Số lượng',
       dataIndex: 'quantity',

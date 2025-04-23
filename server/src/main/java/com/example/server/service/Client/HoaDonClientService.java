@@ -308,7 +308,7 @@ public class HoaDonClientService {
         return hoaDonList.orElse(null);
     }
 
-    public void addSanPhamVaoHoaDonChiTiet(CartProductRequest cartProductRequest) {
+    public void addSanPhamVaoHoaDonChiTiet(CartProductRequest cartProductRequest) {//thay đổi số lượng sản phẩm trong giỏ hàng
         if (cartProductRequest.getSanPhamChiTiet().getQuantity() <= sanPhamChiTietRepository.findById(cartProductRequest.getSanPhamChiTiet().getId()).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết")).getSoLuong()) { //kiểm tra xem số lượng trong kho còn đủ đẻ thêm vào hóa đơn chi tiết không
             HoaDon hoaDon = hoaDonRepository.findHoaDonPending(cartProductRequest.getEmail()).orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn pending"));
             List<HoaDonChiTietClientResponse> hoaDonChiTietClientResponseList = hoaDonChiTietRepository.findByHoaDonId(hoaDon.getId());
@@ -344,7 +344,36 @@ public class HoaDonClientService {
             }
         }
     }
-
+    public void addSanPhamVaoGioHang(CartProductRequest cartProductRequest) { //thêm sản phẩm vào giỏ
+        if (cartProductRequest.getSanPhamChiTiet().getQuantity() <= sanPhamChiTietRepository.findById(cartProductRequest.getSanPhamChiTiet().getId()).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết")).getSoLuong()) { //kiểm tra xem số lượng trong kho còn đủ đẻ thêm vào hóa đơn chi tiết không
+            HoaDon hoaDon = hoaDonRepository.findHoaDonPending(cartProductRequest.getEmail()).orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn pending"));
+            List<HoaDonChiTietClientResponse> hoaDonChiTietClientResponseList = hoaDonChiTietRepository.findByHoaDonId(hoaDon.getId());
+            for (int i = 0; i < hoaDonChiTietClientResponseList.size(); i++) {
+                if (hoaDonChiTietClientResponseList.get(i).getId().equals(cartProductRequest.getSanPhamChiTiet().getId())) {//nếu id sản phẩm chi tiết trong hdct == id sản phẩm chi tiết gửi về
+                    //nếu số lượng của sản phẩm trong hóa đơn chi tiết khác số lượng sản phẩm gửi về
+                    HoaDonChiTiet hoaDonChiTiet = hoaDonChiTietRepository.findById(hoaDonChiTietClientResponseList.get(i).getIdHoaDonChiTiet()).orElseThrow(() -> new RuntimeException("không tìm thấy hóa đơn chi tiết!!!"));
+                    hoaDonChiTiet.setSoLuong(hoaDonChiTiet.getSoLuong()+cartProductRequest.getSanPhamChiTiet().getQuantity());
+                    hoaDonChiTiet.setGiaTaiThoiDiemThem(cartProductRequest.getSanPhamChiTiet().getGia());
+                    hoaDonChiTietRepository.save(hoaDonChiTiet);
+                    System.out.println("Thêm sản phẩm thành công");
+                    return;
+                }
+            }
+            if (cartProductRequest.getSanPhamChiTiet().getQuantity() > 0) {
+                SanPhamChiTiet sanPhamChiTiet = sanPhamChiTietRepository.findById(cartProductRequest.getSanPhamChiTiet().getId()).orElseThrow();
+                HoaDonChiTiet hoaDonChiTiet = new HoaDonChiTiet();
+                hoaDonChiTiet.setSoLuong(cartProductRequest.getSanPhamChiTiet().getQuantity());
+                hoaDonChiTiet.setTrangThai(1);
+                hoaDonChiTiet.setId(UUID.randomUUID().toString());
+                hoaDonChiTiet.setNgayThemVaoGio(LocalDateTime.now());
+                hoaDonChiTiet.setHoaDon(hoaDon);
+                hoaDonChiTiet.setSanPhamChiTiet(sanPhamChiTiet);
+                hoaDonChiTiet.setGiaTaiThoiDiemThem(sanPhamChiTiet.getGia());
+                hoaDonChiTiet.setNgayThemVaoGio(LocalDateTime.now());
+                hoaDonChiTietRepository.save(hoaDonChiTiet);
+            }
+        }
+    }
     public void UpdateHoaDonChoXacNhan(String idHoaDon) {
 
         List<HoaDonChiTietClientResponse> hoaDonChiTietClientResponseList = hoaDonChiTietRepository.findByHoaDonId(idHoaDon);

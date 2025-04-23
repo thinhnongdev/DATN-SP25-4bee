@@ -151,22 +151,30 @@ const ProductDetail = () => {
       message.warning('Vui lòng chọn size');
       return;
     }
+  
     const selectedVariant = findProductVariant(sanPhamGopNhom.bienThe, selectedSize, selectedColor);
-
-    if (selectedVariant&& selectedVariant.soLuong > 0) {
-      console.log('Biến thể được chọn:', selectedVariant);
-    } else {
+  
+    if (!selectedVariant || selectedVariant.soLuong === 0) {
       message.warning('Sản phẩm đang tạm thời hết hàng');
-      console.log('Không tìm thấy biến thể phù hợp');
       return;
     }
+  
+    const existingCart = JSON.parse(localStorage.getItem('cart')) || [];
+    const existingCartItem = existingCart.find((item) => item.id === selectedVariant.idSPCT);
+    const currentCartQuantity = existingCartItem ? existingCartItem.quantity : 0;
+    const totalQuantityAfterAdd = currentCartQuantity + quantity;
+  
+    if (totalQuantityAfterAdd > selectedVariant.soLuong) {
+      message.warning(`Chỉ còn ${selectedVariant.soLuong} sản phẩm trong kho.`);
+      return;
+    }
+  
     const cartItem = {
       id: selectedVariant.idSPCT,
+      gia: selectedVariant.gia,
       quantity,
     };
-
-    // Lấy giỏ hàng hiện tại từ localStorage hoặc tạo mảng mới
-    const existingCart = JSON.parse(localStorage.getItem('cart')) || [];
+  
     const token = localStorage.getItem('token');
     if (token) {
       checkTokenValidity(token).then((isValid) => {
@@ -175,7 +183,7 @@ const ProductDetail = () => {
           localStorage.removeItem('token');
           localStorage.removeItem('cart');
           window.dispatchEvent(new Event('cartUpdated'));
-          window.location.href = '/login'; // Điều hướng đến trang đăng nhập
+          window.location.href = '/login';
         } else {
           const decodedToken = jwtDecode(token);
           const email = decodedToken?.sub;
@@ -184,7 +192,7 @@ const ProductDetail = () => {
             email: email,
           };
           axios
-            .post('http://localhost:8080/api/client/order/addHoaDonChiTiet', cartData)
+            .post('http://localhost:8080/api/client/order/addSanPhamVaoGio', cartData)
             .then((response) => {
               console.log('Sản phẩm đã được lưu vào giỏ:', response.data);
             })
@@ -194,26 +202,19 @@ const ProductDetail = () => {
         }
       });
     }
-    // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
+  
     const existingIndex = existingCart.findIndex((item) => item.id === selectedVariant.idSPCT);
-
     if (existingIndex !== -1) {
-      // Nếu sản phẩm đã tồn tại, tăng số lượng
       existingCart[existingIndex].quantity += quantity;
     } else {
-      // Nếu chưa có, thêm mới vào giỏ hàng
       existingCart.push(cartItem);
     }
-
-    // Lưu lại giỏ hàng mới vào localStorage
+  
     localStorage.setItem('cart', JSON.stringify(existingCart));
-    console.log('Sản phẩm được thêm vào giỏ hàng:', cartItem);
-    console.log('Sản phẩm trong giỏ hàng:', existingCart);
-
-    //  Phát sự kiện để cập nhật giỏ hàng ngay lập tức
     window.dispatchEvent(new Event('cartUpdated'));
     message.success('Đã thêm sản phẩm vào giỏ hàng!');
   };
+  
 
   useEffect(() => {
     setQuantity(1);
@@ -439,7 +440,15 @@ const ProductDetail = () => {
                 borderRadius: '12px',
               }}
             >
-              <Title level={4} style={{ borderBottom: '2px solid #eee', paddingBottom: '12px', paddingTop: '12px' ,backgroundColor: '#f9f9f9'}}>
+              <Title
+                level={4}
+                style={{
+                  borderBottom: '2px solid #eee',
+                  paddingBottom: '12px',
+                  paddingTop: '12px',
+                  backgroundColor: '#f9f9f9',
+                }}
+              >
                 MÔ TẢ SẢN PHẨM
               </Title>
 
@@ -450,9 +459,7 @@ const ProductDetail = () => {
                   borderRadius: '8px',
                 }}
               >
-                <p>
-                   {sanPhamGopNhom?.moTa || '—'}
-                </p>
+                <p>{sanPhamGopNhom?.moTa || '—'}</p>
               </div>
             </div>
           </Card>
