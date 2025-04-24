@@ -1042,10 +1042,21 @@ const GiaoHang = React.forwardRef(
       }
     };
 
-    // Thêm useEffect mới để xử lý khi hoaDonId thay đổi
+    // 1. Trong useEffect theo dõi hoaDonId, thêm code reset form hoàn toàn khi chuyển tab
     useEffect(() => {
       // Reset when hoaDonId changes (i.e., switching to a new order or creating one)
       if (hoaDonId) {
+        // Reset form completely when changing tabs
+        setSelectedAddress(null);
+        setManualAddress("");
+        setProvince(null);
+        setDistrict(null);
+        setWard(null);
+        setDistrictData([]);
+        setWardData([]);
+        setAddressDataLoaded(false);
+        setIsManuallyEditing(false);
+        
         const isNewOrder = sessionStorage.getItem(`new_order_${hoaDonId}`) === "true";
     
         // If it's a newly created order or when switching tabs

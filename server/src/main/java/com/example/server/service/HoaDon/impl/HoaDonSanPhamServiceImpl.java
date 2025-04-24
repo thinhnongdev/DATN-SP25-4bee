@@ -67,13 +67,7 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
                     SanPhamChiTiet spct = chiTiet.getSanPhamChiTiet();
                     BigDecimal giaTaiThoiDiemThem = chiTiet.getGiaTaiThoiDiemThem();
 
-                    // Kiểm tra giới hạn thời gian lưu giá (24h)
-                    LocalDateTime thoiDiemHetHan = LocalDateTime.now().minusHours(24);
-
-                    // Nếu chưa có giá lưu trữ hoặc đã quá thời gian hiệu lực, cập nhật giá
-                    if (giaTaiThoiDiemThem == null ||
-                            (chiTiet.getNgayThemVaoGio() != null &&
-                                    chiTiet.getNgayThemVaoGio().isBefore(thoiDiemHetHan))) {
+                    if (giaTaiThoiDiemThem == null) {
                         giaTaiThoiDiemThem = spct.getGia();
                         chiTiet.setGiaTaiThoiDiemThem(giaTaiThoiDiemThem);
                         chiTiet.setNgayThemVaoGio(LocalDateTime.now());
@@ -474,9 +468,6 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
         List<Map<String, Object>> changedItems = new ArrayList<>();
         boolean hasPriceChanges = false;
 
-        // Kiểm tra giới hạn thời gian lưu giá (24h)
-        LocalDateTime thoiDiemHetHan = LocalDateTime.now().minusHours(24);
-
         // Duyệt qua từng sản phẩm trong giỏ
         for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
             if (chiTiet.getTrangThai() != 1) continue; // Bỏ qua sản phẩm không hoạt động
@@ -487,15 +478,6 @@ public class HoaDonSanPhamServiceImpl implements IHoaDonSanPhamService {
 
             // Nếu chưa có giá lưu trữ, lấy giá hiện tại
             if (giaTaiThoiDiemThem == null) {
-                chiTiet.setGiaTaiThoiDiemThem(giaHienTai);
-                chiTiet.setNgayThemVaoGio(LocalDateTime.now());
-                hoaDonChiTietRepository.save(chiTiet);
-                continue;
-            }
-
-            // Kiểm tra nếu đã quá thời gian hiệu lực
-            if (chiTiet.getNgayThemVaoGio() != null && chiTiet.getNgayThemVaoGio().isBefore(thoiDiemHetHan)) {
-                // Tự động cập nhật giá nếu quá thời gian giữ giá
                 chiTiet.setGiaTaiThoiDiemThem(giaHienTai);
                 chiTiet.setNgayThemVaoGio(LocalDateTime.now());
                 hoaDonChiTietRepository.save(chiTiet);

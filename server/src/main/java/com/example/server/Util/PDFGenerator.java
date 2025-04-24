@@ -210,7 +210,7 @@ public class PDFGenerator {
 
 
     private void addProductsTable(Document document, List<HoaDonChiTiet> chiTiets) {
-        Table table = new Table(new float[]{4, 2, 2, 1, 1, 1, 2, 2});
+        Table table = new Table(new float[]{4, 2, 2, 1, 1, 2, 2, 2});
         table.setWidth(UnitValue.createPercentValue(100));
 
         // Thêm tiêu đề bảng
@@ -226,7 +226,13 @@ public class PDFGenerator {
         // Thêm sản phẩm
         for (HoaDonChiTiet chiTiet : chiTiets) {
             SanPhamChiTiet sanPham = chiTiet.getSanPhamChiTiet();
-            BigDecimal thanhTien = sanPham.getGia().multiply(new BigDecimal(chiTiet.getSoLuong()));
+
+            // Sử dụng giá tại thời điểm thêm vào đơn hàng nếu có
+            BigDecimal donGia = chiTiet.getGiaTaiThoiDiemThem() != null ?
+                    chiTiet.getGiaTaiThoiDiemThem() :
+                    sanPham.getGia();
+
+            BigDecimal thanhTien = donGia.multiply(new BigDecimal(chiTiet.getSoLuong()));
 
             table.addCell(createCell(sanPham.getSanPham().getTenSanPham(), false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(sanPham.getMauSac() != null ? sanPham.getMauSac().getTenMau() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
@@ -234,7 +240,7 @@ public class PDFGenerator {
             table.addCell(createCell(sanPham.getChatLieu() != null ? sanPham.getChatLieu().getTenChatLieu() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(sanPham.getThuongHieu() != null ? sanPham.getThuongHieu().getTenThuongHieu() : "Không có", false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(String.valueOf(chiTiet.getSoLuong()), false).setTextAlignment(TextAlignment.CENTER));
-            table.addCell(createCell(formatCurrency(sanPham.getGia()), false).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(createCell(formatCurrency(donGia), false).setTextAlignment(TextAlignment.CENTER));
             table.addCell(createCell(formatCurrency(thanhTien), false).setTextAlignment(TextAlignment.CENTER));
         }
 
@@ -292,8 +298,12 @@ public class PDFGenerator {
     private InvoiceAmounts calculateInvoiceAmounts(HoaDon hoaDon) {
         // Tính tổng tiền hàng
         BigDecimal tongTienHang = hoaDon.getHoaDonChiTiets().stream()
-                .map(ct -> ct.getSanPhamChiTiet().getGia()
-                        .multiply(new BigDecimal(ct.getSoLuong())))
+                .map(ct -> {
+                    // Sử dụng giá tại thời điểm thêm nếu có, nếu không thì dùng giá của sản phẩm
+                    BigDecimal gia = ct.getGiaTaiThoiDiemThem() != null ?
+                            ct.getGiaTaiThoiDiemThem() : ct.getSanPhamChiTiet().getGia();
+                    return gia.multiply(new BigDecimal(ct.getSoLuong()));
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Tính tiền giảm giá
@@ -614,7 +624,11 @@ public byte[] generateDeliveryInvoicePDF(HoaDon hoaDon) {
                     ? spct.getSanPham().getTenSanPham()
                     : "Sản phẩm không xác định";
 
-            String soLuongVaGia = "(" + chiTiet.getSoLuong() + " x " + formatCurrency(spct.getGia()) + ")";
+            // Sử dụng giá tại thời điểm thêm nếu có
+            BigDecimal gia = chiTiet.getGiaTaiThoiDiemThem() != null ?
+                    chiTiet.getGiaTaiThoiDiemThem() : spct.getGia();
+
+            String soLuongVaGia = "(" + chiTiet.getSoLuong() + " x " + formatCurrency(gia) + ")";
 
             StringBuilder attributes = new StringBuilder();
             if (spct.getMauSac() != null && spct.getMauSac().getTenMau() != null) {

@@ -3,6 +3,7 @@ import { Layout, Menu, message, Modal, theme } from 'antd';
 import { Link, Route, Routes, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode'; // Sử dụng named import
+import Header from './components/common/Header';
 import './App.css';
 import {
   BarChartOutlined,
@@ -33,7 +34,7 @@ import ThongkeRoutes from './routes/ThongKeRoutes';
 import Forbidden403 from './components/Auth/Forbidden403';
 import ProtectedRoutes from './routes/ProtectedRoutes';
 import NotFoundPage from './components/Auth/NotFoundPage';
-const { Header, Content, Footer, Sider } = Layout;
+const { Header: AntHeader, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
   '/': 'Trang chủ',
@@ -203,26 +204,10 @@ const AdminLayout = () => {
         </Menu>
       </Sider>
       <Layout>
-        <Header
-          style={{
-            padding: 0,
-            background: colorBgContainer,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div style={{ position: 'absolute', top: 0, right: 16 }}>
-            <span style={{ color: 'black' }}>
-              {'Xin chào, ' + userInfo?.ten + ' ' || 'Not info '}
-            </span>
-            <img
-              src={userInfo?.anhUrl || 'https://www.w3schools.com/howto/img_avatar.png'}
-              alt="circle"
-              style={{ width: 40, height: 40, borderRadius: '50%', marginRight: '16px' }}
-            />
-          </div>
-        </Header>
+        <Header 
+          userInfo={userInfo} 
+          onLogout={handleLogout} 
+        />
         <Content style={{ margin: '16px', padding: 24, minHeight: 360 }}>
           <Routes>
             {ThongkeRoutes()}
@@ -300,12 +285,6 @@ const App = () => {
   console.log('Token:', token);
   console.log('Role từ token:', userRole);
 
-  // if (
-  //   location.pathname === '/login' ||
-  //   location.pathname === '/register' ||
-  //   location.pathname === '/403'||
-  //   location.pathname === '*'
-  // ) {
   return (
     <Routes>
       {/* Auth pages */}
@@ -325,19 +304,6 @@ const App = () => {
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
-  //}
-  // Với vai trò ADMIN hoặc NHAN_VIEN thì cho phép truy cập cả giao diện quản trị và giao diện khách hàng
-  // Ngược lại (KHÁCH_HÀNG hoặc chưa đăng nhập) thì chỉ cho phép truy cập giao diện khách hàng.
-  // return  (
-  //   <Routes>
-  //     {/* Bọc admin route bằng ProtectedRoutes */}
-  //     <Route element={<ProtectedRoutes allowedRoles={['ADMIN', 'NHAN_VIEN']} />}>
-  //       <Route path="/admin/*" element={<AdminLayout />} />
-  //     </Route>
-  //     {/* Route giao diện khách hàng (ai cũng truy cập được) */}
-  //     <Route path="/*" element={<CustomerLayout />} />
-  //   </Routes>
-  // )
 };
 
 export default App;

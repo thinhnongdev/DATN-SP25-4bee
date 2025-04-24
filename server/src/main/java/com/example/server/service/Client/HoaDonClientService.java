@@ -302,7 +302,10 @@ public class HoaDonClientService {
         List<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonClient(email);
         return hoaDonList;
     }
-
+    public List<HoaDonClientResponse> findHoaDonByMaHoaDon(String maHoaDon) {
+        List<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonByMaHoaDonClient(maHoaDon);
+        return hoaDonList;
+    }
     public HoaDonClientResponse findHoaDonClientById(String idHoaDon) {
         Optional<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonClientByIdHoaDon(idHoaDon);
         return hoaDonList.orElse(null);

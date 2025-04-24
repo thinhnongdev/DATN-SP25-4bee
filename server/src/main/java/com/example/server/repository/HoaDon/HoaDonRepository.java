@@ -22,7 +22,14 @@ import java.util.Optional;
 @Repository
 public interface HoaDonRepository extends JpaRepository<HoaDon, String>,
         JpaSpecificationExecutor<HoaDon> {
-
+    @Query("select new com.example.server.dto.Client.response.HoaDonClientResponse(" +
+            "h.id,h.maHoaDon,h.phieuGiamGia.id,h.khachHang.id," +
+            "h.loaiHoaDon,h.tenNguoiNhan,h.soDienThoai,h.emailNguoiNhan,h.diaChi," +
+            "h.trangThaiGiaoHang,h.thoiGianGiaoHang,h.thoiGianNhanHang,h.tongTien,h.phiVanChuyen" +
+            ",h.ghiChu,h.trangThai,h.ngayTao,h.ngaySua,h.nguoiTao,h.nguoiSua)" +
+            " from HoaDon h where h.loaiHoaDon=1 and  h.trangThai <> 10  and h.maHoaDon=:maHoaDon")
+        //bỏ hóa đơn có trang thái là pendding
+    List<HoaDonClientResponse> findHoaDonByMaHoaDonClient(String maHoaDon);
     @Query("SELECT h FROM HoaDon h WHERE h.trangThai = :trangThai")
     List<HoaDon> findByTrangThai(@Param("trangThai") Integer trangThai);
 

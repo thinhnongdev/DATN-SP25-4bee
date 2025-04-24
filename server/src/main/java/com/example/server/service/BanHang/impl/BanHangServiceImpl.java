@@ -1095,25 +1095,20 @@ public class BanHangServiceImpl implements BanHangService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private void recalculateTotal(HoaDon hoaDon) {
+    public void recalculateTotal(HoaDon hoaDon) {
         log.info("Recalculating total for invoice: {}", hoaDon.getId());
 
         // Tính tổng tiền ban đầu
         BigDecimal subtotal = calculateSubtotal(hoaDon);
         log.info("Subtotal: {}", subtotal);
 
-//        // Tổng tiền chỉ tính tiền sản phẩm, không trừ phiếu giảm giá
-//        hoaDon.setTongTien(subtotal);
-//        log.info("Updated invoice total (excluding discounts): {}", hoaDon.getTongTien());
-
-        // Nếu có áp dụng voucher
+        // Tính giảm giá nếu có áp dụng voucher
+        BigDecimal discount = BigDecimal.ZERO;
         if (hoaDon.getPhieuGiamGia() != null) {
             PhieuGiamGia voucher = hoaDon.getPhieuGiamGia();
 
             // Kiểm tra điều kiện áp dụng
             if (subtotal.compareTo(voucher.getGiaTriToiThieu()) >= 0) {
-                BigDecimal discount;
-
                 // Tính giảm giá theo loại
                 if (voucher.getLoaiPhieuGiamGia() == 1) { // Giảm theo %
                     // Chuyển giaTriGiam thành BigDecimal
@@ -1135,22 +1130,31 @@ public class BanHangServiceImpl implements BanHangService {
                 }
 
                 log.info("Discount amount: {}", discount);
-
-                // Cập nhật tổng tiền sau giảm
-                BigDecimal finalTotal = subtotal.subtract(discount);
-                // Đảm bảo tổng tiền không âm
-                hoaDon.setTongTien(finalTotal.max(BigDecimal.ZERO));
-                log.info("Final total after discount: {}", hoaDon.getTongTien());
             } else {
                 // Nếu không đủ điều kiện, xóa voucher
                 log.info("Order total does not meet minimum requirement. Removing voucher.");
                 hoaDon.setPhieuGiamGia(null);
-                hoaDon.setTongTien(subtotal);
             }
-        } else {
-            // Nếu không có voucher
-            log.info("No voucher applied. Setting total equal to subtotal.");
-            hoaDon.setTongTien(subtotal);
         }
+
+        // Tính tổng tiền sau khi giảm giá
+        BigDecimal subtotalAfterDiscount = subtotal.subtract(discount);
+        log.info("Subtotal after discount: {}", subtotalAfterDiscount);
+
+        // Kiểm tra điều kiện miễn phí vận chuyển (đơn từ 2 triệu sau khi trừ giảm giá và là đơn giao hàng)
+        if (subtotalAfterDiscount.compareTo(new BigDecimal("2000000")) >= 0 && hoaDon.getLoaiHoaDon() == 3) {
+            log.info("Free shipping applied: order subtotal after discount >= 2,000,000 VND");
+            hoaDon.setPhiVanChuyen(BigDecimal.ZERO); // Áp dụng miễn phí vận chuyển
+        }
+
+        // Cập nhật tổng tiền: Tổng tiền hàng - giảm giá + phí vận chuyển (nếu có)
+        BigDecimal finalTotal = subtotalAfterDiscount;
+        if (hoaDon.getPhiVanChuyen() != null && hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
+            finalTotal = finalTotal.add(hoaDon.getPhiVanChuyen());
+        }
+
+        // Đảm bảo tổng tiền không âm
+        hoaDon.setTongTien(finalTotal.max(BigDecimal.ZERO));
+        log.info("Final total: {}", hoaDon.getTongTien());
     }
 }

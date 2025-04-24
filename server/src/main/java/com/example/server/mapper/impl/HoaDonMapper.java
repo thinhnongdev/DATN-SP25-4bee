@@ -335,6 +335,11 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .map(AnhSanPham::getAnhUrl)
                 .collect(Collectors.toList());
 
+        // Sử dụng giá tại thời điểm thêm nếu có, nếu không thì sử dụng giá hiện tại
+        BigDecimal giaSanPham = chiTiet.getGiaTaiThoiDiemThem() != null ?
+                chiTiet.getGiaTaiThoiDiemThem() :
+                sanPhamChiTiet.getGia();
+
         return HoaDonChiTietResponse.builder()
                 .id(chiTiet.getId())
                 .sanPhamChiTietId(sanPhamChiTiet.getId())
@@ -342,9 +347,9 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .tenSanPham(sanPham.getTenSanPham())
                 .maSanPham(sanPham.getMaSanPham())
                 .soLuong(chiTiet.getSoLuong())
-                .gia(sanPhamChiTiet.getGia())
+                .gia(giaSanPham)  // Sử dụng giá đã xác định ở trên
                 .maSanPhamChiTiet(sanPhamChiTiet.getMaSanPhamChiTiet())
-                .thanhTien(sanPhamChiTiet.getGia().multiply(BigDecimal.valueOf(chiTiet.getSoLuong())))
+                .thanhTien(giaSanPham.multiply(BigDecimal.valueOf(chiTiet.getSoLuong()))) // Tính thành tiền dựa trên giá đã xác định
                 .trangThai(chiTiet.getTrangThai())
                 // Thêm các trường thông tin chi tiết
                 .mauSac(sanPhamChiTiet.getMauSac() != null ? sanPhamChiTiet.getMauSac().getTenMau() : null)

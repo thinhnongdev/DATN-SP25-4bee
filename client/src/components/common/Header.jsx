@@ -1,10 +1,73 @@
-const Header = ({ title }) => {
-	return (
-		<header className='bg-white shadow-lg border-b border-gray-300'>
-			<div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-				<h1 className="text-2xl font-semibold text-gray-800">{title}</h1>
-			</div>
-		</header>
-	);
+import React from "react";
+import { Layout, Space, Avatar, Dropdown, Menu, Typography } from "antd";
+import { UserOutlined, LogoutOutlined, SettingOutlined } from "@ant-design/icons";
+import NotificationBell from "./NotificationBell";
+
+const { Header: AntHeader } = Layout;
+const { Text } = Typography;
+
+const Header = ({ title, userInfo, onLogout }) => {
+  const userMenu = (
+    <Menu
+      items={[
+        {
+          key: "profile",
+          icon: <UserOutlined />,
+          label: "Thông tin tài khoản"
+        },
+        {
+          key: "settings",
+          icon: <SettingOutlined />,
+          label: "Cài đặt"
+        },
+        {
+          type: "divider",
+        },
+        {
+          key: "logout",
+          icon: <LogoutOutlined />,
+          label: "Đăng xuất",
+          onClick: onLogout
+        },
+      ]}
+    />
+  );
+
+  return (
+    <AntHeader
+      style={{
+        padding: "0 24px",
+        background: "#fff",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.1)"
+      }}
+    >
+      <div>
+        {title && <Text strong style={{ fontSize: 18 }}>{title}</Text>}
+      </div>
+      
+      <Space size={16}>
+        {/* Quả chuông thông báo */}
+        <NotificationBell />
+        
+        {/* User avatar and info */}
+        <Dropdown overlay={userMenu} trigger={["click"]} placement="bottomRight">
+          <Space style={{ cursor: "pointer" }}>
+            <span style={{ color: 'rgba(0,0,0,0.65)' }}>
+              {userInfo ? `Xin chào, ${userInfo.ten || ''}` : 'Chào mừng'}
+            </span>
+            <Avatar
+              src={userInfo?.anhUrl || "https://www.w3schools.com/howto/img_avatar.png"}
+              alt="avatar"
+              style={{ width: 40, height: 40, cursor: "pointer" }}
+            />
+          </Space>
+        </Dropdown>
+      </Space>
+    </AntHeader>
+  );
 };
+
 export default Header;

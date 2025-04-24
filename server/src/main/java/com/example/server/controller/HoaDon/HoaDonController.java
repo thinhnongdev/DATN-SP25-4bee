@@ -6,6 +6,7 @@ import com.example.server.dto.HoaDon.request.*;
 import com.example.server.dto.HoaDon.response.HoaDonResponse;
 import com.example.server.dto.HoaDon.response.HoaDonStatisticsDTO;
 import com.example.server.entity.HoaDon;
+import com.example.server.entity.PhieuGiamGia;
 import com.example.server.entity.ThanhToanHoaDon;
 import com.example.server.exception.ResourceNotFoundException;
 import com.example.server.exception.ValidationException;
@@ -33,6 +34,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -155,6 +157,7 @@ public class HoaDonController {
         private BigDecimal amountToRefund;
         private String refundMethod;
     }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Hủy hóa đơn và hoàn lại sản phẩm")
     public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id,  @RequestParam(required = false) String lyDo) {
@@ -173,19 +176,77 @@ public class HoaDonController {
             @PathVariable String id,
             @RequestBody Map<String, Object> request) {
 
-        // Lấy giá trị fee từ request
-        int phiVanChuyen = 0;
-        if (request.containsKey("fee")) {
-            phiVanChuyen = ((Number) request.get("fee")).intValue();
+        try {
+            // Lấy giá trị fee từ request
+            int phiVanChuyen = 0;
+            if (request.containsKey("fee")) {
+                phiVanChuyen = ((Number) request.get("fee")).intValue();
+            }
+
+            // Lấy hóa đơn
+            HoaDon hoaDon = hoaDonService.validateAndGet(id);
+
+            // Tính tổng tiền sản phẩm
+            BigDecimal subtotal = calculateSubtotal(hoaDon);
+
+            // Tính giảm giá
+            BigDecimal discount = BigDecimal.ZERO;
+            if (hoaDon.getPhieuGiamGia() != null) {
+                // Tính toán giảm giá tương tự như trong recalculateTotal
+                PhieuGiamGia voucher = hoaDon.getPhieuGiamGia();
+                if (subtotal.compareTo(voucher.getGiaTriToiThieu()) >= 0) {
+                    if (voucher.getLoaiPhieuGiamGia() == 1) {
+                        BigDecimal giaTriGiamDecimal = BigDecimal.valueOf(voucher.getGiaTriGiam().doubleValue());
+                        discount = subtotal.multiply(giaTriGiamDecimal)
+                                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                        if (voucher.getSoTienGiamToiDa() != null &&
+                                discount.compareTo(voucher.getSoTienGiamToiDa()) > 0) {
+                            discount = voucher.getSoTienGiamToiDa();
+                        }
+                    } else {
+                        discount = voucher.getGiaTriGiam();
+                        if (discount.compareTo(subtotal) > 0) {
+                            discount = subtotal;
+                        }
+                    }
+                }
+            }
+
+            // Tính tổng sau giảm giá
+            BigDecimal subtotalAfterDiscount = subtotal.subtract(discount);
+
+            // Kiểm tra điều kiện miễn phí vận chuyển
+            if (subtotalAfterDiscount.compareTo(new BigDecimal("2000000")) >= 0 && hoaDon.getLoaiHoaDon() == 3) {
+                phiVanChuyen = 0; // Miễn phí nếu đơn giao hàng và tổng sau giảm giá >= 2 triệu
+                log.info("Free shipping applied for order: {}", id);
+            }
+
+            // Cập nhật phí vào hóa đơn
+            HoaDon updatedHoaDon = hoaDonService.capNhatPhiVanChuyen(id, BigDecimal.valueOf(phiVanChuyen));
+
+            // Tính lại tổng tiền
+            banHangServiceImpl.recalculateTotal(updatedHoaDon);
+            hoaDonRepository.save(updatedHoaDon);
+
+            // Trả về response
+            HoaDonResponse response = hoaDonMapper.entityToResponse(updatedHoaDon);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Error updating shipping fee: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
-
-        // Cập nhật phí vào hóa đơn
-        HoaDon hoaDon = hoaDonService.capNhatPhiVanChuyen(id, BigDecimal.valueOf(phiVanChuyen));
-
-        // Trả về response
-        HoaDonResponse response = hoaDonMapper.entityToResponse(hoaDon);
-
-        return ResponseEntity.ok(response);
+    }
+    private BigDecimal calculateSubtotal(HoaDon hoaDon) {
+        return hoaDon.getHoaDonChiTiets().stream()
+                .filter(ct -> ct.getTrangThai() == 1) // Chỉ tính các sản phẩm active
+                .map(ct -> {
+                    // Sử dụng giá tại thời điểm thêm nếu có
+                    BigDecimal gia = ct.getGiaTaiThoiDiemThem() != null ?
+                            ct.getGiaTaiThoiDiemThem() : ct.getSanPhamChiTiet().getGia();
+                    return gia.multiply(BigDecimal.valueOf(ct.getSoLuong()));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
     @GetMapping("/dia-chi/tinh")
     public ResponseEntity<List<Map<String, Object>>> layDanhSachTinhThanh() {

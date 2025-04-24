@@ -1,11 +1,28 @@
-import React from 'react';
-import { Card, Typography, Rate } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Card, Typography } from 'antd';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 
 const { Meta } = Card;
 const { Text } = Typography;
 
 const ProductCard = ({ id, ten, ma, anhUrl, gia }) => {
+  const [luotBan, setLuotBan] = useState(0);
+
+  useEffect(() => {
+    const fetchLuotBan = async () => {
+      try {
+        const response = await axios.get(`http://localhost:8080/api/client/sanpham/${id}/luot-ban`);
+        setLuotBan(response.data);
+      } catch (err) {
+        console.error('Lỗi khi lấy lượt bán:', err);
+        setLuotBan(0);
+      }
+    };
+
+    fetchLuotBan();
+  }, [id]);
+
   return (
     <Link to={`/product/${id}`}>
       <Card
@@ -33,7 +50,7 @@ const ProductCard = ({ id, ten, ma, anhUrl, gia }) => {
                 {gia.toLocaleString('vi-VN')}₫
               </Text>
               <div style={{ marginTop: '8px' }}>
-                <Text>Đã bán 200</Text>
+                <Text>Đã bán {luotBan}</Text>
               </div>
             </>
           }

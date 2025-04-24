@@ -15,6 +15,14 @@ import java.util.Optional;
 
 @Repository
 public interface HoaDonChiTietRepository extends JpaRepository<HoaDonChiTiet, String> {
+
+    @Query("SELECT COALESCE(SUM(hdct.soLuong), 0) " +
+            "FROM HoaDonChiTiet hdct " +
+            "JOIN hdct.hoaDon hd " +
+            "WHERE hdct.sanPhamChiTiet.sanPham.id = :idSanPham " +
+            "AND( hd.trangThai =5  or hd.trangThai=7)")
+    int tinhSoLuongDaBan(@Param("idSanPham") String idSanPham);
+
     List<HoaDonChiTiet> findByHoaDon(HoaDon hoaDon);
 
 //    List<HoaDonChiTiet> findByHoaDonId(String hoaDonId);

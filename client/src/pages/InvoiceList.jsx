@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Layout,
   Card,
@@ -15,9 +15,12 @@ import {
   Spin,
   Tabs,
   Badge,
+  message,
+  Breadcrumb,
   Tooltip,
   Space,
   Pagination,
+  Tag,
 } from "antd";
 import {
   PlusOutlined,
@@ -26,12 +29,13 @@ import {
   EditOutlined,
   PrinterOutlined,
   DeleteOutlined,
+  InfoCircleOutlined,
   ShoppingCartOutlined,
   CalendarOutlined,
   CloseOutlined,
   ScanOutlined,
+  SearchOutlined,
 } from "@ant-design/icons";
-import { toast } from "react-toastify";
 import { StatusChip, TypeChip } from "../components/StatusChip";
 import { formatCurrency, formatDate } from "../utils/format";
 import dayjs from "dayjs";
@@ -47,112 +51,276 @@ const { TabPane } = Tabs;
 
 function InvoiceList() {
   const navigate = useNavigate();
-  const [invoices, setInvoices] = useState([]);
+  const [allInvoices, setAllInvoices] = useState([]); // Store all fetched invoices
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1); // Start from 1 for better UX
   const [rowsPerPage, setRowsPerPage] = useState(50);
-  const [totalElements, setTotalElements] = useState(0);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [printingInvoices, setPrintingInvoices] = useState(new Set());
   const [tabValue, setTabValue] = useState("");
-  const [statusCounts, setStatusCounts] = useState({
-    all: 0,
-    1: 0,
-    2: 0,
-    3: 0,
-    4: 0,
-    5: 0,
-    6: 0,
-  });
+  const [isFiltering, setIsFiltering] = useState(false);
 
   const [filters, setFilters] = useState({
-    maHoaDon: "",
+    keyword: "",
     trangThai: "",
     orderType: "",
     fromDate: dayjs().startOf("day"),
     toDate: dayjs().endOf("day"),
     minPrice: "",
     maxPrice: "",
-    orderType: "", // Add this line
   });
-
+  const normalizeText = (text) => {
+    if (!text) return "";
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D");
+  };
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const token = localStorage.getItem("token");
 
-  const handleCloseQrModal = () => {
-    setIsQrModalOpen(false);
-  };
-  const fetchInvoices = async () => {
+  // Fetch all invoices once on initial load
+  const fetchAllInvoices = async () => {
     try {
       setLoading(true);
+      // Fetch with a large page size to get all data at once
       const response = await api.get("/api/admin/hoa-don/search", {
         params: {
-          page,
-          size: rowsPerPage,
-          keyword: filters.keyword || null,
-          trangThai: filters.trangThai || null,
+          page: 0,
+          size: 1000, // Large page size to get as much data as possible
         },
         headers: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
+
       if (response.status === 200) {
-        setInvoices(response.data.content);
-        setTotalElements(response.data.totalElements);
+        setAllInvoices(response.data.content);
       } else {
-        toast.error("Không thể tải danh sách hóa đơn");
+        message.error("Không thể tải danh sách hóa đơn");
       }
     } catch (error) {
-      toast.error("Lỗi khi tải danh sách hóa đơn");
+      message.error("Lỗi khi tải danh sách hóa đơn");
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStatusCounts = (filteredInvoices) => {
-    const counts = filteredInvoices.reduce(
+  useEffect(() => {
+    fetchAllInvoices();
+  }, []);
+
+  // Filter invoices based on all filter criteria
+  const filteredInvoices = useMemo(() => {
+    setIsFiltering(true);
+
+    const result = allInvoices.filter((invoice) => {
+      // Keyword search (exact match or contains)
+      if (filters.keyword && filters.keyword.trim() !== "") {
+        const keyword = normalizeText(filters.keyword.trim());
+        const maHoaDon = normalizeText(invoice.maHoaDon || "");
+        const tenNguoiNhan = normalizeText(invoice.tenNguoiNhan || "");
+        const soDienThoai = normalizeText(invoice.soDienThoai || "");
+
+        // Search with normalized text (no accents)
+        if (
+          !maHoaDon.includes(keyword) &&
+          !tenNguoiNhan.includes(keyword) &&
+          !soDienThoai.includes(keyword)
+        ) {
+          return false;
+        }
+      }
+      // Status filter
+      if (
+        filters.trangThai &&
+        invoice.trangThai.toString() !== filters.trangThai
+      ) {
+        return false;
+      }
+      // Order type filter
+      if (
+        filters.orderType &&
+        invoice.loaiHoaDon?.toString() !== filters.orderType
+      ) {
+        return false;
+      }
+
+      // Date range filter
+      if (filters.fromDate && filters.toDate) {
+        const invoiceDate = dayjs(invoice.ngayTao);
+        if (
+          !invoiceDate.isValid() ||
+          invoiceDate.isBefore(filters.fromDate, "day") ||
+          invoiceDate.isAfter(filters.toDate, "day")
+        ) {
+          return false;
+        }
+      }
+
+      // Price range filter
+      if (
+        filters.minPrice &&
+        Number(invoice.tongTien) < Number(filters.minPrice)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.maxPrice &&
+        Number(invoice.tongTien) > Number(filters.maxPrice)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+    const sortedResult = [...result].sort((a, b) => {
+      const dateA = new Date(a.ngayTao);
+      const dateB = new Date(b.ngayTao);
+      return dateA - dateB; // Sắp xếp tăng dần theo ngày tạo (cũ nhất lên đầu)
+    });
+  
+    setTimeout(() => setIsFiltering(false), 300);
+    return sortedResult;
+  }, [allInvoices, filters]);
+
+  // Get current page of data
+  const currentInvoices = useMemo(() => {
+    const indexOfLastInvoice = page * rowsPerPage;
+    const indexOfFirstInvoice = indexOfLastInvoice - rowsPerPage;
+    return filteredInvoices.slice(indexOfFirstInvoice, indexOfLastInvoice);
+  }, [filteredInvoices, page, rowsPerPage]);
+
+  // Calculate status counts
+  const statusCounts = useMemo(() => {
+    const invoicesForCounting = allInvoices.filter((invoice) => {
+      if (filters.keyword && filters.keyword.trim() !== "") {
+        const keyword = normalizeText(filters.keyword.trim());
+        const maHoaDon = normalizeText(invoice.maHoaDon || "");
+        const tenNguoiNhan = normalizeText(invoice.tenNguoiNhan || "");
+        const soDienThoai = normalizeText(invoice.soDienThoai || "");
+
+        if (
+          !maHoaDon.includes(keyword) &&
+          !tenNguoiNhan.includes(keyword) &&
+          !soDienThoai.includes(keyword)
+        ) {
+          return false;
+        }
+      }
+
+      // Order type filter
+      if (
+        filters.orderType &&
+        invoice.loaiHoaDon?.toString() !== filters.orderType
+      ) {
+        return false;
+      }
+
+      // Date range filter
+      if (filters.fromDate && filters.toDate) {
+        const invoiceDate = dayjs(invoice.ngayTao);
+        if (
+          !invoiceDate.isValid() ||
+          invoiceDate.isBefore(filters.fromDate, "day") ||
+          invoiceDate.isAfter(filters.toDate, "day")
+        ) {
+          return false;
+        }
+      }
+
+      // Price range filter
+      if (
+        filters.minPrice &&
+        Number(invoice.tongTien) < Number(filters.minPrice)
+      ) {
+        return false;
+      }
+
+      if (
+        filters.maxPrice &&
+        Number(invoice.tongTien) > Number(filters.maxPrice)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Đếm số lượng hóa đơn theo từng trạng thái
+    const counts = invoicesForCounting.reduce(
       (acc, invoice) => {
         acc[invoice.trangThai] = (acc[invoice.trangThai] || 0) + 1;
-        acc.all = (acc.all || 0) + 1;
+        acc.all += 1;
         return acc;
       },
-      { all: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      { all: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }
     );
-    setStatusCounts(counts);
+
+    return counts;
+  }, [
+    allInvoices,
+    filters.keyword,
+    filters.orderType,
+    filters.fromDate,
+    filters.toDate,
+    filters.minPrice,
+    filters.maxPrice,
+  ]);
+
+  // Handle page change
+  const handleChangePage = (newPage) => {
+    setPage(newPage);
   };
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [page, rowsPerPage, filters]);
+  // Handle rows per page change
+  const handleChangeRowsPerPage = (current, size) => {
+    setRowsPerPage(size);
+    setPage(1);
+  };
 
-  useEffect(() => {
-    const filteredResults = filterInvoices(invoices, filters);
-    calculateStatusCounts(filteredResults);
-  }, [invoices, filters]);
-
+  // Handle filter changes
   const handleFilterChange = (field) => (value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
-    setPage(0);
+    setPage(1); // Reset to first page on filter change
   };
 
+  // Handle date range change
   const handleDateChange = (dates) => {
     setFilters((prev) => ({
       ...prev,
       fromDate: dates ? dates[0] : null,
       toDate: dates ? dates[1] : null,
     }));
-    setPage(0);
+    setPage(1);
   };
 
+  // Reset filters
+  const handleResetFilters = () => {
+    setFilters({
+      keyword: "",
+      trangThai: "",
+      orderType: "",
+      fromDate: null,
+      toDate: null,
+      minPrice: "",
+      maxPrice: "",
+    });
+    setPage(1);
+  };
+
+  // Quick date filters
   const quickDateFilters = [
     { label: "Hôm nay", value: "today" },
     { label: "Tuần này", value: "thisWeek" },
     { label: "Tháng này", value: "thisMonth" },
   ];
 
+  // Check if quick date filter is active
   const isQuickFilterActive = (filterValue) => {
     if (!filters.fromDate || !filters.toDate) return false;
     const now = dayjs();
@@ -178,19 +346,7 @@ function InvoiceList() {
     }
   };
 
-  const handleResetFilters = () => {
-    setFilters({
-      maHoaDon: "",
-      trangThai: "",
-      orderType: "",
-      fromDate: null,
-      toDate: null,
-      minPrice: "",
-      maxPrice: "",
-    });
-    setPage(0);
-  };
-
+  // Apply quick date filter
   const applyQuickDateFilter = (filterValue) => {
     const now = dayjs();
     let fromDate = null;
@@ -214,61 +370,31 @@ function InvoiceList() {
     }
 
     setFilters((prev) => ({ ...prev, fromDate, toDate }));
-    setPage(0);
+    setPage(1);
   };
 
-  const handleChangePage = (newPage) => {
-    setPage(newPage - 1);
+  // Handle tab change
+  const handleTabChange = (key) => {
+    setTabValue(key);
+    setFilters((prev) => ({ ...prev, trangThai: key }));
+    setPage(1);
   };
 
-  const handleChangeRowsPerPage = (current, size) => {
-    setRowsPerPage(size);
-    setPage(0);
-  };
-
-  const handleDelete = async () => {
-    try {
-      const response = await api.delete(
-        `/api/admin/hoa-don/${selectedInvoice.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-      if (response.status === 200 || response.status === 204) {
-        toast.success("Xóa hóa đơn thành công");
-        setDeleteDialogOpen(false);
-        if (invoices.length === 1 && page > 0) {
-          setPage(page - 1);
-        }
-        fetchInvoices();
-      } else {
-        const errorMessage = response.data?.message || "Không thể xóa hóa đơn";
-        toast.error(errorMessage);
-      }
-    } catch (error) {
-      toast.error("Lỗi khi xóa hóa đơn");
-    }
-  };
-
+  // Handle printing invoice
   const handlePrintInvoice = async (id) => {
     try {
       setPrintingInvoices((prev) => new Set([...prev, id]));
-      const response = await api.get(
-        `/api/admin/hoa-don/${id}/print`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/pdf, application/json"
-          },
-          responseType: "blob"
-        }
-      );
+      const response = await api.get(`/api/admin/hoa-don/${id}/print`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/pdf, application/json",
+        },
+        responseType: "blob",
+      });
 
       const contentType = response.headers["content-type"];
       if (!contentType.includes("application/pdf")) {
-        toast.error("Định dạng không hợp lệ từ máy chủ");
+        message.error("Định dạng không hợp lệ từ máy chủ");
         return;
       }
 
@@ -284,7 +410,7 @@ function InvoiceList() {
         try {
           iframe.contentWindow.print();
         } catch (error) {
-          toast.error("Lỗi khi in hóa đơn");
+          message.error("Lỗi khi in hóa đơn");
         }
         setTimeout(() => {
           document.body.removeChild(iframe);
@@ -292,7 +418,7 @@ function InvoiceList() {
         }, 1000);
       };
     } catch (error) {
-      toast.error("Lỗi khi tải hóa đơn");
+      message.error("Lỗi khi tải hóa đơn");
     } finally {
       setPrintingInvoices((prev) => {
         const next = new Set(prev);
@@ -302,106 +428,130 @@ function InvoiceList() {
     }
   };
 
+  // Handle direct print
   const handleDirectPrint = () => {
     const iframe = document.getElementById("pdf-preview");
     iframe.contentWindow.print();
   };
 
-  const handleTabChange = (key) => {
-    setTabValue(key);
-    setFilters((prev) => ({ ...prev, trangThai: key }));
-    setPage(0);
-    // Status counts will be updated by the useEffect that depends on filters
+  // Handle QR scanner
+  const handleCloseQrModal = () => {
+    setIsQrModalOpen(false);
   };
 
-  const filterInvoices = (invoices, filters) => {
-    return invoices.filter((invoice) => {
-      // Check if keyword filter matches any of the text fields
-      if (filters.keyword && filters.keyword.trim() !== "") {
-        const keyword = filters.keyword.toLowerCase();
-        const maHoaDon = invoice.maHoaDon ? invoice.maHoaDon.toLowerCase() : "";
-        const tenNguoiNhan = invoice.tenNguoiNhan
-          ? invoice.tenNguoiNhan.toLowerCase()
-          : "";
-        const soDienThoai = invoice.soDienThoai
-          ? invoice.soDienThoai.toLowerCase()
-          : "";
+  // Table columns
+  const columns = [
+    {
+      title: "STT",
+      dataIndex: "stt",
+      key: "stt",
+      align: "center",
+      render: (text, record, index) => index + 1 + (page - 1) * rowsPerPage,
+      width: 70,
+    },
+    {
+      title: "Mã hóa đơn",
+      dataIndex: "maHoaDon",
+      key: "maHoaDon",
+      align: "center",
+      width: 150,
+    },
+    {
+      title: "Người nhận",
+      dataIndex: "tenNguoiNhan",
+      key: "tenNguoiNhan",
+      align: "center",
+      width: 180,
+    },
+    {
+      title: "Số điện thoại",
+      dataIndex: "soDienThoai",
+      key: "soDienThoai",
+      align: "center",
+      width: 130,
+    },
+    {
+      title: "Tên nhân viên",
+      dataIndex: "tenNhanVien",
+      key: "tenNhanVien",
+      align: "center",
+      width: 180,
+      render: (text) => text || "---",
+    },
+    {
+      title: "Loại",
+      dataIndex: "loaiHoaDon",
+      key: "loaiHoaDon",
+      align: "center",
+      width: 100,
+      render: (text, record) => <TypeChip type={record.loaiHoaDon} />,
+    },
+    {
+      title: "Ngày tạo",
+      dataIndex: "ngayTao",
+      key: "ngayTao",
+      align: "center",
+      width: 140,
+      render: (text) => formatDate(text),
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "trangThai",
+      key: "trangThai",
+      align: "center",
+      width: 140,
+      render: (text) => <StatusChip status={text} />,
+    },
+    {
+      title: "Tổng tiền",
+      key: "tongTien",
+      align: "center",
+      width: 150,
+      render: (text, record) => (
+        <div>
+          <div>{formatCurrency(record.tongTien)}</div>
+          {record.tongThanhToan > 0 && (
+            <div
+              style={{
+                fontSize: "12px",
+                color:
+                  record.tongThanhToan >= record.tongTien
+                    ? "#52c41a"
+                    : "#faad14",
+              }}
+            >
+              Đã thanh toán: {formatCurrency(record.tongThanhToan)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Thao tác",
+      key: "action",
+      align: "center",
+      width: 120,
+      render: (text, record) => (
+        <Space size="middle">
+          <Tooltip title="Chi tiết">
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/admin/hoa-don/detail/${record.id}`)}
+            />
+          </Tooltip>
+          <Tooltip title="In hóa đơn">
+            <Button
+              icon={<PrinterOutlined />}
+              onClick={() => handlePrintInvoice(record.id)}
+              loading={printingInvoices.has(record.id)}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
 
-        if (
-          !maHoaDon.includes(keyword) &&
-          !tenNguoiNhan.includes(keyword) &&
-          !soDienThoai.includes(keyword)
-        ) {
-          return false;
-        }
-      }
-
-      // Filter by trang thai if specified
-      if (
-        filters.trangThai &&
-        invoice.trangThai.toString() !== filters.trangThai
-      ) {
-        return false;
-      }
-
-      // Filter by order type if specified
-      if (
-        filters.orderType &&
-        invoice.loaiHoaDon?.toString() !== filters.orderType
-      ) {
-        return false;
-      }
-
-      // Filter by date range
-      if (filters.fromDate && filters.toDate) {
-        const invoiceDate = dayjs(invoice.ngayTao);
-        if (
-          !invoiceDate.isValid() ||
-          invoiceDate.isBefore(filters.fromDate) ||
-          invoiceDate.isAfter(filters.toDate)
-        ) {
-          return false;
-        }
-      }
-
-      // Filter by price range
-      if (
-        filters.minPrice &&
-        Number(invoice.tongTien) < Number(filters.minPrice)
-      ) {
-        return false;
-      }
-      if (
-        filters.maxPrice &&
-        Number(invoice.tongTien) > Number(filters.maxPrice)
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  };
-
-  const sortInvoices = (invoices, filters) => {
-    return invoices.sort((a, b) => {
-      const keyword = filters.keyword?.toLowerCase() || "";
-      const aMatches =
-        a.maHoaDon.toLowerCase().includes(keyword) ||
-        a.tenNguoiNhan.toLowerCase().includes(keyword) ||
-        a.soDienThoai.includes(keyword);
-      const bMatches =
-        b.maHoaDon.toLowerCase().includes(keyword) ||
-        b.tenNguoiNhan.toLowerCase().includes(keyword) ||
-        b.soDienThoai.includes(keyword);
-      if (aMatches && !bMatches) return -1;
-      if (!aMatches && bMatches) return 1;
-      return new Date(a.ngayTao) - new Date(b.ngayTao);
-    });
-  };
-
-  const filteredInvoices = filterInvoices(invoices, filters);
-  const sortedInvoices = sortInvoices(filteredInvoices, filters);
-
+  // Modal for PDF preview
   const PreviewModal = () => (
     <Modal
       visible={previewOpen}
@@ -428,104 +578,18 @@ function InvoiceList() {
     </Modal>
   );
 
-  const columns = [
-    {
-      title: "STT",
-      dataIndex: "stt",
-      key: "stt",
-      align: "center",
-      render: (text, record, index) => index + 1 + page * rowsPerPage,
-    },
-    {
-      title: "Mã hóa đơn",
-      dataIndex: "maHoaDon",
-      key: "maHoaDon",
-      align: "center",
-    },
-    {
-      title: "Người nhận",
-      dataIndex: "tenNguoiNhan",
-      key: "tenNguoiNhan",
-      align: "center",
-    },
-    {
-      title: "Số điện thoại",
-      dataIndex: "soDienThoai",
-      key: "soDienThoai",
-      align: "center",
-    },
-    {
-      title: "Tên nhân viên",
-      dataIndex: "tenNhanVien",
-      key: "tenNhanVien",
-      align: "center",
-      render: (text) => text || "---",
-    },    
-    {
-      title: "Loại",
-      dataIndex: "loaiHoaDon",
-      key: "loaiHoaDon",
-      align: "center",
-      render: (text, record) => <TypeChip type={record.loaiHoaDon} />,
-    },
-    {
-      title: "Ngày tạo",
-      dataIndex: "ngayTao",
-      key: "ngayTao",
-      align: "center",
-      render: (text) => formatDate(text),
-    },
-    {
-      title: "Trạng thái",
-      dataIndex: "trangThai",
-      key: "trangThai",
-      align: "center",
-      render: (text) => <StatusChip status={text} />,
-    },
-      {
-          title: "Tổng tiền",
-          key: "tongTien",
-          align: "center",
-          render: (text, record) => (
-            <div>
-              <div>{formatCurrency(record.tongTien)}</div>
-              {record.tongThanhToan > 0 && (
-                <div style={{ fontSize: '12px', color: record.tongThanhToan >= record.tongTien ? '#52c41a' : '#faad14' }}>
-                  Đã thanh toán: {formatCurrency(record.tongThanhToan)}
-                </div>
-              )}
-            </div>
-          ),
-        },
-    
-    {
-      title: "Thao tác",
-      key: "action",
-      align: "center",
-      render: (text, record) => (
-        <Space size="middle">
-          <Tooltip title="Chi tiết">
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => navigate(`/admin/hoa-don/detail/${record.id}`)}
-            />
-          </Tooltip>
-          <Tooltip title="In hóa đơn">
-            <Button
-              icon={<PrinterOutlined />}
-              onClick={() => handlePrintInvoice(record.id)}
-              loading={printingInvoices.has(record.id)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
-
   return (
     <Layout className="flex-1 overflow-auto relative z-10">
-      <Header title="Quản lý hóa đơn" />
-      <Content style={{ padding: "24px" }}>
+      <div style={{ padding: "16px 0 0 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Breadcrumb
+          items={[
+            { title: "Quản lý hóa đơn" }
+          ]}
+          style={{ fontSize: "26px", fontWeight: "bold" }}
+        />
+      </div>
+      <Content style={{ padding: "20px" }}>
+        {/* Filter Card */}
         <Card
           title={
             <Title level={4}>
@@ -533,13 +597,28 @@ function InvoiceList() {
             </Title>
           }
           bordered={false}
+          extra={
+            <Button
+              icon={<SyncOutlined />}
+              onClick={fetchAllInvoices}
+              loading={loading}
+            >
+              Làm mới dữ liệu
+            </Button>
+          }
         >
           <Row gutter={[16, 16]}>
             <Col span={12}>
               <Input
+                prefix={<SearchOutlined />}
                 placeholder="Nhập mã hóa đơn, tên người nhận, số điện thoại..."
                 value={filters.keyword || ""}
                 onChange={(e) => handleFilterChange("keyword")(e.target.value)}
+                suffix={
+                  <Tooltip title="Hỗ trợ tìm kiếm không dấu">
+                    <InfoCircleOutlined />
+                  </Tooltip>
+                }
               />
             </Col>
             <Col span={12}>
@@ -579,7 +658,7 @@ function InvoiceList() {
                     filters.maxPrice &&
                     Number(filters.minPrice) > Number(filters.maxPrice)
                   ) {
-                    toast.warning(
+                    message.warning(
                       "Giá trị tối thiểu không được lớn hơn giá trị tối đa!"
                     );
                     // Đặt lại giá trị tối thiểu bằng giá trị tối đa
@@ -617,7 +696,7 @@ function InvoiceList() {
                     filters.maxPrice &&
                     Number(filters.maxPrice) < Number(filters.minPrice)
                   ) {
-                    toast.warning(
+                    message.warning(
                       "Giá trị tối đa không được nhỏ hơn giá trị tối thiểu!"
                     );
                     // Đặt lại giá trị tối đa bằng giá trị tối thiểu
@@ -668,6 +747,8 @@ function InvoiceList() {
             </Space>
           </Row>
         </Card>
+
+        {/* Invoice List Card */}
         <Card
           title={
             <Title level={4}>
@@ -696,13 +777,22 @@ function InvoiceList() {
           }
           style={{ marginTop: "24px" }}
         >
+          {/* Tabs with status counts */}
           <Tabs activeKey={tabValue} onChange={handleTabChange}>
-            <TabPane tab={<span>Tất cả</span>} key="" />
+            <TabPane
+              tab={
+                <span>
+                  Tất cả{" "}
+                  <sup style={{ color: "blue" }}>{statusCounts.all || 0}</sup>
+                </span>
+              }
+              key=""
+            />
             <TabPane
               tab={
                 <span>
                   Chờ xác nhận{" "}
-                  <sup style={{ color: "red" }}>{statusCounts[1]}</sup>
+                  <sup style={{ color: "red" }}>{statusCounts[1] || 0}</sup>
                 </span>
               }
               key="1"
@@ -711,7 +801,7 @@ function InvoiceList() {
               tab={
                 <span>
                   Đã xác nhận{" "}
-                  <sup style={{ color: "red" }}>{statusCounts[2]}</sup>
+                  <sup style={{ color: "red" }}>{statusCounts[2] || 0}</sup>
                 </span>
               }
               key="2"
@@ -720,7 +810,7 @@ function InvoiceList() {
               tab={
                 <span>
                   Chờ giao hàng{" "}
-                  <sup style={{ color: "red" }}>{statusCounts[3]}</sup>
+                  <sup style={{ color: "red" }}>{statusCounts[3] || 0}</sup>
                 </span>
               }
               key="3"
@@ -729,7 +819,7 @@ function InvoiceList() {
               tab={
                 <span>
                   Đang giao{" "}
-                  <sup style={{ color: "red" }}>{statusCounts[4]}</sup>
+                  <sup style={{ color: "red" }}>{statusCounts[4] || 0}</sup>
                 </span>
               }
               key="4"
@@ -738,7 +828,7 @@ function InvoiceList() {
               tab={
                 <span>
                   Hoàn thành{" "}
-                  <sup style={{ color: "red" }}>{statusCounts[5]}</sup>
+                  <sup style={{ color: "red" }}>{statusCounts[5] || 0}</sup>
                 </span>
               }
               key="5"
@@ -746,47 +836,74 @@ function InvoiceList() {
             <TabPane
               tab={
                 <span>
-                  Đã hủy <sup style={{ color: "red" }}>{statusCounts[6]}</sup>
+                  Đã hủy{" "}
+                  <sup style={{ color: "red" }}>{statusCounts[6] || 0}</sup>
                 </span>
               }
               key="6"
             />
           </Tabs>
-          <Table
-            columns={columns}
-            dataSource={sortedInvoices}
-            rowKey="id"
-            loading={loading}
-            pagination={false}
-            style={{ marginTop: "16px" }}
-          />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginTop: "16px",
-            }}
-          >
-            <Pagination
-              total={totalElements}
-              current={page + 1}
-              pageSize={rowsPerPage}
-              onChange={handleChangePage}
-              onShowSizeChange={handleChangeRowsPerPage}
-              showSizeChanger
-            />
-          </div>
+
+          {/* Status message when filtering */}
+          {isFiltering ? (
+            <div style={{ textAlign: "center", padding: "20px" }}>
+              <Spin tip="Đang lọc dữ liệu..." />
+            </div>
+          ) : (
+            <>
+              {/* Result count information */}
+              <div style={{ margin: "10px 0" }}>
+                <Text>
+                  {filteredInvoices.length > 0
+                    ? `Tìm thấy ${filteredInvoices.length} hóa đơn phù hợp với điều kiện`
+                    : "Không tìm thấy hóa đơn nào phù hợp với điều kiện"}
+                </Text>
+              </div>
+
+              {/* Invoice table */}
+              <Table
+                columns={columns}
+                dataSource={currentInvoices}
+                rowKey="id"
+                loading={loading}
+                pagination={false}
+                style={{ marginTop: "10px" }}
+                scroll={{ x: "max-content" }}
+              />
+
+              {/* Custom pagination */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginTop: "16px",
+                }}
+              >
+                <Pagination
+                  total={filteredInvoices.length}
+                  current={page}
+                  pageSize={rowsPerPage}
+                  onChange={handleChangePage}
+                  onShowSizeChange={handleChangeRowsPerPage}
+                  showSizeChanger
+                  showTotal={(total) => `Tổng ${total} hóa đơn`}
+                />
+              </div>
+            </>
+          )}
         </Card>
+
+        {/* Modals */}
         <PreviewModal />
         <Modal
           title="Quét mã QR Hóa Đơn"
           open={isQrModalOpen}
           onCancel={handleCloseQrModal}
           footer={null}
-          destroyOnClose={true} // Hủy Modal khi đóng để tránh lặp
+          destroyOnClose={true}
         >
           <QrScanner
-            isActive={isQrModalOpen} // Chỉ quét khi modal mở
+            isActive={isQrModalOpen}
             onScanSuccess={(decodedText) => {
               setIsQrModalOpen(false);
               navigate(`/admin/hoa-don/detail/${decodedText}`);

@@ -188,7 +188,16 @@ const BanHang = () => {
     CASH_EXCESS: "Khách trả tiền mặt thừa, sẽ tính tiền thừa và tắt phương thức khác",
     AUTO_CALCULATE: "Khi có nhiều phương thức, số tiền sẽ được phân bổ tự động",
   };
-
+  const showErrorMessage = (error) => {
+    if (error.response && error.response.data) {
+      // Nếu có thông báo cụ thể từ server
+      const errorMessage = error.response.data.message || "Đã có lỗi xảy ra";
+      message.error(errorMessage);
+    } else {
+      // Nếu không có thông tin chi tiết, hiển thị thông báo chung
+      message.error("Đã có lỗi xảy ra: " + error.message);
+    }
+  };
   // Hàm hiển thị thông báo trợ giúp về thanh toán
   const showPaymentHelp = () => {
     Modal.info({
@@ -239,20 +248,30 @@ const BanHang = () => {
         return;
       }
 
-      // Kiểm tra thay đổi giá sản phẩm trước khi thanh toán
-      if (!priceChangesConfirmed[hoaDonId]) {
-        const hasPriceChanges = await checkPriceChanges(false);
-        if (hasPriceChanges) {
-          message.warning({
-            content:
-              "Có sản phẩm thay đổi giá, vui lòng xác nhận thay đổi giá trước khi thanh toán VNPAY!",
-            key: "vnpayProcessing",
-          });
-          setOpenPriceChangeDialog(true);
-          setProcessingVnpay(false);
-          return;
-        }
+      // Kiểm tra thay đổi giá kỹ hơn
+    if (!priceChangesConfirmed[hoaDonId]) {
+      const hasPriceChanges = await checkPriceChanges(false);
+      if (hasPriceChanges) {
+        message.warning({
+          content:
+            "Có sản phẩm thay đổi giá, vui lòng xác nhận thay đổi giá trước khi thanh toán VNPAY!",
+          key: "vnpayProcessing",
+        });
+        setOpenPriceChangeDialog(true);
+        setProcessingVnpay(false);
+        return;
       }
+    }
+
+    // Xác nhận priceChangesConfirmed cho tab hiện tại
+    setPriceChangesConfirmed((prev) => ({
+      ...prev,
+      [hoaDonId]: true,
+    }));
+    
+    // Đặt lại các cảnh báo về thay đổi giá
+    setPriceNeedsConfirmation(false);
+    setOpenPriceChangeDialog(false);
 
       // Lấy tổng tiền chính xác bao gồm phí vận chuyển từ totals
       const orderTotal = Math.round(totals[hoaDonId]?.finalTotal || 0); // Làm tròn số tiền
@@ -512,11 +531,11 @@ const BanHang = () => {
       try {
         // Lấy thông tin hoaDonId từ localStorage
         const hoaDonId = localStorage.getItem("vnpayHoaDonId");
-
+    
         // Lấy tham số từ URL
         const urlParams = new URLSearchParams(window.location.search);
         const vnpResponseCode = urlParams.get("vnp_ResponseCode");
-
+    
         if (hoaDonId && urlParams.toString().includes("vnp_")) {
           // Thu thập tất cả tham số vnp_
           const vnpParams = {};
@@ -525,57 +544,36 @@ const BanHang = () => {
               vnpParams[key] = value;
             }
           });
-
+    
           if (vnpResponseCode === "00") {
             // Thanh toán thành công
             message.loading({
               content: "Đang xác nhận thanh toán VNPAY...",
               key: "vnpayConfirm",
             });
-
-            // Trước khi gửi xác nhận, cập nhật lại số tiền thanh toán VNPAY nếu cần
-            // const currentOrder = tabs.find(
-            //   (tab) => tab.key === hoaDonId
-            // )?.order;
-            // const orderTotal = totals[hoaDonId]?.finalTotal || 0;
-
-            // if (currentOrder?.thanhToans) {
-            //   // Cập nhật số tiền VNPAY trong state để đảm bảo khớp với tổng đơn hàng
-            //   setTabs((prev) =>
-            //     prev.map((tab) =>
-            //       tab.key === hoaDonId
-            //         ? {
-            //             ...tab,
-            //             order: {
-            //               ...tab.order,
-            //               thanhToans: tab.order.thanhToans.map((p) =>
-            //                 p.maPhuongThucThanhToan === PAYMENT_METHOD.VNPAY
-            //                   ? { ...p, soTien: orderTotal }
-            //                   : p
-            //               ),
-            //             },
-            //           }
-            //         : tab
-            //     )
-            //   );
-            // }
-
+    
             // Gửi tất cả tham số từ VNPAY để backend xử lý
             const response = await api.post(
               `/api/admin/hoa-don/${hoaDonId}/confirm-vnpay-payment`,
               vnpParams,
               { headers: { Authorization: `Bearer ${token}` } }
             );
-
+    
             if (response.data) {
               message.success({
                 content: "Thanh toán VNPay đã được xác nhận thành công!",
                 key: "vnpayConfirm",
               });
-
+    
+              // Reset các state liên quan đến thay đổi giá trước khi hoàn tất
+              setPriceNeedsConfirmation(false);
+              setChangedProducts([]);
+              setPriceChangeAmount(0);
+              setOpenPriceChangeDialog(false);
+    
               // In hóa đơn ngay sau khi xác nhận thành công
               await completeOrderProcess(hoaDonId);
-
+    
               // Xóa tham số VNPay khỏi URL
               window.history.replaceState(
                 {},
@@ -591,7 +589,7 @@ const BanHang = () => {
               key: "vnpayConfirm",
             });
           }
-
+    
           // Xóa dữ liệu trong localStorage và URL param để tránh xác nhận lại
           localStorage.removeItem("vnpayHoaDonId");
           window.history.replaceState(
@@ -679,6 +677,7 @@ const BanHang = () => {
       };
     }
   }, [hoaDonId]);
+
   const checkPriceChanges = async (showLoading = true) => {
     try {
       if (showLoading) {
@@ -879,9 +878,8 @@ const BanHang = () => {
   const calculateOrderTotals = (hoaDonId, productsOverride, orderOverride) => {
     // Sử dụng dữ liệu override nếu được cung cấp, nếu không thì lấy từ state
     const products = productsOverride || orderProducts[hoaDonId] || [];
-    const order =
-      orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
-
+    const order = orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
+  
     if (!order) {
       console.warn("No order found for totals calculation");
       return {
@@ -894,13 +892,13 @@ const BanHang = () => {
         voucherValue: null,
       };
     }
-
+  
     // Tính tổng tiền hàng
     const subtotal = calculateTotalBeforeDiscount(products);
-
+  
     // Sử dụng giá trị giảm giá trực tiếp từ server (giamGia)
     let discountAmount = order.giamGia || 0;
-
+  
     // Nếu không có giamGia từ server, tính toán dựa trên voucher
     if (!order.giamGia && order.phieuGiamGia) {
       const voucherType = Number(order.phieuGiamGia.loaiPhieuGiamGia);
@@ -912,17 +910,20 @@ const BanHang = () => {
         subtotal
       );
     }
-
+  
+    // BUG FIX: Giới hạn giảm giá không vượt quá tổng tiền hàng
+    discountAmount = Math.min(discountAmount, subtotal);
+  
     // Tính tổng tiền sau khi giảm giá
     const subtotalAfterDiscount = subtotal - discountAmount;
-
+  
     // Áp dụng miễn phí vận chuyển cho đơn ≥ 2 triệu sau giảm giá
     let shippingFee = order.phiVanChuyen || 0;
-
+  
     // Chỉ áp dụng miễn phí vận chuyển cho đơn giao hàng (loaiHoaDon === 3)
     if (subtotalAfterDiscount >= 2000000 && order.loaiHoaDon === 3) {
       shippingFee = 0;
-
+  
       // Cập nhật phí vận chuyển trong API nếu cần
       if (order.phiVanChuyen > 0) {
         // Sử dụng setTimeout để tránh block rendering
@@ -940,7 +941,7 @@ const BanHang = () => {
             console.log(
               "Đã áp dụng miễn phí vận chuyển (đơn sau giảm giá > 2 triệu)"
             );
-
+  
             // Cập nhật order trong tabs với miễn phí vận chuyển
             setTabs((prev) =>
               prev.map((tab) =>
@@ -955,10 +956,10 @@ const BanHang = () => {
         }, 0);
       }
     }
-
-    // Fix: Tổng thanh toán = tổng tiền hàng - giảm giá + phí vận chuyển
-    const finalTotal = subtotal - discountAmount + shippingFee;
-
+  
+    // Fix: Đảm bảo finalTotal không âm
+    const finalTotal = Math.max(0, subtotal - discountAmount + shippingFee);
+  
     return {
       subtotal,
       shippingFee,
@@ -1469,18 +1470,29 @@ const BanHang = () => {
     initializeData();
   }, []); // Chỉ chạy một lần khi component mount
 
+  useEffect(() => {
+    if (tabs.length === 0) {
+      // Nếu không còn tab nào, reset các state liên quan đến giá
+      setPriceNeedsConfirmation(false);
+      setChangedProducts([]);
+      setPriceChangeAmount(0);
+      setOpenPriceChangeDialog(false);
+      setPriceChangesConfirmed({});
+    }
+  }, [tabs]);
   // Cập nhật useEffect cho việc chọn tab để tải lại dữ liệu chính xác
   useEffect(() => {
     if (activeKey) {
       console.log("Tab changed to:", activeKey);
-
+  
       const currentOrder = tabs.find((tab) => tab.key === activeKey)?.order;
-
+  
       // Cập nhật selectedCustomer và selectedAddress theo tab hiện tại
       if (currentOrder) {
+        // Reset selectedAddress để tránh dữ liệu từ tab trước bị lưu lại
+        setSelectedAddress(null);
         setSelectedCustomer(currentOrder.khachHang || null);
-        setSelectedAddress(currentOrder.diaChi || null);
-
+  
         // Đảm bảo dữ liệu order có giá trị đúng
         if (currentOrder.phieuGiamGia) {
           // Đảm bảo loaiPhieuGiamGia là số nguyên
@@ -1497,7 +1509,7 @@ const BanHang = () => {
         setSelectedCustomer(null);
         setSelectedAddress(null);
       }
-
+  
       // Tải lại thông tin hóa đơn từ server
       fetchInvoiceById(activeKey).then(() => {
         // Sau khi có dữ liệu mới, tính toán lại tổng tiền
@@ -1506,15 +1518,15 @@ const BanHang = () => {
           ...prev,
           [activeKey]: newTotals,
         }));
-
+  
         // Cập nhật UI
         setTotalBeforeDiscount(newTotals.subtotal);
         setTotalAmount(newTotals.finalTotal);
-
+  
         // Tìm voucher tốt hơn và gợi ý
         findBestVoucherAndSuggest(activeKey);
       });
-
+  
       // Đặt lại pagination
       setPagination({ current: 1, pageSize: 3 });
     }
@@ -1530,7 +1542,7 @@ const BanHang = () => {
         message.error("Bạn chỉ có thể tạo tối đa 10 đơn hàng chờ xác nhận");
         return;
       }
-
+  
       setLoading(true);
       const response = await api.post(
         "/api/admin/ban-hang/create",
@@ -1543,21 +1555,25 @@ const BanHang = () => {
           },
         }
       );
-
+      
+      // Reset state khi tạo tab mới
+      setPriceNeedsConfirmation(false);
+      setChangedProducts([]);
+      setPriceChangeAmount(0);
+  
       const newOrder = response.data;
-      // Use id instead of maHoaDon for API calls
       const newOrderKey = newOrder.id;
-
+  
       // Reset selectedAddress và selectedCustomer khi tạo đơn hàng mới
       setSelectedAddress(null);
       setSelectedCustomer(null);
-
+  
       // Đánh dấu đây là đơn hàng mới trong sessionStorage
       sessionStorage.setItem(`new_order_${newOrderKey}`, "true");
-
+  
       // Đặt hoaDonId mới để component GiaoHang biết đơn hàng đã thay đổi
       setHoaDonId(newOrderKey);
-
+  
       setTabs((prev) => [
         ...prev,
         {
@@ -1566,16 +1582,15 @@ const BanHang = () => {
           order: newOrder,
         },
       ]);
-
+  
       setOrderProducts((prev) => ({
         ...prev,
         [newOrderKey]: [],
       }));
-
+  
       setActiveKey(newOrderKey);
       message.success("Tạo đơn hàng mới thành công");
-
-      // After successful tab creation, subscribe to its updates
+  
       if (socket.current) {
         socket.current.subscribe(`/topic/hoa-don/${newOrderKey}`, (message) => {
           fetchInvoiceProducts(newOrderKey).then((products) => {
@@ -1713,11 +1728,7 @@ const BanHang = () => {
       }
     } catch (error) {
       console.error("Error adding product:", error);
-      let errorMessage = "Lỗi khi thêm sản phẩm";
-      if (error.response?.data?.message) {
-        errorMessage += ": " + error.response.data.message;
-      }
-      message.error(errorMessage);
+      showErrorMessage(error);
     } finally {
       setLoading(false);
     }
@@ -1805,7 +1816,7 @@ const BanHang = () => {
       await fetchLatestData();
     } catch (error) {
       console.error("Lỗi khi thêm sản phẩm:", error);
-      message.error(error.response?.data?.message || "Lỗi khi thêm sản phẩm");
+      showErrorMessage(error);
 
       // Tải lại dữ liệu từ server
       await fetchInvoiceProducts(activeKey);
@@ -1874,7 +1885,7 @@ const BanHang = () => {
       await findBestVoucherAndSuggest(hoaDonId);
     } catch (error) {
       console.error("Lỗi khi cập nhật số lượng:", error);
-      message.error("Lỗi khi cập nhật số lượng!");
+      showErrorMessage(error);
       await fetchInvoiceProducts(hoaDonId);
     }
   };
@@ -2446,32 +2457,44 @@ const BanHang = () => {
   // Helper function for order completion process
   const completeOrderProcess = async (hoaDonId) => {
     try {
+      // Đặt lại các state liên quan đến kiểm tra giá
+      setPriceNeedsConfirmation(false);
+      setChangedProducts([]);
+      setPriceChangeAmount(0);
+      setOpenPriceChangeDialog(false);
+      
+      setPriceChangesConfirmed((prev) => {
+        const newState = { ...prev };
+        delete newState[hoaDonId]; // Xóa trạng thái xác nhận của hóa đơn đã thanh toán
+        return newState;
+      });
+  
       // Lấy hóa đơn PDF để in
       const response = await api.get(`/api/admin/hoa-don/${hoaDonId}/print`, {
         responseType: "blob",
         headers: {
-          Authorization: `Bearer ${token}`, // Thêm token vào header
+          Authorization: `Bearer ${token}`,
           Accept: "application/pdf, application/json",
         },
       });
-
+  
       if (!response || !response.data) {
         message.error("Không nhận được dữ liệu từ máy chủ!");
         return;
       }
-
+  
       const contentType = response.headers["content-type"];
       if (!contentType || !contentType.includes("application/pdf")) {
         message.error("Dữ liệu trả về không hợp lệ!");
         return;
       }
-
+  
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-
+  
       setPdfUrl(url);
       setPreviewOpen(true);
-
+  
       // Đóng tab đơn hàng sau khi hoàn tất
       setTabs((prev) => prev.filter((tab) => tab.key !== hoaDonId));
       message.success("Xác nhận đơn hàng thành công");
@@ -3878,7 +3901,12 @@ const BanHang = () => {
                     </Text>
 
                     {voucherSuggestions.betterVouchers.map((voucher, index) => {
-                      return (
+                        const originalTotal = totals[activeKey]?.totalBeforeVoucher || 0;
+                        const discountAmount = calculateDiscountAmount(
+                          voucher,
+                          Math.max(originalTotal, voucher.giaTriToiThieu) 
+                        );
+                    return (
                         <Card
                           key={voucher.id}
                           size="small"
@@ -3892,11 +3920,6 @@ const BanHang = () => {
                                 {/* Tăng kích thước font */}
                                 {voucher.maPhieuGiamGia}
                               </Text>
-                              <Tag color="green" style={{ fontSize: "12px" }}>
-                                {" "}
-                                {/* Tăng kích thước font */}+
-                                {formatCurrency(voucher.additionalSavings)}
-                              </Tag>
                             </Space>
                           }
                           extra={
@@ -3947,6 +3970,14 @@ const BanHang = () => {
                               >
                                 Đơn tối thiểu:{" "}
                                 {formatCurrency(voucher.giaTriToiThieu)}
+                              </Text>
+                              <br />
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: "13px" }} // Tăng kích thước font
+                              >
+                                Giá trị giảm:{" "}
+                                {formatCurrency(discountAmount)}
                               </Text>
                             </div>
                             {voucher.amountNeeded > 0 && (
@@ -5713,6 +5744,13 @@ const BanHang = () => {
   // Update useEffect for tab changes to ensure totals are calculated
   useEffect(() => {
     if (activeKey) {
+      if (!priceChangesConfirmed[activeKey]) {
+        // Kiểm tra thay đổi giá mà không hiển thị loading
+        checkPriceChanges(false);
+      } else {
+        // Nếu đã xác nhận trước đó, đảm bảo UI không hiện cảnh báo
+        setPriceNeedsConfirmation(false);
+      }
       setPagination({ current: 1, pageSize: 5 });
       fetchInvoiceProducts(activeKey).then(() => {
         setTimeout(() => {

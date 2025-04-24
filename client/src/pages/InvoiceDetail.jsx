@@ -824,55 +824,80 @@ function InvoiceDetail() {
     return Math.round(excess);
   };
 
-  // Sửa useEffect kiểm tra thanh toán thừa
+
+  const [excessNotificationShown, setExcessNotificationShown] = useState(false);
+  const checkAndShowExcessPaymentNotification = () => {
+    if (!paymentHistory || !invoice || showExcessPaymentRefundDialog) {
+      return;
+    }
+    
+    // Tính toán số tiền thừa
+    const excessAmount = calculateExcessAmount();
+    
+    // Cập nhật state
+    setHasExcessPayment(excessAmount > 0);
+    setExcessPaymentAmount(excessAmount);
+    
+    // Chỉ hiển thị thông báo khi:
+    // 1. Số tiền thừa đáng kể (>1000đ)
+    // 2. Chưa hiển thị dialog xử lý hoàn tiền
+    // 3. Đơn hàng không phải đã hủy
+    if (excessAmount > 1000 && !excessNotificationShown && invoice.trangThai !== 6) {
+      // Đánh dấu đã hiển thị
+      setExcessNotificationShown(true);
+      
+      // Hiển thị thông báo với key cụ thể
+      notification.warning({
+        key: 'excess_payment_notification', 
+        message: "Phát hiện thanh toán thừa",
+        description: `Khách hàng đã thanh toán thừa ${formatCurrency(
+          excessAmount
+        )}. Bạn nên xử lý hoàn tiền.`,
+        btn: (
+          <Button
+            type="primary"
+            onClick={() => {
+              handleShowRefundDialog(excessAmount);
+              notification.destroy('excess_payment_notification');
+            }}
+          >
+            Xử lý hoàn tiền
+          </Button>
+        ),
+        duration: 0,
+        onClose: () => {
+          // Reset trạng thái khi đóng thông báo
+          setExcessNotificationShown(false);
+        },
+      });
+    }
+  };
+  
   useEffect(() => {
     if (paymentHistory && paymentHistory.length > 0 && invoice?.tongTien) {
-      const totalInvoiceAmount = invoice.tongTien || 0;
-
-      // Tính toán chính xác bằng cách gọi hàm calculateExcessAmount
+      // Tính toán số tiền thừa
       const excessAmount = calculateExcessAmount();
-
-      // Cập nhật state với giá trị mới tính toán
+      
+      // Chỉ cập nhật state
       setHasExcessPayment(excessAmount > 0);
       setExcessPaymentAmount(excessAmount);
-
-      // Chỉ hiển thị thông báo nếu số tiền thừa đáng kể (>1000đ) và không đang hiển thị dialog
-      if (excessAmount > 1000 && !showExcessPaymentRefundDialog) {
-        notification.warning({
-          message: "Phát hiện thanh toán thừa",
-          description: `Khách hàng đã thanh toán thừa ${formatCurrency(
-            excessAmount
-          )}. Bạn nên xử lý hoàn tiền.`,
-          btn: (
-            <Button
-              type="primary"
-              onClick={() => handleShowRefundDialog(excessAmount)}
-            >
-              Xử lý hoàn tiền
-            </Button>
-          ),
-          duration: 0,
-        });
-      }
+      
+      // Không hiển thị thông báo ở đây nữa
     }
-  }, [
-    paymentHistory,
-    invoice?.tongTien,
-    showExcessPaymentRefundDialog,
-    invoiceProducts,
-  ]);
+  }, [paymentHistory, invoice?.tongTien]);
+  
 
   const handleShowRefundDialog = (amount) => {
     // Đóng tất cả thông báo hiện tại
-    notification.destroy();
-
+    notification.destroy('excess_payment_notification');
+    
     // Reset trạng thái thông báo
-    window.excessNotificationShown = false;
-
+    setExcessNotificationShown(false);
+    
     // Tính toán lại số tiền thừa để đảm bảo chính xác
     const calculatedExcess = calculateExcessAmount();
     setExcessPaymentAmount(calculatedExcess);
-    setSelectedPaymentMethod(null); // Reset phương thức thanh toán
+    setSelectedPaymentMethod(null);
     loadPaymentMethods();
     setShowExcessPaymentRefundDialog(true);
   };
@@ -1159,9 +1184,12 @@ function InvoiceDetail() {
       // Cập nhật UI
       await Promise.all([refreshInvoice(), refreshPaymentHistory()]);
 
-      setShowExcessPaymentRefundDialog(false);
-      setHasExcessPayment(false);
-      setExcessPaymentAmount(0);
+      setExcessNotificationShown(false);
+    
+    // Đóng modal và reset các state khác
+    setShowExcessPaymentRefundDialog(false);
+    setHasExcessPayment(false);
+    setExcessPaymentAmount(0);
     } catch (error) {
       message.error(
         "Lỗi khi xử lý: " + (error.response?.data?.message || error.message)
@@ -4076,11 +4104,10 @@ function InvoiceDetail() {
     }
   };
 
-  // Add this function to fetch payment history
   const fetchPaymentHistory = async () => {
     try {
       setLoadingPayments(true);
-
+  
       // Thêm timestamp và cache-control để đảm bảo luôn lấy dữ liệu mới
       const timestamp = new Date().getTime();
       const response = await api.get(
@@ -4094,7 +4121,7 @@ function InvoiceDetail() {
           },
         }
       );
-
+  
       if (response.data) {
         // Quan trọng: xử lý số liệu trước khi cập nhật state
         const processedPayments = response.data.map((payment) => ({
@@ -4102,10 +4129,10 @@ function InvoiceDetail() {
           tongTien: payment.tongTien ? Number(payment.tongTien) : 0,
           soTien: payment.soTien ? Number(payment.soTien) : 0,
         }));
-
+  
         console.log("Dữ liệu thanh toán mới:", processedPayments);
         setPaymentHistory(processedPayments);
-
+  
         // Tính lại số tiền còn thiếu ngay sau khi cập nhật dữ liệu
         setTimeout(() => {
           const remaining = calculateRemainingPayment();
@@ -4113,7 +4140,10 @@ function InvoiceDetail() {
             "Số tiền còn thiếu sau khi cập nhật payment history:",
             remaining
           );
-        }, 100);
+  
+          // Đợi một chút để state cập nhật sau đó kiểm tra thanh toán thừa
+          checkAndShowExcessPaymentNotification();
+        }, 300);
       }
     } catch (error) {
       console.error("Error fetching payment history:", error);
@@ -4122,7 +4152,6 @@ function InvoiceDetail() {
       setLoadingPayments(false);
     }
   };
-
   // Add this new function to calculate discount amount
   const calculateDiscountAmount = (voucher, totalAmount) => {
     if (!voucher || !totalAmount) return 0;

@@ -126,7 +126,7 @@ public class HoaDonClientController {
             return ResponseEntity.badRequest().body("Email khách hàng không được để trống");
         }
         try {
-             hoaDonClientService.UpdateHoaDonChoXacNhan(idHoaDon);
+            hoaDonClientService.UpdateHoaDonChoXacNhan(idHoaDon);
             return ResponseEntity.ok("Update thành công hóa đơn");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
@@ -140,6 +140,18 @@ public class HoaDonClientController {
         }
         try {
             List<HoaDonClientResponse> hoaDon = hoaDonClientService.findHoaDonClient(email);
+            return ResponseEntity.ok(hoaDon);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());
+        }
+    }
+    @GetMapping("/order/findHoaDonByMaHoaDon/{maHoaDon}")
+    public ResponseEntity<?> findHoaDonByMaHoaDon(@PathVariable String maHoaDon) {
+        if (maHoaDon == null || maHoaDon.isEmpty()) {
+            return ResponseEntity.badRequest().body("maHoaDon khách hàng không được để trống");
+        }
+        try {
+            List<HoaDonClientResponse> hoaDon = hoaDonClientService.findHoaDonByMaHoaDon(maHoaDon);
             return ResponseEntity.ok(hoaDon);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm hóa đơn" + e.getMessage());

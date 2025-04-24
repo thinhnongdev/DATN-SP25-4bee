@@ -5,6 +5,7 @@ import com.example.server.dto.Client.response.SanPhamClientResponse;
 import com.example.server.dto.SanPham.response.SanPhamResponse;
 import com.example.server.entity.AnhSanPham;
 import com.example.server.entity.SanPhamChiTiet;
+import com.example.server.repository.HoaDon.HoaDonChiTietRepository;
 import com.example.server.service.Client.SanPhamClientService;
 import com.example.server.service.SanPham.AnhSanPhamService;
 import com.example.server.service.SanPham.SanPhamChiTietService;
@@ -27,6 +28,8 @@ public class SanPhamClientController {
     SanPhamChiTietService sanPhamChiTietService;
     @Autowired
     AnhSanPhamService anhSanPhamService;
+    @Autowired
+    private HoaDonChiTietRepository hoaDonChiTietRepository;
 
     @GetMapping("/sanpham")
     public List<SanPhamClientResponse> getAllSanPham() {
@@ -71,4 +74,11 @@ public class SanPhamClientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi tìm danh sách sản phẩm cho hóa đơn" + e.getMessage());
         }
     }
+    // Controller
+    @GetMapping("/sanpham/{id}/luot-ban")
+    public ResponseEntity<Integer> getSoLuongDaBan(@PathVariable("id") String idSanPham) {
+        int totalSold = hoaDonChiTietRepository.tinhSoLuongDaBan(idSanPham);
+        return ResponseEntity.ok(totalSold);
+    }
+
 }
