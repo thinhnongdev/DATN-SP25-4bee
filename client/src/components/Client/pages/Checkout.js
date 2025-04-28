@@ -590,6 +590,7 @@ const CheckoutForm = () => {
           tongTienHang: totalAmount,
           phieuGiamGia: selectedVoucher,
         };
+        console.log('Dữ liệu đơn hàng:', orderData);
         if (formData.phuongThucThanhToan === 'VNPAY') {
           if (formData.phuongThucThanhToan === 'VNPAY') {
             sessionStorage.setItem('pendingOrderData', JSON.stringify(orderData));

@@ -492,12 +492,12 @@ const GiaoHang = React.forwardRef(
         setShippingFee(fee);
 
         // Thông báo thành công
-        message.success(
-          `Đã cập nhật phí vận chuyển: ${new Intl.NumberFormat("vi-VN", {
-            style: "currency",
-            currency: "VND",
-          }).format(fee)}`
-        );
+        // message.success(
+        //   `Đã cập nhật phí vận chuyển: ${new Intl.NumberFormat("vi-VN", {
+        //     style: "currency",
+        //     currency: "VND",
+        //   }).format(fee)}`
+        // );
 
         // Cập nhật state của component cha nếu có callback
         if (typeof onShippingFeeUpdate === "function") {

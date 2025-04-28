@@ -20,12 +20,11 @@ const KieuDang = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kieudang',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await axios.get('http://localhost:8080/api/admin/kieudang', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setKieuDang(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,32 +78,51 @@ const KieuDang = () => {
         setError('Tên kiểu dáng đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa kiểu dáng?' : 'Xác nhận thêm kiểu dáng?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} kiểu dáng "${
+          values.tenKieuDang
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/kieudang/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuDang((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              toast.success('Sửa kiểu dáng thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addkieudang',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuDang((prev) => [response.data, ...prev]);
+              toast.success('Thêm kiểu dáng thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieudang/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKieuDang((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa kiểu dáng thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieudang',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKieuDang((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu dáng thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -181,7 +199,9 @@ const KieuDang = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Kiểu dáng</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Kiểu dáng</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{
@@ -221,8 +241,8 @@ const KieuDang = () => {
           dataSource={filteredData.map((item) => ({ ...item, key: item.id }))}
           columns={columns}
           pagination={pagination}
-      onChange={handleTableChange}
-      rowKey="id"
+          onChange={handleTableChange}
+          rowKey="id"
         />
       </div>
 

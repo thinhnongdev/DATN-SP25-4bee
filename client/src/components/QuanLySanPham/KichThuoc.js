@@ -20,12 +20,11 @@ const KichThuoc = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kichthuoc',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await axios.get('http://localhost:8080/api/admin/kichthuoc', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setKichThuoc(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,32 +78,51 @@ const KichThuoc = () => {
         setError('Tên kích thước đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa kích thước?' : 'Xác nhận thêm kích thước?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} kích thước "${
+          values.tenKichThuoc
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/kichthuoc/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKichThuoc((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              toast.success('Sửa kích thước thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addkichthuoc',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKichThuoc((prev) => [response.data, ...prev]);
+              toast.success('Thêm kích thước thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kichthuoc/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKichThuoc((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa kích thước thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkichthuoc',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKichThuoc((prev) => [response.data, ...prev]);
-        toast.success('Thêm kích thước thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -182,7 +200,9 @@ const KichThuoc = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Kích thước</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Kích thước</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{

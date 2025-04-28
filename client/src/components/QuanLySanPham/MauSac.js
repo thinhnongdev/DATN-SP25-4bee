@@ -104,43 +104,61 @@ const MauSac = () => {
         setError('Mã màu đã tồn tại!');
         return;
       }
-      if (isEditing) {
-        // Cập nhật
-        try {
-          await axios.patch(
-            `http://localhost:8080/api/admin/mausac/${editingRecord.id}`,dataToSend,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-          );
-          setMauSac((prev) =>
-            prev.map((item) => (item.id === editingRecord.id ? { ...item, ...dataToSend } : item)),
-          );
-          toast.success('Sửa màu sắc thành công');
-        } catch (error) {
-          toast.error('Sửa màu sắc thất bại');
-        }
-      } else {
-        // Thêm mới
-        try {
-          const response = await axios.post(
-            'http://localhost:8080/api/admin/addmausac',dataToSend,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-          );
-          setMauSac((prev) => [response.data, ...prev]);
-          setColor('');
-          toast.success('Thêm màu sắc thành công');
-        } catch (error) {
-          toast.error('Thêm màu sắc thất bại');
-        }
-      }
-      handleModalClose();
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa màu sắc?' : 'Xác nhận thêm màu sắc?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} màu sắc "${
+          values.tenMau
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              try {
+                await axios.patch(
+                  `http://localhost:8080/api/admin/mausac/${editingRecord.id}`,
+                  dataToSend,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  },
+                );
+                setMauSac((prev) =>
+                  prev.map((item) =>
+                    item.id === editingRecord.id ? { ...item, ...dataToSend } : item,
+                  ),
+                );
+                toast.success('Sửa màu sắc thành công');
+              } catch (error) {
+                toast.error('Sửa màu sắc thất bại');
+              }
+            } else {
+              // Thêm mới
+              try {
+                const response = await axios.post(
+                  'http://localhost:8080/api/admin/addmausac',
+                  dataToSend,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  },
+                );
+                setMauSac((prev) => [response.data, ...prev]);
+                setColor('');
+                toast.success('Thêm màu sắc thành công');
+              } catch (error) {
+                toast.error('Thêm màu sắc thất bại');
+              }
+            }
+            handleModalClose();
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -234,7 +252,9 @@ const MauSac = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Màu sắc</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Màu sắc</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{

@@ -561,9 +561,9 @@ function InvoiceDetail() {
   // Cập nhật hàm tính số tiền còn thiếu
   const calculateRemainingPayment = () => {
     if (!invoice) return 0;
-
+  
     console.log("Bắt đầu tính toán số tiền còn thiếu...");
-
+  
     // Bỏ qua giá trị từ backend, luôn ưu tiên tính lại từ lịch sử thanh toán
     if (!paymentHistory || !Array.isArray(paymentHistory)) {
       console.log(
@@ -572,21 +572,23 @@ function InvoiceDetail() {
       );
       return invoice?.tongTien || 0;
     }
-
+  
     // Tính tổng tiền hóa đơn bao gồm tất cả yếu tố
     const productTotal = totalBeforeDiscount || 0;
     const shippingFee = invoice.phiVanChuyen || 0;
     const discountAmount = getDiscountAmount();
-    const totalInvoiceAmount = productTotal + shippingFee - discountAmount;
-
+    
+    // Đảm bảo tổng tiền không âm
+    const totalInvoiceAmount = Math.max(0, productTotal + shippingFee - discountAmount);
+  
     // QUAN TRỌNG: Đảm bảo không tính trùng các khoản thanh toán
     const processedPaymentIds = new Set();
-
+  
     // Tính số tiền đã thanh toán (tất cả trạng thái 1, 2 và 3)
     const paidAmount = paymentHistory.reduce((sum, p) => {
       // Bỏ qua các khoản thanh toán đã tính
       if (processedPaymentIds.has(p.id)) return sum;
-
+  
       // Chỉ tính các khoản thanh toán có trạng thái hợp lệ
       if (p.trangThai === 1 || p.trangThai === 2 || p.trangThai === 3) {
         processedPaymentIds.add(p.id);
@@ -599,12 +601,12 @@ function InvoiceDetail() {
       }
       return sum;
     }, 0);
-
+  
     // Tính số tiền đã hoàn lại (trạng thái = 4)
     const refundedAmount = paymentHistory.reduce((sum, p) => {
       // Bỏ qua các khoản thanh toán đã tính
       if (processedPaymentIds.has(p.id)) return sum;
-
+  
       if (p.trangThai === 4) {
         processedPaymentIds.add(p.id);
         console.log(
@@ -616,14 +618,13 @@ function InvoiceDetail() {
       }
       return sum;
     }, 0);
-
+  
     // Số tiền thực tế đã thanh toán (đã trừ hoàn tiền)
     const actualPaidAmount = paidAmount - refundedAmount;
-
+  
     // Số tiền còn thiếu = tổng tiền cần trả - số tiền thực tế đã thanh toán
     const remainingAmount = totalInvoiceAmount - actualPaidAmount;
-
-    // Log chi tiết để debug
+  
     console.log("Tính lại số tiền còn thiếu:", {
       productTotal,
       shippingFee,
@@ -634,18 +635,7 @@ function InvoiceDetail() {
       actualPaidAmount,
       remainingAmount,
     });
-
-    // Thêm log chi tiết cho từng khoản thanh toán
-    console.table(
-      paymentHistory.map((p) => ({
-        id: p.id,
-        amount: p.tongTien || p.soTien,
-        status: p.trangThai,
-        method: p.tenPhuongThucThanhToan,
-        counted: p.trangThai === 1 || p.trangThai === 2 || p.trangThai === 3,
-      }))
-    );
-
+  
     // Nếu có thanh toán thừa (số tiền còn thiếu âm), trả về 0
     return Math.max(0, Math.round(remainingAmount));
   };
@@ -745,29 +735,29 @@ function InvoiceDetail() {
         // Đánh dấu đã hiển thị thông báo
         window.excessNotificationShown = true;
 
-        notification.warning({
-          message: "Phát hiện thanh toán thừa",
-          description: `Khách hàng đã thanh toán thừa ${formatCurrency(
-            excessAmount
-          )}. Bạn nên xử lý hoàn tiền.`,
-          btn: (
-            <Button
-              type="primary"
-              onClick={() => {
-                handleShowRefundDialog(excessAmount);
-                notification.destroy(); // Đóng tất cả notifications
-              }}
-            >
-              Xử lý hoàn tiền
-            </Button>
-          ),
-          key: "excess_payment_notification", // Thêm key để xác định unique notification
-          duration: 0, // Không tự động đóng
-          onClose: () => {
-            // Reset trạng thái thông báo khi đóng
-            window.excessNotificationShown = false;
-          },
-        });
+      //   notification.warning({
+      //     message: "Phát hiện thanh toán thừa",
+      //     description: `Khách hàng đã thanh toán thừa ${formatCurrency(
+      //       excessAmount
+      //     )}. Bạn nên xử lý hoàn tiền.`,
+      //     btn: (
+      //       <Button
+      //         type="primary"
+      //         onClick={() => {
+      //           handleShowRefundDialog(excessAmount);
+      //           notification.destroy(); // Đóng tất cả notifications
+      //         }}
+      //       >
+      //         Xử lý hoàn tiền
+      //       </Button>
+      //     ),
+      //     key: "excess_payment_notification", // Thêm key để xác định unique notification
+      //     duration: 0, // Không tự động đóng
+      //     onClose: () => {
+      //       // Reset trạng thái thông báo khi đóng
+      //       window.excessNotificationShown = false;
+      //     },
+      //   });
       }
 
       return hasExcess;
@@ -780,16 +770,18 @@ function InvoiceDetail() {
 
   const calculateExcessAmount = () => {
     if (!paymentHistory || !invoice) return 0;
-
+  
     console.log("Tính lại số tiền thừa:");
-    console.log("Tổng tiền hóa đơn:", invoice.tongTien);
-
+  
     // Tính tổng thực tế khách hàng cần thanh toán
     const productTotal = totalBeforeDiscount || 0;
     const shippingFee = invoice.phiVanChuyen || 0;
     const discountAmount = getDiscountAmount();
-    const actualTotalDue = productTotal + shippingFee - discountAmount;
-
+    
+    // Tổng cuối cùng cần thanh toán (không âm)
+    const actualTotalDue = Math.max(0, productTotal + shippingFee - discountAmount);
+    console.log("Tổng thực tế cần thanh toán:", actualTotalDue);
+  
     // Tính số tiền khách đã thanh toán (trạng thái = 1 - đã thanh toán)
     const totalPaid = paymentHistory.reduce((sum, p) => {
       if (p.trangThai === 1) {
@@ -800,7 +792,7 @@ function InvoiceDetail() {
       }
       return sum;
     }, 0);
-
+  
     // Tính số tiền đã hoàn lại (trạng thái = 4 - hoàn tiền)
     const totalRefunded = paymentHistory.reduce((sum, p) => {
       if (p.trangThai === 4) {
@@ -811,23 +803,23 @@ function InvoiceDetail() {
       }
       return sum;
     }, 0);
-
+  
     // Số tiền thực tế khách đã trả
     const actualPaid = totalPaid - totalRefunded;
     console.log("Số tiền thực tế đã trả:", actualPaid);
     console.log("Số tiền thực tế cần trả:", actualTotalDue);
-
+  
     // Số tiền thừa (nếu có)
     const excess = Math.max(0, actualPaid - actualTotalDue);
     console.log("Số tiền thừa tính được:", excess);
-
+  
     return Math.round(excess);
   };
 
 
   const [excessNotificationShown, setExcessNotificationShown] = useState(false);
   const checkAndShowExcessPaymentNotification = () => {
-    if (!paymentHistory || !invoice || showExcessPaymentRefundDialog) {
+    if (!paymentHistory || !invoice || showExcessPaymentRefundDialog || invoice.trangThai === 6) {
       return;
     }
     
@@ -835,24 +827,19 @@ function InvoiceDetail() {
     const excessAmount = calculateExcessAmount();
     
     // Cập nhật state
-    setHasExcessPayment(excessAmount > 0);
+    const hasExcess = excessAmount > 0;
+    setHasExcessPayment(hasExcess);
     setExcessPaymentAmount(excessAmount);
     
-    // Chỉ hiển thị thông báo khi:
-    // 1. Số tiền thừa đáng kể (>1000đ)
-    // 2. Chưa hiển thị dialog xử lý hoàn tiền
-    // 3. Đơn hàng không phải đã hủy
-    if (excessAmount > 1000 && !excessNotificationShown && invoice.trangThai !== 6) {
-      // Đánh dấu đã hiển thị
+    // Chỉ hiển thị thông báo nếu có số tiền thừa đáng kể và chưa hiển thị trước đó
+    if (excessAmount > 1000 && !excessNotificationShown) {
       setExcessNotificationShown(true);
       
-      // Hiển thị thông báo với key cụ thể
+      // Hiển thị thông báo nổi về tiền thừa
       notification.warning({
         key: 'excess_payment_notification', 
         message: "Phát hiện thanh toán thừa",
-        description: `Khách hàng đã thanh toán thừa ${formatCurrency(
-          excessAmount
-        )}. Bạn nên xử lý hoàn tiền.`,
+        description: `Khách hàng đã thanh toán thừa ${formatCurrency(excessAmount)}. Bạn nên xử lý hoàn tiền.`,
         btn: (
           <Button
             type="primary"
@@ -865,10 +852,7 @@ function InvoiceDetail() {
           </Button>
         ),
         duration: 0,
-        onClose: () => {
-          // Reset trạng thái khi đóng thông báo
-          setExcessNotificationShown(false);
-        },
+        onClose: () => setExcessNotificationShown(false),
       });
     }
   };
@@ -1044,160 +1028,182 @@ function InvoiceDetail() {
 
     return false;
   };
+  // Hàm xử lý hoàn tiền theo loại hóa đơn và loại thanh toán
+  const processRefundByInvoiceType = async (amount, paymentMethod, reason) => {
+    if (!invoice || amount <= 0) {
+      return false;
+    }
+    
+    try {
+      // Xác định loại hóa đơn và cách xử lý phù hợp
+      const invoiceType = invoice.loaiHoaDon;
+      
+      // Lấy thông tin các thanh toán đã thực hiện
+      const completedPayments = paymentHistory.filter(p => p.trangThai === 1);
+      
+      // Phương thức mặc định hoàn tiền - dựa trên thanh toán gần nhất
+      let refundMethod = paymentMethod;
+      if (!refundMethod && completedPayments.length > 0) {
+        // Sắp xếp theo thời gian gần nhất
+        const sortedPayments = [...completedPayments]
+          .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
+        refundMethod = sortedPayments[0].maPhuongThucThanhToan;
+      }
+      
+      // Áp dụng logic khác nhau cho mỗi loại hóa đơn
+      switch (invoiceType) {
+        case 1: // Hóa đơn online
+          // Ưu tiên hoàn qua phương thức đã thanh toán (online)
+          return await executeRefund(amount, refundMethod || 'BANK', reason, 
+            "Hoàn tiền cho đơn hàng online");
+          
+        case 2: // Hóa đơn tại quầy
+          // Ưu tiên hoàn tiền mặt cho đơn tại quầy
+          return await executeRefund(amount, paymentMethod || 'CASH', reason,
+            "Hoàn tiền cho đơn hàng tại quầy");
+          
+        case 3: // Hóa đơn giao hàng
+          // Kiểm tra phương thức thanh toán cho đơn hàng giao hàng
+          if (hasPendingOrCodPayments()) {
+            // Nếu có COD, ưu tiên điều chỉnh số tiền COD
+            return await refundToPendingPayment(amount);
+          } else {
+            // Nếu không có COD, hoàn theo phương thức được chỉ định
+            return await executeRefund(amount, paymentMethod, reason,
+              "Hoàn tiền cho đơn hàng giao hàng");
+          }
+          
+        default:
+          console.error("Loại hóa đơn không được hỗ trợ:", invoiceType);
+          return false;
+      }
+    } catch (error) {
+      console.error("Lỗi khi xử lý hoàn tiền:", error);
+      throw error;
+    }
+  };
+  
+  // Thực hiện hoàn tiền qua API
+  const executeRefund = async (amount, paymentMethod, reason, description) => {
+    const response = await api.post(
+      `/api/admin/hoa-don/${id}/refund`,
+      {
+        soTien: amount,
+        maPhuongThucThanhToan: paymentMethod,
+        moTa: reason || description || "Hoàn tiền thừa cho khách hàng"
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    return response.status === 200;
+  };
+  
+  // Áp dụng vào thanh toán chờ xác nhận/COD
+  const refundToPendingPayment = async (amount) => {
+    const response = await api.post(
+      `/api/admin/hoa-don/${id}/refund-to-pending`,
+      { soTien: amount },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    return response.status === 200;
+  };
+  
+  // Cập nhật lại hàm handleRefundExcessPayment để sử dụng logic mới
   const handleRefundExcessPayment = async () => {
     try {
       if (!selectedPaymentMethod) {
         message.error("Vui lòng chọn phương thức hoàn tiền");
         return;
       }
-
+  
       setProcessingRefund(true);
-
-      // Kiểm tra có thanh toán chờ xác nhận hoặc trả sau không
-      const hasPendingPayments = hasPendingOrCodPayments();
-
-      // Phát hiện tiền thừa do hoàn thành đơn hàng
+  
+      // Phát hiện lý do hoàn tiền
       const isFromOrderCompletion = detectExcessFromOrderCompletion();
-
+      const refundReason = determineRefundReason(isFromOrderCompletion, orderHistory);
+  
       // Hiển thị trạng thái đang xử lý
       const loadingToast = message.loading(
         `Đang ${isFromOrderCompletion ? "điều chỉnh" : "hoàn"} tiền...`
       );
-
-      if (hasPendingPayments) {
-        // Nếu còn tiền chờ thanh toán, điều chỉnh trực tiếp
-        try {
-          await api.post(
-            `/api/admin/hoa-don/${id}/refund-to-pending`,
-            {
-              soTien: excessPaymentAmount,
-            },
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-
-          loadingToast();
-          message.success(
-            `Đã điều chỉnh trừ ${formatCurrency(
-              excessPaymentAmount
-            )} vào thanh toán chờ/trả sau`
-          );
-        } catch (error) {
-          loadingToast();
-          console.error("Lỗi khi điều chỉnh vào thanh toán chờ:", error);
-          message.error(
-            "Lỗi khi điều chỉnh: " +
-              (error.response?.data?.message || error.message)
-          );
-          setProcessingRefund(false);
-          return;
-        }
-      } else {
-        // Xác định lý do hoàn tiền dựa trên loại tiền thừa
-        let refundReason = "";
-
-        if (isFromOrderCompletion) {
-          // Nếu là do hoàn thành đơn hàng
-          refundReason = "Điều chỉnh thanh toán sau khi hoàn thành đơn hàng";
-        } else {
-          // Nếu là do các thay đổi khác trong đơn hàng
-          const recentActions = orderHistory
-            .filter(
-              (record) =>
-                !record.moTa?.includes("Cập nhật trạng thái") &&
-                !record.hanhDong?.includes("Cập nhật trạng thái") &&
-                record.ngayTao
-            )
-            .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
-
-          const mostRecentAction = recentActions[0];
-
-          if (mostRecentAction) {
-            if (
-              mostRecentAction.hanhDong?.includes("Thêm sản phẩm") ||
-              mostRecentAction.hanhDong?.includes("Xóa sản phẩm") ||
-              mostRecentAction.hanhDong?.includes("Cập nhật số lượng sản phẩm")
-            ) {
-              refundReason =
-                "Hoàn tiền thừa sau khi thay đổi sản phẩm trong đơn hàng";
-            } else if (priceNeedsConfirmation) {
-              refundReason = "Hoàn tiền thừa do thay đổi giá sản phẩm";
-            } else if (
-              shippingFeeFromGHN !== null &&
-              shippingFeeFromGHN !== invoice?.phiVanChuyen
-            ) {
-              refundReason = "Hoàn tiền thừa sau khi tính lại phí vận chuyển";
-            } else if (
-              mostRecentAction.hanhDong?.includes("Áp dụng voucher") ||
-              (invoice?.phieuGiamGia &&
-                new Date(mostRecentAction.ngayTao) >
-                  new Date(Date.now() - 5 * 60000))
-            ) {
-              refundReason = "Hoàn tiền thừa sau khi áp dụng voucher";
-            } else {
-              refundReason = "Hoàn tiền thừa cho khách hàng";
-            }
-          } else {
-            refundReason = "Hoàn tiền thừa cho khách hàng";
-          }
-        }
-
-        console.log(
-          `Lý do ${
-            isFromOrderCompletion ? "điều chỉnh" : "hoàn tiền"
-          }: ${refundReason}`
+  
+      try {
+        let success;
+  
+        // Sử dụng logic xử lý hoàn tiền dựa trên loại hóa đơn
+        success = await processRefundByInvoiceType(
+          excessPaymentAmount,
+          selectedPaymentMethod,
+          refundReason
         );
-
-        // Gọi API hoàn tiền với số tiền thừa và lý do chính xác
-        try {
-          await api.post(
-            `/api/admin/hoa-don/${id}/refund`,
-            {
-              soTien: excessPaymentAmount,
-              maPhuongThucThanhToan: selectedPaymentMethod,
-              moTa: refundReason,
-            },
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-
+  
+        if (success) {
+          // Cập nhật UI
+          await Promise.all([refreshInvoice(), refreshPaymentHistory()]);
+  
+          // Reset thông báo và trạng thái
+          setExcessNotificationShown(false);
+          setShowExcessPaymentRefundDialog(false);
+          setHasExcessPayment(false);
+          setExcessPaymentAmount(0);
+          
           loadingToast();
           message.success(
-            `Đã ${
-              isFromOrderCompletion ? "điều chỉnh" : "hoàn"
-            } ${formatCurrency(excessPaymentAmount)} thành công`
+            `Đã ${isFromOrderCompletion ? "điều chỉnh" : "hoàn"} ${formatCurrency(excessPaymentAmount)} thành công`
           );
-        } catch (error) {
+        } else {
           loadingToast();
-          console.error("Lỗi khi hoàn tiền:", error);
-          message.error(
-            "Lỗi khi hoàn tiền: " +
-              (error.response?.data?.message || error.message)
-          );
-          setProcessingRefund(false);
-          return;
+          throw new Error("Không thể xử lý hoàn tiền");
         }
+      } catch (error) {
+        loadingToast();
+        console.error("Lỗi khi hoàn/điều chỉnh tiền:", error);
+        message.error("Lỗi khi xử lý: " + (error.response?.data?.message || error.message));
+        throw error;
       }
-
-      // Cập nhật UI
-      await Promise.all([refreshInvoice(), refreshPaymentHistory()]);
-
-      setExcessNotificationShown(false);
-    
-    // Đóng modal và reset các state khác
-    setShowExcessPaymentRefundDialog(false);
-    setHasExcessPayment(false);
-    setExcessPaymentAmount(0);
     } catch (error) {
-      message.error(
-        "Lỗi khi xử lý: " + (error.response?.data?.message || error.message)
-      );
       console.error("Error handling excess payment:", error);
     } finally {
       setProcessingRefund(false);
     }
+  };
+  
+  // Hàm mới để xác định lý do hoàn tiền một cách nhất quán
+  const determineRefundReason = (isFromOrderCompletion, orderHistory) => {
+    if (isFromOrderCompletion) {
+      return "Điều chỉnh thanh toán sau khi hoàn thành đơn hàng";
+    }
+    
+    // Tìm hành động gần đây nhất trong lịch sử
+    const recentActions = orderHistory
+      .filter(record => 
+        !record.moTa?.includes("Cập nhật trạng thái") && 
+        !record.hanhDong?.includes("Cập nhật trạng thái") && 
+        record.ngayTao
+      )
+      .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
+    
+    if (recentActions.length > 0) {
+      const mostRecent = recentActions[0];
+      
+      // Xác định lý do dựa vào hành động gần nhất
+      if (mostRecent.hanhDong?.includes("Thêm sản phẩm") || 
+          mostRecent.hanhDong?.includes("Xóa sản phẩm") || 
+          mostRecent.hanhDong?.includes("Cập nhật số lượng sản phẩm")) {
+        return "Hoàn tiền thừa sau khi thay đổi sản phẩm trong đơn hàng";
+      } 
+      else if (window.priceNeedsConfirmation || mostRecent.hanhDong?.includes("giá")) {
+        return "Hoàn tiền thừa do thay đổi giá sản phẩm";
+      } 
+      else if (mostRecent.hanhDong?.includes("Áp dụng voucher") ||
+              (invoice?.phieuGiamGia && new Date(mostRecent.ngayTao) > new Date(Date.now() - 5 * 60000))) {
+        return "Hoàn tiền thừa sau khi áp dụng voucher";
+      }
+    }
+    
+    // Lý do mặc định nếu không xác định được
+    return "Hoàn tiền thừa cho khách hàng";
   };
   // 1. Thêm useEffect để tự động tải orderHistory khi trạng thái hóa đơn thay đổi
   useEffect(() => {
@@ -1634,102 +1640,85 @@ function InvoiceDetail() {
       await refreshInvoiceProducts();
     }
   };
-  // Cập nhật hàm xử lý thanh toán phụ phí hoặc hoàn tiền khi thay đổi giá
-  // Cập nhật hàm xử lý thanh toán phụ phí hoặc hoàn tiền khi thay đổi giá
+  // Cập nhật hàm xử lý thanh toán/hoàn tiền khi thay đổi giá
   const handlePriceChangePayment = async () => {
     try {
       setProcessingPriceChangePayment(true);
-
-      // Lấy tổng đã thanh toán và tổng đã hoàn
-      const totalPaid = paymentHistory.reduce((sum, p) => {
-        if (p.trangThai === 1) {
-          // PAYMENT_STATUS_PAID
-          return sum + (p.tongTien || 0);
-        }
-        return sum;
-      }, 0);
-
-      const totalRefunded = paymentHistory.reduce((sum, p) => {
-        if (p.trangThai === 4) {
-          // PAYMENT_STATUS_REFUND
-          return sum + (p.tongTien || 0);
-        }
-        return sum;
-      }, 0);
-
-      const netPaid = totalPaid - totalRefunded;
-
+      const loadingMessage = message.loading("Đang xử lý thanh toán...", 0);
+  
       // Kiểm tra có thanh toán chờ xác nhận hoặc trả sau không
       const hasPendingPayment = paymentHistory.some(
         (p) => p.trangThai === 2 || p.trangThai === 3
-      ); // PAYMENT_STATUS_UNPAID || PAYMENT_STATUS_COD
-
-      // Nếu giảm giá và có thanh toán chờ xác nhận/trả sau -> cập nhật trực tiếp
+      );
+  
+      // Nếu giảm giá và có thanh toán chờ/trả sau -> cập nhật trực tiếp
       if (priceChangeAmount < 0 && hasPendingPayment) {
         await api.put(
           `/api/admin/hoa-don/${id}/cap-nhat-gia`,
           {
             useCurrentPrices: true,
+            adjustToPayments: true // Thêm flag báo hiệu điều chỉnh vào thanh toán chờ/trả sau
           },
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-
+  
+        loadingMessage();
         message.success(
           "Đã cập nhật giảm giá vào thanh toán chờ xác nhận/trả sau"
         );
-        setShowPriceChangePaymentDialog(false);
-
-        // Làm mới dữ liệu
-        await Promise.all([
-          refreshInvoice(),
-          refreshPaymentHistory(),
-          refreshInvoiceProducts(),
-        ]);
-
-        return;
-      }
-
-      // Xử lý theo hướng thông thường
-      if (!selectedPaymentMethod) {
-        message.error("Vui lòng chọn phương thức thanh toán/hoàn tiền");
-        return;
-      }
-
-      const paymentAction = priceChangeAmount > 0 ? "payment" : "refund";
-
-      // Gọi API để xử lý thanh toán hoặc hoàn tiền
-      await api.put(
-        `/api/admin/hoa-don/${id}/cap-nhat-gia`,
-        {
+      } 
+      // Nếu tăng giá hoặc không có thanh toán chờ/trả sau -> xử lý như bình thường
+      else {
+        if (!selectedPaymentMethod && priceChangeAmount !== 0) {
+          loadingMessage();
+          message.error("Vui lòng chọn phương thức thanh toán/hoàn tiền");
+          return;
+        }
+  
+        // Xác định loại thao tác dựa trên dấu của số tiền thay đổi
+        const paymentAction = priceChangeAmount > 0 ? "payment" : "refund";
+        
+        // Chuẩn bị payload cho API
+        const payload = {
           useCurrentPrices: true,
-          paymentAction: paymentAction,
+          paymentAction,
           paymentMethodId: selectedPaymentMethod,
           adjustmentAmount: Math.abs(priceChangeAmount),
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      message.success(
-        priceChangeAmount > 0
-          ? `Đã cập nhật giá và thu thêm ${formatCurrency(priceChangeAmount)}`
-          : `Đã cập nhật giá và hoàn ${formatCurrency(
-              Math.abs(priceChangeAmount)
-            )}`
-      );
-
-      // Làm mới dữ liệu
+          // Bổ sung thông tin mô tả cho giao dịch
+          description: priceChangeAmount > 0 
+            ? "Thanh toán phụ phí do giá sản phẩm tăng" 
+            : "Hoàn tiền do giá sản phẩm giảm"
+        };
+  
+        // Gọi API xử lý
+        await api.put(
+          `/api/admin/hoa-don/${id}/cap-nhat-gia`,
+          payload,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+  
+        loadingMessage();
+        message.success(
+          priceChangeAmount > 0
+            ? `Đã cập nhật giá và thu thêm ${formatCurrency(Math.abs(priceChangeAmount))}`
+            : `Đã cập nhật giá và hoàn ${formatCurrency(Math.abs(priceChangeAmount))}`
+        );
+      }
+  
+      // Làm mới dữ liệu sau khi xử lý xong
       await Promise.all([
         refreshInvoice(),
         refreshPaymentHistory(),
         refreshInvoiceProducts(),
       ]);
-
+  
       setPriceNeedsConfirmation(false);
       setShowPriceChangePaymentDialog(false);
+      
     } catch (error) {
       console.error("Lỗi khi xử lý thanh toán thay đổi giá:", error);
       message.error(
@@ -1922,82 +1911,67 @@ function InvoiceDetail() {
 
   const updateInvoiceTotal = async (updatedProducts) => {
     // Tính tổng tiền sản phẩm
-    const newTotalBeforeDiscount =
-      calculateTotalBeforeDiscount(updatedProducts);
+    const newTotalBeforeDiscount = calculateTotalBeforeDiscount(updatedProducts);
     setTotalBeforeDiscount(newTotalBeforeDiscount);
-
+  
     // Tính tổng tiền bao gồm phí vận chuyển
-    const totalWithShipping =
-      newTotalBeforeDiscount + (invoice?.phiVanChuyen || 0);
-
+    const totalWithShipping = newTotalBeforeDiscount + (invoice?.phiVanChuyen || 0);
+  
     // Tìm voucher tốt nhất dựa trên tổng mới
     let appliedVoucher = invoice.phieuGiamGia;
     let finalTotal = totalWithShipping;
-
+  
     // Tính giảm giá nếu có voucher
     if (appliedVoucher) {
       // Kiểm tra xem voucher hiện tại còn áp dụng được không
       if (newTotalBeforeDiscount < appliedVoucher.giaTriToiThieu) {
-        // Voucher không còn áp dụng được, tự động gỡ bỏ
-        try {
-          await api.delete(`/api/admin/hoa-don/${id}/voucher`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          message.info(
-            "Mã giảm giá không còn áp dụng được do thay đổi số lượng sản phẩm"
-          );
-          appliedVoucher = null;
-          finalTotal = totalWithShipping;
-        } catch (error) {
-          console.error("Lỗi khi gỡ bỏ voucher không hợp lệ:", error);
-        }
+        appliedVoucher = null;
       } else {
-        // Voucher vẫn áp dụng được, tính giảm giá
-        const discount = calculateDiscountAmount(
+        // Tính lại giảm giá dựa trên tổng mới
+        const discountAmount = calculateDiscountAmount(
           appliedVoucher,
           newTotalBeforeDiscount
         );
-        finalTotal = totalWithShipping - discount;
+        finalTotal = totalWithShipping - discountAmount;
       }
     } else if (vouchers && vouchers.length > 0) {
-      // Không có voucher hiện tại, kiểm tra xem có thể tự động áp dụng voucher tốt nhất không
+      // Tìm voucher tốt nhất cho tổng mới
       const bestVoucher = findBestVoucher(vouchers, newTotalBeforeDiscount);
-
       if (bestVoucher) {
-        try {
-          await api.post(
-            `/api/admin/hoa-don/${id}/voucher`,
-            { voucherId: bestVoucher.id },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-
-          appliedVoucher = bestVoucher;
-          const discount = calculateDiscountAmount(
-            bestVoucher,
-            newTotalBeforeDiscount
-          );
-          finalTotal = totalWithShipping - discount;
-
-          message.info(
-            `Đã tự động áp dụng mã giảm giá ${bestVoucher.maPhieuGiamGia}`
-          );
-        } catch (error) {
-          console.error("Lỗi khi áp dụng voucher tốt nhất:", error);
-        }
+        const discountAmount = calculateDiscountAmount(
+          bestVoucher,
+          newTotalBeforeDiscount
+        );
+        appliedVoucher = bestVoucher;
+        finalTotal = totalWithShipping - discountAmount;
       }
     }
-
+  
     // Cập nhật state invoice
-    setInvoice((prevInvoice) => ({
+    setInvoice(prevInvoice => ({
       ...prevInvoice,
       tongTien: finalTotal,
       phieuGiamGia: appliedVoucher,
     }));
-
-    // Làm mới dữ liệu
-    await refreshInvoice();
-    await fetchPaymentHistory();
+  
+    // NEW: Return a promise that resolves when all operations are complete
+    const refreshPromises = [
+      refreshInvoice(),
+      refreshPaymentHistory()
+    ];
+    
+    await Promise.all(refreshPromises);
+    
+    // NEW: Calculate and update excess payment
+    const excessAmount = calculateExcessAmount();
+    setHasExcessPayment(excessAmount > 0);
+    setExcessPaymentAmount(excessAmount);
+    
+    return {
+      totalBeforeDiscount: newTotalBeforeDiscount,
+      finalTotal: finalTotal,
+      excessAmount: excessAmount
+    };
   };
 
   const calculateTotalBeforeDiscount = (products) => {
@@ -2217,109 +2191,59 @@ function InvoiceDetail() {
       message.error("Không có mã giảm giá để xóa");
       return;
     }
-
+  
     try {
+      const loadingToast = message.loading("Đang xóa mã giảm giá...", 0);
+  
       await api.delete(`/api/admin/hoa-don/${id}/voucher`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      const totalWithShipping =
-        (totalBeforeDiscount || 0) + (invoice?.phiVanChuyen || 0);
-
+  
+      // Tính toán tổng tiền tạm thời (để hiển thị UI mượt mà)
+      const totalWithShipping = (totalBeforeDiscount || 0) + (invoice?.phiVanChuyen || 0);
+  
       if (totalWithShipping <= 0) {
+        loadingToast();
         message.error("Tổng tiền sau khi xóa voucher không hợp lệ!");
         return;
       }
-
+      if (invoice?.loaiHoaDon === 1 || invoice?.loaiHoaDon === 3) {
+        // Kiểm tra điều kiện miễn phí vận chuyển 
+        const isFreeShipping = checkFreeShipping(totalBeforeDiscount);
+        
+        if (isFreeShipping !== (invoice.phiVanChuyen === 0)) {
+          // Nếu điều kiện miễn phí vận chuyển thay đổi, tính lại phí vận chuyển
+          calculateAndUpdateShippingFee(false);
+        }
+      }
+      // Cập nhật invoice state tạm thời để UI phản hồi ngay lập tức
       setInvoice((prevInvoice) => ({
         ...prevInvoice,
         tongTien: totalWithShipping,
         phieuGiamGia: null,
       }));
-
+  
+      // Làm mới toàn bộ dữ liệu liên quan từ server
+      await Promise.all([
+        refreshInvoice(),
+        refreshPaymentHistory()
+      ]);
+  
+      // Kiểm tra và cập nhật trạng thái thanh toán thừa/thiếu
+      const excessAmount = calculateExcessAmount();
+      setHasExcessPayment(excessAmount > 0);
+      setExcessPaymentAmount(excessAmount);
+  
+      loadingToast();
       message.success("Đã xóa mã giảm giá");
-      fetchPaymentHistory(); // Cập nhật lịch sử thanh toán ngay lập tức
     } catch (error) {
-      showErrorDialog("Lỗi khi xóa mã giảm giá");
+      console.error("Lỗi khi xóa mã giảm giá:", error);
+      message.error(error.response?.data?.message || "Lỗi khi xóa mã giảm giá");
     }
   };
 
-  const handleEditVoucher = async () => {
-    try {
-      const response = await api.put(
-        `/api/admin/hoa-don/${id}/voucher/${invoice.phieuGiamGia.id}`,
-        {
-          voucherId: selectedVoucher.id,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      // Tính toán số tiền giảm
-      const originalTotal =
-        response.data.tongTienTruocGiam || response.data.tongTien;
-      const discountedTotal = response.data.tongTien;
-      const discountAmount = originalTotal - discountedTotal;
-
-      message.success(
-        `Cập nhật mã giảm giá ${selectedVoucher.maPhieuGiamGia} - ` +
-          `${
-            selectedVoucher.loaiPhieuGiamGia === 1
-              ? `${selectedVoucher.giaTriGiam}%`
-              : formatCurrency(selectedVoucher.giaTriGiam)
-          } ` +
-          `(Giảm ${formatCurrency(discountAmount)})`,
-        {
-          autoClose: 5000,
-        }
-      );
-
-      setEditVoucherDialog(false);
-      setInvoice((prevInvoice) => ({
-        ...prevInvoice,
-        tongTien: response.data.tongTien,
-        phieuGiamGia: selectedVoucher,
-      }));
-    } catch (error) {
-      console.error("Error updating voucher:", error);
-      const errorMessage =
-        error.response?.data?.message || "Lỗi khi cập nhật phiếu giảm giá";
-      message.error(errorMessage);
-    }
-  };
-
-  const createFullAddress = () => {
-    const parts = [];
-
-    // Địa chỉ cụ thể luôn đặt ở đầu tiên nếu có
-    if (specificAddress?.trim()) {
-      parts.push(specificAddress.trim());
-    }
-
-    // Thêm phường/xã nếu có
-    if (selectedWard?.WardName) {
-      parts.push(selectedWard.WardName);
-    }
-
-    // Thêm quận/huyện nếu có
-    if (selectedDistrict?.DistrictName) {
-      parts.push(selectedDistrict.DistrictName);
-    }
-
-    // Thêm tỉnh/thành phố nếu có
-    if (selectedProvince?.ProvinceName) {
-      parts.push(selectedProvince.ProvinceName);
-    }
-
-    // Trả về địa chỉ đầy đủ được phân tách bằng dấu phẩy
-    return parts.join(", ");
-  };
 
   const handleSaveRecipientInfo = async () => {
     try {
@@ -2524,7 +2448,7 @@ function InvoiceDetail() {
         });
       }
     } catch (error) {
-      console.error("❌ Lỗi khi tải danh sách tỉnh/thành phố:", error);
+      console.error(" Lỗi khi tải danh sách tỉnh/thành phố:", error);
       showErrorDialog(
         "Không thể tải danh sách tỉnh/thành phố. Vui lòng thử lại sau."
       );
@@ -2645,7 +2569,7 @@ function InvoiceDetail() {
         });
       }
     } catch (error) {
-      console.error("❌ Lỗi khi tải danh sách quận/huyện:", error);
+      console.error(" Lỗi khi tải danh sách quận/huyện:", error);
       message.error(
         "Không thể tải danh sách quận/huyện. Vui lòng thử lại sau."
       );
@@ -2690,7 +2614,7 @@ function InvoiceDetail() {
         });
       }
     } catch (error) {
-      console.error("❌ Lỗi khi tải danh sách phường/xã:", error);
+      console.error(" Lỗi khi tải danh sách phường/xã:", error);
       showErrorDialog(
         "Không thể tải danh sách phường/xã. Vui lòng thử lại sau."
       );
@@ -2813,7 +2737,7 @@ function InvoiceDetail() {
       // 8. Tắt loading khi hoàn thành
       setTrackingAddressLoading(false);
     } catch (error) {
-      console.error("❌ Lỗi khi mở dialog chỉnh sửa:", error);
+      console.error(" Lỗi khi mở dialog chỉnh sửa:", error);
       setTrackingAddressLoading(false);
       showErrorDialog("Đã xảy ra lỗi khi tải thông tin. Vui lòng thử lại sau.");
     }
@@ -3023,7 +2947,7 @@ function InvoiceDetail() {
         provinceId,
       };
     } catch (error) {
-      console.error("❌ Lỗi khi phân tích địa chỉ:", error);
+      console.error(" Lỗi khi phân tích địa chỉ:", error);
       return {
         detailAddress: fullAddress,
         wardId: "",
@@ -4011,81 +3935,211 @@ function InvoiceDetail() {
       setConfirmText("");
     }
   };
-
+    const handlePrintInvoice = async () => {
+      try {
+        if (!invoice || !id) return;
+        
+        const printToastId = message.loading("Đang xử lý tài liệu in...", 0);
+        
+        // Tải file PDF dưới dạng blob
+        const response = await api.get(`/api/admin/hoa-don/${id}/print`, {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/pdf, application/json",
+          },
+        });
+    
+        // Tạo URL từ blob
+        const blob = new Blob([response.data], { type: "application/pdf" });
+        const url = window.URL.createObjectURL(blob);
+        
+        // Tạo một iframe ẩn để hiển thị và in PDF
+        const printFrame = document.createElement('iframe');
+        printFrame.style.display = 'none';
+        printFrame.src = url;
+        document.body.appendChild(printFrame);
+        
+        // Đợi iframe load xong
+        printFrame.onload = () => {
+          try {
+            // In nội dung iframe
+            printFrame.contentWindow.print();
+            
+            // Đóng thông báo loading
+            printToastId();
+            message.success('Đã gửi lệnh in hóa đơn');
+            
+            // Dọn dẹp sau khi in xong (sau 3 giây)
+            setTimeout(() => {
+              document.body.removeChild(printFrame);
+              window.URL.revokeObjectURL(url);
+            }, 3000);
+          } catch (err) {
+            console.error('Lỗi khi in:', err);
+            printToastId();
+            message.error('Có lỗi xảy ra khi in tài liệu');
+            document.body.removeChild(printFrame);
+            window.URL.revokeObjectURL(url);
+          }
+        };
+        
+        // Xử lý lỗi iframe không load được
+        printFrame.onerror = () => {
+          console.error('Lỗi khi tải iframe in');
+          printToastId();
+          message.error('Không thể tải tài liệu in');
+          document.body.removeChild(printFrame);
+          window.URL.revokeObjectURL(url);
+        };
+        
+      } catch (error) {
+        console.error('Lỗi khi xử lý tài liệu in:', error);
+        message.error('Không thể xử lý tài liệu in. Vui lòng thử lại sau.');
+      }
+    };
   const handleConfirmStatusChange = async () => {
+    let hideLoading = () => {};
     try {
       setProcessingStatusChange(true);
-      const hideMessage = message.loading("Đang xử lý chuyển trạng thái...", 0); // 0 = không tự đóng
-
+      hideLoading = message.loading("Đang xử lý chuyển trạng thái...", 0);
+  
       // Kiểm tra số tiền cần thanh toán
       const remainingPayment = calculateRemainingPayment();
-
+  
       // Kiểm tra xem có khoản thanh toán trả sau hoặc chuyển khoản ngân hàng không
-      const hasPendingOrCodPayments = paymentHistory.some(
-        (p) =>
-          (p.trangThai === 2 || p.trangThai === 3) &&
-          (p.maPhuongThucThanhToan === "COD" ||
-            p.maPhuongThucThanhToan === "BANK")
+      const hasPendingPayments = paymentHistory.some(
+        (p) => (p.trangThai === 2 || p.trangThai === 3)
       );
-
-      // Chỉ mở modal thanh toán khi còn thiếu tiền VÀ không có thanh toán COD/bank chờ xác nhận
-      if (remainingPayment > 1000 && !hasPendingOrCodPayments) {
-        hideMessage(); // đóng message
-        setPaymentAmount(remainingPayment);
-        setOpenPaymentModal(true);
-        setProcessingStatusChange(false);
-        return;
+  
+      // Nếu chuyển sang trạng thái hủy đơn, xử lý hoàn tiền
+      if (nextStatus === 6) {
+        // Lấy tổng số tiền đã thanh toán
+        const { actualPaidAmount } = getPaymentSummary();
+        
+        if (actualPaidAmount > 0) {
+          // Xử lý hoàn tiền cho đơn hủy
+          const defaultRefundMethod = determineDefaultRefundMethod();
+          
+          // Thêm thông tin hoàn tiền vào payload
+          const requestPayload = {
+            lyDo: cancelReason || "Đơn hàng bị hủy",
+            refundInfo: {
+              amount: actualPaidAmount,
+              paymentMethod: defaultRefundMethod,
+              description: `Hoàn tiền do hủy đơn hàng: ${cancelReason || "Đơn hàng bị hủy"}`
+            }
+          };
+          
+          // Gọi API hủy đơn với thông tin hoàn tiền
+          await api.patch(
+            `/api/admin/hoa-don/${id}/status?trangThai=${nextStatus}`,
+            requestPayload,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          hideLoading();
+          message.success(`Đã hủy đơn hàng và hoàn tiền ${formatCurrency(actualPaidAmount)} thành công`);
+        } else {
+          // Nếu chưa thanh toán, chỉ cần hủy đơn
+          await api.patch(
+            `/api/admin/hoa-don/${id}/status?trangThai=${nextStatus}`,
+            { lyDo: cancelReason || "Đơn hàng bị hủy" },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          hideLoading();
+          message.success("Đã hủy đơn hàng thành công");
+        }
       }
-
-      // Tạo payload cho API với thông tin thanh toán
-      const requestPayload = {
-        thanhToans: [],
-      };
-
-      // Nếu có thanh toán chờ xác nhận hoặc trả sau, thêm vào payload
-      if (hasPendingOrCodPayments) {
-        const pendingPayments = paymentHistory
-          .filter(
-            (p) =>
-              (p.trangThai === 2 || p.trangThai === 3) &&
-              (p.maPhuongThucThanhToan === "COD" ||
-                p.maPhuongThucThanhToan === "BANK")
-          )
-          .map((p) => ({
-            maPhuongThucThanhToan: p.maPhuongThucThanhToan,
-            soTien: p.tongTien || p.soTien,
-            moTa:
-              p.trangThai === 2
-                ? "Xác nhận thanh toán chuyển khoản"
-                : "Thanh toán khi xác nhận đơn hàng",
-          }));
-
-        requestPayload.thanhToans = pendingPayments;
-        console.log("Đang gửi thông tin thanh toán:", pendingPayments);
+      // Xử lý cho các trạng thái khác
+      else {
+        // Chỉ mở modal thanh toán khi còn thiếu tiền VÀ không có thanh toán COD/bank chờ xác nhận
+        if (remainingPayment > 1000 && !hasPendingPayments) {
+          hideLoading(); // đóng message
+          setPaymentAmount(remainingPayment);
+          setOpenPaymentModal(true);
+          setProcessingStatusChange(false);
+          return;
+        }
+  
+        // Tạo payload cho API với thông tin thanh toán
+        const requestPayload = { thanhToans: [] };
+        
+        // Nếu có thanh toán chờ xác nhận hoặc trả sau, thêm vào payload
+        if (hasPendingPayments) {
+          const pendingPayments = paymentHistory
+            .filter(
+              (p) =>
+                (p.trangThai === 2 || p.trangThai === 3) &&
+                (p.maPhuongThucThanhToan === "COD" ||
+                  p.maPhuongThucThanhToan === "BANK")
+            )
+            .map((p) => ({
+              maPhuongThucThanhToan: p.maPhuongThucThanhToan,
+              soTien: p.tongTien || p.soTien,
+              moTa:
+                p.trangThai === 2
+                  ? "Xác nhận thanh toán chuyển khoản"
+                  : "Thanh toán khi xác nhận đơn hàng",
+            }));
+  
+          requestPayload.thanhToans = pendingPayments;
+        }
+  
+        // Gọi API với thông tin thanh toán
+        await api.patch(
+          `/api/admin/hoa-don/${id}/status?trangThai=${nextStatus}`,
+          requestPayload,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        hideLoading();
+        message.success(`Đã chuyển trạng thái thành công`);
       }
-
-      // Gọi API với thông tin thanh toán
-      await api.patch(
-        `/api/admin/hoa-don/${id}/status?trangThai=${nextStatus}`,
-        requestPayload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Cập nhật UI và hiển thị thông báo thành công
+  
+      // Làm mới dữ liệu
       await refreshInvoice();
       await fetchOrderHistory();
       await refreshStepsHistory();
       await refreshPaymentHistory();
-
+      
       setOpenConfirmDialog(false);
-      hideMessage();
-      message.success(`Đã chuyển trạng thái thành công`);
+      
+      // Xử lý in hóa đơn nếu cần
+      if (nextStatus === 3) {
+        handlePrintInvoice();
+      }
     } catch (error) {
+      hideLoading();
       console.error("Lỗi khi chuyển trạng thái:", error);
       message.error(error.response?.data?.message || "Lỗi khi chuyển trạng thái");
     } finally {
       setProcessingStatusChange(false);
     }
+  };
+  
+  // Hàm xác định phương thức hoàn tiền mặc định
+  const determineDefaultRefundMethod = () => {
+    // Ưu tiên sử dụng phương thức thanh toán gần nhất
+    const paidPayments = paymentHistory
+      .filter(p => p.trangThai === 1)
+      .sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
+    
+    if (paidPayments.length > 0) {
+      // Ưu tiên hoàn tiền qua cùng phương thức
+      const latestPayment = paidPayments[0];
+      
+      // Không thể hoàn qua COD
+      if (latestPayment.maPhuongThucThanhToan === "COD") {
+        return "CASH"; // Nếu COD, đổi sang tiền mặt
+      }
+      
+      return latestPayment.maPhuongThucThanhToan;
+    }
+    
+    // Mặc định hoàn tiền mặt
+    return "CASH";
   };
 
   const handleGoBack = (currentStatus) => {
@@ -4335,7 +4389,7 @@ function InvoiceDetail() {
 
       // Đảm bảo có dữ liệu
       if (!provincesResponse.data || !Array.isArray(provincesResponse.data)) {
-        console.error("❌ API tỉnh trả về dữ liệu không hợp lệ");
+        console.error(" API tỉnh trả về dữ liệu không hợp lệ");
         return {};
       }
 
@@ -4399,22 +4453,22 @@ function InvoiceDetail() {
                     );
                   } else {
                     console.log(
-                      `❌ Không tìm thấy phường/xã với mã: ${wardCode}`
+                      ` Không tìm thấy phường/xã với mã: ${wardCode}`
                     );
                   }
                 }
               } catch (wardError) {
-                console.error("❌ Lỗi khi tải danh sách phường/xã:", wardError);
+                console.error(" Lỗi khi tải danh sách phường/xã:", wardError);
               }
             } else {
-              console.log(`❌ Không tìm thấy quận/huyện với ID: ${districtId}`);
+              console.log(` Không tìm thấy quận/huyện với ID: ${districtId}`);
             }
           }
         } catch (districtError) {
-          console.error("❌ Lỗi khi tải danh sách quận/huyện:", districtError);
+          console.error(" Lỗi khi tải danh sách quận/huyện:", districtError);
         }
       } else {
-        console.log(`❌ Không tìm thấy tỉnh/thành phố với ID: ${provinceId}`);
+        console.log(` Không tìm thấy tỉnh/thành phố với ID: ${provinceId}`);
       }
 
       // Khởi tạo cache toàn cục nếu chưa có
@@ -4441,7 +4495,7 @@ function InvoiceDetail() {
 
       return { provinceName, districtName, wardName };
     } catch (error) {
-      console.error("❌ Lỗi khi tải thông tin địa chỉ:", error);
+      console.error(" Lỗi khi tải thông tin địa chỉ:", error);
       return {};
     }
   };
@@ -4531,7 +4585,7 @@ function InvoiceDetail() {
 
       return `${detailAddress}, ${wardPart}, ${districtPart}, ${provincePart}`;
     } catch (error) {
-      console.error("❌ Lỗi khi định dạng địa chỉ:", error);
+      console.error(" Lỗi khi định dạng địa chỉ:", error);
       return diaChi;
     }
   };
@@ -4614,7 +4668,7 @@ function InvoiceDetail() {
             setFormattedAddress(updatedFormatted);
           }
         } catch (error) {
-          console.error("❌ Lỗi khi xử lý địa chỉ:", error);
+          console.error(" Lỗi khi xử lý địa chỉ:", error);
         }
       }
     };
@@ -4802,7 +4856,7 @@ function InvoiceDetail() {
         to_ward_code: wardCode,
       };
     } catch (error) {
-      console.error("❌ Lỗi khi chuyển đổi địa chỉ:", error);
+      console.error(" Lỗi khi chuyển đổi địa chỉ:", error);
       return null;
     }
   };
@@ -4899,7 +4953,7 @@ function InvoiceDetail() {
 
       return addressInfo;
     } catch (error) {
-      console.error("❌ Lỗi khi tải thông tin địa chỉ:", error);
+      console.error(" Lỗi khi tải thông tin địa chỉ:", error);
     }
   };
   // Thêm hàm kiểm tra điều kiện miễn phí vận chuyển
@@ -5030,8 +5084,8 @@ function InvoiceDetail() {
   const refreshPaymentHistory = async () => {
     try {
       setLoadingPayments(true);
-
-      // Thêm timestamp và cache-control để đảm bảo luôn lấy dữ liệu mới
+  
+      // Add timestamp and cache-control to ensure fresh data
       const timestamp = new Date().getTime();
       const response = await api.get(
         `/api/thanh-toan-hoa-don/hoa-don/${id}?t=${timestamp}`,
@@ -5044,31 +5098,26 @@ function InvoiceDetail() {
           },
         }
       );
-
+  
       if (response.data) {
-        // Quan trọng: xử lý số liệu trước khi cập nhật state
+        // Convert numeric values properly
         const processedPayments = response.data.map((payment) => ({
           ...payment,
           tongTien: payment.tongTien ? Number(payment.tongTien) : 0,
           soTien: payment.soTien ? Number(payment.soTien) : 0,
         }));
-
+  
         console.log("Dữ liệu thanh toán mới:", processedPayments);
         setPaymentHistory(processedPayments);
-
-        // Kiểm tra có COD/bank payments để đặt button đúng trạng thái
-        const hasSpecialPayments = processedPayments.some(
-          (p) =>
-            (p.trangThai === 2 || p.trangThai === 3) &&
-            (p.maPhuongThucThanhToan === "COD" ||
-              p.maPhuongThucThanhToan === "BANK")
-        );
-
-        console.log("Có thanh toán COD/bank chờ xác nhận:", hasSpecialPayments);
+  
+        // Return the processed data for immediate use without waiting for state update
+        return processedPayments;
       }
+      return [];
     } catch (error) {
       console.error("Error fetching payment history:", error);
       message.error("Lỗi khi tải lịch sử thanh toán");
+      return [];
     } finally {
       setLoadingPayments(false);
     }
@@ -6242,9 +6291,10 @@ function InvoiceDetail() {
             </div>
 
             {/* Add remaining payment amount display if there are payments but not completed */}
-            {paymentHistory &&
+            {(paymentHistory &&
               paymentHistory.length > 0 &&
-              calculateRemainingPayment() > 0 && (
+              calculateRemainingPayment() > 0 &&
+              invoice.trangThai !== 6) && (
                 <div
                   style={{
                     display: "flex",

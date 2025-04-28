@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Button, Table, Row, Modal, Input, Form, Col, Breadcrumb } from 'antd';
-import { toast } from 'react-toastify';
+import { Button, Table, Row, Modal, Input, Form, Col, Breadcrumb, message } from 'antd';
 import { TbEyeEdit } from 'react-icons/tb';
 import { SearchOutlined, FileExcelOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
@@ -30,7 +29,7 @@ const DanhMuc = () => {
       console.error('Error fetching data:', error);
     }
   };
-  
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -80,32 +79,51 @@ const DanhMuc = () => {
         setError('Tên kích thước đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa danh mục?' : 'Xác nhận thêm danh mục?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} danh mục "${
+          values.tenDanhMuc
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setDanhMuc((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              message.success('Sửa danh mục thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/adddanhmuc',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setDanhMuc((prev) => [response.data, ...prev]);
+              message.success('Thêm danh mục thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setDanhMuc((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa danh mục thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setDanhMuc((prev) => [response.data, ...prev]);
-        toast.success('Thêm danh mục thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -183,7 +201,9 @@ const DanhMuc = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Danh mục</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Danh mục</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{
@@ -191,7 +211,7 @@ const DanhMuc = () => {
           borderRadius: '8px',
           padding: '20px',
           backgroundColor: 'white',
-          height:'auto'
+          height: 'auto',
         }}
       >
         <Row gutter={16} style={{ marginBottom: '30px' }}>
@@ -235,7 +255,6 @@ const DanhMuc = () => {
         onOk={handleSave}
         okText={isEditing ? 'Cập nhật' : 'Thêm'}
       >
-        
         <Form form={form} layout="vertical">
           <Form.Item
             name="tenDanhMuc"
@@ -270,14 +289,9 @@ const DanhMuc = () => {
               },
             ]}
           >
-            <Input   
-            />
+            <Input />
           </Form.Item>
-          {error && (
-            <p style={{ color: 'red', fontSize: '14px'}}>
-              {error}
-            </p>
-          )}
+          {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
           <Form.Item name="moTa" label="Mô tả">
             <TextArea rows={4} placeholder="Mô tả" maxLength={200} />
           </Form.Item>

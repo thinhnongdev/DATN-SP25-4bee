@@ -20,12 +20,11 @@ const ThuongHieu = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/thuonghieu',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await axios.get('http://localhost:8080/api/admin/thuonghieu', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setThuongHieu(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,32 +78,51 @@ const ThuongHieu = () => {
         setError('Tên thương hiệu đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa thương hiệu?' : 'Xác nhận thêm thương hiệu?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} thương hiệu "${
+          values.tenThuongHieu
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/thuonghieu/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setThuongHieu((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              message.success('Sửa thương hiệu thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addthuonghieu',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setThuongHieu((prev) => [response.data, ...prev]);
+              toast.success('Thêm thương hiệu thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/thuonghieu/${editingRecord.id}`, values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setThuongHieu((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        message.success('Sửa thương hiệu thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addthuonghieu', values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setThuongHieu((prev) => [response.data, ...prev]);
-        toast.success('Thêm thương hiệu thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -181,7 +199,9 @@ const ThuongHieu = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Thương hiệu</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Thương hiệu</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{

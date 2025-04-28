@@ -381,44 +381,66 @@ function InvoiceList() {
   };
 
   // Handle printing invoice
+  // Cập nhật hàm handlePrintInvoice để in trực tiếp thay vì mở tab mới
   const handlePrintInvoice = async (id) => {
     try {
       setPrintingInvoices((prev) => new Set([...prev, id]));
+      
+      const printToastId = message.loading("Đang xử lý tài liệu in...", 0);
+      
+      // Tải file PDF dưới dạng blob
       const response = await api.get(`/api/admin/hoa-don/${id}/print`, {
+        responseType: "blob",
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/pdf, application/json",
         },
-        responseType: "blob",
       });
-
-      const contentType = response.headers["content-type"];
-      if (!contentType.includes("application/pdf")) {
-        message.error("Định dạng không hợp lệ từ máy chủ");
-        return;
-      }
-
+  
+      // Tạo URL từ blob
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = url;
-      document.body.appendChild(iframe);
-
-      iframe.onload = () => {
+      
+      // Tạo một iframe ẩn để hiển thị và in PDF
+      const printFrame = document.createElement('iframe');
+      printFrame.style.display = 'none';
+      printFrame.src = url;
+      document.body.appendChild(printFrame);
+      
+      // Đợi iframe load xong
+      printFrame.onload = () => {
         try {
-          iframe.contentWindow.print();
-        } catch (error) {
-          message.error("Lỗi khi in hóa đơn");
-        }
-        setTimeout(() => {
-          document.body.removeChild(iframe);
+          // In nội dung iframe
+          printFrame.contentWindow.print();
+          
+          // Đóng thông báo loading
+          printToastId();
+          message.success('Đã gửi lệnh in hóa đơn');
+          
+          // Dọn dẹp sau khi in xong (sau 3 giây)
+          setTimeout(() => {
+            document.body.removeChild(printFrame);
+            window.URL.revokeObjectURL(url);
+          }, 3000);
+        } catch (err) {
+          printToastId();
+          message.error('Có lỗi xảy ra khi in tài liệu');
+          document.body.removeChild(printFrame);
           window.URL.revokeObjectURL(url);
-        }, 1000);
+        }
       };
+      
+      // Xử lý lỗi iframe không load được
+      printFrame.onerror = () => {
+        printToastId();
+        message.error('Không thể tải tài liệu in');
+        document.body.removeChild(printFrame);
+        window.URL.revokeObjectURL(url);
+      };
+      
     } catch (error) {
-      message.error("Lỗi khi tải hóa đơn");
+      console.error("Lỗi khi tải hóa đơn:", error);
+      message.error("Không thể tải hóa đơn. Vui lòng thử lại sau.");
     } finally {
       setPrintingInvoices((prev) => {
         const next = new Set(prev);

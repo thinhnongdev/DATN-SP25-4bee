@@ -249,14 +249,13 @@ public class HoaDonServiceImpl implements IHoaDonService {
             hoaDon.setPhiVanChuyen(phiVanChuyen);
         }
 
-        // Tính lại tổng tiền hóa đơn
+        // Tính lại tổng tiền hóa đơn: subtotal - discount (KHÔNG cộng thêm phí vận chuyển vào đây)
+        // Phí vận chuyển sẽ được xử lý riêng khi hiển thị hoặc tính toán
         BigDecimal finalTotal = subtotalAfterDiscount;
-        if (hoaDon.getPhiVanChuyen() != null && hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
-            finalTotal = finalTotal.add(hoaDon.getPhiVanChuyen());
-        }
 
+        // Lưu tổng tiền SẢN PHẨM sau giảm giá (không bao gồm phí vận chuyển)
         hoaDon.setTongTien(finalTotal);
-        log.info("Đã cập nhật phí vận chuyển và tổng tiền hóa đơn: phí vận chuyển={}, tổng tiền={}",
+        log.info("Đã cập nhật phí vận chuyển và tổng tiền sản phẩm: phí vận chuyển={}, tổng tiền sản phẩm={}",
                 hoaDon.getPhiVanChuyen(), hoaDon.getTongTien());
 
         return hoaDonRepository.save(hoaDon);
@@ -367,7 +366,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             phieuGiamGiaRepository.save(voucher);
             log.info("Hoàn lại mã giảm giá {}: số lượng mới {}", voucher.getId(), voucher.getSoLuong());
 
-            hoaDon.setPhieuGiamGia(null); // Xóa voucher khỏi hóa đơn
+//            hoaDon.setPhieuGiamGia(null); // Xóa voucher khỏi hóa đơn
         }
 
         // THÊM MỚI: Xử lý hoàn tiền cho khách hàng nếu đã thanh toán
@@ -874,7 +873,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             PhieuGiamGia voucher = hoaDon.getPhieuGiamGia();
             voucher.setSoLuong(voucher.getSoLuong() + 1);
             phieuGiamGiaRepository.save(voucher);
-            hoaDon.setPhieuGiamGia(null);
+//            hoaDon.setPhieuGiamGia(null);
         }
 
         // 3. Hoàn tiền nếu cần
@@ -1293,10 +1292,10 @@ public class HoaDonServiceImpl implements IHoaDonService {
         // Tổng tiền cần thanh toán = Tổng tiền hóa đơn (đã bao gồm giảm giá) + Phí vận chuyển
         BigDecimal tongTienCanThanhToan = hoaDon.getTongTien();
 
-        // Cộng phí vận chuyển nếu có
-        if (hoaDon.getPhiVanChuyen() != null && hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
-            tongTienCanThanhToan = tongTienCanThanhToan.add(hoaDon.getPhiVanChuyen());
-        }
+//        // Cộng phí vận chuyển nếu có
+//        if (hoaDon.getPhiVanChuyen() != null && hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
+//            tongTienCanThanhToan = tongTienCanThanhToan.add(hoaDon.getPhiVanChuyen());
+//        }
 
         log.info("Hóa đơn {}: Tổng đã thanh toán = {}, Đã hoàn trả = {}, Thực thanh toán = {}, Tổng cần thanh toán (gồm phí ship) = {}",
                 hoaDonId,

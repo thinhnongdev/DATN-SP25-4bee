@@ -78,30 +78,51 @@ const KieuCuc = () => {
         setError('Tên kiểu cúc đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa kiểu cúc?' : 'Xác nhận thêm kiểu cúc?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} kiểu cúc "${
+          values.tenKieuCuc
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuCuc((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              toast.success('Sửa kiểu cúc thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addkieucuc',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuCuc((prev) => [response.data, ...prev]);
+              toast.success('Thêm kiểu cúc thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`, values, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setKieuCuc((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa kiểu cúc thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucuc', values, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setKieuCuc((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu cúc thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -179,7 +200,9 @@ const KieuCuc = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Kiểu cúc</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Kiểu cúc</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{

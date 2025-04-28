@@ -20,12 +20,11 @@ const KieuTuiAo = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kieutuiao',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await axios.get('http://localhost:8080/api/admin/kieutuiao', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setKieuTuiAo(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,32 +78,51 @@ const KieuTuiAo = () => {
         setError('Tên kiểu túi áo đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa kiểu túi áo?' : 'Xác nhận thêm kiểu túi áo?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} kiểu túi áo "${
+          values.tenKieuTuiAo
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/kieutuiao/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuTuiAo((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              toast.success('Sửa kiểu túi áo thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addkieutuiao',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuTuiAo((prev) => [response.data, ...prev]);
+              toast.success('Thêm kiểu túi áo thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieutuiao/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKieuTuiAo((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa kiểu túi áo thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieutuiao',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKieuTuiAo((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu túi áo thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -182,7 +200,9 @@ const KieuTuiAo = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Kiểu túi áo</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Kiểu túi áo</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{

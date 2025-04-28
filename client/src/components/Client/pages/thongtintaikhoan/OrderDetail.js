@@ -1335,6 +1335,9 @@ const OrderDetailPage = () => {
             updateOrder,
           );
           message.success('Cập nhật đơn hàng thành công!');
+          fetchOrder(); // Tải lại thông tin đơn hàng sau khi cập nhật
+          setUpdateOrder(order); // Đặt lại thông tin đơn hàng về mặc định
+          fetchOrderHistory(); // Tải lại lịch sử đơn hàng
           setHasChanges(false); // Ẩn nút sau khi cập nhật thành công
         } catch (error) {
           console.error(error);
@@ -1521,7 +1524,7 @@ const OrderDetailPage = () => {
                     />
                   </Col>
                   <Col span={16}>
-                    <Text strong>{item.sanPham}</Text>
+                    <Text strong>{item.sanPham}-{item.maSanPhamChiTiet}</Text>
                     <br />
                     <Text type="secondary">
                       Màu: {item.mauSac}, Kích thước: {item.kichThuoc}, Chất liệu: {item.chatLieu}

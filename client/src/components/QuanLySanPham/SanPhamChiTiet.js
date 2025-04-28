@@ -817,9 +817,7 @@ const SanPhamChiTiet = () => {
       dataIndex: 'maSanPhamChiTiet',
       key: 'maSanPhamChiTiet',
       render: (text) => (
-        <div style={{ whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: '60px' }}>
-          {text}
-        </div>
+        <div style={{ whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: '60px' }}>{text}</div>
       ),
     },
     {

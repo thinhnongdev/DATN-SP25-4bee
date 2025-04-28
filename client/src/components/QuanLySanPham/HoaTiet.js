@@ -20,12 +20,11 @@ const HoaTiet = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/hoatiet',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await axios.get('http://localhost:8080/api/admin/hoatiet', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setHoaTiet(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -81,32 +80,51 @@ const HoaTiet = () => {
         setError('Tên họa tiết đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa hoạ tiết?' : 'Xác nhận thêm hoạ tiết?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} hoạ tiết "${
+          values.tenHoaTiet
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setHoaTiet((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              toast.success('Sửa họa tiết thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addhoatiet',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setHoaTiet((prev) => [response.data, ...prev]);
+              toast.success('Thêm họa tiết thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setHoaTiet((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa họa tiết thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setHoaTiet((prev) => [response.data, ...prev]);
-        toast.success('Thêm họa tiết thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -184,7 +202,9 @@ const HoaTiet = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Họa tiết</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Họa tiết</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{
@@ -192,7 +212,7 @@ const HoaTiet = () => {
           borderRadius: '8px',
           padding: '20px',
           backgroundColor: 'white',
-          height:'auto'
+          height: 'auto',
         }}
       >
         <Row gutter={16} style={{ marginBottom: '30px' }}>
@@ -224,8 +244,8 @@ const HoaTiet = () => {
           dataSource={filteredData.map((item) => ({ ...item, key: item.id }))}
           columns={columns}
           pagination={pagination}
-      onChange={handleTableChange}
-      rowKey="id"
+          onChange={handleTableChange}
+          rowKey="id"
         />
       </div>
 
@@ -236,7 +256,6 @@ const HoaTiet = () => {
         onOk={handleSave}
         okText={isEditing ? 'Cập nhật' : 'Thêm'}
       >
-        
         <Form form={form} layout="vertical">
           <Form.Item
             name="tenHoaTiet"
@@ -271,14 +290,9 @@ const HoaTiet = () => {
               },
             ]}
           >
-            <Input   
-            />
+            <Input />
           </Form.Item>
-          {error && (
-            <p style={{ color: 'red', fontSize: '14px'}}>
-              {error}
-            </p>
-          )}
+          {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
           <Form.Item name="moTa" label="Mô tả">
             <TextArea rows={4} placeholder="Mô tả" maxLength={200} />
           </Form.Item>

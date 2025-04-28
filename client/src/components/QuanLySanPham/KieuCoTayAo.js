@@ -20,12 +20,11 @@ const KieuCoTayAo = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kieucotayao',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await axios.get('http://localhost:8080/api/admin/kieucotayao', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setKieuCoTayAo(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,35 +78,51 @@ const KieuCoTayAo = () => {
         setError('Tên cổ tay áo đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa kiểu cổ tay áo?' : 'Xác nhận thêm kiểu cổ tay áo?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} kiểu cổ tay áo "${
+          values.tenKieuCoTayAo
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/kieucotayao/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuCoTayAo((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              toast.success('Sửa kiểu cổ tay áo thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addkieucotayao',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuCoTayAo((prev) => [response.data, ...prev]);
+              toast.success('Thêm kiểu cổ tay áo thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(
-          `http://localhost:8080/api/admin/kieucotayao/${editingRecord.id}`,
-          values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
           }
-        );
-        setKieuCoTayAo((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa kiểu cổ tay áo thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucotayao',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKieuCoTayAo((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu cổ tay áo thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -184,7 +199,9 @@ const KieuCoTayAo = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Kiểu cổ tay áo</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Kiểu cổ tay áo</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{

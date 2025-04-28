@@ -28,6 +28,7 @@ import {
 } from '@ant-design/icons';
 
 import { Link, useNavigate } from 'react-router-dom';
+import { HexColorPicker } from 'react-colorful';
 const { Option } = Select;
 const DemoForm = () => {
   const onFinish = (values) => {
@@ -69,6 +70,8 @@ const DemoForm = () => {
   const [isModalKieuTayAoVisible, setIsModalKieuTayAoVisible] = useState(false); // Hiển thị modal kiểu tay áo
   const [isModalDanhMucVisible, setIsModalDanhMucVisible] = useState(false); // Hiển thị modal kiểu tay áo
   const [isModalHoaTietVisible, setIsModalHoaTietVisible] = useState(false); // Hiển thị modal kiểu tay áo
+  const [isModalThemMauSacVisible, setIsModalThemMauSacVisible] = useState(false); // Hiển thị modal kiểu tay áo
+  const [isModalThemKichThuocVisible, setIsModalThemKichThuocVisible] = useState(false); // Hiển thị modal kiểu tay áo
   const [isEditing, setIsEditing] = useState(false); // Chế độ thêm hoặc chỉnh sửa
   const [editingRecord, setEditingRecord] = useState(null); // Dữ liệu dòng đang chỉnh sửa
   const [form] = Form.useForm();
@@ -83,6 +86,9 @@ const DemoForm = () => {
   const [formKieuTayAo] = Form.useForm();
   const [formDanhMuc] = Form.useForm();
   const [formHoaTiet] = Form.useForm();
+  const [formMauSac] = Form.useForm();
+  const [color, setColor] = useState('');
+  const [formKichThuoc] = Form.useForm();
   const [formEditSLGia] = Form.useForm();
   const [error, setError] = useState('');
   const [isModalVisibleColor, setIsModalVisibleColor] = useState(false);
@@ -1087,6 +1093,148 @@ const DemoForm = () => {
     formKieuTuiAo.resetFields();
     setError('');
   };
+  const handleModalThemMauSacClose = () => {
+    setIsModalThemMauSacVisible(false);
+    formMauSac.resetFields();
+  };
+  const handleModalThemMauSacOpen = () => {
+    setIsModalThemMauSacVisible(true);
+    formMauSac.resetFields();
+  };
+  const handleColorChange = (newColor) => {
+    setColor(newColor);
+    formMauSac.setFieldsValue({ maMau: newColor });
+  };
+  const handleSaveColor = async () => {
+    try {
+      const values = await formMauSac.validateFields();
+      // Bao gồm maMau trong dữ liệu gửi về server
+      const dataToSend = { ...values, maMau: color };
+      // Loại bỏ khoảng trắng đầu & cuối trước khi lưu vào database
+      values.tenMau = values.tenMau.trim();
+
+      // Chuẩn hóa để kiểm tra trùng: Bỏ toàn bộ khoảng trắng & chuyển về chữ thường
+      const normalizedValue = values.tenMau.replace(/\s+/g, '').toLowerCase();
+
+      // Kiểm tra trùng tên màu sắc
+      const isDuplicate = colors.some(
+        (cl) =>
+          cl.tenMau.replace(/\s+/g, '').toLowerCase() === normalizedValue &&
+          (!isEditing || cl.id !== editingRecord.id), // Không tính bản thân khi chỉnh sửa
+      );
+      // Hàm kiểm tra mã màu HEX hợp lệ
+      const isValidHexColor = (color) => /^#([0-9A-F]{3}){1,2}$/i.test(color);
+      if (isValidHexColor(dataToSend.maMau) === false) {
+        setError('Mã màu không tồn tại!');
+        return;
+      }
+      if (isDuplicate) {
+        setError('Tên màu sắc đã tồn tại!');
+        return;
+      } else {
+        setError('');
+      }
+      // Kiểm tra trùng mã màu
+      const isMaMauDuplicate = colors.some(
+        (cl) =>
+          cl.maMau.trim().toLowerCase() === dataToSend.maMau &&
+          (!isEditing || cl.id !== editingRecord.id),
+      );
+
+      if (isMaMauDuplicate) {
+        setError('Mã màu đã tồn tại!');
+        return;
+      }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa màu sắc?' : 'Xác nhận thêm màu sắc?',
+        content: `Bạn có chắc chắn muốn thêm màu sắc "${values.tenMau}" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          // Thêm mới
+          try {
+            const response = await axios.post(
+              'http://localhost:8080/api/admin/addmausac',
+              dataToSend,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+            );
+            setColors((prev) => [response.data, ...prev]);
+            setColor('');
+            handleModalThemMauSacClose();
+            message.success('Thêm màu sắc thành công');
+          } catch (error) {
+            message.error('Thêm màu sắc thất bại');
+          }
+        },
+      });
+    } catch (error) {
+      console.error('Error saving data:', error);
+    }
+  };
+  const handleModalThemKichThuocOpen = () => {
+    formKichThuoc.resetFields(); // Xóa form cũ
+    setIsModalThemKichThuocVisible(true);
+  };
+  const handleModalThemKichThuocClose = () => {
+    setIsModalThemKichThuocVisible(false);
+    formKichThuoc.resetFields();
+  };
+  const handleSaveThemKichThuoc = async () => {
+    try {
+      let values = await formKichThuoc.validateFields(); // Lấy dữ liệu từ form
+
+      // Loại bỏ khoảng trắng đầu & cuối trước khi lưu vào database
+      values.tenKichThuoc = values.tenKichThuoc.trim();
+
+      // Chuẩn hóa để kiểm tra trùng: Bỏ toàn bộ khoảng trắng & chuyển về chữ thường
+      const normalizedValue = values.tenKichThuoc.replace(/\s+/g, '').toLowerCase();
+
+      // Kiểm tra trùng tên kích thước
+      const isDuplicate = sizes.some(
+        (cl) =>
+          cl.tenKichThuoc.replace(/\s+/g, '').toLowerCase() === normalizedValue &&
+          (!isEditing || cl.id !== editingRecord.id), // Không tính bản thân khi chỉnh sửa
+      );
+
+      if (isDuplicate) {
+        setError('Tên kích thước đã tồn tại!');
+        return;
+      }
+      Modal.confirm({
+        title: 'Xác nhận thêm kích thước?',
+        content: `Bạn có chắc chắn muốn thêm kích thước "${values.tenKichThuoc}" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            // Thêm mới
+            const response = await axios.post(
+              'http://localhost:8080/api/admin/addkichthuoc',
+              values,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+            );
+            setSizes((prev) => [response.data, ...prev]);
+            message.success('Thêm kích thước thành công');
+            formKichThuoc.resetFields(); // Reset giá trị form
+            handleModalThemKichThuocClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
+    } catch (error) {
+      console.error('Error saving data:', error);
+    }
+  };
+
   const handleKieuTuiAoSave = async () => {
     try {
       let values = await formKieuTuiAo.validateFields(); // Lấy dữ liệu từ form
@@ -2661,8 +2809,11 @@ const DemoForm = () => {
         open={isModalVisibleColor}
         onCancel={handleCancelColor}
         footer={[
-          <div style={{ textAlign: 'center' }}>
-            <Button type="primary" onClick={handleCancelColor}>
+          <div style={{ textAlign: 'end' }}>
+            <Button type="default" onClick={handleModalThemMauSacOpen}>
+              Thêm màu mới
+            </Button>
+            <Button type="primary" onClick={handleCancelColor} style={{ marginLeft: '10px' }}>
               Xác nhận
             </Button>
           </div>,
@@ -2676,8 +2827,11 @@ const DemoForm = () => {
         open={isModalVisibleSizes}
         onCancel={handleCancelSize}
         footer={[
-          <div style={{ textAlign: 'center' }}>
-            <Button type="primary" onClick={handleCancelSize}>
+          <div style={{ textAlign: 'end' }}>
+            <Button type="default" onClick={handleModalThemKichThuocOpen}>
+              Thêm kích thước mới
+            </Button>
+            <Button type="primary" onClick={handleCancelSize} style={{ marginLeft: '10px' }}>
               Xác nhận
             </Button>
           </div>,
@@ -2875,6 +3029,155 @@ const DemoForm = () => {
           Lưu thay đổi
         </Button>
       </Row>
+
+      <Modal
+        title={'Thêm màu sắc'}
+        open={isModalThemMauSacVisible}
+        onCancel={handleModalThemMauSacClose}
+        onOk={handleSaveColor}
+        okText={'Thêm'}
+      >
+        <Form form={formMauSac} layout="vertical">
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+            <HexColorPicker color={color} onChange={handleColorChange} />
+            <div style={{ display: 'flex', alignItems: 'center', marginLeft: '10px' }}>
+              <label style={{ marginRight: '5px' }}>Preview:</label>
+              <div
+                style={{
+                  width: '150px',
+                  height: '150px',
+                  borderRadius: '150px',
+                  backgroundColor: color,
+                  border: '1px solid #f0f0f0',
+                }}
+              />
+            </div>
+          </div>
+          <Form.Item
+            name="maMau"
+            label="Mã màu sắc"
+            rules={[
+              { max: 50, message: 'Mã màu sắc không được vượt quá 50 ký tự!' },
+              {
+                validator: (_, value) => {
+                  if (!value || !value.trim()) {
+                    return Promise.reject(new Error('Vui lòng chọn mã màu!'));
+                  }
+
+                  // Chuẩn hóa chuỗi nhập vào: loại bỏ khoảng trắng và chuyển thành chữ thường
+                  const normalizedValue = value.replace(/\s+/g, '').toLowerCase();
+
+                  // Kiểm tra trùng lặp trong danh sách hiện có
+                  const isDuplicate = colors.some((cl) => {
+                    const normalizedExisting = cl.maMau.replace(/\s+/g, '').toLowerCase();
+                    // Nếu đang chỉnh sửa, bỏ qua bản ghi hiện tại để tránh báo lỗi sai
+
+                    return normalizedExisting === normalizedValue;
+                  });
+
+                  if (isDuplicate) {
+                    return Promise.reject(new Error('Mã màu sắc đã tồn tại!'));
+                  }
+                  // Hàm kiểm tra mã màu HEX hợp lệ
+                  const isValidHexColor = (color) => /^#([0-9A-F]{3}){1,2}$/i.test(color);
+                  if (isValidHexColor(value) === false) {
+                    return Promise.reject(new Error('Mã màu sắc không hợp lệ!'));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Input placeholder="Nhập mã màu sắc" onChange={(e) => setColor(e.target.value)} />
+          </Form.Item>
+
+          <Form.Item
+            name="tenMau"
+            label="Tên màu sắc"
+            rules={[
+              { max: 50, message: 'Tên màu sắc không được vượt quá 50 ký tự!' },
+              {
+                validator: (_, value) => {
+                  if (!value || !value.trim()) {
+                    return Promise.reject(new Error('Vui lòng nhập tên màu sắc!'));
+                  }
+
+                  // Chuẩn hóa chuỗi nhập vào: loại bỏ khoảng trắng và chuyển thành chữ thường
+                  const normalizedValue = value.replace(/\s+/g, '').toLowerCase();
+
+                  // Kiểm tra trùng lặp trong danh sách hiện có
+                  const isDuplicate = colors.some((cl) => {
+                    const normalizedExisting = cl.tenMau.replace(/\s+/g, '').toLowerCase();
+                    // Nếu đang chỉnh sửa, bỏ qua bản ghi hiện tại để tránh báo lỗi sai
+                    if (isEditing && cl.id === editingRecord.id) {
+                      return false;
+                    }
+                    return normalizedExisting === normalizedValue;
+                  });
+
+                  if (isDuplicate) {
+                    return Promise.reject(new Error('Tên màu sắc đã tồn tại!'));
+                  }
+
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Input placeholder="Nhập tên màu sắc" />
+          </Form.Item>
+          <Form.Item name="moTa" label="Mô tả">
+            <TextArea rows={4} placeholder="Mô tả" maxLength={200} />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title={'Thêm kích thước'}
+        open={isModalThemKichThuocVisible}
+        onCancel={handleModalThemKichThuocClose}
+        onOk={handleSaveThemKichThuoc}
+        okText={'Thêm'}
+      >
+        <Form form={formKichThuoc} layout="vertical">
+          <Form.Item
+            name="tenKichThuoc"
+            label="Tên kích thước"
+            rules={[
+              { max: 50, message: 'Tên kích thước không được vượt quá 50 ký tự!' },
+              {
+                validator: (_, value) => {
+                  if (!value || !value.trim()) {
+                    return Promise.reject(new Error('Vui lòng nhập tên kích thước!'));
+                  }
+
+                  // Chuẩn hóa chuỗi nhập vào: loại bỏ khoảng trắng và chuyển thành chữ thường
+                  const normalizedValue = value.replace(/\s+/g, '').toLowerCase();
+
+                  // Kiểm tra trùng lặp trong danh sách hiện có
+                  const isDuplicate = sizes.some((cl) => {
+                    const normalizedExisting = cl.tenKichThuoc.replace(/\s+/g, '').toLowerCase();
+                    // Nếu đang chỉnh sửa, bỏ qua bản ghi hiện tại để tránh báo lỗi sai
+
+                    return normalizedExisting === normalizedValue;
+                  });
+
+                  if (isDuplicate) {
+                    return Promise.reject(new Error('Tên kích thước đã tồn tại!'));
+                  }
+
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Input placeholder="Nhập tên kích thước" />
+          </Form.Item>
+
+          <Form.Item name="moTa" label="Mô tả">
+            <TextArea rows={4} placeholder="Mô tả" maxLength={200} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

@@ -108,6 +108,7 @@ public class HoaDonController {
                     .body(null);
         }
     }
+
     @GetMapping("/{hoaDonId}/excess-payment")
     public ResponseEntity<Map<String, Object>> getExcessPaymentInfo(@PathVariable String hoaDonId) {
         BigDecimal excessAmount = service.calculateExcessPayment(hoaDonId);
@@ -134,6 +135,7 @@ public class HoaDonController {
                     .body(null);
         }
     }
+
     @PostMapping("/{id}/cancel")
     @Operation(summary = "Hủy đơn hàng và hoàn tiền trong một giao dịch")
     public ResponseEntity<HoaDonResponse> cancelOrder(
@@ -160,12 +162,13 @@ public class HoaDonController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Hủy hóa đơn và hoàn lại sản phẩm")
-    public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id,  @RequestParam(required = false) String lyDo) {
+    public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id, @RequestParam(required = false) String lyDo) {
 //        HoaDonResponse response = hoaDonService.deleteHoaDon(id);
 //        return ResponseEntity.ok(response);
         return ResponseEntity.ok(hoaDonService.deleteHoaDon(id, lyDo));
     }
-// GHN
+
+    // GHN
     @PostMapping("/phi-van-chuyen")
     public int layPhiVanChuyen(@RequestBody GHNTinhPhiRequest request) {
         return ghnService.tinhPhiVanChuyen(request);
@@ -215,18 +218,8 @@ public class HoaDonController {
             // Tính tổng sau giảm giá
             BigDecimal subtotalAfterDiscount = subtotal.subtract(discount);
 
-            // Kiểm tra điều kiện miễn phí vận chuyển
-            if (subtotalAfterDiscount.compareTo(new BigDecimal("2000000")) >= 0 && hoaDon.getLoaiHoaDon() == 3) {
-                phiVanChuyen = 0; // Miễn phí nếu đơn giao hàng và tổng sau giảm giá >= 2 triệu
-                log.info("Free shipping applied for order: {}", id);
-            }
-
-            // Cập nhật phí vào hóa đơn
+            // Cập nhật phí vào hóa đơn - phương thức này đã xử lý đúng việc thay thế phí vận chuyển
             HoaDon updatedHoaDon = hoaDonService.capNhatPhiVanChuyen(id, BigDecimal.valueOf(phiVanChuyen));
-
-            // Tính lại tổng tiền
-            banHangServiceImpl.recalculateTotal(updatedHoaDon);
-            hoaDonRepository.save(updatedHoaDon);
 
             // Trả về response
             HoaDonResponse response = hoaDonMapper.entityToResponse(updatedHoaDon);
@@ -237,6 +230,7 @@ public class HoaDonController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
     private BigDecimal calculateSubtotal(HoaDon hoaDon) {
         return hoaDon.getHoaDonChiTiets().stream()
                 .filter(ct -> ct.getTrangThai() == 1) // Chỉ tính các sản phẩm active
@@ -248,6 +242,7 @@ public class HoaDonController {
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+
     @GetMapping("/dia-chi/tinh")
     public ResponseEntity<List<Map<String, Object>>> layDanhSachTinhThanh() {
         return ResponseEntity.ok(ghnService.layDanhSachTinhThanh());
@@ -299,7 +294,7 @@ public class HoaDonController {
         private BigDecimal soTien;
         private ThanhToanRequest thanhToanRequest;
     }
-    
+
     @PutMapping("/{id}/dia-chi")
     public ResponseEntity<HoaDonResponse> updateHoaDonAddress(
             @PathVariable String id,

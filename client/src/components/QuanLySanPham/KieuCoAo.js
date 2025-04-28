@@ -20,12 +20,11 @@ const KieuCoAo = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kieucoao',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await axios.get('http://localhost:8080/api/admin/kieucoao', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setKieuCoAo(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -79,32 +78,51 @@ const KieuCoAo = () => {
         setError('Tên kích thước đã tồn tại!');
         return;
       }
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa kiểu cổ áo?' : 'Xác nhận thêm kiểu cổ áo?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} kiểu cổ áo "${
+          values.tenKieuCoAo
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              // Cập nhật
+              await axios.patch(
+                `http://localhost:8080/api/admin/kieucoao/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuCoAo((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              toast.success('Sửa kiểu cổ áo thành công');
+            } else {
+              // Thêm mới
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addkieucoao',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setKieuCoAo((prev) => [response.data, ...prev]);
+              toast.success('Thêm kiểu cổ áo thành công');
+            }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucoao/${editingRecord.id}`,  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKieuCoAo((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa kiểu cổ áo thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucoao',  values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setKieuCoAo((prev) => [response.data, ...prev]);
-        toast.success('Thêm kiểu cổ áo thành công');
-      }
-
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose(); // Đóng modal sau khi lưu
+          } catch (error) {
+            console.error('Error saving data:', error);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -181,7 +199,9 @@ const KieuCoAo = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Kiểu cổ áo</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Kiểu cổ áo</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{
@@ -221,8 +241,8 @@ const KieuCoAo = () => {
           dataSource={filteredData.map((item) => ({ ...item, key: item.id }))}
           columns={columns}
           pagination={pagination}
-      onChange={handleTableChange}
-      rowKey="id"
+          onChange={handleTableChange}
+          rowKey="id"
         />
       </div>
 

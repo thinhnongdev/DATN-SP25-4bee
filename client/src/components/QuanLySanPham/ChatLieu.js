@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
-import Container from 'react-bootstrap/Container';
 import axios from 'axios';
-import { Button, Table, Row, Modal, Input, Form, Col, Breadcrumb } from 'antd';
-import { toast } from 'react-toastify';
+import { Button, Table, Row, Modal, Input, Form, Col, Breadcrumb, message } from 'antd';
 import { TbEyeEdit } from 'react-icons/tb';
 import { SearchOutlined, FileExcelOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
@@ -60,21 +58,18 @@ const ChatLieu = () => {
   };
 
   // Lưu dữ liệu (thêm mới hoặc chỉnh sửa)
+
   const handleSave = async () => {
     try {
-      let values = await form.validateFields(); // Lấy dữ liệu từ form
+      let values = await form.validateFields();
 
-      // Loại bỏ khoảng trắng đầu & cuối trước khi lưu vào database
       values.tenChatLieu = values.tenChatLieu.trim();
-
-      // Chuẩn hóa để kiểm tra trùng: Bỏ toàn bộ khoảng trắng & chuyển về chữ thường
       const normalizedValue = values.tenChatLieu.replace(/\s+/g, '').toLowerCase();
 
-      // Kiểm tra trùng tên chất liệu
       const isDuplicate = chatLieu.some(
         (cl) =>
           cl.tenChatLieu.replace(/\s+/g, '').toLowerCase() === normalizedValue &&
-          (!isEditing || cl.id !== editingRecord.id), // Không tính bản thân khi chỉnh sửa
+          (!isEditing || cl.id !== editingRecord.id),
       );
 
       if (isDuplicate) {
@@ -82,34 +77,50 @@ const ChatLieu = () => {
         return;
       }
 
-      if (isEditing) {
-        // Cập nhật
-        await axios.patch(
-          `http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`,
-          values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        setChatLieu((prev) =>
-          prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
-        );
-        toast.success('Sửa chất liệu thành công');
-      } else {
-        // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu',values,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-        setChatLieu((prev) => [response.data, ...prev]);
-        toast.success('Thêm chất liệu thành công');
-      }
+      // Hiển thị modal xác nhận
+      Modal.confirm({
+        title: isEditing ? 'Xác nhận sửa chất liệu?' : 'Xác nhận thêm chất liệu?',
+        content: `Bạn có chắc chắn muốn ${isEditing ? 'sửa' : 'thêm'} chất liệu "${
+          values.tenChatLieu
+        }" không?`,
+        okText: 'Xác nhận',
+        cancelText: 'Hủy',
+        onOk: async () => {
+          try {
+            if (isEditing) {
+              await axios.patch(
+                `http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`,
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setChatLieu((prev) =>
+                prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values } : item)),
+              );
+              message.success('Sửa chất liệu thành công');
+            } else {
+              const response = await axios.post(
+                'http://localhost:8080/api/admin/addchatlieu',
+                values,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                },
+              );
+              setChatLieu((prev) => [response.data, ...prev]);
+              message.success('Thêm chất liệu thành công');
+            }
 
-      handleModalClose(); // Đóng modal sau khi lưu
+            handleModalClose();
+          } catch (err) {
+            console.error('Lỗi khi lưu dữ liệu:', err);
+          }
+        },
+      });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -188,7 +199,9 @@ const ChatLieu = () => {
           fontWeight: 'bold',
         }}
       >
-        <Breadcrumb.Item>Chất liệu</Breadcrumb.Item>
+        <Breadcrumb.Item>
+        <span style={{fontSize:'20px'}}>Chất liệu</span>
+        </Breadcrumb.Item>
       </Breadcrumb>
       <div
         style={{

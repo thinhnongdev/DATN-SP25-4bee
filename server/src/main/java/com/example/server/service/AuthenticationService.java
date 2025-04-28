@@ -139,7 +139,7 @@ public class AuthenticationService {
                 .issuer("4bee")//xác định token được issue(phát hàng) từ ai
                 .issueTime(new Date())//thời gian phát hành
                 .expirationTime(new Date(//thời gian hết hạn token
-                        Instant.now().plus(1, ChronoUnit.HOURS).toEpochMilli()
+                        Instant.now().plus(12, ChronoUnit.HOURS).toEpochMilli()
                 ))
                 .jwtID(UUID.randomUUID().toString())//tạo id cho token
                 .claim("scope", taiKhoan.getVaiTro().getTenVaiTro())//claim bổ sung nếu cần
