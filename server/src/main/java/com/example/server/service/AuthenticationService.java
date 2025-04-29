@@ -56,11 +56,11 @@ public class AuthenticationService {
 
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
         var token = request.getToken();
-        boolean isValid=true;
+        boolean isValid = true;
         try {
             verifyToken(token);
-        }catch (RuntimeException e){
-            isValid=false;
+        } catch (RuntimeException e) {
+            isValid = false;
         }
 
         return IntrospectResponse.builder()
@@ -85,39 +85,42 @@ public class AuthenticationService {
     }
 
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
-        var signToken=verifyToken(request.getToken());
-        String jit=signToken.getJWTClaimsSet().getJWTID();
-        Date expiryTime=signToken.getJWTClaimsSet().getExpirationTime();
-        InvalidateToken invalidateToken= InvalidateToken
+        var signToken = verifyToken(request.getToken());
+        String jit = signToken.getJWTClaimsSet().getJWTID();
+        Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
+        InvalidateToken invalidateToken = InvalidateToken
                 .builder()
                 .id(jit)
                 .expiryTime(expiryTime)
                 .build();
 
         invalidateTokenRepository.save(invalidateToken);
-    };
+    }
+
+    ;
 
     public AuthenticationResponse refreshToken(RefreshTokenRequest refreshTokenRequest)
             throws ParseException, JOSEException {
-        var signJWT=verifyToken(refreshTokenRequest.getToken());
-        var jit=signJWT.getJWTClaimsSet().getJWTID();
-        var expiryTime=signJWT.getJWTClaimsSet().getExpirationTime();
-        InvalidateToken invalidateToken= InvalidateToken
+        var signJWT = verifyToken(refreshTokenRequest.getToken());
+        var jit = signJWT.getJWTClaimsSet().getJWTID();
+        var expiryTime = signJWT.getJWTClaimsSet().getExpirationTime();
+        InvalidateToken invalidateToken = InvalidateToken
                 .builder()
                 .id(jit)
                 .expiryTime(expiryTime)
                 .build();
 
         invalidateTokenRepository.save(invalidateToken);
-        var username=signJWT.getJWTClaimsSet().getSubject();
-        var taiKhoan= taiKhoanRepository.findByUsername(username).orElseThrow(()->new RuntimeException("username không tồn tại"));
+        var username = signJWT.getJWTClaimsSet().getSubject();
+        var taiKhoan = taiKhoanRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("username không tồn tại"));
 
-        var newtoken=generateToken(taiKhoan);
+        var newtoken = generateToken(taiKhoan);
         return AuthenticationResponse.builder()
                 .token(newtoken)
                 .authenticated(true)
                 .build();
     }
+
     private SignedJWT verifyToken(String token) throws JOSEException, ParseException {
         JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
         SignedJWT signedJWT = SignedJWT.parse(token);
@@ -126,7 +129,7 @@ public class AuthenticationService {
         if (!(expiryTime.after(new Date()) && verified)) {
             throw new RuntimeException("token khong hop le");
         }
-        if(invalidateTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID())){
+        if (invalidateTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID())) {
             throw new RuntimeException("token da logout");
         }
         return signedJWT;
@@ -157,21 +160,22 @@ public class AuthenticationService {
         }
 
     }
+
     public UserResponse findUserByToken(IntrospectRequest introspectRequest) throws ParseException, JOSEException {
-        UserResponse userResponse=new UserResponse();
-        var signJWT=verifyToken(introspectRequest.getToken());
-        var username=signJWT.getJWTClaimsSet().getSubject();
-        var roleUser=signJWT.getJWTClaimsSet().getStringClaim("scope");
-        if(roleUser.equals("ADMIN")||roleUser.equals("NHAN_VIEN")){
-            NhanVien nhanVien=nhanVienRepository.findByEmail(username).get();
+        UserResponse userResponse = new UserResponse();
+        var signJWT = verifyToken(introspectRequest.getToken());
+        var username = signJWT.getJWTClaimsSet().getSubject();
+        var roleUser = signJWT.getJWTClaimsSet().getStringClaim("scope");
+        if (roleUser.equals("ADMIN") || roleUser.equals("NHAN_VIEN")) {
+            NhanVien nhanVien = nhanVienRepository.findByEmail(username).get();
             userResponse.setId(nhanVien.getId());
             userResponse.setMa(nhanVien.getMaNhanVien());
             userResponse.setTen(nhanVien.getTenNhanVien());
             userResponse.setEmail(nhanVien.getEmail());
             userResponse.setAnhUrl(nhanVien.getAnh());
         }
-        if(roleUser.equals("KHACH_HANG")){
-            KhachHang khachHang=khachHangRepository.findByEmail(username).get();
+        if (roleUser.equals("KHACH_HANG")) {
+            KhachHang khachHang = khachHangRepository.findByEmail(username).get();
             userResponse.setId(khachHang.getId());
             userResponse.setSoDienThoai(khachHang.getSoDienThoai());
             userResponse.setMa(khachHang.getMaKhachHang());
@@ -181,26 +185,43 @@ public class AuthenticationService {
         }
         return userResponse;
     }
-    public void registerAccountForClient(RegisterAccountRequest request){
 
-        if(taiKhoanRepository.existsByUsername(request.getEmail())){
+    public void registerAccountForClient(RegisterAccountRequest request) {
+
+        if (taiKhoanRepository.existsByUsername(request.getEmail())) {
             throw new RuntimeException("Email đã được sử dụng!");
         }
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
-        TaiKhoan taiKhoan=new TaiKhoan();
+        TaiKhoan taiKhoan = new TaiKhoan();
         taiKhoan.setUsername(request.getEmail());
         taiKhoan.setPassword(passwordEncoder.encode(request.getPassword()));//Mã hóa mật khẩu bằng bcrypt
         taiKhoan.setNgayTao(LocalDateTime.now());
         taiKhoan.setVaiTro(vaiTroRepository.findByTenVaiTro("KHACH_HANG").get());
         taiKhoanRepository.save(taiKhoan);//tạo tài khoản
 
-        KhachHang khachHang=new KhachHang();
+        KhachHang khachHang = new KhachHang();
         khachHang.setTenKhachHang(request.getHoTen());
-        khachHang.setMaKhachHang("KH"+System.currentTimeMillis());
+        khachHang.setMaKhachHang("KH" + System.currentTimeMillis());
         khachHang.setEmail(request.getEmail());
         khachHang.setNgaySinh(request.getNgaySinh());
         khachHang.setNgayTao(LocalDateTime.now());
         khachHang.setTaiKhoan(taiKhoan);
         khachHangRepository.save(khachHang); //tạo khách hàng
+    }
+
+    public boolean changePassword(ChangePasswordRequest request) {
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+        TaiKhoan taiKhoan = taiKhoanRepository.findByUsername(request.getEmail()).orElse(null);
+
+        if (taiKhoan == null) return false;
+
+        if (!passwordEncoder.matches(request.getOldPassword(), taiKhoan.getPassword())) {
+            return false;
+        }
+
+        taiKhoan.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        taiKhoan.setNgaySua(LocalDateTime.now());
+        taiKhoanRepository.save(taiKhoan);
+        return true;
     }
 }

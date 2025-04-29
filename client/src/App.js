@@ -34,6 +34,7 @@ import ThongkeRoutes from './routes/ThongKeRoutes';
 import Forbidden403 from './components/Auth/Forbidden403';
 import ProtectedRoutes from './routes/ProtectedRoutes';
 import NotFoundPage from './components/Auth/NotFoundPage';
+import ChangePassword from './components/Auth/ChangePassword';
 const { Header: AntHeader, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
@@ -204,10 +205,7 @@ const AdminLayout = () => {
         </Menu>
       </Sider>
       <Layout>
-        <Header 
-          userInfo={userInfo} 
-          onLogout={handleLogout} 
-        />
+        <Header userInfo={userInfo} onLogout={handleLogout} />
         <Content style={{ margin: '16px', padding: 24, minHeight: 360 }}>
           <Routes>
             {ThongkeRoutes()}
@@ -290,6 +288,7 @@ const App = () => {
       {/* Auth pages */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/changepassword" element={<ChangePassword />} />
       <Route path="/403" element={<Forbidden403 />} />
 
       {/* Admin (protected) */}

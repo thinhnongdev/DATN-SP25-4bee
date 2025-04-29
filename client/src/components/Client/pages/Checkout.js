@@ -298,7 +298,7 @@ const CheckoutForm = () => {
 
       // Cập nhật form với thông tin địa chỉ được chọn
       setFormData({
-        id: selected.id || '',
+        idKhachHang: userInfo?.id || '',
         hoTen: selected.name || '',
         soDienThoai: selected.phone || '',
         email: selected.email || '',

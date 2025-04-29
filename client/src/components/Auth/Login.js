@@ -120,12 +120,15 @@ const LoginForm = () => {
               <Button type="primary" htmlType="submit" block>
                 Đăng nhập
               </Button>
-              <Link
-                to="/register"
-                style={{ display: 'block', textAlign: 'end', marginTop: '10px', color: 'white' }}
-              >
-                Tạo tài khoản
-              </Link>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                <Link to="/changepassword" style={{ color: 'white' }}>
+                  Thay đổi mật khẩu?
+                </Link>
+                <Link to="/register" style={{ color: 'white' }}>
+                  Tạo tài khoản
+                </Link>
+              </div>
             </Form.Item>
           </Form>
         </Card>

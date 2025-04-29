@@ -1443,41 +1443,40 @@ const OrderDetailPage = () => {
               <Title level={5}>Lịch Sử Đơn Hàng</Title>
               <Timeline style={{ marginLeft: 8 }}>
                 {displayedHistory.map((item, index) => (
-                <Timeline.Item
-                key={index}
-                dot={
-                  index === 0 ? (
-                    <CheckCircleOutlined style={{ fontSize: 18, color: '#52c41a' }} />
-                  ) : (
-                    <ClockCircleOutlined style={{ fontSize: 16, color: '#bfbfbf' }} />
-                  )
-              }
-                color="gray"
-              >
-                <div style={{ display: 'flex' }}>
-                  {/* Cột thời gian */}
-                  <div style={{ width: 100, color: '#999', flexShrink: 0 }}>
-                    {moment(item.ngayTao).format('HH:mm DD-MM-YYYY')}
-                  </div>
-              
-                  {/* Cột nội dung */}
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        color: index === 0 ? '#52c41a' : '#000',
-                        fontWeight: index === 0 ? 'bold' : 'normal',
-                      }}
-                    >
-                      {item.hanhDong}
+                  <Timeline.Item
+                    key={index}
+                    dot={
+                      index === 0 ? (
+                        <CheckCircleOutlined style={{ fontSize: 18, color: '#52c41a' }} />
+                      ) : (
+                        <ClockCircleOutlined style={{ fontSize: 16, color: '#bfbfbf' }} />
+                      )
+                    }
+                    color="gray"
+                  >
+                    <div style={{ display: 'flex' }}>
+                      {/* Cột thời gian */}
+                      <div style={{ width: 100, color: '#999', flexShrink: 0 }}>
+                        {moment(item.ngayTao).format('HH:mm DD-MM-YYYY')}
+                      </div>
+
+                      {/* Cột nội dung */}
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            color: index === 0 ? '#52c41a' : '#000',
+                            fontWeight: index === 0 ? 'bold' : 'normal',
+                          }}
+                        >
+                          {item.hanhDong}
+                        </div>
+                        <div style={{ color: '#666' }}>{item.moTa}</div>
+                        {item.tenNhanVien && item.idNhanVien && (
+                          <div style={{ color: '#1890ff' }}>Người xử lý: Nhân viên cửa hàng</div>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ color: '#666' }}>{item.moTa}</div>
-                    {item.tenNhanVien && item.idNhanVien && (
-                      <div style={{ color: '#1890ff' }}>Người xử lý: {item.tenNhanVien}</div>
-                    )}
-                  </div>
-                </div>
-              </Timeline.Item>
-              
+                  </Timeline.Item>
                 ))}
               </Timeline>
 
@@ -1524,7 +1523,9 @@ const OrderDetailPage = () => {
                     />
                   </Col>
                   <Col span={16}>
-                    <Text strong>{item.sanPham}-{item.maSanPhamChiTiet}</Text>
+                    <Text strong>
+                      {item.sanPham}-{item.maSanPhamChiTiet}
+                    </Text>
                     <br />
                     <Text type="secondary">
                       Màu: {item.mauSac}, Kích thước: {item.kichThuoc}, Chất liệu: {item.chatLieu}

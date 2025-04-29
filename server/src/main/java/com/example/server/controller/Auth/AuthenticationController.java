@@ -4,11 +4,13 @@ import com.example.server.dto.Auth.request.*;
 import com.example.server.dto.Auth.response.AuthenticationResponse;
 import com.example.server.dto.Auth.response.IntrospectResponse;
 import com.example.server.dto.Auth.response.UserResponse;
+import com.example.server.entity.TaiKhoan;
 import com.example.server.service.AuthenticationService;
 import com.nimbusds.jose.JOSEException;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,6 +55,21 @@ public class AuthenticationController {
             System.out.println("Lỗi khi tạo tài khoản"+e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-
     }
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+        try {
+            boolean changed = authenticationService.changePassword(request);
+            if (!changed) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Email hoặc mật khẩu cũ không đúng!");
+            }
+            return ResponseEntity.ok("Thay đổi mật khẩu thành công!");
+        } catch (Exception e) {
+            System.err.println("Lỗi khi thay đổi mật khẩu: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Đã xảy ra lỗi khi xử lý yêu cầu!");
+        }
+    }
+
 }

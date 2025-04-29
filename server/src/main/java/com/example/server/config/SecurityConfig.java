@@ -26,6 +26,7 @@ public class SecurityConfig {
             "/api/auth/refreshToken",
             "/api/auth/getInfoUser",
             "/api/auth/register",
+            "/api/auth/change-password",
             "/api/chat", // Thêm /api/chat vào đây
             "/ws/**",       // Add WebSocket endpoint
             "/ws/info/**",  // Add WebSocket info endpoint
