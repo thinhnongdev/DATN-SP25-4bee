@@ -1,11 +1,14 @@
 package com.example.server.controller.NhanVien_Khachhang;
 
 import com.example.server.entity.NhanVien;
+import com.example.server.repository.Auth.TaiKhoanRepository;
+import com.example.server.repository.NhanVien_KhachHang.NhanVienRepository;
 import com.example.server.service.NhanVien_KhachHang.NhanVienService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -13,12 +16,22 @@ import java.util.List;
 public class NhanVienController {
     @Autowired
     NhanVienService nhanVienService;
+    @Autowired
+    private NhanVienRepository nhanVienRepository;
+    @Autowired
+    private TaiKhoanRepository taiKhoanRepository;
 
 
     @GetMapping
     public ResponseEntity<List<NhanVien>> getAllNhanVien(){
         return ResponseEntity.ok(nhanVienService.getAllNhanVien());
     }
+    @GetMapping("/check-email")
+    public ResponseEntity<?> checkEmailExists(@RequestParam String email) {
+        boolean exists = taiKhoanRepository.existsByUsername(email);
+        return ResponseEntity.ok(Collections.singletonMap("exists", exists));
+    }
+
 
     @PostMapping
     public ResponseEntity<NhanVien> createNhanVien(@RequestBody NhanVien nhanVien){

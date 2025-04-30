@@ -19,4 +19,6 @@ public interface NhanVienRepository extends JpaRepository<NhanVien, String> {
     Optional<NhanVien> findBySoCCCD(@Param("canCuocCongDan") String canCuocCongDan);
     @Query("SELECT nv FROM NhanVien nv WHERE nv.email = :email")
     Optional<NhanVien> findByEmail(@Param("email") String email);
+    Boolean existsByMaNhanVien(String maNhanVien);
+    Boolean existsByEmail(String email);
 }

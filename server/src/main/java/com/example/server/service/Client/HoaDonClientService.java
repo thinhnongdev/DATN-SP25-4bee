@@ -69,10 +69,7 @@ public class HoaDonClientService {
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
         return hoaDon1;
-    }
-
-    ;
-
+    };
     public HoaDon updateDiaChiHoaDonChoXacNhan(OrderUpdateRequest request) {
         HoaDon hoaDon = hoaDonRepository.findById(request.getId()).orElseThrow();
         if (!hoaDon.getDiaChi().equals(request.getDiaChi())) {
@@ -201,7 +198,7 @@ public class HoaDonClientService {
         if (chenhLech.compareTo(BigDecimal.ZERO) > 0) {
             // Cần thanh toán thêm → tạo COD
             createThanhToanCOD(hoaDon, chenhLech);
-            createLichSuPhuPhi(hoaDon, request, chenhLech,tongDaThanhToan);
+            createLichSuPhuPhi(hoaDon, request, chenhLech, tongDaThanhToan);
         }
 //        else if (chenhLech.compareTo(BigDecimal.ZERO) < 0) {
 //            // Đã thanh toán nhiều hơn → ghi nhận hoàn tiền
@@ -227,7 +224,7 @@ public class HoaDonClientService {
         thanhToanHoaDonRepository.save(thanhToan);
     }
 
-    private void createLichSuPhuPhi(HoaDon hoaDon, OrderUpdateRequest request, BigDecimal soTienThem,BigDecimal tongDaThanhToan) {
+    private void createLichSuPhuPhi(HoaDon hoaDon, OrderUpdateRequest request, BigDecimal soTienThem, BigDecimal tongDaThanhToan) {
         LichSuHoaDon lichSu = new LichSuHoaDon();
         lichSu.setId(UUID.randomUUID().toString());
         lichSu.setHoaDon(hoaDon);

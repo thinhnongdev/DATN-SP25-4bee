@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { toast } from "react-toastify";
+import { useEffect, useRef, useState } from 'react';
+import { toast } from 'react-toastify';
 import {
   Button,
   Radio,
@@ -13,11 +13,12 @@ import {
   Divider,
   Modal,
   message,
-} from "antd";
-import { getPostApi, scanQRCode } from "./NhanVienApi";
-import axios from "axios";
-import dayjs from "dayjs";
-import moment from "moment/moment";
+} from 'antd';
+import { getPostApi, scanQRCode } from './NhanVienApi';
+import axios from 'axios';
+import dayjs from 'dayjs';
+import moment from 'moment/moment';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 const { Option } = Select;
 
@@ -25,7 +26,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
   const [tinhThanhList, setTinhThanhList] = useState([]);
   const [quanHuyenList, setQuanHuyenList] = useState([]);
   const [xaPhuongList, setXaPhuongList] = useState([]);
-
+  const [loading, setLoading] = useState(false); // Loading state
   const [selectedTinh, setSelectedTinh] = useState(null);
   const [selectedHuyen, setSelectedHuyen] = useState(null);
 
@@ -33,34 +34,31 @@ function CreateForm({ handleClose, getAllNhanVien }) {
   const [form] = Form.useForm();
   const [scanning, setScanning] = useState(false);
   const fileInputRef = useRef(null);
-  const API_TOKEN = "4f7fc40f-023f-11f0-aff4-822fc4284d92";
+  const API_TOKEN = '4f7fc40f-023f-11f0-aff4-822fc4284d92';
 
   const [formData, setFormData] = useState({
-    tenNhanVien: "",
-    email: "",
-    soDienThoai: "",
-    ngaySinh: "",
-    gioiTinh: "",
+    tenNhanVien: '',
+    email: '',
+    soDienThoai: '',
+    ngaySinh: '',
+    gioiTinh: '',
     trangThai: true,
-    anh: "",
-    canCuocCongDan: "",
-    tinh: "",
-    huyen: "",
-    xa: "",
-    diaChiCuThe: "",
+    anh: '',
+    canCuocCongDan: '',
+    tinh: '',
+    huyen: '',
+    xa: '',
+    diaChiCuThe: '',
   });
 
   useEffect(() => {
     // Lấy danh sách tỉnh/thành phố
     axios
-      .get(
-        "https://online-gateway.ghn.vn/shiip/public-api/master-data/province",
-        {
-          headers: { Token: API_TOKEN, "Content-Type": "application/json" },
-        }
-      )
+      .get('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {
+        headers: { Token: API_TOKEN, 'Content-Type': 'application/json' },
+      })
       .then((res) => setTinhThanhList(res.data.data))
-      .catch((err) => console.error("Lỗi lấy tỉnh thành:", err));
+      .catch((err) => console.error('Lỗi lấy tỉnh thành:', err));
   }, []);
 
   const handleProvinceChange = (value) => {
@@ -75,12 +73,12 @@ function CreateForm({ handleClose, getAllNhanVien }) {
     // Lấy danh sách quận/huyện
     axios
       .post(
-        "https://online-gateway.ghn.vn/shiip/public-api/master-data/district",
+        'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
         { province_id: value },
-        { headers: { Token: API_TOKEN } }
+        { headers: { Token: API_TOKEN } },
       )
       .then((res) => setQuanHuyenList(res.data.data))
-      .catch((err) => console.error("Lỗi lấy quận huyện:", err));
+      .catch((err) => console.error('Lỗi lấy quận huyện:', err));
   };
 
   const handleDistrictChange = (value) => {
@@ -89,12 +87,12 @@ function CreateForm({ handleClose, getAllNhanVien }) {
     // Lấy danh sách phường/xã
     axios
       .post(
-        "https://online-gateway.ghn.vn/shiip/public-api/master-data/ward?district_id",
+        'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward?district_id',
         { district_id: value },
-        { headers: { Token: API_TOKEN } }
+        { headers: { Token: API_TOKEN } },
       )
       .then((res) => setXaPhuongList(res.data.data))
-      .catch((err) => console.error("Lỗi lấy phường xã:", err));
+      .catch((err) => console.error('Lỗi lấy phường xã:', err));
   };
 
   const showModal = () => {
@@ -114,115 +112,129 @@ function CreateForm({ handleClose, getAllNhanVien }) {
           email: nhanVien.email,
           soDienThoai: nhanVien.soDienThoai,
           ngaySinh: nhanVien.ngaySinh,
-          gioiTinh: nhanVien.gioiTinh ? "Nam" : "Nữ",
+          gioiTinh: nhanVien.gioiTinh ? 'Nam' : 'Nữ',
           trangThai: nhanVien.trangThai,
-          anh: nhanVien.anh || "",
+          anh: nhanVien.anh || '',
         });
-        toast.success("Đã tìm thấy nhân viên từ mã QR!");
+        toast.success('Đã tìm thấy nhân viên từ mã QR!');
         setIsModalVisible(false);
       } catch (error) {
-        toast.error("Không tìm thấy nhân viên từ QR!");
+        toast.error('Không tìm thấy nhân viên từ QR!');
       }
     }
   };
 
   const checkEmailExists = async (email) => {
     try {
-      const response = await axios.get(`/api/nhan-vien/check-email?email=${encodeURIComponent(email)}`);
+      const response = await axios.get(
+        `http://localhost:8080/api/admin/nhan_vien/check-email?email=${email}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        },
+      );
       return response.data.exists;
     } catch (error) {
-      console.error("Lỗi kiểm tra email:", error);
+      console.error('Lỗi kiểm tra email:', error);
       return false;
     }
-  };  
+  };
 
   const handleUploadImage = async (files) => {
-    console.log("đường dẫn ảnh:", files);
+    console.log('đường dẫn ảnh:', files);
     if (!files || files.length === 0) {
-      toast.error("Vui lòng chọn ít nhất một ảnh!");
+      toast.error('Vui lòng chọn ít nhất một ảnh!');
       return;
     }
 
     try {
-      toast.info("Đang tải ảnh lên...");
+      toast.info('Đang tải ảnh lên...');
 
       // Upload từng file lên Cloudinary
       const uploadedImages = await Promise.all(
         Array.from(files).map(async (file) => {
           const formData = new FormData();
-          formData.append("file", file);
-          formData.append("upload_preset", "ml_default"); // Thay thế bằng upload preset của bạn
+          formData.append('file', file);
+          formData.append('upload_preset', 'ml_default'); // Thay thế bằng upload preset của bạn
 
           const response = await axios.post(
-            "https://api.cloudinary.com/v1_1/dhh5mdeqo/image/upload", // Thay thế bằng cloud_name của bạn
-            formData
+            'https://api.cloudinary.com/v1_1/dhh5mdeqo/image/upload', // Thay thế bằng cloud_name của bạn
+            formData,
           );
-          console.log("dường dan anh:", response.data.secure_url);
+          console.log('dường dan anh:', response.data.secure_url);
           return response.data.secure_url; // Lấy URL sau khi upload thành công
-        })
+        }),
       );
 
       const uploadedUrls = uploadedImages.filter(String);
       if (uploadedUrls.length === 0) {
-        throw new Error("Không có ảnh nào được tải lên.");
+        throw new Error('Không có ảnh nào được tải lên.');
       }
 
       setFormData((prev) => ({ ...prev, anh: uploadedUrls[0] }));
 
-      toast.success("Upload ảnh thành công!");
+      toast.success('Upload ảnh thành công!');
     } catch (error) {
-      console.error("Upload failed:", error);
-      toast.error("Không thể tải ảnh lên, vui lòng thử lại.");
+      console.error('Upload failed:', error);
+      toast.error('Không thể tải ảnh lên, vui lòng thử lại.');
     }
   };
 
   // Theo dõi khi formData thay đổi
   useEffect(() => {
-    console.log("formData đã cập nhật:", formData);
+    console.log('formData đã cập nhật:', formData);
   }, [formData]);
 
   //Submit
   const handleSubmit = async () => {
     if (!formData.anh) {
-      toast.error("Vui lòng tải lên ảnh nhân viên!");
+      toast.error('Vui lòng tải lên ảnh nhân viên!');
       return;
     }
-
-    const newNhanVien = {
-      tenNhanVien: formData.tenNhanVien,
-      email: formData.email,
-      soDienThoai: formData.soDienThoai,
-      ngaySinh: formData.ngaySinh,
-      gioiTinh: formData.gioiTinh === "Nam" ? true : false,
-      trangThai: formData.trangThai,
-      anh: String(formData.anh),
-      canCuocCongDan: formData.canCuocCongDan,
-      tinh: formData.tinh,
-      huyen: formData.huyen,
-      xa: formData.xa,
-      diaChiCuThe: formData.diaChiCuThe,
-    };
-
-    console.log("Dữ liệu gửi đi:", newNhanVien);
-
-    try {
-      const response = await getPostApi(newNhanVien);
-      console.log("Kết quả API:", response);
-
-      if (response && response.data) {
-        toast.success("Nhân viên mới đã được tạo!");
-        getAllNhanVien();
-        handleClose();
-      }
-    } catch (error) {
-      toast.error("Có lỗi khi tạo nhân viên!");
-      console.error("ERROR", error);
-    }
+  
+    Modal.confirm({
+      title: 'Xác nhận tạo nhân viên mới?',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Bạn có chắc chắn muốn tạo nhân viên này?',
+      okText: 'Xác nhận',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        const newNhanVien = {
+          tenNhanVien: formData.tenNhanVien,
+          email: formData.email,
+          soDienThoai: formData.soDienThoai,
+          ngaySinh: formData.ngaySinh,
+          gioiTinh: formData.gioiTinh === 'Nam',
+          trangThai: formData.trangThai,
+          anh: String(formData.anh),
+          canCuocCongDan: formData.canCuocCongDan,
+          tinh: formData.tinh,
+          huyen: formData.huyen,
+          xa: formData.xa,
+          diaChiCuThe: formData.diaChiCuThe,
+        };
+  
+        // Hiển thị loading trong nút (nếu dùng state bên ngoài)
+        setLoading(true);
+  
+        try {
+          const response = await getPostApi(newNhanVien);
+          if (response && response.data) {
+            toast.success('Nhân viên mới đã được tạo!');
+            getAllNhanVien();
+            handleClose();
+          }
+        } catch (error) {
+          toast.error('Có lỗi khi tạo nhân viên!');
+          console.error('ERROR', error);
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
-
   return (
     <Card className="create-form-container">
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form form={form} layout="vertical" >
         <Row gutter={24}>
           <Col span={8}>
             <h5>Thông tin nhân viên</h5>
@@ -233,15 +245,15 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                 className="avatar-section"
                 onClick={() => fileInputRef.current.click()}
                 style={{
-                  width: "150px",
-                  height: "150px",
-                  borderRadius: "50%",
-                  border: "2px dashed #ddd",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  textAlign: "center",
+                  width: '150px',
+                  height: '150px',
+                  borderRadius: '50%',
+                  border: '2px dashed #ddd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  textAlign: 'center',
                   marginLeft: 100,
                   marginBottom: 55,
                 }}
@@ -251,34 +263,32 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                     src={formData.anh}
                     alt="Ảnh nhân viên"
                     style={{
-                      width: "100%",
-                      height: "100%",
-                      borderRadius: "50%",
-                      objectFit: "cover",
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
                     }}
                   />
                 ) : (
                   <div
                     style={{
-                      fontSize: "14px",
-                      color: "#999",
-                      textAlign: "center",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
+                      fontSize: '14px',
+                      color: '#999',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
                     }}
                   >
                     <span>Chọn ảnh</span>
-                    <span
-                      style={{ fontSize: "20px", cursor: "pointer" }}
-                    ></span>
+                    <span style={{ fontSize: '20px', cursor: 'pointer' }}></span>
                   </div>
                 )}
                 <input
                   type="file"
                   accept="image/*"
                   ref={fileInputRef}
-                  style={{ display: "none" }}
+                  style={{ display: 'none' }}
                   onChange={(e) => handleUploadImage(e.target.files)}
                 />
               </div>
@@ -287,19 +297,17 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                 name="tenNhanVien"
                 label="Tên nhân viên"
                 rules={[
-                  { required: true, message: "Vui lòng nhập tên nhân viên!" },
+                  { required: true, message: 'Vui lòng nhập tên nhân viên!' },
                   {
                     pattern: /^[a-zA-ZÀ-ỹ\s]+$/,
-                    message: "Tên không được chứa số hoặc ký tự đặc biệt!",
+                    message: 'Tên không được chứa số hoặc ký tự đặc biệt!',
                   },
                 ]}
               >
                 <Input
                   placeholder="Nhập tên nhân viên"
                   value={formData.tenNhanVien}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tenNhanVien: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, tenNhanVien: e.target.value })}
                 />
               </Form.Item>
             </div>
@@ -341,19 +349,16 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                 name="canCuocCongDan"
                 label="Số CCCD"
                 rules={[
-                  { required: true, message: "Vui lòng nhập số CCCD!" },
+                  { required: true, message: 'Vui lòng nhập số CCCD!' },
                   {
                     pattern: /^[0-9]{12}$/,
-                    message:
-                      "Số CCCD phải gồm 12 chữ số và không chứa kí tự đặc biệt!",
+                    message: 'Số CCCD phải gồm 12 chữ số và không chứa kí tự đặc biệt!',
                   },
                 ]}
               >
                 <Input
                   placeholder="Nhập số CCCD"
-                  onChange={(e) =>
-                    setFormData({ ...formData, canCuocCongDan: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, canCuocCongDan: e.target.value })}
                   value={formData.canCuocCongDan}
                 />
               </Form.Item>
@@ -363,16 +368,12 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                   <Form.Item
                     name="gioiTinh"
                     label="Giới tính"
-                    rules={[
-                      { required: true, message: "Vui lòng chọn giới tính!" },
-                    ]}
+                    rules={[{ required: true, message: 'Vui lòng chọn giới tính!' }]}
                   >
                     <Radio.Group
                       value={formData.gioiTinh}
-                      onChange={(e) =>
-                        setFormData({ ...formData, gioiTinh: e.target.value })
-                      }
-                      style={{ display: "flex", justifyContent: "flex-start" }}
+                      onChange={(e) => setFormData({ ...formData, gioiTinh: e.target.value })}
+                      style={{ display: 'flex', justifyContent: 'flex-start' }}
                     >
                       <Radio value={true}>Nam</Radio>
                       <Radio value={false}>Nữ</Radio>
@@ -384,7 +385,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                     name="ngaySinh"
                     label="Ngày sinh"
                     rules={[
-                      { required: true, message: "Vui lòng chọn ngày sinh!" },
+                      { required: true, message: 'Vui lòng chọn ngày sinh!' },
                       // {
                       //   validator: (_, value) => {
                       //     if (!value) return Promise.resolve();
@@ -419,17 +420,13 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                     ]}
                   >
                     <DatePicker
-                      style={{ width: "100%" }}
+                      style={{ width: '100%' }}
                       placeholder="YYYY-MM-DD"
-                      value={
-                        formData.ngaySinh ? moment(formData.ngaySinh) : null
-                      }
+                      value={formData.ngaySinh ? moment(formData.ngaySinh) : null}
                       onChange={(date, dateString) =>
                         setFormData({ ...formData, ngaySinh: dateString })
                       }
-                      disabledDate={(current) =>
-                        current && current > moment().endOf("day")
-                      }
+                      disabledDate={(current) => current && current > moment().endOf('day')}
                     />
                   </Form.Item>
                 </Col>
@@ -439,17 +436,17 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                 name="email"
                 label="Email"
                 rules={[
-                  { required: true, message: "Vui lòng nhập email!" },
-                  { type: "email", message: "Email không hợp lệ!" },
+                  { required: true, message: 'Vui lòng nhập email!' },
+                  { type: 'email', message: 'Email không hợp lệ!' },
                   {
                     validator: async (_, value) => {
                       if (!value) return Promise.resolve(); // Không check nếu không có giá trị
-              
+
                       const exists = await checkEmailExists(value);
                       if (exists) {
-                        return Promise.reject("Email đã tồn tại trong hệ thống!");
+                        return Promise.reject('Email đã tồn tại trong hệ thống!');
                       }
-              
+
                       return Promise.resolve();
                     },
                   },
@@ -457,9 +454,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
               >
                 <Input
                   placeholder="Nhập email"
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   value={formData.email}
                 />
               </Form.Item>
@@ -468,18 +463,16 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                 name="soDienThoai"
                 label="Số điện thoại"
                 rules={[
-                  { required: true, message: "Vui lòng nhập số điện thoại!" },
+                  { required: true, message: 'Vui lòng nhập số điện thoại!' },
                   {
                     pattern: /^(0[3|5|7|8|9])+([0-9]{8})$/,
-                    message: "Số điện thoại không hợp lệ!",
+                    message: 'Số điện thoại không hợp lệ!',
                   },
                 ]}
               >
                 <Input
                   placeholder="Nhập số điện thoại"
-                  onChange={(e) =>
-                    setFormData({ ...formData, soDienThoai: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, soDienThoai: e.target.value })}
                   value={formData.soDienThoai}
                 />
               </Form.Item>
@@ -492,13 +485,13 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                     rules={[
                       {
                         required: true,
-                        message: "Vui lòng chọn tỉnh/thành phố",
+                        message: 'Vui lòng chọn tỉnh/thành phố',
                       },
                     ]}
                   >
                     <Select
                       placeholder="Chọn tỉnh/thành phố"
-                      style={{ width: "100%" }}
+                      style={{ width: '100%' }}
                       onChange={handleProvinceChange}
                       value={formData.tinh}
                     >
@@ -513,13 +506,11 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                   <Form.Item
                     label="Quận/Huyện"
                     name="huyen"
-                    rules={[
-                      { required: true, message: "Vui lòng chọn quận/huyện" },
-                    ]}
+                    rules={[{ required: true, message: 'Vui lòng chọn quận/huyện' }]}
                   >
                     <Select
                       placeholder="Chọn quận/huyện"
-                      style={{ width: "100%" }}
+                      style={{ width: '100%' }}
                       onChange={handleDistrictChange}
                       value={formData.huyen}
                     >
@@ -534,16 +525,12 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                   <Form.Item
                     label="Phường/Xã"
                     name="xa"
-                    rules={[
-                      { required: true, message: "Vui lòng chọn phường/xã" },
-                    ]}
+                    rules={[{ required: true, message: 'Vui lòng chọn phường/xã' }]}
                   >
                     <Select
                       placeholder="Chọn phường/xã"
-                      style={{ width: "100%" }}
-                      onChange={(value) =>
-                        setFormData({ ...formData, xa: value })
-                      }
+                      style={{ width: '100%' }}
+                      onChange={(value) => setFormData({ ...formData, xa: value })}
                       value={formData.xa}
                     >
                       {xaPhuongList.map((item) => (
@@ -560,7 +547,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                     rules={[
                       {
                         required: true,
-                        message: "Vui lòng nhập địa chỉ cụ thể",
+                        message: 'Vui lòng nhập địa chỉ cụ thể',
                       },
                     ]}
                   >
@@ -578,17 +565,18 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                 </Col>
               </Row>
 
-              <Form.Item style={{ textAlign: "right", marginTop: "24px" }}>
+              <Form.Item style={{ textAlign: 'right', marginTop: '24px' }}>
                 <Button
                   type="default"
                   onClick={handleClose} // Hàm xử lý đóng form hoặc trở về danh sách
-                  style={{ marginRight: "10px" }}
+                  style={{ marginRight: '10px' }}
                 >
                   Trở về
                 </Button>
-                <Button type="primary" htmlType="submit">
-                  Thêm nhân viên
-                </Button>
+               <Button type="primary" onClick={handleSubmit} loading={loading}>
+  Tạo nhân viên
+</Button>
+
               </Form.Item>
             </div>
           </Col>
