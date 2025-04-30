@@ -1,43 +1,28 @@
 package com.example.server.service.ChatBot;
 
-
-import com.example.server.entity.AnhSanPham;
 import com.example.server.entity.SanPhamChiTiet;
-import com.example.server.repository.SanPham.AnhSanPhamRepository;
-import com.example.server.repository.SanPham.SanPhamChiTiet.SanPhamChiTietRepository1;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
-@Service
-public class ChatBotService {
-    @Autowired
-    private SanPhamChiTietRepository1 repository;
-    @Autowired
-    private AnhSanPhamRepository anhRepository; // Repository cho hình ảnh
+public interface ChatBotService {
+    List<SanPhamChiTiet> getProductsByKeyword(String keyword);
+    List<SanPhamChiTiet> getProductsByCategory(String category);
+    List<SanPhamChiTiet> getProductsByMaterial(String material);
+    List<SanPhamChiTiet> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice);
+    List<SanPhamChiTiet> getCheapProducts();
+    List<SanPhamChiTiet> getTopSellingProducts(int limit);
+    List<SanPhamChiTiet> getProductsByCategories(List<String> categories);
+    List<SanPhamChiTiet> getProductsByConditions(String keyword, String category, String material, BigDecimal minPrice, BigDecimal maxPrice);
+    List<String> getProductImages(String productId);
+    SanPhamChiTiet getProductById(String productId);
+    List<SanPhamChiTiet> findProducts(Map<String, Object> conditions);
 
-    public List<SanPhamChiTiet> getProductsByKeyword(String keyword) {
-        return repository.findByMaSanPhamChiTietContaining(keyword);
-    }
-
-    public List<SanPhamChiTiet> getProductsByCategory(String category) {
-        return repository.findByDanhMucTenDanhMucContaining(category);
-    }
-
-    public List<SanPhamChiTiet> getProductsByMaterial(String material) {
-        return repository.findByChatLieuTenChatLieuContaining(material);
-    }
-
-    public List<String> getProductImages(String productId) {
-        return anhRepository.findByIdSPCT(productId)
-                .stream().map(AnhSanPham::getAnhUrl).collect(Collectors.toList());
-    }
-
-    public List<SanPhamChiTiet> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
-        return repository.findByGiaBetween(minPrice, maxPrice);
-    }
-
+    // Phương thức cũ (giữ lại để tương thích)
+    @Deprecated
+    List<SanPhamChiTiet> findProducts(String mauSac, String chatLieu, String danhMuc, String sanPham,
+                                      String kichThuoc, String thuongHieu, String kieuDang, String kieuCuc,
+                                      String kieuCoAo, String kieuTayAo, String kieuCoTayAo, String hoaTiet,
+                                      String tuiAo, BigDecimal minPrice, BigDecimal maxPrice);
 }

@@ -157,7 +157,6 @@ const OrderPage = () => {
   };
 
   const getDiscountValue = (voucher, totalAmount) => {
-    
     if (!voucher) return 0; // Nếu không có voucher, không giảm giá
 
     if (voucher.loaiPhieuGiamGia === 1) {
@@ -168,14 +167,21 @@ const OrderPage = () => {
     // Giảm giá cố định (VND)
     return voucher.giaTriGiam || 0;
   };
+  const calculateTotalPrice = (products = []) => {
+    return products.reduce(
+      (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
+      0
+    );
+  };
+  
 
   const renderOrdersByStatus = (status) => {
     return orders
       .filter((order) => order.trangThai === status) // Lọc đơn hàng theo trạng thái
       .map((order) => {
         const payment = order.payments?.[0];
-        const discountValue = getDiscountValue(order.voucher, order.tongTien);
-        const tongTienThanhToan = order.tongTien - discountValue + order.phiVanChuyen;
+        const discountValue = getDiscountValue(order.voucher, calculateTotalPrice(order.products));
+        const tongTienThanhToan = order.tongTien + order.phiVanChuyen;
 
         return (
           <Card

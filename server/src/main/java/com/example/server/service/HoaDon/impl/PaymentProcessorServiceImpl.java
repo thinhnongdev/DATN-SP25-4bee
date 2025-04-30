@@ -229,8 +229,10 @@ public class PaymentProcessorServiceImpl implements IPaymentProcessorService {
                 return PaymentConstant.PAYMENT_STATUS_PAID; // Tiền mặt -> Đã thanh toán ngay
             case PaymentConstant.PAYMENT_METHOD_BANK:
                 return PaymentConstant.PAYMENT_STATUS_UNPAID; // Chuyển khoản -> Cần xác nhận
+            case PaymentConstant.PAYMENT_METHOD_VNPAY:
+                return PaymentConstant.PAYMENT_STATUS_PAID;
             default:
-                log.warn("Phát hiện phương thức thanh toán không hợp lệ: {}", phuongThucId);
+                log.warn(" Phát hiện phương thức thanh toán không hợp lệ: {}", phuongThucId);
                 return PaymentConstant.PAYMENT_STATUS_UNPAID; // Mặc định là chưa thanh toán
         }
     }

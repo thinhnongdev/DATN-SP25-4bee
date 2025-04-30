@@ -78,7 +78,6 @@ public class HoaDonClientService {
         if (!hoaDon.getDiaChi().equals(request.getDiaChi())) {
             if (hoaDon.getTrangThai() == 1 && hoaDon.getLoaiHoaDon() == 1) {
                 hoaDon.setDiaChi(request.getDiaChi());
-                hoaDon.setPhiVanChuyen(request.getPhiVanChuyen());
                 hoaDon.setNgaySua(LocalDateTime.now());
                 LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
                 lichSuHoaDon.setId(UUID.randomUUID().toString());
@@ -91,6 +90,7 @@ public class HoaDonClientService {
                 lichSuHoaDon.setHanhDong("Cập nhật thông tin khách hàng");
                 lichSuHoaDon.setNgayTao(LocalDateTime.now());
                 lichSuHoaDonRepository.save(lichSuHoaDon);
+                hoaDon.setPhiVanChuyen(request.getPhiVanChuyen());
                 return hoaDonRepository.save(hoaDon);
             }
             return hoaDonRepository.save(hoaDon);
@@ -152,6 +152,7 @@ public class HoaDonClientService {
                 newDetail.setGiaTaiThoiDiemThem(p.getGiaTaiThoiDiemThem());
                 newDetail.setSoLuong(p.getSoLuongMua());
                 newDetail.setNgayTao(LocalDateTime.now());
+                newDetail.setTrangThai(1);
                 hoaDonChiTietRepository.save(newDetail);
                 saveLichSuHoaDon(request, "Thêm sản phẩm mới", "Thêm mới sản phẩm " + p.getMaSanPhamChiTiet());
             }
@@ -184,19 +185,32 @@ public class HoaDonClientService {
         HoaDon hoaDon = hoaDonRepository.findById(request.getId()).orElseThrow();
         List<ThanhToanHoaDon> thanhToans = thanhToanHoaDonRepository.findByHoaDonId(hoaDon.getId());
 
-        // Tổng tiền KH đã thanh toán (tính tất cả phương thức)
         BigDecimal tongDaThanhToan = thanhToans.stream()
-                .map(ThanhToanHoaDon::getSoTien)
+                .map(tt -> {
+                    // Nếu trạng thái là 4 (Đã hoàn), thì trừ số tiền
+                    if (tt.getTrangThai() == 4) {
+                        return tt.getSoTien().negate(); // trừ đi
+                    }
+                    return tt.getSoTien(); // cộng bình thường
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
 
         BigDecimal chenhLech = request.getTongThanhToan().subtract(tongDaThanhToan);
 
-        // Nếu tổng đã thanh toán < tổng mới → tạo thêm COD
         if (chenhLech.compareTo(BigDecimal.ZERO) > 0) {
+            // Cần thanh toán thêm → tạo COD
             createThanhToanCOD(hoaDon, chenhLech);
-            createLichSuPhuPhi(hoaDon, request, chenhLech);
+            createLichSuPhuPhi(hoaDon, request, chenhLech,tongDaThanhToan);
         }
+//        else if (chenhLech.compareTo(BigDecimal.ZERO) < 0) {
+//            // Đã thanh toán nhiều hơn → ghi nhận hoàn tiền
+//            BigDecimal tienHoan = chenhLech.abs();
+//            createHoanTienRecord(hoaDon, tienHoan); // bạn có thể tự tạo hàm này
+//            createLichSuGiamTru(hoaDon, request, tienHoan); // ghi vào lịch sử giảm trừ
+//        }
     }
+
 
     private void createThanhToanCOD(HoaDon hoaDon, BigDecimal soTienThem) {
         ThanhToanHoaDon thanhToan = new ThanhToanHoaDon();
@@ -213,7 +227,7 @@ public class HoaDonClientService {
         thanhToanHoaDonRepository.save(thanhToan);
     }
 
-    private void createLichSuPhuPhi(HoaDon hoaDon, OrderUpdateRequest request, BigDecimal soTienThem) {
+    private void createLichSuPhuPhi(HoaDon hoaDon, OrderUpdateRequest request, BigDecimal soTienThem,BigDecimal tongDaThanhToan) {
         LichSuHoaDon lichSu = new LichSuHoaDon();
         lichSu.setId(UUID.randomUUID().toString());
         lichSu.setHoaDon(hoaDon);
@@ -221,7 +235,7 @@ public class HoaDonClientService {
         lichSu.setNgayTao(LocalDateTime.now());
 
         lichSu.setHanhDong("Khách hàng thanh toán thêm phụ phí");
-        lichSu.setMoTa("Tổng thanh toán thay đổi từ " + hoaDon.getTongTien()
+        lichSu.setMoTa("Tổng thanh toán thay đổi từ " + tongDaThanhToan
                 + " → " + request.getTongThanhToan()
                 + ". Tạo thanh toán COD mới: +" + soTienThem);
         lichSu.setTrangThai(1);
@@ -302,10 +316,12 @@ public class HoaDonClientService {
         List<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonClient(email);
         return hoaDonList;
     }
+
     public List<HoaDonClientResponse> findHoaDonByMaHoaDon(String maHoaDon) {
         List<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonByMaHoaDonClient(maHoaDon);
         return hoaDonList;
     }
+
     public HoaDonClientResponse findHoaDonClientById(String idHoaDon) {
         Optional<HoaDonClientResponse> hoaDonList = hoaDonRepository.findHoaDonClientByIdHoaDon(idHoaDon);
         return hoaDonList.orElse(null);
@@ -347,6 +363,7 @@ public class HoaDonClientService {
             }
         }
     }
+
     public void addSanPhamVaoGioHang(CartProductRequest cartProductRequest) { //thêm sản phẩm vào giỏ
         if (cartProductRequest.getSanPhamChiTiet().getQuantity() <= sanPhamChiTietRepository.findById(cartProductRequest.getSanPhamChiTiet().getId()).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm chi tiết")).getSoLuong()) { //kiểm tra xem số lượng trong kho còn đủ đẻ thêm vào hóa đơn chi tiết không
             HoaDon hoaDon = hoaDonRepository.findHoaDonPending(cartProductRequest.getEmail()).orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn pending"));
@@ -355,7 +372,7 @@ public class HoaDonClientService {
                 if (hoaDonChiTietClientResponseList.get(i).getId().equals(cartProductRequest.getSanPhamChiTiet().getId())) {//nếu id sản phẩm chi tiết trong hdct == id sản phẩm chi tiết gửi về
                     //nếu số lượng của sản phẩm trong hóa đơn chi tiết khác số lượng sản phẩm gửi về
                     HoaDonChiTiet hoaDonChiTiet = hoaDonChiTietRepository.findById(hoaDonChiTietClientResponseList.get(i).getIdHoaDonChiTiet()).orElseThrow(() -> new RuntimeException("không tìm thấy hóa đơn chi tiết!!!"));
-                    hoaDonChiTiet.setSoLuong(hoaDonChiTiet.getSoLuong()+cartProductRequest.getSanPhamChiTiet().getQuantity());
+                    hoaDonChiTiet.setSoLuong(hoaDonChiTiet.getSoLuong() + cartProductRequest.getSanPhamChiTiet().getQuantity());
                     hoaDonChiTiet.setGiaTaiThoiDiemThem(cartProductRequest.getSanPhamChiTiet().getGia());
                     hoaDonChiTietRepository.save(hoaDonChiTiet);
                     System.out.println("Thêm sản phẩm thành công");
@@ -377,6 +394,7 @@ public class HoaDonClientService {
             }
         }
     }
+
     public void UpdateHoaDonChoXacNhan(String idHoaDon) {
 
         List<HoaDonChiTietClientResponse> hoaDonChiTietClientResponseList = hoaDonChiTietRepository.findByHoaDonId(idHoaDon);

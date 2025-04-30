@@ -5761,12 +5761,21 @@ function InvoiceDetail() {
           <Col span={12}>
             <Text strong>Địa chỉ:</Text> {formattedAddress || "---"}
           </Col>
-          <Col span={12}>
-            <Text strong>Thời gian dự kiến nhận:</Text>
-            {invoice.trangThai == 2 || invoice.trangThai == 3
-              ? formatDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000))
+                    <Col span={12}>
+            <Text strong>Thời gian nhận hàng:</Text>{" "}
+            {invoice.trangThai >= 2 && invoice.trangThai <= 5
+              ? invoice.thoiGianNhanHang 
+                ? formatDate(invoice.thoiGianNhanHang)
+                : formatDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000))
               : "---"}
           </Col>
+          
+          {invoice.trangThai >= 3 && invoice.trangThai <= 5 && (
+            <Col span={12}>
+              <Text strong>Thời gian giao hàng:</Text>{" "}
+              {invoice.thoiGianGiaoHang ? formatDate(invoice.thoiGianGiaoHang) : "Đang cập nhật"}
+            </Col>
+          )}
           <Col span={12}>
             <Text strong>Email:</Text> {invoice.emailNguoiNhan || "---"}
           </Col>

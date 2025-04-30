@@ -27,7 +27,7 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import NavClient from './components/Client/components/Navbar';
 import FooterClient from './components/Client/components/Footer';
-import Chatbot from './components/Client/Chat/Chatbot';
+
 
 import { checkTokenValidity } from './components/Client/pages/checkTokenValidity';
 import ThongkeRoutes from './routes/ThongKeRoutes';
@@ -35,6 +35,7 @@ import Forbidden403 from './components/Auth/Forbidden403';
 import ProtectedRoutes from './routes/ProtectedRoutes';
 import NotFoundPage from './components/Auth/NotFoundPage';
 import ChangePassword from './components/Auth/ChangePassword';
+import ChatBot from './components/Chat/ChatBot';
 const { Header: AntHeader, Content, Footer, Sider } = Layout;
 
 const breadcrumbMap = {
@@ -218,7 +219,7 @@ const AdminLayout = () => {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Content>
-        <Chatbot />
+      
       </Layout>
     </Layout>
   );
@@ -241,7 +242,7 @@ const CustomerLayout = () => {
         </Routes>
       </Content>
       <FooterClient />
-      <Chatbot />
+<ChatBot />
     </Layout>
   );
 };

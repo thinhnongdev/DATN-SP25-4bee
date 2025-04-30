@@ -587,7 +587,7 @@ const CheckoutForm = () => {
           },
           tongTienThanhToan: totalPayMent,
           phiVanChuyen: shippingFee,
-          tongTienHang: totalAmount,
+          tongTienHang: totalAmount-voucherDiscount,//sửa đổi để lưu đúng giá trị hoá đơn
           phieuGiamGia: selectedVoucher,
         };
         console.log('Dữ liệu đơn hàng:', orderData);

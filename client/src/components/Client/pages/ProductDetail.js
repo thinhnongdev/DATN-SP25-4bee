@@ -151,30 +151,30 @@ const ProductDetail = () => {
       message.warning('Vui lòng chọn size');
       return;
     }
-  
+
     const selectedVariant = findProductVariant(sanPhamGopNhom.bienThe, selectedSize, selectedColor);
-  
+
     if (!selectedVariant || selectedVariant.soLuong === 0) {
       message.warning('Sản phẩm đang tạm thời hết hàng');
       return;
     }
-  
+
     const existingCart = JSON.parse(localStorage.getItem('cart')) || [];
     const existingCartItem = existingCart.find((item) => item.id === selectedVariant.idSPCT);
     const currentCartQuantity = existingCartItem ? existingCartItem.quantity : 0;
     const totalQuantityAfterAdd = currentCartQuantity + quantity;
-  
+
     if (totalQuantityAfterAdd > selectedVariant.soLuong) {
       message.warning(`Chỉ còn ${selectedVariant.soLuong} sản phẩm trong kho.`);
       return;
     }
-  
+
     const cartItem = {
       id: selectedVariant.idSPCT,
       gia: selectedVariant.gia,
       quantity,
     };
-  
+
     const token = localStorage.getItem('token');
     if (token) {
       checkTokenValidity(token).then((isValid) => {
@@ -202,19 +202,18 @@ const ProductDetail = () => {
         }
       });
     }
-  
+
     const existingIndex = existingCart.findIndex((item) => item.id === selectedVariant.idSPCT);
     if (existingIndex !== -1) {
       existingCart[existingIndex].quantity += quantity;
     } else {
       existingCart.push(cartItem);
     }
-  
+
     localStorage.setItem('cart', JSON.stringify(existingCart));
     window.dispatchEvent(new Event('cartUpdated'));
     message.success('Đã thêm sản phẩm vào giỏ hàng!');
   };
-  
 
   useEffect(() => {
     setQuantity(1);

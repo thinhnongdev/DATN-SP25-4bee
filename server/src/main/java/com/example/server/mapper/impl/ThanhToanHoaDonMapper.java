@@ -1,6 +1,5 @@
 package com.example.server.mapper.impl;
 
-
 import com.example.server.constant.PaymentConstant;
 import com.example.server.dto.HoaDon.response.ThanhToanHoaDonResponse;
 import com.example.server.entity.ThanhToanHoaDon;
@@ -11,7 +10,7 @@ import java.math.BigDecimal;
 @Component
 public class ThanhToanHoaDonMapper {
     public ThanhToanHoaDonResponse toDTO(ThanhToanHoaDon entity) {
-        return new ThanhToanHoaDonResponse(
+        ThanhToanHoaDonResponse response = new ThanhToanHoaDonResponse(
                 entity.getId(),
                 entity.getHoaDon() != null ? entity.getHoaDon().getId() : null,
                 entity.getHoaDon() != null ? entity.getHoaDon().getNguoiTao() : "---",
@@ -23,6 +22,11 @@ public class ThanhToanHoaDonMapper {
                 entity.getNgayTao(),
                 entity.getNgaySua()
         );
+
+        // Thêm thông tin người tạo thanh toán vào trường nhanVien
+        response.setNhanVien(entity.getNguoiTao());
+
+        return response;
     }
 
     public ThanhToanHoaDon toEntity(ThanhToanHoaDonResponse dto) {
@@ -33,7 +37,3 @@ public class ThanhToanHoaDonMapper {
         return entity;
     }
 }
-
-
-
-

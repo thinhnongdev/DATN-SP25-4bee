@@ -30,7 +30,6 @@ public class SanPhamHoaDonServiceImpl implements ISanPhamHoaDonService {
     @Override
     public List<SanPhamChiTietHoaDonResponse> getAllProducts() {
         // Sắp xếp theo thứ tự giảm dần của ngày tạo (mới nhất lên đầu)
-        // Giả sử SanPhamChiTiet có trường ngayTao, nếu không có, cần sử dụng trường ID
         return sanPhamChiTietHoaDonRepository.findAll().stream()
                 .sorted(Comparator.comparing(SanPhamChiTiet::getNgayTao, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(SanPhamChiTiet::getId, Comparator.reverseOrder()))

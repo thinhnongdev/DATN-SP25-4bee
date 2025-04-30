@@ -502,17 +502,24 @@ public class BanHangServiceImpl implements BanHangService {
         // 4. Lưu lịch sử trạng thái
         List<Integer> trangThaiCanLuu = new ArrayList<>();
         if (loaiHoaDon == 3) {
-            trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN);
-            trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG);
+            // Đảm bảo trạng thái "Đã xác nhận" được lưu trước
+            saveLichSuHoaDon(hoaDon, HoaDonConstant.TRANG_THAI_DA_XAC_NHAN,
+                    "Chuyển trạng thái: " + HoaDonConstant.getTrangThaiText(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN),
+                    thoiGianHoanThanh);
+            // Sau đó mới lưu trạng thái "Chờ giao hàng" với thời gian sau 1 giây
+            saveLichSuHoaDon(hoaDon, HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG,
+                    "Chuyển trạng thái: " + HoaDonConstant.getTrangThaiText(HoaDonConstant.TRANG_THAI_CHO_GIAO_HANG),
+                    thoiGianHoanThanh.plusSeconds(1));
         } else {
+            // Với đơn tại quầy, vẫn giữ nguyên logic lưu tuần tự các trạng thái
             trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN);
             trangThaiCanLuu.add(HoaDonConstant.TRANG_THAI_HOAN_THANH);
-        }
 
-        for (Integer trangThai : trangThaiCanLuu) {
-            saveLichSuHoaDon(hoaDon, trangThai,
-                    "Chuyển trạng thái: " + HoaDonConstant.getTrangThaiText(trangThai),
-                    thoiGianHoanThanh);
+            for (Integer trangThai : trangThaiCanLuu) {
+                saveLichSuHoaDon(hoaDon, trangThai,
+                        "Chuyển trạng thái: " + HoaDonConstant.getTrangThaiText(trangThai),
+                        thoiGianHoanThanh);
+            }
         }
 
         // 5. Cập nhật trạng thái hóa đơn

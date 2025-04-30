@@ -10,8 +10,9 @@ import java.util.Optional;
 
 public interface PhuongThucThanhToanRepository extends JpaRepository<PhuongThucThanhToan, String> {
     Optional<PhuongThucThanhToan> findByMaPhuongThucThanhToan(String maPhuongThuc);
-//lấy tất cả trừ pttt001 cod
-@Query("SELECT p FROM PhuongThucThanhToan p WHERE p.id IN ('PTTT001','PTTT002', 'PTTT003','PTTT004')")
-List<PhuongThucThanhToan> findBankAndCashMethods();
+
+    //lấy tất cả trừ pttt001 cod
+    @Query("SELECT p FROM PhuongThucThanhToan p WHERE p.id IN ('PTTT001','PTTT002', 'PTTT003','PTTT004')")
+    List<PhuongThucThanhToan> findBankAndCashMethods();
 
 }

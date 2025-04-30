@@ -142,10 +142,15 @@ public class ThanhToanClientService {
                     </div>
                     """;
 
-            BigDecimal giamGia = null;
-            if (tongTienHang.compareTo(phieuGiamGia.getGiaTriToiThieu()) == 0 || tongTienHang.compareTo(phieuGiamGia.getGiaTriToiThieu()) > 0) {//kiểm tra giá tổng tiền có nhỏ hơn giá trị giảm tối thiếu không
+            BigDecimal giamGia = BigDecimal.ZERO;
+            BigDecimal tongTienSanPham = BigDecimal.ZERO;
+            for (SanPhamChiTietClientRequest chiTiet : sanPhamChiTietClientRequestList) {
+                BigDecimal tienSanPham = chiTiet.getGia().multiply(BigDecimal.valueOf(chiTiet.getQuantity()));
+                tongTienSanPham = tongTienSanPham.add(tienSanPham);
+            }
+            if (tongTienSanPham.compareTo(phieuGiamGia.getGiaTriToiThieu()) == 0 || tongTienSanPham.compareTo(phieuGiamGia.getGiaTriToiThieu()) > 0) {//kiểm tra giá tổng tiền có nhỏ hơn giá trị giảm tối thiếu không
                 if (phieuGiamGia.getLoaiPhieuGiamGia().equals(1)) {//nếu loại giảm giá là %
-                    BigDecimal giaTriGiamTheoPhanTram = tongTienHang.divide(BigDecimal.valueOf(100)).multiply(phieuGiamGia.getGiaTriGiam());
+                    BigDecimal giaTriGiamTheoPhanTram = tongTienSanPham.divide(BigDecimal.valueOf(100)).multiply(phieuGiamGia.getGiaTriGiam());
                     if (giaTriGiamTheoPhanTram.compareTo(phieuGiamGia.getSoTienGiamToiDa()) < 0) {//nếu giá trị giảm theo phần trăm nhỏ hơn giá trị giảm tối đa
                         giamGia = giaTriGiamTheoPhanTram;
                     } else {
@@ -163,7 +168,7 @@ public class ThanhToanClientService {
                     .replace("{{diaChi}}", khachHang.getDiaChiCuThe())
                     .replace("{{ghiChu}}", khachHang.getGhiChu() != null ? khachHang.getGhiChu() : "Không có")
                     .replace("{{giamGia}}", String.format("%,.0f", giamGia))
-                    .replace("{{phiShip}}", String.format("%,.0f", (tienThanhToan.add(giamGia).subtract(tongTienHang))))
+                    .replace("{{phiShip}}", String.format("%,.0f", (tienThanhToan.subtract(tongTienHang))))
                     .replace("{{tongTien}}", String.format("%,.0f", tienThanhToan));
             String chiTietSanPham = "";
             int stt = 1;

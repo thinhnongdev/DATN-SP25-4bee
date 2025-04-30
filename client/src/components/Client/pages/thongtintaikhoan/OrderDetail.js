@@ -888,7 +888,12 @@ const OrderDetailPage = () => {
       const res = await axios.get(
         `http://localhost:8080/api/client/order/findLichSuHoaDon/${order.id}`,
       );
-      setHistory(res.data || []);
+
+      const sortedData = (res.data || []).sort(
+        (a, b) => new Date(b.ngayTao) - new Date(a.ngayTao), // giảm dần, mới nhất trước
+      );
+
+      setHistory(sortedData);
     } catch (err) {
       console.error('Lỗi khi lấy lịch sử đơn hàng:', err);
       message.error('Không thể tải lịch sử đơn hàng!');
@@ -1074,7 +1079,7 @@ const OrderDetailPage = () => {
             setUpdateOrder((prev) => ({
               ...prev,
               products: filteredProducts,
-              tongTien: newTotal,
+              tongTien: newTotal - discount,
               phiVanChuyen: phiVanChuyen,
               tongThanhToan: newTotal + phiVanChuyen - discount,
             }));
@@ -1105,7 +1110,7 @@ const OrderDetailPage = () => {
       setUpdateOrder((prev) => ({
         ...prev,
         products: updatedProducts,
-        tongTien: newTotal,
+        tongTien: newTotal - discount,
         phiVanChuyen: phiVanChuyen,
         tongThanhToan: newTotal + phiVanChuyen - discount,
       }));
@@ -1276,7 +1281,7 @@ const OrderDetailPage = () => {
         return {
           ...prev,
           products: updatedProducts,
-          tongTien: newTotal,
+          tongTien: afterDiscount,
           tongThanhToan: newTotal - voucherDiscount,
           phiVanChuyen: 0,
         };
@@ -1287,7 +1292,7 @@ const OrderDetailPage = () => {
             setUpdateOrder((current) => ({
               ...current,
               products: updatedProducts,
-              tongTien: newTotal,
+              tongTien: afterDiscount,
               tongThanhToan: newTotal + fee - voucherDiscount,
               phiVanChuyen: fee,
             }));
@@ -1302,15 +1307,24 @@ const OrderDetailPage = () => {
       }
     });
   };
+  const calculateTotalPrice = () => {
+    return updateOrder.products.reduce((total, item) => {
+      return total + item.giaTaiThoiDiemThem * item.soLuongMua;
+    }, 0);
+  };
 
   const voucherDiscount =
-    updateOrder?.tongTien > 0 ? getDiscountValue(updateOrder?.voucher, updateOrder?.tongTien) : 0; //tính giảm giá
-  const totalPayMent = Math.max(updateOrder?.tongTien + shippingFee - voucherDiscount, 0); //tính tổng tiền thanh toán
+    calculateTotalPrice() > 0 ? getDiscountValue(updateOrder?.voucher, calculateTotalPrice()) : 0; //tính giảm giá
+  const totalPayMent = Math.max(calculateTotalPrice() - voucherDiscount + shippingFee, 0); //tính tổng tiền thanh toán
   const totalPaid = order.payments.reduce((sum, payment) => {
     const maPTTT = payment.phuongThucThanhToan?.maPhuongThucThanhToan;
+
     if (maPTTT !== 'COD') {
-      return sum + payment.tongTien;
+      const amount = payment.tongTien;
+      // Nếu trạng thái đơn hàng là 4 (ví dụ: Đã hủy / Hoàn tiền), thì trừ tiền
+      return sum + (payment.trangThai === 4 ? -amount : amount);
     }
+
     return sum;
   }, 0);
 
@@ -1590,7 +1604,7 @@ const OrderDetailPage = () => {
               </Col>
               <Col>
                 <Text style={{ fontSize: '16px' }}>
-                  {updateOrder.tongTien.toLocaleString('vi-VN')}₫
+                  {calculateTotalPrice().toLocaleString('vi-VN')}₫
                 </Text>
               </Col>
             </Row>

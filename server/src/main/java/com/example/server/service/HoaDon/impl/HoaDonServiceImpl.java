@@ -147,8 +147,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
         NhanVien nhanVien = currentUserService.getCurrentNhanVien();
         lichSuHoaDon.setNhanVien(nhanVien);
         lichSuHoaDon.setTrangThai(1);
-        lichSuHoaDon.setHanhDong("Cập nhật thông tin người nhận");
-        lichSuHoaDon.setMoTa("Cập nhật thông tin người nhận: " + request.getTenNguoiNhan() +
+        lichSuHoaDon.setHanhDong("Cập nhật thông tin khách hàng");
+        lichSuHoaDon.setMoTa("Cập nhật thông tin khách hàng: " + request.getTenNguoiNhan() +
                 ", Địa chỉ: " + formattedAddress +
                 ", SĐT: " + (request.getSoDienThoai() != null ? request.getSoDienThoai() : "---"));
         lichSuHoaDonRepository.save(lichSuHoaDon);
@@ -249,7 +249,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             hoaDon.setPhiVanChuyen(phiVanChuyen);
         }
 
-        // Tính lại tổng tiền hóa đơn: subtotal - discount (KHÔNG cộng thêm phí vận chuyển vào đây)
+        // Tính lại tổng tiền hóa đơn: subtotal - discount
         // Phí vận chuyển sẽ được xử lý riêng khi hiển thị hoặc tính toán
         BigDecimal finalTotal = subtotalAfterDiscount;
 
@@ -276,51 +276,154 @@ public class HoaDonServiceImpl implements IHoaDonService {
         log.info("Điều chỉnh tiền thừa vào thanh toán chờ/trả sau: hoaDonId={}, soTien={}",
                 hoaDonId, soTien);
 
+        // Kiểm tra số tiền điều chỉnh phải lớn hơn 0
+        if (soTien == null || soTien.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidationException("Số tiền điều chỉnh phải lớn hơn 0");
+        }
+
         // Kiểm tra hóa đơn
         HoaDon hoaDon = validateAndGet(hoaDonId);
 
+        // Kiểm tra số tiền thừa hiện có
+        BigDecimal excessAmount = calculateExcessPayment(hoaDonId);
+        if (excessAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidationException("Không có tiền thừa cần điều chỉnh");
+        }
+
+        // Tính tổng số tiền đã hoàn/điều chỉnh trước đó
+        BigDecimal totalPreviousRefunds = hoaDon.getThanhToanHoaDons().stream()
+                .filter(payment -> payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_REFUND)
+                .map(ThanhToanHoaDon::getSoTien)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Số tiền thừa còn lại
+        BigDecimal remainingExcess = excessAmount.subtract(totalPreviousRefunds);
+
+        if (remainingExcess.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidationException("Đã hoàn/điều chỉnh hết số tiền thừa trước đó");
+        }
+
+        // Kiểm tra số tiền điều chỉnh không vượt quá số tiền thừa còn lại
+        if (soTien.compareTo(remainingExcess) > 0) {
+            throw new ValidationException(String.format(
+                    "Số tiền điều chỉnh (%s) không được vượt quá số tiền thừa còn lại (%s)",
+                    formatCurrency(soTien),
+                    formatCurrency(remainingExcess)
+            ));
+        }
+
         // Lấy các khoản thanh toán chờ xác nhận hoặc trả sau
         List<ThanhToanHoaDon> pendingPayments = hoaDon.getThanhToanHoaDons().stream()
-                .filter(p -> p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID ||
-                        p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD)
+                .filter(p -> (p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID ||
+                        p.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD) &&
+                        p.getSoTien().compareTo(BigDecimal.ZERO) > 0) // Chỉ lấy các thanh toán > 0
+                .sorted(Comparator.comparing(ThanhToanHoaDon::getSoTien).reversed()) // Sắp xếp giảm dần theo số tiền
                 .collect(Collectors.toList());
 
         if (pendingPayments.isEmpty()) {
             throw new ValidationException("Không có khoản thanh toán chờ xác nhận hoặc trả sau để điều chỉnh");
         }
 
-        // Lấy khoản thanh toán đầu tiên để điều chỉnh
-        ThanhToanHoaDon paymentToAdjust = pendingPayments.get(0);
-        BigDecimal oldAmount = paymentToAdjust.getSoTien();
-        BigDecimal newAmount = oldAmount.subtract(soTien);
+        // Biến để theo dõi số tiền còn lại cần điều chỉnh
+        BigDecimal remainingAmountToAdjust = soTien;
+        // Danh sách các khoản thanh toán đã điều chỉnh
+        List<ThanhToanHoaDon> adjustedPayments = new ArrayList<>();
+        // Danh sách chi tiết điều chỉnh để ghi log
+        List<String> adjustmentDetails = new ArrayList<>();
 
-        if (newAmount.compareTo(BigDecimal.ZERO) < 0) {
-            // Nếu số tiền mới âm (giảm nhiều hơn số tiền thanh toán), điều chỉnh về 0
-            newAmount = BigDecimal.ZERO;
+        // Xử lý phân bổ tiền hoàn vào các khoản thanh toán chờ/trả sau
+        for (ThanhToanHoaDon payment : pendingPayments) {
+            if (remainingAmountToAdjust.compareTo(BigDecimal.ZERO) <= 0) {
+                break; // Đã điều chỉnh đủ số tiền
+            }
+
+            BigDecimal originalAmount = payment.getSoTien();
+            BigDecimal amountToAdjust = originalAmount.min(remainingAmountToAdjust); // Điều chỉnh không quá số tiền thanh toán
+            BigDecimal newAmount = originalAmount.subtract(amountToAdjust);
+
+            // Nếu số tiền sau điều chỉnh = 0, xóa thanh toán này
+            if (newAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                // Xóa thanh toán
+                hoaDon.getThanhToanHoaDons().remove(payment);
+                thanhToanHoaDonRepository.delete(payment);
+
+                log.info("Đã xóa thanh toán {} có số tiền {} do điều chỉnh về 0",
+                        payment.getId(), formatCurrency(originalAmount));
+
+                // Thêm chi tiết điều chỉnh
+                String paymentType = payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD ? "trả sau" : "chờ xác nhận";
+                adjustmentDetails.add(String.format("Xóa thanh toán %s %s với số tiền %s",
+                        paymentType, payment.getId(), formatCurrency(originalAmount)));
+            } else {
+                // Cập nhật số tiền thanh toán
+                payment.setSoTien(newAmount);
+                thanhToanHoaDonRepository.save(payment);
+                adjustedPayments.add(payment);
+
+                // Thêm chi tiết điều chỉnh
+                String paymentType = payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD ? "trả sau" : "chờ xác nhận";
+                adjustmentDetails.add(String.format("Điều chỉnh giảm %s trong thanh toán %s %s",
+                        formatCurrency(amountToAdjust), paymentType, payment.getId()));
+            }
+
+            // Cập nhật số tiền còn lại cần điều chỉnh
+            remainingAmountToAdjust = remainingAmountToAdjust.subtract(amountToAdjust);
         }
 
-        // Cập nhật số tiền thanh toán
-        paymentToAdjust.setSoTien(newAmount);
-        thanhToanHoaDonRepository.save(paymentToAdjust);
+        // Đảm bảo đã điều chỉnh đủ số tiền hoàn
+        if (remainingAmountToAdjust.compareTo(BigDecimal.ZERO) > 0) {
+            log.warn("Không thể điều chỉnh hết số tiền {}. Còn lại {} chưa được điều chỉnh.",
+                    formatCurrency(soTien), formatCurrency(remainingAmountToAdjust));
+        }
 
-        // Lưu lịch sử điều chỉnh
-        String moTa = String.format("Điều chỉnh giảm %s trong thanh toán %s do thừa tiền",
-                formatCurrency(soTien),
-                paymentToAdjust.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD ? "trả sau" : "chờ xác nhận");
+        // Tạo mô tả điều chỉnh chi tiết
+        String adjustmentDescription = String.join("; ", adjustmentDetails);
 
+        // Lưu lịch sử điều chỉnh chung
         LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
         lichSuHoaDon.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
         lichSuHoaDon.setHoaDon(hoaDon);
         lichSuHoaDon.setHanhDong("Điều chỉnh thanh toán");
-        lichSuHoaDon.setMoTa(moTa);
+        lichSuHoaDon.setMoTa("Điều chỉnh tiền thừa vào thanh toán trả sau/chờ xác nhận: " + adjustmentDescription);
         lichSuHoaDon.setTrangThai(hoaDon.getTrangThai());
         lichSuHoaDon.setNgayTao(LocalDateTime.now());
         lichSuHoaDon.setNhanVien(currentUserService.getCurrentNhanVien());
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
-        log.info("Đã điều chỉnh giảm {} trong thanh toán {}",
-                formatCurrency(soTien),
-                paymentToAdjust.getId());
+        // Tạo bản ghi "hoàn tiền" để theo dõi số tiền đã xử lý
+        BigDecimal actualAdjustedAmount = soTien.subtract(remainingAmountToAdjust);
+        if (actualAdjustedAmount.compareTo(BigDecimal.ZERO) > 0) {
+            // Chọn phương thức thanh toán từ khoản điều chỉnh đầu tiên hoặc mặc định là CASH
+            PhuongThucThanhToan phuongThucDieuChinh = null;
+            if (!adjustedPayments.isEmpty()) {
+                phuongThucDieuChinh = adjustedPayments.get(0).getPhuongThucThanhToan();
+            } else if (!pendingPayments.isEmpty()) {
+                // Nếu đã xóa hết các thanh toán được điều chỉnh, lấy từ danh sách ban đầu
+                phuongThucDieuChinh = pendingPayments.get(0).getPhuongThucThanhToan();
+            } else {
+                phuongThucDieuChinh = phuongThucThanhToanRepository
+                        .findByMaPhuongThucThanhToan("CASH")
+                        .orElse(null);
+            }
+
+            if (phuongThucDieuChinh != null) {
+                ThanhToanHoaDon thanhToanDieuChinh = new ThanhToanHoaDon();
+                thanhToanDieuChinh.setHoaDon(hoaDon);
+                thanhToanDieuChinh.setPhuongThucThanhToan(phuongThucDieuChinh);
+                thanhToanDieuChinh.setSoTien(actualAdjustedAmount);
+                thanhToanDieuChinh.setTrangThai(PaymentConstant.PAYMENT_STATUS_REFUND);
+                thanhToanDieuChinh.setMoTa("Điều chỉnh tiền thừa vào thanh toán trả sau/chờ xác nhận");
+                thanhToanDieuChinh.setNgayTao(LocalDateTime.now());
+                thanhToanDieuChinh.setNguoiTao(currentUserService.getCurrentNhanVien().getTenNhanVien());
+
+                thanhToanHoaDonRepository.save(thanhToanDieuChinh);
+                hoaDon.getThanhToanHoaDons().add(thanhToanDieuChinh);
+            }
+        }
+
+        log.info("Đã điều chỉnh tổng cộng {} trong các thanh toán trả sau/chờ xác nhận, còn lại {} tiền thừa chưa xử lý",
+                formatCurrency(actualAdjustedAmount),
+                formatCurrency(remainingExcess.subtract(actualAdjustedAmount)));
 
         return hoaDonMapper.entityToResponse(hoaDon);
     }
@@ -652,8 +755,9 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
             // 6.6. Lọc các khoản thanh toán cần chuyển trạng thái (trả sau và chờ thanh toán)
             List<ThanhToanHoaDon> pendingPayments = thanhToanList.stream()
-                    .filter(payment -> payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID
-                            || payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD)
+                    .filter(payment -> (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID
+                            || payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD) &&
+                            payment.getSoTien().compareTo(BigDecimal.ZERO) > 0) // Chỉ xử lý thanh toán > 0
                     .sorted((p1, p2) -> {
                         // Ưu tiên xử lý khoản thanh toán lớn nhất trước
                         return p2.getSoTien().compareTo(p1.getSoTien());
@@ -679,25 +783,42 @@ public class HoaDonServiceImpl implements IHoaDonService {
                     BigDecimal originalAmount = largestPayment.getSoTien();
                     BigDecimal adjustedAmount = originalAmount.subtract(soTienDuThua);
 
-                    if (adjustedAmount.compareTo(BigDecimal.ZERO) < 0) {
-                        // Trường hợp hiếm gặp: Khoản chờ thanh toán bé hơn số tiền cần giảm
-                        adjustedAmount = BigDecimal.ZERO;
+                    if (adjustedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                        // Nếu số tiền điều chỉnh <= 0, xóa khoản thanh toán này thay vì cập nhật
+                        log.info("Xóa khoản thanh toán {} có số tiền {} thay vì cập nhật về 0 hoặc âm",
+                                largestPayment.getId(), formatCurrency(originalAmount));
+
+                        thanhToanList.remove(largestPayment);
+                        hoaDon.getThanhToanHoaDons().remove(largestPayment);
+                        thanhToanHoaDonRepository.delete(largestPayment);
+
+                        // Cập nhật lại pendingPayments để loại bỏ khoản đã xóa
+                        pendingPayments.remove(largestPayment);
+                    } else {
+                        // Cập nhật số tiền thanh toán
+                        largestPayment.setSoTien(adjustedAmount);
+                        thanhToanHoaDonRepository.save(largestPayment);
+
+                        log.info("Điều chỉnh khoản thanh toán {} từ {} thành {} để tránh thanh toán thừa",
+                                largestPayment.getId(), originalAmount, adjustedAmount);
                     }
-
-                    log.info("Điều chỉnh khoản thanh toán {} từ {} thành {} để tránh thanh toán thừa",
-                            largestPayment.getId(), originalAmount, adjustedAmount);
-
-                    // Cập nhật số tiền thanh toán
-                    largestPayment.setSoTien(adjustedAmount);
-                    thanhToanHoaDonRepository.save(largestPayment);
 
                     // Ghi lại lịch sử điều chỉnh
                     LichSuHoaDon lichSuDieuChinh = new LichSuHoaDon();
                     lichSuDieuChinh.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
                     lichSuDieuChinh.setHoaDon(hoaDon);
                     lichSuDieuChinh.setHanhDong("Điều chỉnh thanh toán");
-                    lichSuDieuChinh.setMoTa("Điều chỉnh thanh toán sau khi hoàn thành đơn hàng: " +
-                            "giảm từ " + formatCurrency(originalAmount) + " xuống " + formatCurrency(adjustedAmount));
+
+                    String moTaDieuChinh;
+                    if (adjustedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                        moTaDieuChinh = "Đã xóa khoản thanh toán " + formatCurrency(originalAmount) +
+                                " để tránh thanh toán thừa";
+                    } else {
+                        moTaDieuChinh = "Điều chỉnh thanh toán sau khi hoàn thành đơn hàng: " +
+                                "giảm từ " + formatCurrency(originalAmount) + " xuống " + formatCurrency(adjustedAmount);
+                    }
+
+                    lichSuDieuChinh.setMoTa(moTaDieuChinh);
                     lichSuDieuChinh.setTrangThai(hoaDon.getTrangThai());
                     lichSuDieuChinh.setNgayTao(LocalDateTime.now());
                     lichSuDieuChinh.setNhanVien(currentUserService.getCurrentNhanVien());
@@ -705,13 +826,42 @@ public class HoaDonServiceImpl implements IHoaDonService {
                 }
             }
 
-            // 6.9. Bây giờ, chuyển tất cả trạng thái còn lại sang đã thanh toán
-            for (ThanhToanHoaDon thanhToan : thanhToanList) {
-                if (thanhToan.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID ||
+            // 6.9. Xóa các thanh toán 0đ
+            List<ThanhToanHoaDon> thanhToanToRemove = new ArrayList<>();
+
+            for (ThanhToanHoaDon thanhToan : new ArrayList<>(thanhToanList)) {
+                if (thanhToan.getSoTien().compareTo(BigDecimal.ZERO) <= 0) {
+                    // Đánh dấu để xóa thanh toán = 0
+                    thanhToanToRemove.add(thanhToan);
+                    log.info("Đánh dấu xóa thanh toán {} với số tiền 0đ", thanhToan.getId());
+                } else if (thanhToan.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID ||
                         thanhToan.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD) {
+                    // Chỉ cập nhật trạng thái cho các thanh toán > 0
                     thanhToanHoaDonService.updatePaymentStatus(thanhToan.getId(), PaymentConstant.PAYMENT_STATUS_PAID);
                     log.info("Updated payment {} to PAID for invoice {}", thanhToan.getId(), hoaDon.getId());
                 }
+            }
+
+            // Xóa các thanh toán = 0 sau khi đã duyệt qua tất cả
+            if (!thanhToanToRemove.isEmpty()) {
+                for (ThanhToanHoaDon payment : thanhToanToRemove) {
+                    thanhToanList.remove(payment);
+                    hoaDon.getThanhToanHoaDons().remove(payment);
+                    thanhToanHoaDonRepository.delete(payment);
+                }
+
+                // Lưu lịch sử xóa các thanh toán 0đ
+                LichSuHoaDon lichSuXoa = new LichSuHoaDon();
+                lichSuXoa.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
+                lichSuXoa.setHoaDon(hoaDon);
+                lichSuXoa.setHanhDong("Dọn dẹp thanh toán");
+                lichSuXoa.setMoTa("Đã xóa " + thanhToanToRemove.size() + " thanh toán có giá trị 0đ");
+                lichSuXoa.setTrangThai(hoaDon.getTrangThai());
+                lichSuXoa.setNgayTao(LocalDateTime.now());
+                lichSuXoa.setNhanVien(currentUserService.getCurrentNhanVien());
+                lichSuHoaDonRepository.save(lichSuXoa);
+
+                log.info("Đã xóa {} thanh toán có giá trị 0đ", thanhToanToRemove.size());
             }
         }
 

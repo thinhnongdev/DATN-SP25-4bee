@@ -17,7 +17,7 @@ public interface ThanhToanHoaDonRepository extends JpaRepository<ThanhToanHoaDon
     @Query("select new com.example.server.dto.Client.response.ThanhToanHoaDonClientResponse(" +
             "h.id,h.moTa,h.ngayTao,h.ngaySua,h.trangThai," +
             "h.soTien,h.phuongThucThanhToan)" +
-            " from ThanhToanHoaDon h where h.hoaDon.loaiHoaDon=1 and  h.hoaDon.trangThai <> 10  and h.hoaDon.id=:idHoaDon") //bỏ hóa đơn có trang thái là pendding
+            " from ThanhToanHoaDon h where h.hoaDon.loaiHoaDon=1 and  h.hoaDon.trangThai <> 10  and h.hoaDon.id=:idHoaDon order by h.ngayTao asc ") //bỏ hóa đơn có trang thái là pendding
     List<ThanhToanHoaDonClientResponse> findByHoaDonIdForClient(String idHoaDon);
     // Thêm vào ThanhToanHoaDonRepository.java
     Optional<ThanhToanHoaDon> findByHoaDonAndPhuongThucThanhToan(HoaDon hoaDon, PhuongThucThanhToan phuongThucThanhToan);
