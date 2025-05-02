@@ -11,8 +11,9 @@ import {
   Divider,
   Card,
   Modal,
+  Tooltip,
 } from "antd";
-import { DeleteOutlined, MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, MinusCircleOutlined, PlusOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
   getDiaChiByIdKhachHang,
@@ -30,6 +31,7 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
   const [khachHang, setKhachHang] = useState(null);
   const [tinhThanhList, setTinhThanhList] = useState([]);
   const [addresses, setAddresses] = useState([]);
+  const [loading, setLoading] = useState(false);
   const API_TOKEN = "4f7fc40f-023f-11f0-aff4-822fc4284d92";
 
   // Fetch provinces
@@ -141,60 +143,75 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
   };
 
   const handleProvinceChange = async (value, index) => {
-    const districts = await fetchDistricts(value);
-    const provinceName =
-      tinhThanhList.find((t) => t.ProvinceID.toString() === value)
-        ?.ProvinceName || "";
-    const newAddresses = [...addresses];
-    newAddresses[index] = {
-      ...newAddresses[index],
-      tinh: value,
-      tinhName: provinceName,
-      huyen: null,
-      huyenName: "",
-      xa: null,
-      xaName: "",
-      quanHuyenList: districts,
-      xaPhuongList: [],
-    };
-    setAddresses(newAddresses);
-    form.setFieldsValue({ addresses: newAddresses });
+    try {
+      const districts = await fetchDistricts(value);
+      const provinceName =
+        tinhThanhList.find((t) => t.ProvinceID.toString() === value)
+          ?.ProvinceName || "";
+      const newAddresses = [...addresses];
+      newAddresses[index] = {
+        ...newAddresses[index],
+        tinh: value,
+        tinhName: provinceName,
+        huyen: null,
+        huyenName: "",
+        xa: null,
+        xaName: "",
+        quanHuyenList: districts,
+        xaPhuongList: [],
+      };
+      setAddresses(newAddresses);
+      form.setFieldsValue({ addresses: newAddresses });
+    } catch (error) {
+      console.error("Lỗi khi thay đổi tỉnh/thành:", error);
+      toast.error("Có lỗi xảy ra khi chọn tỉnh/thành");
+    }
   };
 
   const handleDistrictChange = async (value, index) => {
-    const wards = await fetchWards(value);
-    const newAddresses = [...addresses];
-    const districtName =
-      newAddresses[index].quanHuyenList.find(
-        (h) => h.DistrictID.toString() === value
-      )?.DistrictName || "";
+    try {
+      const wards = await fetchWards(value);
+      const newAddresses = [...addresses];
+      const districtName =
+        newAddresses[index].quanHuyenList.find(
+          (h) => h.DistrictID.toString() === value
+        )?.DistrictName || "";
 
-    newAddresses[index] = {
-      ...newAddresses[index],
-      huyen: value, // DistrictID
-      huyenName: districtName, // Human-readable name
-      xa: null,
-      xaName: "",
-      xaPhuongList: wards,
-    };
-    setAddresses(newAddresses);
-    form.setFieldsValue({ addresses: newAddresses }); // Sync with form
+      newAddresses[index] = {
+        ...newAddresses[index],
+        huyen: value, // DistrictID
+        huyenName: districtName, // Human-readable name
+        xa: null,
+        xaName: "",
+        xaPhuongList: wards,
+      };
+      setAddresses(newAddresses);
+      form.setFieldsValue({ addresses: newAddresses }); // Sync with form
+    } catch (error) {
+      console.error("Lỗi khi thay đổi quận/huyện:", error);
+      toast.error("Có lỗi xảy ra khi chọn quận/huyện");
+    }
   };
 
   const handleWardChange = (value, index) => {
-    const newAddresses = [...addresses];
-    const wardName =
-      newAddresses[index].xaPhuongList.find(
-        (x) => x.WardCode.toString() === value
-      )?.WardName || "";
+    try {
+      const newAddresses = [...addresses];
+      const wardName =
+        newAddresses[index].xaPhuongList.find(
+          (x) => x.WardCode.toString() === value
+        )?.WardName || "";
 
-    newAddresses[index] = {
-      ...newAddresses[index],
-      xa: value,
-      xaName: wardName,
-    };
-    setAddresses(newAddresses);
-    form.setFieldsValue({ addresses: newAddresses });
+      newAddresses[index] = {
+        ...newAddresses[index],
+        xa: value,
+        xaName: wardName,
+      };
+      setAddresses(newAddresses);
+      form.setFieldsValue({ addresses: newAddresses });
+    } catch (error) {
+      console.error("Lỗi khi thay đổi phường/xã:", error);
+      toast.error("Có lỗi xảy ra khi chọn phường/xã");
+    }
   };
 
   const handleAddAddress = () => {
@@ -214,22 +231,24 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
 
   const handleSubmit = async (values) => {
     try {
+      setLoading(true);
       const validAddresses = values.addresses.filter(
         (address) => address.tinh && address.huyen && address.xa
       );
 
       if (validAddresses.length === 0) {
         toast.error("Vui lòng nhập ít nhất một địa chỉ đầy đủ!");
+        setLoading(false);
         return;
       }
 
       const updatedData = {
         maKhachHang: values.maKhachHang,
         tenKhachHang: values.tenKhachHang,
-        email: values.email,
+        email: khachHang.email, // Sử dụng email gốc, không cập nhật
         soDienThoai: values.soDienThoai,
         ngaySinh: dayjs(values.ngaySinh).format("YYYY-MM-DD"),
-        gioiTinh: values.gioiTinh,
+        gioiTinh: values.gioiTinh === "true", // Convert string to boolean
         trangThai: true,
         diaChi: validAddresses.map((address) => ({
           maKhachHang: values.maKhachHang,
@@ -253,8 +272,11 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
       toast.error(
         error.response?.data?.message || "Có lỗi khi cập nhật khách hàng!"
       );
+    } finally {
+      setLoading(false);
     }
   };
+
   const handleInputChange = (e, index, field) => {
     const { value } = e.target;
     const newAddresses = [...addresses];
@@ -262,7 +284,6 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
     setAddresses(newAddresses);
     form.setFieldsValue({ addresses: newAddresses });
   };
-  console.log("address sau khi thay đổi:", addresses);
 
   const handleConfirmSubmit = () => {
     Modal.confirm({
@@ -303,19 +324,31 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
             <Input placeholder="Nhập tên khách hàng" />
           </Form.Item>
 
-          {/* Email */}
+          {/* Email - Đã được vô hiệu hóa */}
           <Form.Item
             name="email"
-            label="Email"
+            label={
+              <span>
+                Email
+                <Tooltip title="Email không thể thay đổi vì được dùng để đăng nhập">
+                  <InfoCircleOutlined style={{ marginLeft: 8 }} />
+                </Tooltip>
+              </span>
+            }
             rules={[
               {
                 required: true,
                 type: "email",
-                message: "Vui lòng nhập email hợp lệ",
+                message: "Email không hợp lệ",
               },
             ]}
           >
-            <Input placeholder="Nhập email" />
+            <Input 
+              placeholder="Email"
+              disabled={true}
+              className="disabled-input"
+              style={{ backgroundColor: "#f5f5f5", color: "#666" }}
+            />
           </Form.Item>
 
           {/* Số điện thoại */}
@@ -339,34 +372,24 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
             label="Ngày sinh"
             rules={[
               { required: true, message: "Vui lòng chọn ngày sinh!" },
-              // {
-              //   validator: (_, value) => {
-              //     if (!value) return Promise.resolve();
-
-              //     // Tính toán tuổi chính xác
-              //     const today = moment();
-              //     const age = today.diff(value, "years");
-
-              //     // Kiểm tra tuổi phải từ 18 đến 60
-              //     if (age < 18) {
-              //       return Promise.reject("Nhân viên phải từ 18 tuổi trở lên!");
-              //     }
-              //     if (age > 60) {
-              //       return Promise.reject("Nhân viên phải dưới 60 tuổi!");
-              //     }
-
-              //     // Kiểm tra nếu tuổi chưa đủ 18 hoặc lớn hơn 60 khi chưa qua ngày sinh trong năm nay
-              //     const nextBirthday = moment(value).add(age, "years");
-              //     if (today.isBefore(nextBirthday)) {
-              //       return Promise.reject("Nhân viên phải từ 18 tuổi trở lên!");
-              //     }
-
-              //     return Promise.resolve();
-              //   },
-              // },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value) return Promise.resolve();
+                  
+                  const today = moment();
+                  if (value.isAfter(today)) {
+                    return Promise.reject('Ngày sinh không thể là ngày trong tương lai!');
+                  }
+                  return Promise.resolve();
+                },
+              }),
             ]}
           >
-            <DatePicker format="DD-MM-YYYY" style={{ width: "100%" }} />
+            <DatePicker 
+              format="DD-MM-YYYY" 
+              style={{ width: "100%" }} 
+              disabledDate={current => current && current > moment().endOf('day')}
+            />
           </Form.Item>
 
           {/* Giới tính */}
@@ -436,6 +459,10 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
                             onChange={(value) =>
                               handleProvinceChange(value, index)
                             }
+                            showSearch
+                            filterOption={(input, option) =>
+                              option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                            }
                           >
                             {tinhThanhList.map((item) => (
                               <Option
@@ -466,6 +493,10 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
                             onChange={(value) =>
                               handleDistrictChange(value, index)
                             }
+                            showSearch
+                            filterOption={(input, option) =>
+                              option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                            }
                           >
                             {addresses[index]?.quanHuyenList?.map((item) => (
                               <Option
@@ -495,6 +526,10 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
                             disabled={!addresses[index]?.huyen}
                             onChange={(value) => handleWardChange(value, index)}
                             value={addresses[index]?.xa}
+                            showSearch
+                            filterOption={(input, option) =>
+                              option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                            }
                           >
                             {addresses[index]?.xaPhuongList?.map((item) => (
                               <Option
@@ -548,6 +583,7 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
           type="default"
           onClick={handleClose} // Hàm xử lý đóng form hoặc trở về danh sách
           style={{ marginRight: "10px" }}
+          disabled={loading}
         >
           Trở về
         </Button>
@@ -555,6 +591,7 @@ const DetailForm = ({ selectedKhachHang, getAllKhachHang, handleClose }) => {
           type="primary"
           style={{ width: "150px" }}
           onClick={handleConfirmSubmit}
+          loading={loading}
         >
           Cập nhật khách hàng
         </Button>

@@ -18,11 +18,7 @@ import moment from 'moment';
 import { BarcodeOutlined, PhoneOutlined } from '@ant-design/icons';
 
 const { Content } = Layout;
-const { Title, Text } = Typography;
-
-
-
-
+const { Title, Text } = Typography
 
 function TimKiemHoaDonKhach() {
   const [form] = Form.useForm();

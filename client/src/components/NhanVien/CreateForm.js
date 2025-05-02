@@ -190,7 +190,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
       toast.error('Vui lòng tải lên ảnh nhân viên!');
       return;
     }
-  
+
     Modal.confirm({
       title: 'Xác nhận tạo nhân viên mới?',
       icon: <ExclamationCircleOutlined />,
@@ -212,10 +212,10 @@ function CreateForm({ handleClose, getAllNhanVien }) {
           xa: formData.xa,
           diaChiCuThe: formData.diaChiCuThe,
         };
-  
+
         // Hiển thị loading trong nút (nếu dùng state bên ngoài)
         setLoading(true);
-  
+
         try {
           const response = await getPostApi(newNhanVien);
           if (response && response.data) {
@@ -234,7 +234,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
   };
   return (
     <Card className="create-form-container">
-      <Form form={form} layout="vertical" >
+      <Form form={form} layout="vertical">
         <Row gutter={24}>
           <Col span={8}>
             <h5>Thông tin nhân viên</h5>
@@ -386,37 +386,16 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                     label="Ngày sinh"
                     rules={[
                       { required: true, message: 'Vui lòng chọn ngày sinh!' },
-                      // {
-                      //   validator: (_, value) => {
-                      //     if (!value) return Promise.resolve();
-
-                      //     // Tính toán tuổi chính xác
-                      //     const today = moment();
-                      //     const age = today.diff(value, "years");
-
-                      //     // Kiểm tra tuổi phải từ 18 đến 60
-                      //     if (age < 18) {
-                      //       return Promise.reject(
-                      //         "Nhân viên phải từ 18 tuổi trở lên!"
-                      //       );
-                      //     }
-                      //     if (age > 60) {
-                      //       return Promise.reject(
-                      //         "Nhân viên phải dưới 60 tuổi!"
-                      //       );
-                      //     }
-
-                      //     // Kiểm tra nếu tuổi chưa đủ 18 hoặc lớn hơn 60 khi chưa qua ngày sinh trong năm nay
-                      //     const nextBirthday = moment(value).add(age, "years");
-                      //     if (today.isBefore(nextBirthday)) {
-                      //       return Promise.reject(
-                      //         "Nhân viên phải từ 18 tuổi trở lên!"
-                      //       );
-                      //     }
-
-                      //     return Promise.resolve();
-                      //   },
-                      // },
+                      {
+                        validator: (_, value) => {
+                          if (!value) return Promise.resolve();
+                          const age = dayjs().diff(dayjs(value), 'year');
+                          if (age < 18) {
+                            return Promise.reject('Nhân viên phải từ 18 tuổi trở lên!');
+                          }
+                          return Promise.resolve();
+                        },
+                      },
                     ]}
                   >
                     <DatePicker
@@ -573,10 +552,9 @@ function CreateForm({ handleClose, getAllNhanVien }) {
                 >
                   Trở về
                 </Button>
-               <Button type="primary" onClick={handleSubmit} loading={loading}>
-  Tạo nhân viên
-</Button>
-
+                <Button type="primary" onClick={handleSubmit} loading={loading}>
+                  Tạo nhân viên
+                </Button>
               </Form.Item>
             </div>
           </Col>

@@ -125,6 +125,9 @@ const LoginForm = () => {
                 <Link to="/changepassword" style={{ color: 'white' }}>
                   Thay đổi mật khẩu?
                 </Link>
+                <Link to="/forgot-password" style={{ color: 'white' }}>
+    Quên mật khẩu?
+  </Link>
                 <Link to="/register" style={{ color: 'white' }}>
                   Tạo tài khoản
                 </Link>

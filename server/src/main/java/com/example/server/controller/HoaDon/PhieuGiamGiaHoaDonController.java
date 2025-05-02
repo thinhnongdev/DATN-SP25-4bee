@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
@@ -29,5 +30,12 @@ public class PhieuGiamGiaHoaDonController {
             @RequestParam (required = false) String customerId // Nhận ID khách hàng
     ) {
         return ResponseEntity.ok(phieuGiamGiaService.getAvailableVouchersForOrder(orderTotal, customerId));
+    }
+
+    @GetMapping("/better-vouchers")
+    public ResponseEntity<Map<String, Object>> getBetterVouchers(
+            @RequestParam String hoaDonId,
+            @RequestParam(required = false) String currentVoucherId) {
+        return ResponseEntity.ok(phieuGiamGiaService.findBetterVouchers(hoaDonId, currentVoucherId));
     }
 }

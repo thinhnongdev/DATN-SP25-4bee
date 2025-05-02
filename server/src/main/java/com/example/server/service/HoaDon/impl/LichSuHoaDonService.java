@@ -14,10 +14,16 @@ import com.example.server.repository.HoaDon.LichSuHoaDonRepository;
 import com.example.server.repository.NhanVien_KhachHang.NhanVienRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -212,5 +218,77 @@ public class LichSuHoaDonService {
     public int getUnreadNotificationsCount() {
         NhanVien nhanVien = currentUserService.getCurrentNhanVien();
         return repository.countUnreadNotificationsForUser(nhanVien.getId());
+    }
+
+    // Thêm phương thức mới
+    public Page<ThongBaoDTO> getNotificationsForCurrentUserPaged(int page, int size) {
+        NhanVien nhanVien = currentUserService.getCurrentNhanVien();
+        Pageable pageable = PageRequest.of(page, size);
+
+        // Lấy thông báo của người dùng hiện tại với phân trang
+        Page<LichSuHoaDon> notificationsPage = repository.findNotificationsForUserPaged(
+                nhanVien.getId(), pageable);
+
+        List<ThongBaoDTO> notificationDTOs = notificationsPage.getContent().stream()
+                .map(this::convertToThongBaoDTO)
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(notificationDTOs, pageable, notificationsPage.getTotalElements());
+    }
+
+    // Phương thức để lấy tất cả thông báo với bộ lọc
+    public Page<ThongBaoDTO> getAllNotificationsWithFilter(int page, int size, String search,
+                                                           String types, Boolean read,
+                                                           String from, String to) {
+        NhanVien nhanVien = currentUserService.getCurrentNhanVien();
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (search != null && !search.isEmpty()) {
+            search = "%" + search.replace("%", "\\%").replace("_", "\\_") + "%";
+        }
+
+        // Chuyển đổi chuỗi types thành danh sách số nguyên
+        List<Integer> typesList = null;
+        if (types != null && !types.isEmpty()) {
+            typesList = new ArrayList<>();
+            for (String type : types.split(",")) {
+                switch(type) {
+                    case "HOA_DON_MOI":
+                        typesList.add(HoaDonConstant.TRANG_THAI_CHO_XAC_NHAN);
+                        break;
+                    case "HOA_DON_XAC_NHAN":
+                        typesList.add(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN);
+                        break;
+                    case "HOA_DON_HOAN_THANH":
+                        typesList.add(HoaDonConstant.TRANG_THAI_HOAN_THANH);
+                        break;
+                    case "HOA_DON_HUY":
+                        typesList.add(HoaDonConstant.TRANG_THAI_DA_HUY);
+                        break;
+                    case "HOA_DON_MOI_TU_KHACH":
+                        typesList.add(10); // Giá trị tùy chọn cho đơn từ khách hàng
+                        break;
+                }
+            }
+        }
+
+        LocalDateTime fromDate = null;
+        if (from != null && !from.isEmpty()) {
+            fromDate = LocalDate.parse(from).atStartOfDay();
+        }
+
+        LocalDateTime toDate = null;
+        if (to != null && !to.isEmpty()) {
+            toDate = LocalDate.parse(to).atTime(23, 59, 59);
+        }
+
+        Page<LichSuHoaDon> filteredNotifications = repository.findNotificationsWithFilters(
+                nhanVien.getId(), search, typesList, read, fromDate, toDate, pageable);
+
+        List<ThongBaoDTO> notificationDTOs = filteredNotifications.getContent().stream()
+                .map(this::convertToThongBaoDTO)
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(notificationDTOs, pageable, filteredNotifications.getTotalElements());
     }
 }

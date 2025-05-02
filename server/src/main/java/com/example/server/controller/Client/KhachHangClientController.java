@@ -1,10 +1,14 @@
 package com.example.server.controller.Client;
 
+import com.example.server.dto.Auth.request.IntrospectRequest;
+import com.example.server.dto.Auth.response.UserResponse;
 import com.example.server.dto.NhanVien_KhachHang.KhachHangCreationRequest;
 import com.example.server.entity.DiaChi;
 import com.example.server.entity.KhachHang;
+import com.example.server.service.AuthenticationService;
 import com.example.server.service.NhanVien_KhachHang.KhachHangService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +21,9 @@ import java.util.Map;
 public class KhachHangClientController {
     @Autowired
     KhachHangService khachHangService;
+
+    @Autowired
+    AuthenticationService authenticationService;
 
     @GetMapping("/diaChi/{idKhachHang}")
     public List<DiaChi> getDiaChiByIdKhachHang(@PathVariable("idKhachHang") String idKhachHang) {
@@ -56,5 +63,34 @@ public class KhachHangClientController {
 
         DiaChi savedAddress = khachHangService.addAddressForCustomer(khachHangId, diaChi);
         return ResponseEntity.ok(savedAddress);
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(@RequestHeader("Authorization") String authHeader) {
+        try {
+            // Cắt bỏ "Bearer " từ authorization header
+            String token = authHeader.substring(7);
+
+            // Tạo request introspect
+            IntrospectRequest introspectRequest = new IntrospectRequest();
+            introspectRequest.setToken(token);
+
+            // Lấy thông tin người dùng
+            UserResponse userResponse = authenticationService.findUserByToken(introspectRequest);
+
+            if (userResponse.getId() == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                        Map.of("success", false, "message", "Không tìm thấy thông tin khách hàng")
+                );
+            }
+
+            // Lấy chi tiết khách hàng
+            KhachHang khachHang = khachHangService.getKhachHangById(userResponse.getId());
+            return ResponseEntity.ok(khachHang);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    Map.of("success", false, "message", e.getMessage())
+            );
+        }
     }
 }

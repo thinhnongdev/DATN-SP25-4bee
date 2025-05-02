@@ -21,6 +21,10 @@ import java.util.Arrays;
 public class SecurityConfig {
     private final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/login",
+            "/api/auth/khach-hang/login",
+            "/api/auth/khach-hang/register",
+            "/api/auth/khach-hang/forgot-password",
+            "/api/auth/reset-password",
             "/api/auth/introspect",
             "/api/auth/logout",
             "/api/auth/refreshToken",
@@ -41,6 +45,15 @@ public class SecurityConfig {
             "api/admin/kieutuiao",
             "api/admin/kieutuiao",
             "/api/admin/sanpham/**",
+    };
+    // Thêm mảng riêng cho các GET endpoints công khai
+    private final String[] PUBLIC_GET_ENDPOINTS = {
+            "/api/auth/check-email",
+            "/api/auth/check-phone",
+            "/api/auth/verify-reset-token",
+            "/api/auth/khach-hang/forgot-password",
+            "/api/admin/khach_hang/check-email", // Thêm endpoint admin check email
+            "/api/admin/khach_hang/check-phone"  // Thêm endpoint admin check phone
     };
 
     private final String[] adminAndStaffEndpoints = {
@@ -92,20 +105,13 @@ public class SecurityConfig {
 //    }
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-//        http
-//                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-//                .csrf(csrf -> csrf.disable())
-//                .authorizeHttpRequests(auth -> auth
-//                        .requestMatchers("/api/**").permitAll()
-//                        .anyRequest().permitAll()
-//                );
         httpSecurity.authorizeHttpRequests(request ->
                 request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
+                        // Thêm matcher cho các GET endpoints công khai
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers("/api/client/**").permitAll()
-
                         .requestMatchers(adminAndStaffEndpoints).hasAnyRole("ADMIN", "NHAN_VIEN")
                         .requestMatchers(adminOnlyEndpoints).hasRole("ADMIN")
-
                         .anyRequest().authenticated());
 
         httpSecurity.csrf(AbstractHttpConfigurer::disable);// Vô hiệu hóa CSRF

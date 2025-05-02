@@ -874,6 +874,7 @@ const OrderDetailPage = () => {
       setShippingFee(fullOrder.phiVanChuyen);
       setUpdateOrder(fullOrder); //thong tin order để chỉnh sửa
       setSelectedAddress(fullOrder.diaChi);
+      handleGetAllProduct();// gọi lại hàm lấy sản phẩm
     } catch (error) {
       console.error('Lỗi lấy chi tiết đơn hàng:', error);
     }
@@ -1337,22 +1338,38 @@ const OrderDetailPage = () => {
   const allCOD = order.payments?.length > 0 && nonCODPayments?.length === 0;
 
   const handleConfirmUpdateOrder = () => {
+    const totalPrice = calculateTotalPrice();
+    const maxTotalPayment = 15000000; //15 triệu đồng
+
+    // Tạo bản sao tạm thời
+    const newOrder = { ...updateOrder };
+
+    if (newOrder.voucher && totalPrice < newOrder.voucher.giaTriToiThieu) {
+      newOrder.idPhieuGiamGia = null;
+    }
+
+    if (totalPayMent > maxTotalPayment) {
+      message.warning('Tổng giá trị đơn hàng không được vượt quá 15 triệu đồng!');
+      return;
+    }
+
     Modal.confirm({
       title: 'Xác nhận cập nhật đơn hàng',
       content: 'Bạn có chắc chắn muốn cập nhật đơn hàng này không?',
       okText: 'Xác nhận',
       cancelText: 'Hủy',
       onOk: async () => {
+        console.log('Thong tin ok:', newOrder);
         try {
           await axios.put(
-            `http://localhost:8080/api/client/order/updatehoadoncho/${updateOrder.id}`,
-            updateOrder,
+            `http://localhost:8080/api/client/order/updatehoadoncho/${newOrder.id}`,
+            newOrder,
           );
           message.success('Cập nhật đơn hàng thành công!');
-          fetchOrder(); // Tải lại thông tin đơn hàng sau khi cập nhật
-          setUpdateOrder(order); // Đặt lại thông tin đơn hàng về mặc định
-          fetchOrderHistory(); // Tải lại lịch sử đơn hàng
-          setHasChanges(false); // Ẩn nút sau khi cập nhật thành công
+          fetchOrder();
+          setUpdateOrder(order); // reset lại đơn hàng gốc
+          fetchOrderHistory();
+          setHasChanges(false);
         } catch (error) {
           console.error(error);
           message.error('Lỗi khi cập nhật đơn hàng!');
@@ -1360,6 +1377,7 @@ const OrderDetailPage = () => {
       },
     });
   };
+
   const isEditable = ![3, 4, 5, 6, 7].includes(updateOrder.trangThai); // 3: Đang giao, 4: Hoàn thành, 5:hoàn thành, 6: Đã hủy,7: đã hoàn thành
 
   return (
@@ -1563,7 +1581,11 @@ const OrderDetailPage = () => {
                           <Button
                             size="small"
                             onClick={() => handleQuantityChange(item.id, item.soLuongMua + 1)}
-                            disabled={currentPrices[item.id] > item.giaTaiThoiDiemThem}
+                            disabled={
+                              currentPrices[item.id] > item.giaTaiThoiDiemThem ||
+                              item.soLuongMua >=
+                                sanPhamChiTiet.find((sp) => sp.id === item.id)?.soLuong
+                            }
                           >
                             +
                           </Button>

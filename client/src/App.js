@@ -14,6 +14,7 @@ import {
   TeamOutlined,
   ShopOutlined,
   LogoutOutlined,
+  BellOutlined,
 } from '@ant-design/icons';
 
 // Các component trang
@@ -27,7 +28,9 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import NavClient from './components/Client/components/Navbar';
 import FooterClient from './components/Client/components/Footer';
-
+import AllNotifications from './components/common/AllNottifications';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 
 import { checkTokenValidity } from './components/Client/pages/checkTokenValidity';
 import ThongkeRoutes from './routes/ThongKeRoutes';
@@ -50,6 +53,7 @@ const menuItems = [
   { key: '15', icon: <TagsOutlined />, label: 'Phiếu Giảm Giá', path: '/admin/phieu-giam-gia' },
   { key: '16', icon: <UserOutlined />, label: 'Nhân Viên', path: '/admin/nhanvien' },
   { key: '17', icon: <TeamOutlined />, label: 'Khách Hàng', path: '/admin/khachhang' },
+  { key: '20', icon: <BellOutlined />, label: 'Thông báo', path: '/admin/notifications' },
 ];
 
 const productSubMenu = [
@@ -215,6 +219,7 @@ const AdminLayout = () => {
             {SanPhamRoutes()}
             {NhanVienRoutes()}
             {KhachHangRoutes()}
+            <Route path="/notifications" element={<AllNotifications />} />
             {/* THÊM 404 bên trong Routes của ClientLayout */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
@@ -290,6 +295,8 @@ const App = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/changepassword" element={<ChangePassword />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} /> {/* Thêm route này */}
       <Route path="/403" element={<Forbidden403 />} />
 
       {/* Admin (protected) */}

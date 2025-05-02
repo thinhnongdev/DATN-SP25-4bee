@@ -909,8 +909,9 @@ const SanPhamChiTiet = () => {
       title: 'Trạng Thái',
       dataIndex: 'trangThai',
       key: 'trangThai',
-      render: (text, record) =>
-        record.trangThai ? (
+      render: (text, record) => {
+        const isSelling = record.trangThai && record.soLuong > 0;
+        return isSelling ? (
           <Tag color="green" style={{ fontSize: 14, padding: '4px 12px', borderRadius: '15px' }}>
             Đang bán
           </Tag>
@@ -918,8 +919,10 @@ const SanPhamChiTiet = () => {
           <Tag color="red" style={{ fontSize: 14, padding: '4px 12px', borderRadius: '15px' }}>
             Ngừng bán
           </Tag>
-        ),
+        );
+      },
     },
+    
 
     {
       title: 'Chức năng',

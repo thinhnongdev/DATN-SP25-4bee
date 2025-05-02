@@ -21,4 +21,7 @@ public class KhachHangCreationRequest {
     private String email;
 
     private List<DiaChi> diaChi;
+
+    private String password; // Thêm trường password cho đăng ký
+
 }

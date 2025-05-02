@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PDFGenerator {
     private static final String SHOP_NAME = "4BEE SHOP";
-    private static final String SHOP_ADDRESS = "Số 1 Trịnh Văn Bô, Nam Từ Liêm, Hà Nội";
+    private static final String SHOP_ADDRESS = "Số 1,Hẻm 132/52/3 Đường Cầu Diễn, Tổ Dân Phố Nguyên Xá 22";
     private static final String SHOP_PHONE = "0123456789";
     private static final String SHOP_EMAIL = "4beeshop@gmail.com";
     private final AddressCache addressCache;

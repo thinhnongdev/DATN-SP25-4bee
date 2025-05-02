@@ -122,7 +122,20 @@
   background: var(--secondary-color);
   color: white;
 }
+/* Styles for notifications */
+.unread-notification-row {
+  background-color: rgba(24, 144, 255, 0.05);
+}
 
+.unread-notification-row:hover {
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+/* Đảm bảo popover thông báo có thanh cuộn mượt mà */
+.notification-popover .ant-popover-inner-content {
+  max-height: 80vh;
+  overflow-y: auto;
+}
 /* Button Styles */
 /* .ant-btn-primary {
   background: var(--primary-color);

@@ -8,4 +8,5 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class LichSuHoaDonClientRequest {
     String moTa;
-    String idKhachHang;}
+    String idKhachHang;
+}

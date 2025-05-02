@@ -37,14 +37,14 @@ public interface KhachHangRepository extends JpaRepository<KhachHang, String>,
 
     boolean existsByEmail(String email);
 
+    Optional<KhachHang> findByTaiKhoan_Id(String taiKhoanId);
+
+    boolean existsByMaKhachHang(String maKhachHang);
+
     @Query("SELECT COUNT(kh) FROM KhachHang kh WHERE kh.trangThai = true")
     long countActiveCustomers();
-    //    Nam
+
     List<KhachHang> findByIdIn(List<String> ids);
-
-
-    Optional<KhachHang> findByTaiKhoanId(String taiKhoanId);
-
 
     @Query("SELECT kh FROM KhachHang kh ORDER BY kh.ngayTao DESC")
     List<KhachHang> findAllKhachHangSortedByNgayTao();

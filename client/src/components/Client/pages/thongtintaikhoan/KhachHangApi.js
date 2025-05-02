@@ -44,6 +44,16 @@ export const getPutApi = async (id, updateKhachHang) => {
   }
 };
 
+// API: Yêu cầu đặt lại mật khẩu
+export const forgotPassword = async (email) => {
+  try {
+    const response = await axios.post(`http://localhost:8080/api/auth/khach-hang/forgot-password?email=${encodeURIComponent(email)}`);
+    return response.data;
+  } catch (error) {
+    console.error('Lỗi yêu cầu đặt lại mật khẩu:', error);
+    throw error;
+  }
+};
 // API: Xóa khách hàng theo ID
 export const getDeleteApi = (id) =>
   axios.delete(`${API_URL}/${id}`, {

@@ -25,6 +25,8 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [checkingPhone, setCheckingPhone] = useState(false);
 
   const hasFetchedRef = useRef(false);
 
@@ -38,7 +40,7 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
     email: "",
     soDienThoai: "",
     ngaySinh: "",
-    gioiTinh: "",
+    gioiTinh: true, // Mặc định giá trị Nam
     trangThai: true,
     diaChi: [
       {
@@ -73,6 +75,8 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
             ProvinceName: province.name || province.ProvinceName
           }))
         );
+
+        hasFetchedRef.current = true;
       } catch (err) {
         console.error("Lỗi khi lấy danh sách tỉnh:", err);
         toast.error("Không thể tải danh sách tỉnh/thành phố");
@@ -84,8 +88,60 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
     fetchProvinces();
   }, []);
 
+  // Hàm kiểm tra email đã tồn tại
+  const validateEmail = async (_, value) => {
+    if (!value) return Promise.resolve();
+    
+    try {
+      setCheckingEmail(true);
+      const response = await axios.get(`http://localhost:8080/api/admin/khach_hang/check-email?email=${encodeURIComponent(value)}`, {
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json" 
+        }
+      });
+      
+      if (response.data.exists) {
+        return Promise.reject(new Error('Email này đã được sử dụng'));
+      }
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Lỗi kiểm tra email:', error);
+      return Promise.resolve(); // Bỏ qua lỗi khi gọi API
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
+  
+  // Hàm kiểm tra số điện thoại đã tồn tại
+  const validatePhone = async (_, value) => {
+    if (!value) return Promise.resolve();
+    
+    try {
+      setCheckingPhone(true);
+      const response = await axios.get(`http://localhost:8080/api/admin/khach_hang/check-phone?soDienThoai=${encodeURIComponent(value)}`, {
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json" 
+        }
+      });
+      
+      if (response.data.exists) {
+        return Promise.reject(new Error('Số điện thoại này đã được sử dụng'));
+      }
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Lỗi kiểm tra số điện thoại:', error);
+      return Promise.resolve(); // Bỏ qua lỗi khi gọi API
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
+
   // Xử lý khi chọn tỉnh/thành phố
-  const handleProvinceChange = useCallback(async (value) => {
+  const handleProvinceChange = useCallback(async (value, option) => {
     try {
       setAddressLoading(true);
       // Cập nhật state
@@ -210,8 +266,18 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
         }
       }
     } catch (error) {
-      toast.error("Có lỗi khi tạo khách hàng!");
       console.error("ERROR:", error);
+      
+      // Hiển thị thông báo lỗi chi tiết
+      if (error.response && error.response.data) {
+        if (error.response.data.message) {
+          toast.error(error.response.data.message);
+        } else {
+          toast.error("Có lỗi khi tạo khách hàng");
+        }
+      } else {
+        toast.error("Không thể kết nối đến máy chủ");
+      }
     } finally {
       setLoading(false);
     }
@@ -241,7 +307,7 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
         form={form} 
         layout="vertical" 
         initialValues={{
-          gioiTinh: formData.gioiTinh,
+          gioiTinh: true, // Mặc định chọn Nam
         }}
         onValuesChange={(changedValues, allValues) => {
           // Cập nhật formData khi form values thay đổi
@@ -314,7 +380,10 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
                 rules={[
                   { required: true, message: "Vui lòng nhập email!" },
                   { type: "email", message: "Email không hợp lệ!" },
+                  { validator: validateEmail } // Kiểm tra trùng email
                 ]}
+                validateStatus={checkingEmail ? "validating" : undefined}
+                help={checkingEmail ? "Đang kiểm tra email..." : undefined}
               >
                 <Input placeholder="Nhập email" />
               </Form.Item>
@@ -328,7 +397,10 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
                     pattern: /^(0[3|5|7|8|9])+([0-9]{8})$/,
                     message: "Số điện thoại không hợp lệ!",
                   },
+                  { validator: validatePhone } // Kiểm tra trùng số điện thoại
                 ]}
+                validateStatus={checkingPhone ? "validating" : undefined}
+                help={checkingPhone ? "Đang kiểm tra số điện thoại..." : undefined}
               >
                 <Input placeholder="Nhập số điện thoại" />
               </Form.Item>
@@ -432,12 +504,12 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
                   { required: true, message: "Vui lòng nhập địa chỉ cụ thể" },
                 ]}
               >
-                <Input placeholder="Nhập địa chỉ cụ thể" />
+                <Input placeholder="Nhập địa chỉ cụ thể (số nhà, tên đường...)" />
               </Form.Item>
             </Col>
           </Row>
 
-          <div style={{ textAlign: "right" }}>
+          <div style={{ textAlign: "right", marginTop: 20 }}>
             <Button
               type="default"
               onClick={() => {
@@ -457,7 +529,8 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
               style={{ width: "150px" }}
               onClick={handleConfirmSubmit}
               loading={loading}
-              disabled={loading || addressLoading}
+              // Vô hiệu hóa nút khi đang loading hoặc đang kiểm tra trùng lặp
+              disabled={loading || addressLoading || checkingEmail || checkingPhone}
             >
               {loading ? "Đang lưu..." : "Lưu khách hàng"}
             </Button>
@@ -468,4 +541,4 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
   );
 }
 
-export default React.memo(CreateForm); 
+export default React.memo(CreateForm);

@@ -1,14 +1,37 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, Card, message } from 'antd';
-import { LockOutlined, MailOutlined } from '@ant-design/icons';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Card, message, Spin } from 'antd';
+import { LockOutlined, MailOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Email } from '@mui/icons-material';
+import { jwtDecode } from 'jwt-decode';
 
 const ChangePassword = () => {
   const navigate = useNavigate();
-
+  const location = useLocation();
+  const [form] = Form.useForm();
+  
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Kiểm tra nếu đã đăng nhập, tự động điền email
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        if (decoded && decoded.sub) {
+          setCurrentUser({
+            email: decoded.sub
+          });
+          form.setFieldsValue({
+            email: decoded.sub
+          });
+        }
+      } catch (error) {
+        console.error("Lỗi giải mã token:", error);
+      }
+    }
+  }, [form]);
 
   const onFinish = async (values) => {
     if (values.newPassword !== values.confirmPassword) {
@@ -18,16 +41,39 @@ const ChangePassword = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8080/api/auth/change-password', {
+      // Xác định endpoint dựa vào nguồn gọi
+      let endpoint = 'http://localhost:8080/api/auth/change-password';
+      
+      // Nếu đổi mật khẩu từ trang khách hàng
+      const isCustomerPasswordChange = location.pathname === '/client/change-password' || 
+                                     currentUser?.role === 'KHACH_HANG';
+      
+      if (isCustomerPasswordChange) {
+        endpoint = 'http://localhost:8080/api/auth/khach-hang/change-password';
+      }
+      
+      const response = await axios.post(endpoint, {
         email: values.email,
         oldPassword: values.oldPassword,
         newPassword: values.newPassword,
       });
 
-      message.success(response.data || 'Đổi mật khẩu thành công!');
-      navigate('/login');
+      if (response.data.success) {
+        message.success('Đổi mật khẩu thành công!');
+        
+        // Đăng xuất sau khi đổi mật khẩu thành công
+        localStorage.removeItem('token');
+        
+        // Chuyển về trang đăng nhập
+        setTimeout(() => {
+          navigate('/login');
+        }, 1500);
+      } else {
+        message.error(response.data.message || 'Đổi mật khẩu thất bại!');
+      }
     } catch (error) {
-      message.error(error.response?.data || 'Đổi mật khẩu thất bại!');
+      const errorMsg = error.response?.data?.message || 'Đổi mật khẩu thất bại!';
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -51,10 +97,27 @@ const ChangePassword = () => {
             style={{ maxHeight: '180px', maxWidth: '180px' }}
           />
         </Link>
-        <Form name="changePassword" onFinish={onFinish} layout="vertical">
-          <Form.Item name="email" rules={[{ required: true, message: 'Vui lòng nhập email!' }]}>
-            <Input type="email" prefix={<MailOutlined />} placeholder="Email" />
+        <Form 
+          form={form}
+          name="changePassword" 
+          onFinish={onFinish} 
+          layout="vertical"
+        >
+          <Form.Item 
+            name="email" 
+            rules={[
+              { required: true, message: 'Vui lòng nhập email!' },
+              { type: 'email', message: 'Email không hợp lệ!' }
+            ]}
+          >
+            <Input 
+              type="email" 
+              prefix={<MailOutlined />} 
+              placeholder="Email" 
+              disabled={!!currentUser} // Disable nếu đã đăng nhập
+            />
           </Form.Item>
+          
           <Form.Item
             name="oldPassword"
             rules={[{ required: true, message: 'Vui lòng nhập mật khẩu cũ!' }]}
@@ -64,7 +127,10 @@ const ChangePassword = () => {
 
           <Form.Item
             name="newPassword"
-            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu mới!' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập mật khẩu mới!' },
+              { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự!' }
+            ]}
           >
             <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu mới" />
           </Form.Item>
@@ -92,6 +158,17 @@ const ChangePassword = () => {
               Xác nhận
             </Button>
           </Form.Item>
+          
+          <div style={{ textAlign: 'center', marginTop: '10px' }}>
+            <Button 
+              type="link" 
+              icon={<ArrowLeftOutlined />} 
+              onClick={() => navigate('/login')}
+              style={{ color: 'white' }}
+            >
+              Quay lại đăng nhập
+            </Button>
+          </div>
         </Form>
       </Card>
     </div>

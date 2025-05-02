@@ -48,7 +48,7 @@ import {
   QrcodeOutlined,
   WalletOutlined,
   SyncOutlined,
-  PrinterOutlined, // Add this import
+  ArrowUpOutlined, // Add this import
   UserOutlined,
   PhoneOutlined,
   MailOutlined,
@@ -2599,326 +2599,62 @@ const BanHang = () => {
     iframe.contentWindow.print();
   };
 
-  // Cập nhật lại findBestVoucherAndSuggest để sử dụng hàm helper
+  // Cập nhật lại findBestVoucherAndSuggest để chỉ hiện voucher tốt hơn
   const findBestVoucherAndSuggest = async (hoaDonId) => {
     try {
       const order = tabs.find((tab) => tab.key === hoaDonId)?.order;
       if (!order) {
         return;
       }
-
-      // Tính toán trực tiếp tổng tiền hiện tại từ các sản phẩm
+  
+      // Tắt hiển thị gợi ý trong khi đang tải
+      setVoucherSuggestions({
+        show: false,
+        betterVouchers: [],
+      });
+  
+      // Kiểm tra nếu không có sản phẩm, không cần gợi ý
       const currentProducts = orderProducts[hoaDonId] || [];
       if (currentProducts.length === 0) {
-        // Tắt hiển thị gợi ý nếu không có sản phẩm
-        setVoucherSuggestions({
-          show: false,
-          betterVouchers: [],
-        });
         return;
       }
-      const subtotal = calculateTotalBeforeDiscount(currentProducts);
-      const shippingFee = order.phiVanChuyen || 0;
-      const currentTotal = subtotal + shippingFee;
-
-      // Get customer ID from order
-      const customerId = order.khachHang?.id || "";
-
-      // Kiểm tra nếu tổng tiền quá nhỏ, không cần tìm voucher
-      if (subtotal < 10000) {
-        setVoucherSuggestions({
-          show: false,
-          betterVouchers: [],
-        });
-        return;
-      }
-
-      // Sử dụng cache để tránh gọi API liên tục
-      const cacheKey = `active_vouchers_${Math.floor(
-        subtotal / 10000
-      )}_${customerId}`;
-      let allVouchers = sessionStorage.getItem(cacheKey);
-
-      if (!allVouchers) {
-        // Lấy danh sách voucher đang hoạt động
-        const response = await api.get(
-          `/api/admin/phieu-giam-gia/active?customerId=${customerId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        allVouchers = response.data || [];
-        sessionStorage.setItem(cacheKey, JSON.stringify(allVouchers));
-      } else {
-        allVouchers = JSON.parse(allVouchers);
-      }
-
-      // Lọc voucher còn số lượng
-      allVouchers = allVouchers.filter(
-        (voucher) => voucher.soLuong === undefined || voucher.soLuong > 0
-      );
-
-      // Tính giảm giá hiện tại từ voucher đang áp dụng
-      const currentDiscount = order.phieuGiamGia
-        ? calculateDiscountAmount(order.phieuGiamGia, currentTotal)
-        : 0;
-
-      // Đảm bảo các voucher được xử lý chính xác
-      // THAY ĐỔI: Chỉ lấy những voucher tốt hơn voucher hiện tại
-      const applicableVouchers = allVouchers
-        .filter((voucher) => {
-          // Nếu là voucher đang áp dụng, bỏ qua
-          if (order.phieuGiamGia && voucher.id === order.phieuGiamGia.id) {
-            return false;
-          }
-
-          // Tính toán số tiền giảm giá của voucher này
-          const potentialDiscount = calculateDiscountAmount(
-            voucher,
-            Math.max(currentTotal, voucher.giaTriToiThieu)
-          );
-
-          // CHỈ LỌC NHỮNG VOUCHER TỐT HƠN - có giá trị giảm cao hơn voucher hiện tại
-          return potentialDiscount > currentDiscount;
-        })
-        .map((voucher) => {
-          // Tính chính xác số tiền cần thêm
-          const amountNeeded = Math.max(
-            0,
-            voucher.giaTriToiThieu - currentTotal
-          );
-          const potentialDiscount = calculateDiscountAmount(
-            voucher,
-            Math.max(currentTotal, voucher.giaTriToiThieu)
-          );
-
-          const additionalSavings = potentialDiscount - currentDiscount;
-
-          const isBetterThanCurrent = potentialDiscount > currentDiscount;
-
-          return {
-            ...voucher,
-            amountNeeded,
-            potentialDiscount,
-            additionalSavings,
-            canApply: currentTotal >= voucher.giaTriToiThieu,
-            isBetterThanCurrent,
-          };
-        })
-        .sort((a, b) => a.potentialDiscount - b.potentialDiscount)
-        .slice(0, 5); // Giới hạn chỉ 3 voucher tốt nhất
-
-      // Quyết định có hiển thị gợi ý hay không
-      let showSuggestion = false;
-
-      // Nếu có voucher tốt hơn, hiển thị gợi ý
-      if (applicableVouchers.length > 0) {
-        showSuggestion = true;
-
-        // Xử lý tìm sản phẩm gợi ý cho các voucher cần mua thêm
-        // Lấy tất cả sản phẩm chi tiết từ cửa hàng
-        let allStoreProducts = sessionStorage.getItem("all_store_products");
-        let storeProductsFetchTime = sessionStorage.getItem(
-          "store_products_fetch_time"
-        );
-        const now = new Date().getTime();
-
-        // Nếu chưa có dữ liệu trong cache hoặc dữ liệu đã cũ (hơn 5 phút)
-        if (
-          !allStoreProducts ||
-          !storeProductsFetchTime ||
-          now - storeProductsFetchTime > 300000
-        ) {
-          try {
-            const response = await api.get(
-              "/api/admin/sanpham/chitietsanpham",
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
-            allStoreProducts = response.data || [];
-
-            // Tiền xử lý sản phẩm để đảm bảo đầy đủ thông tin
-            allStoreProducts = allStoreProducts.map((product) => ({
-              ...product,
-              maSanPham:
-                product.maSanPham ||
-                product.sanPhamChiTiet?.maSanPham ||
-                `SP${product.id}`,
-              soLuong: product.soLuong || product.soLuongTonKho || 0,
-            }));
-
-            // Lọc ra những sản phẩm còn số lượng
-            allStoreProducts = allStoreProducts.filter(
-              (product) => product.soLuong > 0
-            );
-
-            // Lưu vào sessionStorage để tái sử dụng
-            sessionStorage.setItem(
-              "all_store_products",
-              JSON.stringify(allStoreProducts)
-            );
-            sessionStorage.setItem("store_products_fetch_time", now.toString());
-          } catch (error) {
-            console.error("Lỗi khi lấy danh sách sản phẩm:", error);
-            allStoreProducts = [];
-          }
-        } else {
-          allStoreProducts = JSON.parse(allStoreProducts);
+  
+      // Gọi API backend để lấy voucher tốt hơn
+      const response = await api.get(
+        `/api/admin/phieu-giam-gia/better-vouchers?hoaDonId=${hoaDonId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-
-        // Danh sách ID sản phẩm đã có trong đơn hàng
-        const currentProductIds = currentProducts.map(
-          (p) => p.sanPhamChiTietId || p.id
-        );
-
-        // Xử lý gợi ý cho từng voucher
-        const suggestedProducts = await Promise.all(
-          applicableVouchers
-            .filter((v) => v.amountNeeded > 0)
-            .map(async (voucher) => {
-              let newProductSuggestions = [];
-
-              if (allStoreProducts && allStoreProducts.length > 0) {
-                // Lọc ra những sản phẩm chưa có trong đơn hàng
-                const availableProducts = allStoreProducts.filter(
-                  (p) => !currentProductIds.includes(p.id) && p.soLuong > 0
-                );
-
-                // Phân tích nhu cầu: tính toán mức giá phù hợp với số tiền cần thêm
-                const amountNeeded = voucher.amountNeeded;
-
-                // Phân loại sản phẩm thành nhiều nhóm giá
-                // Nhóm perfect: 90-110% số tiền cần thêm
-                const perfectProducts = availableProducts
-                  .filter(
-                    (p) =>
-                      p.gia > amountNeeded * 0.9 && p.gia <= amountNeeded * 1.1
-                  )
-                  .sort(
-                    (a, b) =>
-                      Math.abs(a.gia - amountNeeded) -
-                      Math.abs(b.gia - amountNeeded)
-                  )
-                  .slice(0, 5);
-
-                // Nhóm lower: 70-90% số tiền cần thêm
-                const lowerProducts = availableProducts
-                  .filter(
-                    (p) =>
-                      p.gia > amountNeeded * 0.7 && p.gia <= amountNeeded * 0.9
-                  )
-                  .sort((a, b) => b.gia - a.gia)
-                  .slice(0, 3);
-
-                // Nhóm veryLow: 30-70% số tiền cần thêm
-                const veryLowProducts = availableProducts
-                  .filter(
-                    (p) =>
-                      p.gia >= amountNeeded * 0.3 && p.gia <= amountNeeded * 0.7
-                  )
-                  .sort((a, b) => b.gia - a.gia)
-                  .slice(0, 4);
-
-                // Nhóm higher: 110-150% số tiền cần thêm
-                const higherProducts = availableProducts
-                  .filter(
-                    (p) =>
-                      p.gia > amountNeeded * 1.1 && p.gia <= amountNeeded * 1.5
-                  )
-                  .sort((a, b) => a.gia - b.gia)
-                  .slice(0, 3);
-
-                // Nhóm veryHigh: >150% số tiền cần thêm
-                const veryHighProducts = availableProducts
-                  .filter(
-                    (p) =>
-                      p.gia > amountNeeded * 1.5 && p.gia <= amountNeeded * 2
-                  )
-                  .sort((a, b) => a.gia - b.gia)
-                  .slice(0, 2);
-
-                // Kết hợp các nhóm sản phẩm và thêm thông tin phân loại
-                newProductSuggestions = [
-                  ...perfectProducts.map((p) => ({
-                    ...p,
-                    relevanceScore:
-                      100 -
-                      (Math.abs(p.gia - amountNeeded) / amountNeeded) * 100,
-                    priceCategory: "perfect",
-                    categoryLabel: "Phù hợp nhất",
-                    categoryColor: "#52c41a",
-                  })),
-                  ...lowerProducts.map((p) => ({
-                    ...p,
-                    relevanceScore:
-                      85 -
-                      (Math.abs(p.gia - amountNeeded * 0.8) /
-                        (amountNeeded * 0.8)) *
-                        30,
-                    priceCategory: "lower",
-                    categoryLabel: "Tiết kiệm",
-                    categoryColor: "#1890ff",
-                  })),
-                  ...veryLowProducts.map((p) => ({
-                    ...p,
-                    relevanceScore:
-                      75 -
-                      (Math.abs(p.gia - amountNeeded * 0.5) /
-                        (amountNeeded * 0.5)) *
-                        25,
-                    priceCategory: "veryLow",
-                    categoryLabel: "Tiết kiệm +",
-                    categoryColor: "#13c2c2",
-                  })),
-                  ...higherProducts.map((p) => ({
-                    ...p,
-                    relevanceScore:
-                      70 -
-                      (Math.abs(p.gia - amountNeeded * 1.3) /
-                        (amountNeeded * 1.3)) *
-                        20,
-                    priceCategory: "higher",
-                    categoryLabel: "Cao cấp",
-                    categoryColor: "#fa8c16",
-                  })),
-                  ...veryHighProducts.map((p) => ({
-                    ...p,
-                    relevanceScore:
-                      65 -
-                      (Math.abs(p.gia - amountNeeded * 1.75) /
-                        (amountNeeded * 1.75)) *
-                        15,
-                    priceCategory: "veryHigh",
-                    categoryLabel: "Cao cấp +",
-                    categoryColor: "#722ed1",
-                  })),
-                ].sort((a, b) => b.relevanceScore - a.relevanceScore);
-              }
-
-              return {
-                voucherId: voucher.id,
-                newProducts: newProductSuggestions,
-              };
-            })
-        );
-
-        // Cập nhật state với voucher và sản phẩm gợi ý
+      );
+  
+      const data = response.data;
+  
+      if (data.betterVouchers && data.betterVouchers.length > 0) {
+        // Chỉ hiển thị các voucher tốt hơn voucher hiện tại
+        const enhancedVouchers = data.betterVouchers.map(voucher => ({
+          id: voucher.id,
+          maPhieuGiamGia: voucher.maPhieuGiamGia,
+          tenPhieuGiamGia: voucher.tenPhieuGiamGia,
+          loaiPhieuGiamGia: voucher.loaiPhieuGiamGia,
+          giaTriGiam: voucher.giaTriGiam, 
+          giaTriToiThieu: voucher.giaTriToiThieu,
+          soTienGiamToiDa: voucher.soTienGiamToiDa,
+          amountNeeded: voucher.amountNeeded,
+          discountAmount: voucher.discountAmount,
+          additionalSavings: voucher.additionalSavings,
+          canApply: voucher.canApply,
+          isBetterThanCurrent: voucher.isBetter
+        }));
+  
+        // Chỉ hiển thị gợi ý khi có voucher tốt hơn
         setVoucherSuggestions({
-          show: showSuggestion,
-          betterVouchers: applicableVouchers.map((voucher) => ({
-            ...voucher,
-            suggestions: suggestedProducts.find(
-              (s) => s?.voucherId === voucher.id
-            ) || {
-              newProducts: [],
-            },
-          })),
+          show: enhancedVouchers.length > 0,
+          betterVouchers: enhancedVouchers,
         });
       } else {
-        // Nếu không có voucher tốt hơn, ẩn gợi ý
+        // Nếu không có voucher gợi ý, ẩn gợi ý
         setVoucherSuggestions({
           show: false,
           betterVouchers: [],
@@ -2932,7 +2668,6 @@ const BanHang = () => {
       });
     }
   };
-
   // Thêm hàm mới để cập nhật tồn kho trong cache
   const updateProductInventoryInCache = (productId, quantityChange = -1) => {
     try {
@@ -2990,43 +2725,42 @@ const BanHang = () => {
   const handleApplySuggestedVoucher = async (hoaDonId, voucherId) => {
     try {
       console.log("Áp dụng voucher gợi ý:", { hoaDonId, voucherId });
-
+  
       // Gọi API để áp dụng voucher
       const response = await api.post(
         `/api/admin/hoa-don/${hoaDonId}/voucher`,
         { voucherId: voucherId },
         {
           headers: {
-            Authorization: `Bearer ${token}`, // Thêm token vào header
+            Authorization: `Bearer ${token}`,
           },
         }
       );
-
+  
       if (response.data) {
         message.success("Áp dụng voucher thành công");
-
+  
         // Tải lại thông tin hóa đơn từ server
         await fetchInvoiceById(hoaDonId);
-
+  
         // Tính toán lại tổng tiền
         const newTotals = calculateOrderTotals(hoaDonId);
         setTotals((prev) => ({
           ...prev,
           [hoaDonId]: newTotals,
         }));
-
+  
         // Cập nhật UI nếu đang ở tab này
         if (hoaDonId === activeKey) {
           setTotalBeforeDiscount(newTotals.subtotal);
           setTotalAmount(newTotals.finalTotal);
         }
-
-        // Đóng gợi ý voucher
-        setVoucherSuggestions({
-          show: false,
-          betterVouchers: [],
-        });
-
+  
+        // Sau khi áp dụng voucher thành công, tìm kiếm lại voucher tốt hơn
+        setTimeout(async () => {
+          await findBestVoucherAndSuggest(hoaDonId);
+        }, 300);
+  
         return true;
       }
       return false;
@@ -3034,132 +2768,6 @@ const BanHang = () => {
       console.error("Lỗi khi áp dụng voucher gợi ý:", error);
       message.error("Lỗi khi áp dụng voucher");
       return false;
-    }
-  };
-
-  // Hàm xử lý khi người dùng thêm sản phẩm từ gợi ý
-  const handleAddSuggestedProduct = async (product) => {
-    try {
-      if (!activeKey) {
-        message.error("Vui lòng chọn đơn hàng trước khi thêm sản phẩm");
-        return;
-      }
-
-      setLoading(true);
-
-      // Lưu ID sản phẩm trước khi gọi API
-      const productId = product.id;
-
-      // Chuẩn bị payload để gửi lên API
-      const payload = {
-        sanPhamChiTietId: productId,
-        soLuong: 1,
-      };
-
-      // Gọi API để thêm sản phẩm vào đơn hàng
-      const response = await api.post(
-        `/api/admin/ban-hang/${activeKey}/add-product`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.data) {
-        message.success(
-          `Đã thêm ${product.tenSanPham || "sản phẩm"} vào đơn hàng`
-        );
-
-        // Cập nhật danh sách sản phẩm của đơn hàng
-        await fetchInvoiceProducts(activeKey);
-
-        // Tải lại thông tin đơn hàng
-        await fetchInvoiceById(activeKey);
-
-        // Cập nhật lại số lượng tồn kho trong danh sách gợi ý
-        setVoucherSuggestions((prev) => {
-          if (!prev.betterVouchers) return prev;
-
-          return {
-            ...prev,
-            betterVouchers: prev.betterVouchers.map((voucher) => {
-              if (!voucher.suggestions?.newProducts) return voucher;
-
-              return {
-                ...voucher,
-                suggestions: {
-                  ...voucher.suggestions,
-                  newProducts: voucher.suggestions.newProducts.map((p) => {
-                    if (p.id === productId) {
-                      // Giảm số lượng tồn kho của sản phẩm vừa thêm
-                      return {
-                        ...p,
-                        soLuong: Math.max(0, p.soLuong - 1),
-                      };
-                    }
-                    return p;
-                  }),
-                },
-              };
-            }),
-          };
-        });
-
-        // Cập nhật cache sản phẩm toàn cục
-        const allStoreProducts = sessionStorage.getItem("all_store_products");
-        if (allStoreProducts) {
-          const products = JSON.parse(allStoreProducts);
-          const updatedProducts = products.map((p) => {
-            if (p.id === productId) {
-              return {
-                ...p,
-                soLuong: Math.max(0, p.soLuong - 1),
-              };
-            }
-            return p;
-          });
-          sessionStorage.setItem(
-            "all_store_products",
-            JSON.stringify(updatedProducts)
-          );
-        }
-
-        // Tính toán lại tổng tiền
-        const newTotals = calculateOrderTotals(activeKey);
-        setTotals((prev) => ({
-          ...prev,
-          [activeKey]: newTotals,
-        }));
-
-        // Cập nhật UI
-        setTotalBeforeDiscount(newTotals.subtotal);
-        setTotalAmount(newTotals.finalTotal);
-
-        // Tự động áp dụng voucher tốt nhất
-        await autoApplyBestVoucher(activeKey);
-
-        // Cập nhật lại gợi ý voucher
-        setTimeout(() => {
-          findBestVoucherAndSuggest(activeKey);
-        }, 500);
-      }
-    } catch (error) {
-      console.error("Lỗi khi thêm sản phẩm gợi ý:", error);
-      let errorMessage = "Không thể thêm sản phẩm";
-
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        errorMessage = error.response.data.message;
-      }
-
-      message.error(errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -3496,27 +3104,12 @@ const BanHang = () => {
                   >
                     <Text strong style={{ fontSize: "16px", color: "#52c41a" }}>
                       <InfoCircleOutlined style={{ marginRight: 8 }} />
-                      {/* Thay đổi tiêu đề tùy thuộc vào loại gợi ý */}
                       {order.phieuGiamGia
-                        ? `Có ${
-                            voucherSuggestions.betterVouchers.filter(
-                              (v) => v.isBetterThanCurrent
-                            ).length
-                          } voucher tốt hơn voucher hiện tại`
+                        ? `${voucherSuggestions.betterVouchers.length} voucher tốt hơn voucher hiện tại`
                         : `${voucherSuggestions.betterVouchers.length} voucher có thể áp dụng cho đơn hàng`}
                     </Text>
-
+                    
                     {voucherSuggestions.betterVouchers.map((voucher, index) => {
-                      const originalTotal =
-                        totals[activeKey]?.totalBeforeVoucher || 0;
-                      const discountAmount = calculateDiscountAmount(
-                        voucher,
-                        Math.max(originalTotal, voucher.giaTriToiThieu)
-                      );
-                      const voucherTag =
-                        order.phieuGiamGia && voucher.isBetterThanCurrent ? (
-                          <Tag color="green">Tốt hơn hiện tại</Tag>
-                        ) : null;
                       return (
                         <Card
                           key={voucher.id}
@@ -3525,9 +3118,7 @@ const BanHang = () => {
                           style={{
                             background: "#fff",
                             marginBottom: "12px",
-                            borderLeft: voucher.isBetterThanCurrent
-                              ? "4px solid #52c41a"
-                              : "1px solid #d9d9d9",
+                            borderLeft: "4px solid #52c41a"
                           }}
                           title={
                             <Space>
@@ -3535,66 +3126,51 @@ const BanHang = () => {
                               <Text strong style={{ fontSize: "14px" }}>
                                 {voucher.maPhieuGiamGia}
                               </Text>
-                              {voucherTag}
+                              <Tag color="green">Tốt hơn hiện tại</Tag>
                             </Space>
                           }
                           extra={
                             <Button
                               type="primary"
                               size="middle"
-                              onClick={() =>
-                                handleApplySuggestedVoucher(
-                                  order.id,
-                                  voucher.id
-                                )
-                              }
-                              disabled={
-                                totals[order.id]?.totalBeforeVoucher <
-                                voucher.giaTriToiThieu
-                              }
+                              onClick={() => handleApplySuggestedVoucher(order.id, voucher.id)}
+                              disabled={!voucher.canApply}
                             >
-                              {totals[order.id]?.totalBeforeVoucher >=
-                              voucher.giaTriToiThieu
-                                ? "Áp dụng"
-                                : "Chưa đủ"}
+                              {voucher.canApply ? "Áp dụng" : "Chưa đủ"}
                             </Button>
                           }
                         >
-                          <Space
-                            direction="vertical"
-                            style={{ width: "100%" }}
-                            size="middle" // Tăng khoảng cách
-                          >
+                          <Space direction="vertical" style={{ width: "100%" }} size="middle">
                             <div>
                               <Text style={{ fontSize: "14px" }}>
-                                {" "}
-                                {/* Tăng kích thước font */}
                                 {voucher.loaiPhieuGiamGia === 1
                                   ? `Giảm ${
                                       voucher.giaTriGiam
                                     }% (tối đa ${formatCurrency(
                                       voucher.soTienGiamToiDa
                                     )})`
-                                  : `Giảm ${formatCurrency(
-                                      voucher.giaTriGiam
-                                    )}`}
+                                  : `Giảm ${formatCurrency(voucher.giaTriGiam)}`}
                               </Text>
                               <br />
-                              <Text
-                                type="secondary"
-                                style={{ fontSize: "13px" }} // Tăng kích thước font
-                              >
-                                Đơn tối thiểu:{" "}
-                                {formatCurrency(voucher.giaTriToiThieu)}
+                              <Text type="secondary" style={{ fontSize: "13px" }}>
+                                Đơn tối thiểu: {formatCurrency(voucher.giaTriToiThieu)}
                               </Text>
                               <br />
-                              <Text
-                                type="secondary"
-                                style={{ fontSize: "13px" }} // Tăng kích thước font
-                              >
-                                Giá trị giảm: {formatCurrency(discountAmount)}
+                              <Text type="secondary" style={{ fontSize: "13px" }}>
+                                Giá trị giảm: {formatCurrency(voucher.discountAmount)}
                               </Text>
+                              
+                              {/* Hiển thị số tiền tiết kiệm thêm */}
+                              {voucher.additionalSavings > 0 && (
+                                <div style={{ marginTop: 5 }}>
+                                  <Text type="success">
+                                    <ArrowUpOutlined /> Tiết kiệm thêm {formatCurrency(voucher.additionalSavings)}
+                                  </Text>
+                                </div>
+                              )}
                             </div>
+            
+                            {/* Hiển thị thông tin số tiền cần mua thêm */}
                             {voucher.amountNeeded > 0 && (
                               <Alert
                                 type="warning"
@@ -3613,11 +3189,11 @@ const BanHang = () => {
                                 style={{
                                   marginBottom: 8,
                                   fontSize: "13px",
-                                  padding: "8px 12px", // Tăng padding
+                                  padding: "8px 12px",
                                 }}
                               />
                             )}
-
+            
                             {voucher.amountNeeded === 0 && (
                               <Alert
                                 type="success"
@@ -3635,421 +3211,6 @@ const BanHang = () => {
                                   padding: "8px 12px",
                                 }}
                               />
-                            )}
-
-                            {/* Hiển thị gợi ý sản phẩm thu gọn */}
-                            {voucher.suggestions?.newProducts?.length > 0 && (
-                              <Collapse ghost>
-                                <Collapse.Panel
-                                  header={
-                                    <Text
-                                      style={{
-                                        fontSize: "15px",
-                                        color: "#003a8c",
-                                      }}
-                                    >
-                                      <ShoppingOutlined
-                                        style={{ marginRight: 6 }}
-                                      />
-                                      {/* Thay đổi nội dung header để không hiển thị thông tin dư thừa */}
-                                      Gợi ý{" "}
-                                      {voucher.suggestions.newProducts.length}{" "}
-                                      sản phẩm phù hợp
-                                    </Text>
-                                  }
-                                  key={`product-suggestions-${voucher.id}`}
-                                >
-                                  {/* Phần hiển thị các nhóm sản phẩm gợi ý - sửa lại cho đồng đều */}
-                                  {[
-                                    "perfect",
-                                    "lower",
-                                    "veryLow",
-                                    "higher",
-                                    "veryHigh",
-                                  ].map((category) => {
-                                    const productsInCategory =
-                                      voucher.suggestions.newProducts.filter(
-                                        (p) => p.priceCategory === category
-                                      );
-                                    if (productsInCategory.length === 0)
-                                      return null;
-
-                                    // Lấy thông tin phân loại từ sản phẩm đầu tiên
-                                    const categoryInfo = productsInCategory[0];
-
-                                    return (
-                                      <div
-                                        key={category}
-                                        style={{ marginBottom: 24 }}
-                                      >
-                                        <div
-                                          style={{
-                                            margin: "12px 0",
-                                            borderBottom: "1px solid #f0f0f0",
-                                            paddingBottom: 12,
-                                          }}
-                                        >
-                                          <Tag
-                                            color={categoryInfo.categoryColor}
-                                            style={{
-                                              marginRight: 8,
-                                              fontSize: "13px",
-                                              padding: "2px 8px",
-                                            }}
-                                          >
-                                            {categoryInfo.categoryLabel}
-                                          </Tag>
-                                          <Text
-                                            type="secondary"
-                                            style={{ fontSize: 13 }}
-                                          >
-                                            {category === "perfect"
-                                              ? "Đạt yêu cầu voucher sau khi thêm 1 sản phẩm"
-                                              : category === "lower" ||
-                                                category === "veryLow"
-                                              ? "Cần thêm nhiều sản phẩm để đạt yêu cầu voucher"
-                                              : "Vượt yêu cầu voucher sau khi thêm 1 sản phẩm"}
-                                          </Text>
-                                        </div>
-                                        <List
-                                          grid={{
-                                            gutter: [16, 16], // Khoảng cách đồng đều giữa các item
-                                            column: 2, // Cố định 2 cột cho tất cả các trường hợp
-                                            xs: 1, // Mobile: 1 cột
-                                            sm: 1, // Small screens: 1 cột
-                                            md: 2, // Medium+: 2 cột
-                                            lg: 2,
-                                            xl: 2,
-                                            xxl: 2,
-                                          }}
-                                          dataSource={productsInCategory.slice(
-                                            0,
-                                            category === "perfect" ? 4 : 3
-                                          )} // Giới hạn số lượng để tránh quá dài
-                                          renderItem={(product) => (
-                                            <List.Item
-                                              style={{ margin: 0, padding: 0 }}
-                                            >
-                                              <Card
-                                                size="small"
-                                                hoverable
-                                                styles={{
-                                                  body: { padding: "12px" },
-                                                }}
-                                                style={{
-                                                  width: "100%", // Đảm bảo card chiếm toàn bộ độ rộng của List.Item
-                                                  height: "100%", // Đảm bảo chiều cao đồng đều
-                                                  boxShadow:
-                                                    "0 2px 6px rgba(0,0,0,0.15)",
-                                                  border: "1px solid #eee",
-                                                  borderLeft: `4px solid ${categoryInfo.categoryColor}`,
-                                                  display: "flex",
-                                                  flexDirection: "column", // Sắp xếp nội dung theo chiều dọc
-                                                }}
-                                                cover={
-                                                  <div
-                                                    style={{
-                                                      height: 140,
-                                                      overflow: "hidden",
-                                                      display: "flex",
-                                                      alignItems: "center",
-                                                      justifyContent: "center",
-                                                      backgroundColor:
-                                                        "#f5f5f5",
-                                                    }}
-                                                  >
-                                                    {/* Thay đổi ở đây - sử dụng component ProductImage */}
-                                                    <ProductImage
-                                                      sanPhamChiTietId={
-                                                        product.id
-                                                      }
-                                                    />
-                                                  </div>
-                                                }
-                                                actions={[
-                                                  <Button
-                                                    type="primary"
-                                                    size="middle"
-                                                    icon={<PlusOutlined />}
-                                                    onClick={() =>
-                                                      handleAddSuggestedProduct(
-                                                        product
-                                                      )
-                                                    }
-                                                    style={{
-                                                      backgroundColor:
-                                                        categoryInfo.categoryColor,
-                                                      borderColor:
-                                                        categoryInfo.categoryColor,
-                                                      width: "90%",
-                                                    }}
-                                                    loading={loading}
-                                                  >
-                                                    Thêm vào đơn
-                                                  </Button>,
-                                                ]}
-                                              >
-                                                <div
-                                                  style={{
-                                                    flexGrow: 1,
-                                                    display: "flex",
-                                                    flexDirection: "column",
-                                                  }}
-                                                >
-                                                  <Tooltip
-                                                    title={
-                                                      product.tenSanPham ||
-                                                      product.sanPham
-                                                        ?.tenSanPham
-                                                    }
-                                                  >
-                                                    <div
-                                                      style={{
-                                                        fontSize: "15px",
-                                                        fontWeight: "bold",
-                                                        overflow: "hidden",
-                                                        textOverflow:
-                                                          "ellipsis",
-                                                        whiteSpace: "nowrap",
-                                                        marginBottom: 8,
-                                                        color: "#1f1f1f",
-                                                        height: "22px", // Chiều cao cố định cho tiêu đề
-                                                      }}
-                                                    >
-                                                      {product.sanPham
-                                                        ?.tenSanPham ||
-                                                        product.tenSanPham ||
-                                                        "Không có tên"}
-                                                    </div>
-                                                  </Tooltip>
-
-                                                  <Space
-                                                    direction="vertical"
-                                                    size={4}
-                                                    style={{
-                                                      width: "100%",
-                                                    }}
-                                                  >
-                                                    {/* Hiển thị giá và % đáp ứng nhu cầu voucher */}
-                                                    <div
-                                                      style={{
-                                                        marginBottom: 6,
-                                                      }}
-                                                    >
-                                                      {/* Giá tiền - dòng 1 */}
-                                                      <div
-                                                        style={{
-                                                          marginBottom: 4,
-                                                        }}
-                                                      >
-                                                        <Text
-                                                          type="danger"
-                                                          strong
-                                                          style={{
-                                                            fontSize: "15px",
-                                                            display: "block",
-                                                          }}
-                                                        >
-                                                          {formatCurrency(
-                                                            product.gia
-                                                          )}
-                                                        </Text>
-                                                      </div>
-
-                                                      {/* % yêu cầu - dòng 2 */}
-                                                      <div
-                                                        style={{
-                                                          textAlign: "right",
-                                                        }}
-                                                      >
-                                                        <Tag
-                                                          color={
-                                                            categoryInfo.categoryColor
-                                                          }
-                                                          style={{
-                                                            fontSize: "11px",
-                                                            padding: "1px 6px",
-                                                          }}
-                                                        >
-                                                          {Math.round(
-                                                            (product.gia /
-                                                              voucher.amountNeeded) *
-                                                              100
-                                                          )}
-                                                          % yêu cầu
-                                                        </Tag>
-                                                      </div>
-                                                    </div>
-                                                    {/* Thông tin sản phẩm */}
-                                                    <Row gutter={[8, 4]}>
-                                                      {/* <Col span={12}>
-                                                        <Typography.Text
-                                                          type="secondary"
-                                                          style={{
-                                                            fontSize: "13px",
-                                                          }}
-                                                        >
-                                                          <span
-                                                            style={{
-                                                              display:
-                                                                "inline-block",
-                                                              width: 36,
-                                                            }}
-                                                          >
-                                                            Mã:
-                                                          </span>
-                                                          <Typography.Text
-                                                            strong
-                                                            style={{
-                                                              fontSize: "13px",
-                                                            }}
-                                                          >
-                                                            {product.maSanPhamChiTiet ||
-                                                              "---"}
-                                                          </Typography.Text>
-                                                        </Typography.Text>
-                                                      </Col> */}
-                                                      <Col span={12}>
-                                                        <Typography.Text
-                                                          type="secondary"
-                                                          style={{
-                                                            fontSize: "13px",
-                                                          }}
-                                                        >
-                                                          <span
-                                                            style={{
-                                                              display:
-                                                                "inline-block",
-                                                              width: 36,
-                                                            }}
-                                                          >
-                                                            Size:
-                                                          </span>
-                                                          <Typography.Text
-                                                            strong
-                                                            style={{
-                                                              fontSize: "13px",
-                                                            }}
-                                                          >
-                                                            {typeof product.kichThuoc ===
-                                                            "object"
-                                                              ? product
-                                                                  .kichThuoc
-                                                                  ?.tenKichThuoc ||
-                                                                "N/A"
-                                                              : product.kichThuoc ||
-                                                                "N/A"}
-                                                          </Typography.Text>
-                                                        </Typography.Text>
-                                                      </Col>
-                                                      <Col span={24}>
-                                                        <Typography.Text
-                                                          type="secondary"
-                                                          style={{
-                                                            fontSize: "13px",
-                                                          }}
-                                                        >
-                                                          <span
-                                                            style={{
-                                                              display:
-                                                                "inline-block",
-                                                              width: 36,
-                                                            }}
-                                                          >
-                                                            Màu:
-                                                          </span>
-                                                          <Typography.Text
-                                                            strong
-                                                            style={{
-                                                              fontSize: "13px",
-                                                            }}
-                                                          >
-                                                            {typeof product.mauSac ===
-                                                            "object"
-                                                              ? product.mauSac
-                                                                  ?.tenMau ||
-                                                                "N/A"
-                                                              : product.mauSac ||
-                                                                "N/A"}
-                                                          </Typography.Text>
-                                                          {product.maMauSac && (
-                                                            <div
-                                                              style={{
-                                                                display:
-                                                                  "inline-block",
-                                                                width: 20,
-                                                                height: 14,
-                                                                borderRadius: 4,
-                                                                backgroundColor:
-                                                                  product.maMauSac ||
-                                                                  "#FFFFFF",
-                                                                border:
-                                                                  "1px solid rgba(0, 0, 0, 0.1)",
-                                                                verticalAlign:
-                                                                  "middle",
-                                                                marginLeft: 5,
-                                                              }}
-                                                            />
-                                                          )}
-                                                        </Typography.Text>
-                                                      </Col>
-                                                      <Col span={24}>
-                                                        <Typography.Text
-                                                          type="secondary"
-                                                          style={{
-                                                            fontSize: "13px",
-                                                          }}
-                                                        >
-                                                          <span
-                                                            style={{
-                                                              display:
-                                                                "inline-block",
-                                                              width: 36,
-                                                            }}
-                                                          >
-                                                            Kho:
-                                                          </span>
-                                                          <Typography.Text
-                                                            strong
-                                                            style={{
-                                                              fontSize: "13px",
-                                                              color:
-                                                                (product.soLuong ||
-                                                                  product.soLuongTonKho ||
-                                                                  0) > 0
-                                                                  ? "#52c41a"
-                                                                  : "#f5222d",
-                                                            }}
-                                                          >
-                                                            {product.soLuong ||
-                                                              product.soLuongTonKho ||
-                                                              0}
-                                                          </Typography.Text>
-                                                        </Typography.Text>
-                                                      </Col>
-                                                    </Row>
-                                                  </Space>
-                                                </div>
-                                              </Card>
-                                            </List.Item>
-                                          )}
-                                        />
-                                      </div>
-                                    );
-                                  })}
-
-                                  {/* Thêm thông tin hướng dẫn */}
-                                  <Alert
-                                    message="Gợi ý: Bạn có thể chọn sản phẩm phù hợp từ các gợi ý trên để đạt điều kiện áp dụng voucher"
-                                    type="success"
-                                    showIcon
-                                    style={{
-                                      marginTop: 16,
-                                      padding: "10px 12px",
-                                    }}
-                                  />
-                                </Collapse.Panel>
-                              </Collapse>
                             )}
                           </Space>
                         </Card>
@@ -6705,9 +5866,10 @@ const BanHang = () => {
           )}
           renderItem={(voucher, index) => {
             const originalTotal = totals[activeKey]?.totalBeforeVoucher || 0;
+            const currentTotal = originalTotal;
             const discountAmount = calculateDiscountAmount(
               voucher,
-              originalTotal
+              Math.max(currentTotal, voucher.giaTriToiThieu)
             );
             const savings = ((discountAmount / originalTotal) * 100).toFixed(1);
             const maxDiscount = vouchers.reduce((max, v) => {

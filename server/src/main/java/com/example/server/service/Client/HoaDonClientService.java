@@ -164,6 +164,9 @@ public class HoaDonClientService {
         }
         HoaDon hoaDon = hoaDonRepository.findById(request.getId()).orElseThrow();
         hoaDon.setTongTien(request.getTongTien());
+        if(request.getIdPhieuGiamGia()==null||request.getIdPhieuGiamGia().isEmpty()){
+            hoaDon.setPhieuGiamGia(null);
+        }
         hoaDonRepository.save(hoaDon);
     }
 

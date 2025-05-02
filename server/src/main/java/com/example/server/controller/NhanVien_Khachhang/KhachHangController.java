@@ -9,12 +9,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/khach_hang")
-
 public class KhachHangController {
     @Autowired
     KhachHangService khachHangService;
@@ -36,12 +36,11 @@ public class KhachHangController {
 
     @PostMapping
     public ResponseEntity<KhachHang> createKhachHang(@RequestBody KhachHangCreationRequest khachHangRequest) {
-        System.out.println(khachHangRequest.getDiaChi());
         return ResponseEntity.ok(khachHangService.createKhachHang(khachHangRequest));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<KhachHang> updateNhanVien(@PathVariable String id, @RequestBody KhachHangCreationRequest khachHang) {
+    public ResponseEntity<KhachHang> updateKhachHang(@PathVariable String id, @RequestBody KhachHangCreationRequest khachHang) {
         return ResponseEntity.ok(khachHangService.updateKhachHang(id, khachHang));
     }
 
@@ -49,6 +48,31 @@ public class KhachHangController {
     public ResponseEntity<String> deleteKhachHang(@PathVariable String id) {
         khachHangService.deleteKhachHang(id);
         return ResponseEntity.ok("Delete success");
+    }
+
+    // API kiểm tra email tồn tại
+    @GetMapping("/check-email")
+    public ResponseEntity<?> checkEmailExists(@RequestParam String email) {
+        boolean exists = khachHangService.isEmailExists(email);
+        return ResponseEntity.ok(Collections.singletonMap("exists", exists));
+    }
+
+    // API kiểm tra số điện thoại tồn tại
+    @GetMapping("/check-phone")
+    public ResponseEntity<?> checkPhoneExists(@RequestParam String soDienThoai) {
+        boolean exists = khachHangService.isPhoneExists(soDienThoai);
+        return ResponseEntity.ok(Collections.singletonMap("exists", exists));
+    }
+
+    // API lấy khách hàng theo ID tài khoản
+    @GetMapping("/by-tai-khoan/{taiKhoanId}")
+    public ResponseEntity<KhachHang> getKhachHangByTaiKhoanId(@PathVariable String taiKhoanId) {
+        try {
+            KhachHang khachHang = khachHangService.getKhachHangByTaiKhoanId(taiKhoanId);
+            return ResponseEntity.ok(khachHang);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // Thêm endpoint mới để tạo địa chỉ cho khách hàng

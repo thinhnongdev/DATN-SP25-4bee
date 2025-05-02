@@ -318,7 +318,7 @@ public class ChatController {
 
                         // Tìm khach_hang dựa trên id_tai_khoan
                         logger.info("Tìm KhachHang với id_tai_khoan: {}", taiKhoanId);
-                        Optional<KhachHang> khachHang = khachHangRepository.findByTaiKhoanId(taiKhoanId);
+                        Optional<KhachHang> khachHang = khachHangRepository.findByTaiKhoan_Id(taiKhoanId);
                         if (khachHang.isPresent()) {
                             userId = khachHang.get().getId();
                             logger.info("Tìm thấy KhachHang: id = {}", userId);
@@ -485,7 +485,7 @@ public class ChatController {
                     Optional<TaiKhoan> taiKhoan = taiKhoanRepository.findByUsername(username.trim());
                     if (taiKhoan.isPresent()) {
                         String taiKhoanId = taiKhoan.get().getId();
-                        Optional<KhachHang> khachHang = khachHangRepository.findByTaiKhoanId(taiKhoanId);
+                        Optional<KhachHang> khachHang = khachHangRepository.findByTaiKhoan_Id(taiKhoanId);
                         if (khachHang.isPresent()) {
                             logger.info("Tìm thấy KhachHang với id: {}", khachHang.get().getId());
                             return khachHang.get().getId();

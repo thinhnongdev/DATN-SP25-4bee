@@ -316,11 +316,9 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
                     .format(formatter);
 
             // Tải mẫu HTML từ tệp tài nguyên
-            String htmlContent = Files.readString(
-                    Paths.get(getClass().getResource("/templates/email/voucher.html").toURI()),
+            String htmlContent = new String(Files.readAllBytes(
+                    Paths.get(getClass().getResource("/templates/email/voucher.html").toURI())),
                     StandardCharsets.UTF_8);
-
-
             // Định dạng giá trị giảm giá dựa trên loại phiếu
             String giaTriGiam = phieuGiamGia.getLoaiPhieuGiamGia() == 1
                     ? phieuGiamGia.getGiaTriGiam().toString() + "%"
@@ -515,10 +513,9 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
                     .format(formatter);
 
             // Tải mẫu HTML từ tệp tài nguyên
-            String htmlContent = Files.readString(
-                    Paths.get(getClass().getResource("/templates/email/voucher.html").toURI()),
+            String htmlContent = new String(Files.readAllBytes(
+                    Paths.get(getClass().getResource("/templates/email/voucher.html").toURI())),
                     StandardCharsets.UTF_8);
-
 
             // Định dạng giá trị giảm giá dựa trên loại phiếu
             String giaTriGiam = phieuGiamGia.getLoaiPhieuGiamGia() == 1

@@ -1045,8 +1045,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             thanhToanHoanTien.setTrangThai(PaymentConstant.PAYMENT_STATUS_REFUND);
             thanhToanHoanTien.setMoTa(moTaHoanTien);
             thanhToanHoanTien.setNgayTao(LocalDateTime.now());
-            thanhToanHoanTien.setNguoiTao(currentUserService.getCurrentUsername());
-
+            thanhToanHoanTien.setNguoiTao(currentUserService.getCurrentNhanVien().getTenNhanVien());
             thanhToanHoaDonRepository.save(thanhToanHoanTien);
             hoaDon.getThanhToanHoaDons().add(thanhToanHoanTien);
         }

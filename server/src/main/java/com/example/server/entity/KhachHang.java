@@ -60,8 +60,22 @@ public class KhachHang {
 
     @Column(name = "nguoi_sua")
     private String nguoiSua;
+    
     @ManyToOne
     @JoinColumn(name = "id_tai_khoan")
-    TaiKhoan taiKhoan;
-
+    private TaiKhoan taiKhoan;
+    
+    // Không cần trường taiKhoanId riêng vì đã có quan hệ @ManyToOne
+    // Thêm helper methods cho taiKhoanId để tương thích
+    @Transient
+    public String getTaiKhoanId() {
+        return taiKhoan != null ? taiKhoan.getId() : null;
+    }
+    
+    public void setTaiKhoanId(String taiKhoanId) {
+        if (this.taiKhoan == null) {
+            this.taiKhoan = new TaiKhoan();
+        }
+        this.taiKhoan.setId(taiKhoanId);
+    }
 }
