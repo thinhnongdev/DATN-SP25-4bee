@@ -874,7 +874,7 @@ const OrderDetailPage = () => {
       setShippingFee(fullOrder.phiVanChuyen);
       setUpdateOrder(fullOrder); //thong tin order để chỉnh sửa
       setSelectedAddress(fullOrder.diaChi);
-      handleGetAllProduct();// gọi lại hàm lấy sản phẩm
+      handleGetAllProduct(); // gọi lại hàm lấy sản phẩm
     } catch (error) {
       console.error('Lỗi lấy chi tiết đơn hàng:', error);
     }
@@ -1051,14 +1051,14 @@ const OrderDetailPage = () => {
   const address = parseAddress(updateOrder.diaChi);
   console.log('currentStep', currentStep);
 
-  const handleQuantityChange = async (productDetailId, newQuantity) => {
+  const handleQuantityChange = async (productDetailId, giaTaiThoiDiemThem, newQuantity) => {
     try {
       if (newQuantity === 0) {
         if (updateOrder.products.length === 1) {
           message.warning('Phải có ít nhất 1 sản phẩm trong hóa đơn.');
           return;
         }
-
+  
         Modal.confirm({
           title: 'Xác nhận xóa sản phẩm',
           content: 'Bạn có chắc chắn muốn xóa sản phẩm này khỏi hóa đơn?',
@@ -1067,16 +1067,16 @@ const OrderDetailPage = () => {
           okType: 'danger',
           onOk: async () => {
             const filteredProducts = updateOrder.products.filter(
-              (item) => item.id !== productDetailId,
+              (item) => !(item.id === productDetailId && item.giaTaiThoiDiemThem === giaTaiThoiDiemThem),
             );
             const newTotal = filteredProducts.reduce(
               (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
               0,
             );
-
+  
             const discount = getDiscountValue(updateOrder.voucher, newTotal);
             const phiVanChuyen = await fetchShippingFee(newTotal - discount);
-
+  
             setUpdateOrder((prev) => ({
               ...prev,
               products: filteredProducts,
@@ -1084,30 +1084,33 @@ const OrderDetailPage = () => {
               phiVanChuyen: phiVanChuyen,
               tongThanhToan: newTotal + phiVanChuyen - discount,
             }));
-
+  
             message.success('Đã xóa sản phẩm khỏi đơn hàng!');
           },
         });
-
+  
         return;
       }
-
-      // Nếu số lượng > 0 thì cập nhật bình thường
+  
+      // Cập nhật số lượng chỉ sản phẩm có id và giá tương ứng
       const updatedProducts = updateOrder.products.map((item) =>
-        item.id === productDetailId ? { ...item, soLuongMua: newQuantity } : item,
+        item.id === productDetailId && item.giaTaiThoiDiemThem === giaTaiThoiDiemThem
+          ? { ...item, soLuongMua: newQuantity }
+          : item,
       );
-
+  
       const newTotal = updatedProducts.reduce(
         (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
         0,
       );
-
+  
       const discount = getDiscountValue(updateOrder.voucher, newTotal);
       let phiVanChuyen = await fetchShippingFee(newTotal - discount);
       if (newTotal > 2000000) {
         message.success('Đơn hàng trên 2 triệu được miễn phí vận chuyển');
         phiVanChuyen = 0;
       }
+  
       setUpdateOrder((prev) => ({
         ...prev,
         products: updatedProducts,
@@ -1115,13 +1118,14 @@ const OrderDetailPage = () => {
         phiVanChuyen: phiVanChuyen,
         tongThanhToan: newTotal + phiVanChuyen - discount,
       }));
-
+  
       message.success('Đã cập nhật số lượng sản phẩm!');
     } catch (error) {
       console.error('Lỗi khi cập nhật số lượng:', error);
       message.error('Không thể cập nhật số lượng. Vui lòng thử lại.');
     }
   };
+  
 
   const handleEditAddress = () => {
     setIsAddressList(true);
@@ -1231,14 +1235,14 @@ const OrderDetailPage = () => {
       );
 
       let updatedProducts;
-      let currentQuantity = 0;
 
-      if (existingIndex !== -1) {
-        currentQuantity = prev.products[existingIndex].soLuongMua;
-      }
+      //  Tính tổng số lượng của tất cả sản phẩm cùng `id`
+      const totalQuantitySameId = prev.products
+        .filter((p) => p.id === product.id)
+        .reduce((sum, p) => sum + p.soLuongMua, 0);
 
-      //Kiểm tra tổng số lượng mới có vượt quá tồn kho không
-      if (currentQuantity + quantity > product.soLuong) {
+      //  Kiểm tra tồn kho
+      if (totalQuantitySameId + quantity > product.soLuong) {
         message.warning(`Vượt quá số lượng sản phẩm trong kho.`);
         return { ...prev }; // Không thay đổi gì
       }
@@ -1339,27 +1343,33 @@ const OrderDetailPage = () => {
 
   const handleConfirmUpdateOrder = () => {
     const totalPrice = calculateTotalPrice();
-    const maxTotalPayment = 15000000; //15 triệu đồng
-
-    // Tạo bản sao tạm thời
+    const maxTotalPayment = 15000000;// 15 triệu đồng
+  
     const newOrder = { ...updateOrder };
-
-    if (newOrder.voucher && totalPrice < newOrder.voucher.giaTriToiThieu) {
+  
+    let voucherWarning = '';
+    if (newOrder.voucher && totalPrice < newOrder.voucher?.giaTriToiThieu) {
       newOrder.idPhieuGiamGia = null;
+  
+      // So sánh với đơn hàng gốc xem ban đầu có voucher hay không
+      if (order.voucher) {
+        voucherWarning = `Phiếu giảm giá "${order.voucher.maPhieuGiamGia}" sẽ bị huỷ vì đơn hàng không còn đủ điều kiện.\n\n`;
+      }
     }
-
+  
     if (totalPayMent > maxTotalPayment) {
       message.warning('Tổng giá trị đơn hàng không được vượt quá 15 triệu đồng!');
       return;
     }
-
+  
     Modal.confirm({
       title: 'Xác nhận cập nhật đơn hàng',
-      content: 'Bạn có chắc chắn muốn cập nhật đơn hàng này không?',
+      content:
+        `${voucherWarning}Bạn có chắc chắn muốn cập nhật đơn hàng này không?`,
       okText: 'Xác nhận',
       cancelText: 'Hủy',
       onOk: async () => {
-        console.log('Thong tin ok:', newOrder);
+        console.log('Thông tin ok:', newOrder);
         try {
           await axios.put(
             `http://localhost:8080/api/client/order/updatehoadoncho/${newOrder.id}`,
@@ -1377,6 +1387,7 @@ const OrderDetailPage = () => {
       },
     });
   };
+  
 
   const isEditable = ![3, 4, 5, 6, 7].includes(updateOrder.trangThai); // 3: Đang giao, 4: Hoàn thành, 5:hoàn thành, 6: Đã hủy,7: đã hoàn thành
 
@@ -1568,7 +1579,7 @@ const OrderDetailPage = () => {
                         <Col>
                           <Button
                             size="small"
-                            onClick={() => handleQuantityChange(item.id, item.soLuongMua - 1)}
+                            onClick={() => handleQuantityChange(item.id, item.giaTaiThoiDiemThem, item.soLuongMua - 1)}
                             disabled={updateOrder.products.length === 1 && item.soLuongMua === 1}
                           >
                             -
@@ -1580,10 +1591,12 @@ const OrderDetailPage = () => {
                         <Col>
                           <Button
                             size="small"
-                            onClick={() => handleQuantityChange(item.id, item.soLuongMua + 1)}
+                            onClick={() => handleQuantityChange(item.id, item.giaTaiThoiDiemThem, item.soLuongMua + 1)}
                             disabled={
                               currentPrices[item.id] > item.giaTaiThoiDiemThem ||
-                              item.soLuongMua >=
+                              updateOrder.products
+                                .filter((p) => p.id === item.id)
+                                .reduce((sum, p) => sum + p.soLuongMua, 0) >=
                                 sanPhamChiTiet.find((sp) => sp.id === item.id)?.soLuong
                             }
                           >
@@ -1785,7 +1798,9 @@ const OrderDetailPage = () => {
               </Col>
             </Row>
           </Card>
+          
         )}
+        
         {hasChanges && (
           <div style={{ marginTop: 16, textAlign: 'right' }}>
             <Button type="primary" size="large" onClick={handleConfirmUpdateOrder}>

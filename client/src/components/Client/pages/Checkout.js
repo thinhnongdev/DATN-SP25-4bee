@@ -544,7 +544,10 @@ const CheckoutForm = () => {
 
   const handleSubmitOrder = async () => {
     if (!validateForm()) return;
-
+    if (totalPayMent > 15000000) {
+      message.error('Giá trị đơn hàng không được vượt quá 15 triệu đồng!');
+      return;
+    }
     Modal.confirm({
       title: 'Xác nhận đặt hàng',
       content: 'Bạn có chắc muốn đặt hàng không?',
@@ -554,7 +557,7 @@ const CheckoutForm = () => {
         let uniqueOrderCode = null;
         let apiUrlThanhToan = null;
         if (token) {
-          const isValid = await checkTokenValidity(token); // ✅ Sửa tại đây
+          const isValid = await checkTokenValidity(token);
 
           if (!isValid) {
             message.error('Hết phiên đăng nhập, vui lòng đăng nhập lại!');
@@ -587,7 +590,7 @@ const CheckoutForm = () => {
           },
           tongTienThanhToan: totalPayMent,
           phiVanChuyen: shippingFee,
-          tongTienHang: totalAmount-voucherDiscount,//sửa đổi để lưu đúng giá trị hoá đơn
+          tongTienHang: totalAmount - voucherDiscount, //sửa đổi để lưu đúng giá trị hoá đơn
           phieuGiamGia: selectedVoucher,
         };
         console.log('Dữ liệu đơn hàng:', orderData);

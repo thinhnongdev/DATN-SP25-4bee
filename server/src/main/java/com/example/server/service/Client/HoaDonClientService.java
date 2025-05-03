@@ -10,6 +10,7 @@ import com.example.server.dto.HoaDon.request.HoaDonChiTietRequest;
 import com.example.server.entity.*;
 import com.example.server.repository.HoaDon.*;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
+import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import com.example.server.repository.SanPham.SanPhamChiTietRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,8 @@ public class HoaDonClientService {
     private ThanhToanHoaDonRepository thanhToanHoaDonRepository;
     @Autowired
     private PhuongThucThanhToanRepository phuongThucThanhToanRepository;
+    @Autowired
+    private PhieuGiamGiaRepository phieuGiamGiaRepository;
 
     public HoaDon createHoaDonClient(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, BigDecimal phiVanChuyen, PhieuGiamGia phieuGiamGia) {
         HoaDon hoaDon = new HoaDon();
@@ -69,7 +72,10 @@ public class HoaDonClientService {
         lichSuHoaDonRepository.save(lichSuHoaDon);
 
         return hoaDon1;
-    };
+    }
+
+    ;
+
     public HoaDon updateDiaChiHoaDonChoXacNhan(OrderUpdateRequest request) {
         HoaDon hoaDon = hoaDonRepository.findById(request.getId()).orElseThrow();
         if (!hoaDon.getDiaChi().equals(request.getDiaChi())) {
@@ -164,9 +170,20 @@ public class HoaDonClientService {
         }
         HoaDon hoaDon = hoaDonRepository.findById(request.getId()).orElseThrow();
         hoaDon.setTongTien(request.getTongTien());
-        if(request.getIdPhieuGiamGia()==null||request.getIdPhieuGiamGia().isEmpty()){
+        if (hoaDon.getPhieuGiamGia()!=null){
+        if (request.getIdPhieuGiamGia() == null || request.getIdPhieuGiamGia().isEmpty()) {
+
+            LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
+            lichSuHoaDon.setId(UUID.randomUUID().toString());
+            lichSuHoaDon.setNgayTao(LocalDateTime.now());
+            lichSuHoaDon.setTrangThai(1);
+            lichSuHoaDon.setKhachHang(khachHangRepository.findById(request.getIdKhachHang()).orElse(null));
+            lichSuHoaDon.setHanhDong("Huỷ voucher đang được áp dụng: " + hoaDon.getPhieuGiamGia().getMaPhieuGiamGia());
+            lichSuHoaDon.setMoTa("Huỷ voucher do giá trị đơn hàng không đủ điều kiện áp dụng voucher");
+            lichSuHoaDon.setHoaDon(hoaDon);
+            lichSuHoaDonRepository.save(lichSuHoaDon);
             hoaDon.setPhieuGiamGia(null);
-        }
+        }}
         hoaDonRepository.save(hoaDon);
     }
 
