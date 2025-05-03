@@ -611,67 +611,61 @@ const CheckoutForm = () => {
         if (formData.phuongThucThanhToan === 'BANK') {
           generateQR(uniqueOrderCode);
           setIsModalVisiblePaymentQR(true);
-
+        
           let isPaid = false;
           let attempts = 0;
-
+        
           const interval = setInterval(async () => {
             attempts++;
             isPaid = await checkPaymentStatus(uniqueOrderCode);
-
+        
             if (isPaid) {
               message.success('Thanh toán thành công!');
               setIsModalVisiblePaymentQR(false);
               clearInterval(interval);
-
-              axios
-                .post(apiUrlThanhToan, orderData)
-                .then((res) => {
-                  message.success(res.data || 'Đặt hàng thành công!');
-                  localStorage.removeItem('cart');
-                  localStorage.removeItem('selectedVoucher');
-                  window.dispatchEvent(new Event('cartUpdated'));
-                  axios.post(apiUrlThanhToan, orderData).then(async (res) => {
-                    message.success(res.data || 'Đặt hàng thành công!');
-                    localStorage.removeItem('cart');
-                    localStorage.removeItem('selectedVoucher');
-                    window.dispatchEvent(new Event('cartUpdated'));
-                    // Gọi lại tạo hóa đơn nếu đã đăng nhập
-                    const token = localStorage.getItem('token');
-                    if (token) {
-                      const isValid = await checkTokenValidity(token); // ✅ Sửa tại đây
-                      if (!isValid) {
-                        message.error('Hết phiên đăng nhập, vui lòng đăng nhập lại!');
-                        localStorage.removeItem('token');
-                        navigate('/login');
-                        return;
-                      } else {
-                        const decoded = jwtDecode(token);
-                        const email = decoded?.sub;
-                        if (email) await createPendingOrder(email);
-                      }
-                    }
-
-                    navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
-                  });
-
-                  navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
-                })
-                .catch((err) => {
-                  const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
-                  message.error(errorMessage);
-                });
+        
+              try {
+                const res = await axios.post(apiUrlThanhToan, orderData);
+                message.success(res.data || 'Đặt hàng thành công!');
+                localStorage.removeItem('cart');
+                localStorage.removeItem('selectedVoucher');
+                window.dispatchEvent(new Event('cartUpdated'));
+        
+                const token = localStorage.getItem('token');
+                if (token) {
+                  const isValid = await checkTokenValidity(token);
+                  if (!isValid) {
+                    message.error('Hết phiên đăng nhập, vui lòng đăng nhập lại!');
+                    localStorage.removeItem('token');
+                    navigate('/login');
+                    return;
+                  }
+        
+                  const decoded = jwtDecode(token);
+                  const email = decoded?.sub;
+                  if (email) {
+                    await createPendingOrder(email);
+                    console.log('Tạo lại hóa đơn pending thành công');
+                  }
+                }
+        
+                navigate('/order-success', { state: { maHoaDon: uniqueOrderCode } });
+              } catch (err) {
+                const errorMessage = err.response?.data || 'Đặt hàng thất bại: Lỗi từ server';
+                message.error(errorMessage);
+              }
             }
-
+        
             if (attempts >= 60) {
               message.error('Quá thời gian chờ thanh toán. Vui lòng thử lại!');
               setIsModalVisiblePaymentQR(false);
               clearInterval(interval);
             }
           }, 5000);
-
+        
           return;
         }
+        
 
         try {
           const res = await axios.post(apiUrlThanhToan, orderData);

@@ -1,16 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import {
-  Modal,
-  Select,
-  Input,
-  Button,
-  message,
-  Space,
-  Divider,
-  Tag,
-  Alert,
-  Spin,
-} from "antd";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Modal, Select, Input, Button, message, Space, Divider, Tag, Alert, Spin } from 'antd';
 import {
   PlusOutlined,
   HomeOutlined,
@@ -18,12 +7,12 @@ import {
   MinusCircleOutlined,
   SyncOutlined,
   EnvironmentOutlined,
-} from "@ant-design/icons";
-import axios from "axios";
+} from '@ant-design/icons';
+import axios from 'axios';
 
 const AddressFormat = {
-  DISPLAY: "display",
-  VALUE: "value",
+  DISPLAY: 'display',
+  VALUE: 'value',
 };
 
 // Cache để lưu trữ mapping giữa id và tên
@@ -72,7 +61,7 @@ const addressHelpers = {
 
   // Format địa chỉ đầy đủ
   formatFullAddress: (address, format = AddressFormat.DISPLAY) => {
-    if (!address) return "";
+    if (!address) return '';
 
     const { diaChiCuThe, xa, huyen, tinh } = address;
     const parts = [];
@@ -80,29 +69,29 @@ const addressHelpers = {
     if (diaChiCuThe) parts.push(diaChiCuThe);
 
     if (format === AddressFormat.DISPLAY) {
-      if (xa) parts.push(addressHelpers.getNameById("wards", xa));
-      if (huyen) parts.push(addressHelpers.getNameById("districts", huyen));
-      if (tinh) parts.push(addressHelpers.getNameById("provinces", tinh));
+      if (xa) parts.push(addressHelpers.getNameById('wards', xa));
+      if (huyen) parts.push(addressHelpers.getNameById('districts', huyen));
+      if (tinh) parts.push(addressHelpers.getNameById('provinces', tinh));
     } else {
       if (xa) parts.push(xa);
       if (huyen) parts.push(huyen);
       if (tinh) parts.push(tinh);
     }
 
-    return parts.join(", ");
+    return parts.join(', ');
   },
 };
 // Thêm hàm này vào addressHelpers
 addressHelpers.parseAddressString = (addressString) => {
-  if (!addressString || typeof addressString !== "string") {
+  if (!addressString || typeof addressString !== 'string') {
     return {
-      diaChiCuThe: "",
-      xaId: "",
-      huyenId: "",
-      tinhId: "",
-      xaName: "Không xác định",
-      huyenName: "Không xác định",
-      tinhName: "Không xác định",
+      diaChiCuThe: '',
+      xaId: '',
+      huyenId: '',
+      tinhId: '',
+      xaName: 'Không xác định',
+      huyenName: 'Không xác định',
+      tinhName: 'Không xác định',
     };
   }
 
@@ -111,12 +100,12 @@ addressHelpers.parseAddressString = (addressString) => {
   if (parts.length < 4) {
     return {
       diaChiCuThe: addressString,
-      xaId: "",
-      huyenId: "",
-      tinhId: "",
-      xaName: "Không xác định",
-      huyenName: "Không xác định",
-      tinhName: "Không xác định",
+      xaId: '',
+      huyenId: '',
+      tinhId: '',
+      xaName: 'Không xác định',
+      huyenName: 'Không xác định',
+      tinhName: 'Không xác định',
     };
   }
 
@@ -127,18 +116,14 @@ addressHelpers.parseAddressString = (addressString) => {
     const xaId = parts[parts.length - 3].trim();
 
     // Phần còn lại là địa chỉ chi tiết
-    const diaChiCuThe = parts.slice(0, parts.length - 3).join(", ");
+    const diaChiCuThe = parts.slice(0, parts.length - 3).join(', ');
 
     // Lấy tên từ cache
     const tinhName =
-      addressHelpers.getNameById("provinces", parseInt(tinhId, 10)) ||
-      "Không xác định";
+      addressHelpers.getNameById('provinces', parseInt(tinhId, 10)) || 'Không xác định';
     const huyenName =
-      addressHelpers.getNameById("districts", parseInt(huyenId, 10)) ||
-      "Không xác định";
-    const xaName =
-      addressHelpers.getNameById("wards", parseInt(xaId, 10)) ||
-      "Không xác định";
+      addressHelpers.getNameById('districts', parseInt(huyenId, 10)) || 'Không xác định';
+    const xaName = addressHelpers.getNameById('wards', parseInt(xaId, 10)) || 'Không xác định';
 
     return {
       diaChiCuThe,
@@ -148,50 +133,39 @@ addressHelpers.parseAddressString = (addressString) => {
       xaName,
       huyenName,
       tinhName,
-      fullAddress: `${
-        diaChiCuThe ? diaChiCuThe + ", " : ""
-      }${xaName}, ${huyenName}, ${tinhName}`,
+      fullAddress: `${diaChiCuThe ? diaChiCuThe + ', ' : ''}${xaName}, ${huyenName}, ${tinhName}`,
     };
   } catch (error) {
-    console.error("⚠ Lỗi khi xử lý địa chỉ:", addressString, error);
+    console.error('⚠ Lỗi khi xử lý địa chỉ:', addressString, error);
     return {
       diaChiCuThe: addressString,
-      xaId: "",
-      huyenId: "",
-      tinhId: "",
-      xaName: "Không xác định",
-      huyenName: "Không xác định",
-      tinhName: "Không xác định",
+      xaId: '',
+      huyenId: '',
+      tinhId: '',
+      xaName: 'Không xác định',
+      huyenName: 'Không xác định',
+      tinhName: 'Không xác định',
     };
   }
 };
 // Thêm vào addressHelpers
 addressHelpers.formatAddress = (address) => {
-  if (!address) return "";
+  if (!address) return '';
 
   // Nếu đã có fullAddress thì dùng luôn
   if (address.fullAddress) return address.fullAddress;
 
   // Tạo chuỗi địa chỉ đầy đủ theo format yêu cầu
-  const diaChiCuThe = address.diaChiCuThe || "";
+  const diaChiCuThe = address.diaChiCuThe || '';
 
   // Ưu tiên dùng tên nếu có, nếu không thì dùng ID
-  const xaName =
-    address.xaName ||
-    addressHelpers.getNameById("wards", address.xa) ||
-    address.xa;
+  const xaName = address.xaName || addressHelpers.getNameById('wards', address.xa) || address.xa;
   const huyenName =
-    address.huyenName ||
-    addressHelpers.getNameById("districts", address.huyen) ||
-    address.huyen;
+    address.huyenName || addressHelpers.getNameById('districts', address.huyen) || address.huyen;
   const tinhName =
-    address.tinhName ||
-    addressHelpers.getNameById("provinces", address.tinh) ||
-    address.tinh;
+    address.tinhName || addressHelpers.getNameById('provinces', address.tinh) || address.tinh;
 
-  return `${
-    diaChiCuThe ? diaChiCuThe + ", " : ""
-  }${xaName}, ${huyenName}, ${tinhName}`;
+  return `${diaChiCuThe ? diaChiCuThe + ', ' : ''}${xaName}, ${huyenName}, ${tinhName}`;
 };
 
 // Cập nhật định nghĩa component để sử dụng forwardRef
@@ -201,7 +175,7 @@ const GiaoHang = React.forwardRef(
     const [selectedAddress, setSelectedAddress] = useState(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isManuallyEditing, setIsManuallyEditing] = useState(false);
-    const [manualAddress, setManualAddress] = useState("");
+    const [manualAddress, setManualAddress] = useState('');
     const [provinceData, setProvinceData] = useState([]);
     const [districtData, setDistrictData] = useState([]);
     const [wardData, setWardData] = useState([]);
@@ -228,7 +202,7 @@ const GiaoHang = React.forwardRef(
         setWardData([]);
       }
     }, [isModalVisible, isNewAddressMode]);
-    
+
     // Sửa useEffect theo dõi thay đổi customerId và hoaDonId
     // Sửa lại trong useEffect
     useEffect(() => {
@@ -236,22 +210,22 @@ const GiaoHang = React.forwardRef(
         // Đặt lại trạng thái khi customerId thay đổi
         setSelectedAddress(null);
         setIsNewAddressMode(false);
-    
+
         fetchCustomerAddresses(customerId);
-        console.log("Đang tải địa chỉ cho khách hàng ID:", customerId);
+        console.log('Đang tải địa chỉ cho khách hàng ID:', customerId);
       } else {
         // Reset địa chỉ khi không có khách hàng
         setAddresses([]);
-    
+
         // Chỉ kiểm tra đơn hàng mới nếu không có địa chỉ lưu sẵn trong hóa đơn
         if (hoaDonId) {
           // Kiểm tra trước nếu đơn hàng đã có địa chỉ trong database
-          fetchAnonymousInvoiceAddress().then(hasAddress => {
+          fetchAnonymousInvoiceAddress().then((hasAddress) => {
             // Nếu không tìm thấy địa chỉ trong database và là đơn hàng mới
             if (!hasAddress) {
-              const isNewOrder = sessionStorage.getItem(`new_order_${hoaDonId}`) === "true";
+              const isNewOrder = sessionStorage.getItem(`new_order_${hoaDonId}`) === 'true';
               if (isNewOrder) {
-                console.log("Đơn hàng mới cho khách lẻ, mở form nhập địa chỉ mới");
+                console.log('Đơn hàng mới cho khách lẻ, mở form nhập địa chỉ mới');
                 setSelectedAddress(null);
                 setIsNewAddressMode(true);
               }
@@ -269,7 +243,7 @@ const GiaoHang = React.forwardRef(
 
     useEffect(() => {
       setSelectedAddress(null);
-      setManualAddress("");
+      setManualAddress('');
       setProvince(null);
       setDistrict(null);
       setWard(null);
@@ -277,51 +251,45 @@ const GiaoHang = React.forwardRef(
       setWardData([]);
       setAddressDataLoaded(false);
       setIsManuallyEditing(false);
-    
+
       if (customerId) fetchCustomerAddresses(customerId);
       else setIsNewAddressMode(true);
     }, [customerId]);
-    
 
     // Thêm useEffect để đảm bảo các danh sách quận/huyện và xã/phường được tải đúng khi có selectedAddress
     useEffect(() => {
       const loadAddressData = async () => {
         if (selectedAddress && provinceData.length > 0) {
-          console.log("Đang tải dữ liệu địa chỉ chi tiết:", selectedAddress);
+          console.log('Đang tải dữ liệu địa chỉ chi tiết:', selectedAddress);
 
           // Set giá trị cơ bản
-          setManualAddress(selectedAddress.diaChiCuThe || "");
+          setManualAddress(selectedAddress.diaChiCuThe || '');
           setProvince(selectedAddress.tinh || null);
 
           // Tìm tỉnh/thành phố trong danh sách
-          const matchingProvince = provinceData.find(
-            (p) => p.name === selectedAddress.tinh
-          );
+          const matchingProvince = provinceData.find((p) => p.name === selectedAddress.tinh);
 
           if (matchingProvince) {
-            console.log("Đã tìm thấy tỉnh:", matchingProvince.name);
+            console.log('Đã tìm thấy tỉnh:', matchingProvince.name);
             // Cập nhật danh sách quận/huyện
             setDistrictData(matchingProvince.data2 || []);
             setDistrict(selectedAddress.huyen || null);
 
             // Tìm quận/huyện trong danh sách
             const matchingDistrict = matchingProvince.data2.find(
-              (d) => d.name === selectedAddress.huyen
+              (d) => d.name === selectedAddress.huyen,
             );
 
             if (matchingDistrict) {
-              console.log("Đã tìm thấy huyện:", matchingDistrict.name);
+              console.log('Đã tìm thấy huyện:', matchingDistrict.name);
               // Cập nhật danh sách xã/phường
               setWardData(matchingDistrict.data3 || []);
               setWard(selectedAddress.xa || null);
             } else {
-              console.log(
-                "Không tìm thấy huyện tương ứng:",
-                selectedAddress.huyen
-              );
+              console.log('Không tìm thấy huyện tương ứng:', selectedAddress.huyen);
             }
           } else {
-            console.log("Không tìm thấy tỉnh tương ứng:", selectedAddress.tinh);
+            console.log('Không tìm thấy tỉnh tương ứng:', selectedAddress.tinh);
           }
         }
       };
@@ -355,12 +323,9 @@ const GiaoHang = React.forwardRef(
       }
     }, [provinceData]);
 
-    const calculateShippingFee = async (
-      addressOrDistrictId,
-      wardCodeOrNull = null
-    ) => {
+    const calculateShippingFee = async (addressOrDistrictId, wardCodeOrNull = null) => {
       if (!hoaDonId) {
-        console.error("Thiếu hoaDonId để tính phí vận chuyển");
+        console.error('Thiếu hoaDonId để tính phí vận chuyển');
         return 0;
       }
 
@@ -369,25 +334,20 @@ const GiaoHang = React.forwardRef(
         // Thông tin cửa hàng lấy được từ log của server
         const shopInfo = {
           district_id: 3440,
-          ward_code: "13007",
+          ward_code: '13007',
         };
 
         let payload;
 
         // Kiểm tra nếu tham số đầu tiên là đối tượng địa chỉ
-        if (typeof addressOrDistrictId === "object") {
-          console.log(
-            "Đang tính phí vận chuyển cho địa chỉ:",
-            addressOrDistrictId
-          );
+        if (typeof addressOrDistrictId === 'object') {
+          console.log('Đang tính phí vận chuyển cho địa chỉ:', addressOrDistrictId);
 
           // Chuyển đổi địa chỉ sang định dạng GHN
           const ghnAddress = await mapAddressToGHNFormat(addressOrDistrictId);
 
           if (!ghnAddress) {
-            console.warn(
-              "Không thể chuyển đổi địa chỉ, sử dụng giá trị mặc định"
-            );
+            console.warn('Không thể chuyển đổi địa chỉ, sử dụng giá trị mặc định');
 
             // Sử dụng thông tin cửa hàng đã xác minh
             payload = {
@@ -407,13 +367,13 @@ const GiaoHang = React.forwardRef(
           let districtId = addressOrDistrictId;
           let wardCode = wardCodeOrNull;
 
-          if (!districtId || districtId === "undefined") {
-            console.warn("district_id không hợp lệ, sử dụng giá trị mặc định");
+          if (!districtId || districtId === 'undefined') {
+            console.warn('district_id không hợp lệ, sử dụng giá trị mặc định');
             districtId = shopInfo.district_id;
           }
 
-          if (!wardCode || wardCode === "undefined") {
-            console.warn("ward_code không hợp lệ, sử dụng giá trị mặc định");
+          if (!wardCode || wardCode === 'undefined') {
+            console.warn('ward_code không hợp lệ, sử dụng giá trị mặc định');
             wardCode = shopInfo.ward_code;
           }
 
@@ -424,7 +384,7 @@ const GiaoHang = React.forwardRef(
           };
         }
 
-        console.log("Gửi request tính phí vận chuyển:", payload);
+        console.log('Gửi request tính phí vận chuyển:', payload);
 
         // Gọi API tính phí
         const response = await axios.post(
@@ -432,20 +392,20 @@ const GiaoHang = React.forwardRef(
           payload,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-          }
+          },
         );
 
-        console.log("Phí vận chuyển từ API:", response.data);
+        console.log('Phí vận chuyển từ API:', response.data);
 
         // Đảm bảo phí vận chuyển là một số
-        let fee = typeof response.data === "number" ? response.data : 0;
+        let fee = typeof response.data === 'number' ? response.data : 0;
 
         // Nếu phí vận chuyển không hợp lệ, sử dụng giá trị mặc định
         if (fee <= 0) {
           fee = 30000; // Mặc định 30,000 VND
-          console.log("Sử dụng phí vận chuyển mặc định:", fee);
+          console.log('Sử dụng phí vận chuyển mặc định:', fee);
         }
 
         // Cập nhật phí vận chuyển vào hóa đơn và lưu vào state
@@ -453,7 +413,7 @@ const GiaoHang = React.forwardRef(
 
         return fee;
       } catch (error) {
-        console.error("Lỗi khi tính phí vận chuyển:", error);
+        console.error('Lỗi khi tính phí vận chuyển:', error);
 
         // Sử dụng phí vận chuyển mặc định khi có lỗi
         const defaultFee = 30000;
@@ -468,7 +428,7 @@ const GiaoHang = React.forwardRef(
     // Hàm cập nhật phí vận chuyển vào hóa đơn
     const updateShippingFeeToInvoice = async (fee) => {
       if (!hoaDonId) {
-        console.error("Không có hoaDonId để cập nhật phí vận chuyển");
+        console.error('Không có hoaDonId để cập nhật phí vận chuyển');
         return false;
       }
 
@@ -481,44 +441,40 @@ const GiaoHang = React.forwardRef(
           { fee: fee },
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-          }
+          },
         );
 
-        console.log("Kết quả cập nhật phí vận chuyển:", response.data);
+        console.log('Kết quả cập nhật phí vận chuyển:', response.data);
 
         // Cập nhật state local để hiển thị
         setShippingFee(fee);
 
         // Thông báo thành công
         message.success(
-          `Đã cập nhật phí vận chuyển: ${new Intl.NumberFormat("vi-VN", {
-            style: "currency",
-            currency: "VND",
-          }).format(fee)}`
+          `Đã cập nhật phí vận chuyển: ${new Intl.NumberFormat('vi-VN', {
+            style: 'currency',
+            currency: 'VND',
+          }).format(fee)}`,
         );
 
         // Cập nhật state của component cha nếu có callback
-        if (typeof onShippingFeeUpdate === "function") {
+        if (typeof onShippingFeeUpdate === 'function') {
           onShippingFeeUpdate(fee);
         }
 
         return true;
       } catch (error) {
-        console.error("Lỗi khi cập nhật phí vận chuyển vào hóa đơn:", error);
+        console.error('Lỗi khi cập nhật phí vận chuyển vào hóa đơn:', error);
 
         if (error.response) {
-          console.error("Chi tiết lỗi từ server:", error.response.data);
+          console.error('Chi tiết lỗi từ server:', error.response.data);
           message.error(
-            `Lỗi cập nhật phí vận chuyển: ${
-              error.response.data.message || "Lỗi không xác định"
-            }`
+            `Lỗi cập nhật phí vận chuyển: ${error.response.data.message || 'Lỗi không xác định'}`,
           );
         } else {
-          message.error(
-            "Không thể kết nối đến server để cập nhật phí vận chuyển"
-          );
+          message.error('Không thể kết nối đến server để cập nhật phí vận chuyển');
         }
 
         return false;
@@ -537,28 +493,19 @@ const GiaoHang = React.forwardRef(
       ) {
         // Thêm điều kiện này
 
-        console.log("Đang tải thông tin địa chỉ đã chọn...");
+        console.log('Đang tải thông tin địa chỉ đã chọn...');
 
         setAddressDataLoaded(true);
-        setManualAddress(selectedAddress.diaChiCuThe || "");
+        setManualAddress(selectedAddress.diaChiCuThe || '');
 
-        const matchingProvince = findClosestMatch(
-          selectedAddress.tinh,
-          provinceData
-        );
+        const matchingProvince = findClosestMatch(selectedAddress.tinh, provinceData);
 
         if (matchingProvince) {
           setProvince(matchingProvince.name);
           handleProvinceChange(matchingProvince.name);
         }
       }
-    }, [
-      selectedAddress,
-      provinceData,
-      addressDataLoaded,
-      isManuallyEditing,
-      isNewAddressMode,
-    ]);
+    }, [selectedAddress, provinceData, addressDataLoaded, isManuallyEditing, isNewAddressMode]);
 
     useEffect(() => {
       if (customerId && addresses.length === 1) {
@@ -572,43 +519,33 @@ const GiaoHang = React.forwardRef(
           xa: singleAddress.xa,
           huyen: singleAddress.huyen,
           tinh: singleAddress.tinh,
-          fullAddress: `${
-            singleAddress.diaChiCuThe ? singleAddress.diaChiCuThe + ", " : ""
-          }${singleAddress.xa}, ${singleAddress.huyen}, ${singleAddress.tinh}`,
+          fullAddress: `${singleAddress.diaChiCuThe ? singleAddress.diaChiCuThe + ', ' : ''}${
+            singleAddress.xa
+          }, ${singleAddress.huyen}, ${singleAddress.tinh}`,
         });
       }
     }, [customerId, addresses]);
 
     useEffect(() => {
       if (selectedAddress) {
-        console.log("===== DEBUG =====");
-        console.log("Địa chỉ đã chọn:", selectedAddress);
-        console.log("Data tỉnh có sẵn:", provinceData.length > 0);
+        console.log('===== DEBUG =====');
+        console.log('Địa chỉ đã chọn:', selectedAddress);
+        console.log('Data tỉnh có sẵn:', provinceData.length > 0);
 
         if (provinceData.length > 0) {
           // Tìm tỉnh trong data
-          const foundProvince = provinceData.find(
-            (p) => p.name === selectedAddress.tinh
-          );
-          console.log(
-            `Tỉnh [${selectedAddress.tinh}] tìm thấy:`,
-            foundProvince ? "Có" : "Không"
-          );
+          const foundProvince = provinceData.find((p) => p.name === selectedAddress.tinh);
+          console.log(`Tỉnh [${selectedAddress.tinh}] tìm thấy:`, foundProvince ? 'Có' : 'Không');
 
           if (foundProvince && foundProvince.data2) {
             // Log danh sách quận/huyện
-            console.log(
-              "Danh sách quận/huyện:",
-              foundProvince.data2.map((d) => d.name).join(", ")
-            );
+            console.log('Danh sách quận/huyện:', foundProvince.data2.map((d) => d.name).join(', '));
 
             // Tìm huyện trong data
-            const foundDistrict = foundProvince.data2.find(
-              (d) => d.name === selectedAddress.huyen
-            );
+            const foundDistrict = foundProvince.data2.find((d) => d.name === selectedAddress.huyen);
             console.log(
               `Huyện [${selectedAddress.huyen}] tìm thấy:`,
-              foundDistrict ? "Có" : "Không"
+              foundDistrict ? 'Có' : 'Không',
             );
           }
         }
@@ -617,49 +554,49 @@ const GiaoHang = React.forwardRef(
     useEffect(() => {
       if (!selectedAddress || provinceData.length === 0 || addressDataLoaded) return;
       setAddressDataLoaded(true);
-      setManualAddress(selectedAddress.diaChiCuThe || "");
-    
+      setManualAddress(selectedAddress.diaChiCuThe || '');
+
       // load provinces → districtData
-      const prov = provinceData.find(p => p.name === selectedAddress.tinh);
+      const prov = provinceData.find((p) => p.name === selectedAddress.tinh);
       if (!prov) return;
       setProvince(prov.id);
       setDistrictData(prov.data2 || []);
-    
+
       // load district → wardData
-      const dist = prov.data2?.find(d => d.name === selectedAddress.huyen);
+      const dist = prov.data2?.find((d) => d.name === selectedAddress.huyen);
       if (dist) {
         setDistrict(dist.id);
         setWardData(dist.data3 || []);
       }
-    
+
       // set ward
-      const w = dist?.data3?.find(w => w.name === selectedAddress.xa);
+      const w = dist?.data3?.find((w) => w.name === selectedAddress.xa);
       if (w) setWard(w.id);
     }, [selectedAddress, provinceData]);
-    
+
     // Hàm chuẩn hóa chuỗi (loại bỏ dấu và khoảng trắng thừa)
     const normalizeString = (str) => {
-      if (!str) return "";
+      if (!str) return '';
 
       // Chuẩn hóa chuỗi cơ bản
       let normalized = str
         .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // Loại bỏ dấu
-        .replace(/đ/g, "d")
-        .replace(/Đ/g, "D")
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
         .trim()
-        .replace(/\s+/g, " "); // Loại bỏ khoảng trắng thừa
+        .replace(/\s+/g, ' '); // Loại bỏ khoảng trắng thừa
 
       // Bỏ các tiền tố không cần thiết: "Tỉnh", "Thành phố", "Quận", "Huyện", "Xã", "Phường", "Thị xã"
       normalized = normalized
-        .replace(/^tinh\s+/, "")
-        .replace(/^thanh pho\s+/, "")
-        .replace(/^quan\s+/, "")
-        .replace(/^huyen\s+/, "")
-        .replace(/^xa\s+/, "")
-        .replace(/^phuong\s+/, "")
-        .replace(/^thi xa\s+/, "");
+        .replace(/^tinh\s+/, '')
+        .replace(/^thanh pho\s+/, '')
+        .replace(/^quan\s+/, '')
+        .replace(/^huyen\s+/, '')
+        .replace(/^xa\s+/, '')
+        .replace(/^phuong\s+/, '')
+        .replace(/^thi xa\s+/, '');
 
       return normalized;
     };
@@ -670,13 +607,13 @@ const GiaoHang = React.forwardRef(
 
       // Kiểm tra và chuyển đổi name thành chuỗi nếu không phải chuỗi
       let nameStr;
-      if (typeof name === "string") {
+      if (typeof name === 'string') {
         nameStr = name;
       } else if (name !== null && name !== undefined) {
         // Chuyển đổi sang chuỗi nếu là số hoặc loại khác
         nameStr = String(name);
       } else {
-        console.error("Giá trị name không hợp lệ:", name);
+        console.error('Giá trị name không hợp lệ:', name);
         return null;
       }
 
@@ -687,24 +624,18 @@ const GiaoHang = React.forwardRef(
       const normalizedName = normalizeString(nameStr);
 
       // 1. Tìm kiếm chính xác sau khi đã chuẩn hóa
-      const exactMatch = list.find(
-        (item) => normalizeString(item.name) === normalizedName
-      );
+      const exactMatch = list.find((item) => normalizeString(item.name) === normalizedName);
       if (exactMatch) {
-        console.log(
-          `Tìm thấy kết quả khớp chính xác: "${exactMatch.name}" cho "${name}"`
-        );
+        console.log(`Tìm thấy kết quả khớp chính xác: "${exactMatch.name}" cho "${name}"`);
         return exactMatch;
       }
 
       // 2. Nếu name là số, tìm trực tiếp theo ID
-      if (typeof name === "number" || !isNaN(parseInt(nameStr, 10))) {
-        const idVal = typeof name === "number" ? name : parseInt(nameStr, 10);
+      if (typeof name === 'number' || !isNaN(parseInt(nameStr, 10))) {
+        const idVal = typeof name === 'number' ? name : parseInt(nameStr, 10);
         const idMatch = list.find((item) => parseInt(item.id, 10) === idVal);
         if (idMatch) {
-          console.log(
-            `Tìm thấy kết quả khớp theo ID: "${idMatch.name}" cho ID "${name}"`
-          );
+          console.log(`Tìm thấy kết quả khớp theo ID: "${idMatch.name}" cho ID "${name}"`);
           return idMatch;
         }
       }
@@ -713,12 +644,10 @@ const GiaoHang = React.forwardRef(
       const containsMatch = list.find(
         (item) =>
           normalizeString(item.name).includes(normalizedName) ||
-          normalizedName.includes(normalizeString(item.name))
+          normalizedName.includes(normalizeString(item.name)),
       );
       if (containsMatch) {
-        console.log(
-          `Tìm thấy kết quả chứa từ khóa: "${containsMatch.name}" cho "${name}"`
-        );
+        console.log(`Tìm thấy kết quả chứa từ khóa: "${containsMatch.name}" cho "${name}"`);
         return containsMatch;
       }
 
@@ -731,10 +660,7 @@ const GiaoHang = React.forwardRef(
 
         // Tính điểm dựa trên số ký tự trùng nhau liên tiếp từ đầu
         let score = 0;
-        const minLength = Math.min(
-          normalizedName.length,
-          itemNormalized.length
-        );
+        const minLength = Math.min(normalizedName.length, itemNormalized.length);
 
         let i = 0;
         while (i < minLength && normalizedName[i] === itemNormalized[i]) {
@@ -755,8 +681,8 @@ const GiaoHang = React.forwardRef(
       if (bestScore > 0.6) {
         console.log(
           `Tìm thấy kết quả gần đúng nhất: "${bestMatch.name}" (${Math.round(
-            bestScore * 100
-          )}%) cho "${name}"`
+            bestScore * 100,
+          )}%) cho "${name}"`,
         );
         return bestMatch;
       }
@@ -770,11 +696,10 @@ const GiaoHang = React.forwardRef(
 
       setLoading(true);
       try {
-        const isNewOrder =
-          sessionStorage.getItem(`new_order_${hoaDonId}`) === "true";
+        const isNewOrder = sessionStorage.getItem(`new_order_${hoaDonId}`) === 'true';
 
         if (isNewOrder) {
-          console.log("Đơn hàng mới cho khách lẻ, mở form nhập địa chỉ mới");
+          console.log('Đơn hàng mới cho khách lẻ, mở form nhập địa chỉ mới');
           setSelectedAddress(null);
           setIsNewAddressMode(true);
           setLoading(false);
@@ -786,13 +711,13 @@ const GiaoHang = React.forwardRef(
           `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-          }
+          },
         );
 
         const addressDetails = addressDetailsResponse.data;
-        console.log("Thông tin địa chỉ từ hóa đơn (khách lẻ):", addressDetails);
+        console.log('Thông tin địa chỉ từ hóa đơn (khách lẻ):', addressDetails);
         // Nếu không có địa chỉ hoặc địa chỉ không đầy đủ, mở form nhập mới
         if (
           !addressDetails ||
@@ -800,9 +725,7 @@ const GiaoHang = React.forwardRef(
           !addressDetails.huyen ||
           !addressDetails.xa
         ) {
-          console.log(
-            "Không có địa chỉ hoặc địa chỉ không đầy đủ, mở form nhập mới"
-          );
+          console.log('Không có địa chỉ hoặc địa chỉ không đầy đủ, mở form nhập mới');
           setSelectedAddress(null);
           setIsNewAddressMode(true);
           return;
@@ -819,30 +742,24 @@ const GiaoHang = React.forwardRef(
           if (provinceData.length === 0) {
             // Nếu chưa có dữ liệu tỉnh, tải dữ liệu tỉnh trước
             const provincesResponse = await axios.get(
-              "http://localhost:8080/api/admin/hoa-don/dia-chi/tinh",
+              'http://localhost:8080/api/admin/hoa-don/dia-chi/tinh',
               {
                 headers: {
-                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  Authorization: `Bearer ${localStorage.getItem('token')}`,
                 },
-              }
+              },
             );
 
             // Format và lưu dữ liệu tỉnh
-            const formattedProvinces = provincesResponse.data.map(
-              (province) => {
-                addressHelpers.cacheAddressInfo(
-                  "provinces",
-                  province.id,
-                  province.name
-                );
-                return {
-                  id: province.id,
-                  name: province.name,
-                  code: province.id,
-                  data2: [],
-                };
-              }
-            );
+            const formattedProvinces = provincesResponse.data.map((province) => {
+              addressHelpers.cacheAddressInfo('provinces', province.id, province.name);
+              return {
+                id: province.id,
+                name: province.name,
+                code: province.id,
+                data2: [],
+              };
+            });
 
             setProvinceData(formattedProvinces);
           }
@@ -850,7 +767,7 @@ const GiaoHang = React.forwardRef(
           // Tạo đối tượng địa chỉ tạm thời, lưu cả ID và chuẩn bị lưu tên
           const tempAddress = {
             id: `temp_${Math.random().toString(36).substr(2, 9)}`,
-            diaChiCuThe: addressDetails.diaChiCuThe || "", // Lưu địa chỉ chi tiết nguyên bản
+            diaChiCuThe: addressDetails.diaChiCuThe || '', // Lưu địa chỉ chi tiết nguyên bản
             xa: addressDetails.xa,
             huyen: addressDetails.huyen,
             tinh: addressDetails.tinh,
@@ -859,22 +776,17 @@ const GiaoHang = React.forwardRef(
           // Tìm và lấy tên địa chỉ, ưu tiên từ cache hoặc từ dữ liệu đã tải
           // 1. Lấy tên tỉnh
           let tinhName;
-          if (
-            typeof tempAddress.tinh === "number" ||
-            !isNaN(parseInt(tempAddress.tinh))
-          ) {
+          if (typeof tempAddress.tinh === 'number' || !isNaN(parseInt(tempAddress.tinh))) {
             const tinhId = parseInt(tempAddress.tinh, 10);
             // Kiểm tra cache trước
-            tinhName = addressHelpers.getNameById("provinces", tinhId);
+            tinhName = addressHelpers.getNameById('provinces', tinhId);
 
             // Nếu cache không có tên (trả về ID), tìm trong provinceData
             if (tinhName === String(tinhId)) {
-              const matchingProvince = provinceData.find(
-                (p) => p.id === tinhId
-              );
+              const matchingProvince = provinceData.find((p) => p.id === tinhId);
               if (matchingProvince) {
                 tinhName = matchingProvince.name;
-                addressHelpers.cacheAddressInfo("provinces", tinhId, tinhName);
+                addressHelpers.cacheAddressInfo('provinces', tinhId, tinhName);
               } else {
                 tinhName = `Tỉnh/TP: ${tinhId}`;
               }
@@ -891,18 +803,14 @@ const GiaoHang = React.forwardRef(
                 `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${tempAddress.tinh}`,
                 {
                   headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
                   },
-                }
+                },
               );
 
               districtDataTemp = districtsResponse.data.map((district) => {
                 const districtId = parseInt(district.id, 10);
-                addressHelpers.cacheAddressInfo(
-                  "districts",
-                  districtId,
-                  district.name
-                );
+                addressHelpers.cacheAddressInfo('districts', districtId, district.name);
                 return {
                   id: districtId,
                   name: district.name,
@@ -912,32 +820,23 @@ const GiaoHang = React.forwardRef(
 
               setDistrictData(districtDataTemp);
             } catch (error) {
-              console.error("Không thể tải danh sách quận/huyện:", error);
+              console.error('Không thể tải danh sách quận/huyện:', error);
             }
           }
 
           // 3. Lấy tên huyện
           let huyenName;
-          if (
-            typeof tempAddress.huyen === "number" ||
-            !isNaN(parseInt(tempAddress.huyen))
-          ) {
+          if (typeof tempAddress.huyen === 'number' || !isNaN(parseInt(tempAddress.huyen))) {
             const huyenId = parseInt(tempAddress.huyen, 10);
             // Kiểm tra cache trước
-            huyenName = addressHelpers.getNameById("districts", huyenId);
+            huyenName = addressHelpers.getNameById('districts', huyenId);
 
             // Nếu cache không có tên (trả về ID), tìm trong districtData
             if (huyenName === String(huyenId)) {
-              const matchingDistrict = districtDataTemp.find(
-                (d) => d.id === huyenId
-              );
+              const matchingDistrict = districtDataTemp.find((d) => d.id === huyenId);
               if (matchingDistrict) {
                 huyenName = matchingDistrict.name;
-                addressHelpers.cacheAddressInfo(
-                  "districts",
-                  huyenId,
-                  huyenName
-                );
+                addressHelpers.cacheAddressInfo('districts', huyenId, huyenName);
               } else {
                 huyenName = `Quận/Huyện: ${huyenId}`;
               }
@@ -954,14 +853,14 @@ const GiaoHang = React.forwardRef(
                 `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${tempAddress.huyen}`,
                 {
                   headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
                   },
-                }
+                },
               );
 
               wardDataTemp = wardsResponse.data.map((ward) => {
                 const wardId = parseInt(ward.id, 10);
-                addressHelpers.cacheAddressInfo("wards", wardId, ward.name);
+                addressHelpers.cacheAddressInfo('wards', wardId, ward.name);
                 return {
                   id: wardId,
                   name: ward.name,
@@ -971,26 +870,23 @@ const GiaoHang = React.forwardRef(
 
               setWardData(wardDataTemp);
             } catch (error) {
-              console.error("Không thể tải danh sách xã/phường:", error);
+              console.error('Không thể tải danh sách xã/phường:', error);
             }
           }
 
           // 5. Lấy tên xã
           let xaName;
-          if (
-            typeof tempAddress.xa === "number" ||
-            !isNaN(parseInt(tempAddress.xa))
-          ) {
+          if (typeof tempAddress.xa === 'number' || !isNaN(parseInt(tempAddress.xa))) {
             const xaId = parseInt(tempAddress.xa, 10);
             // Kiểm tra cache trước
-            xaName = addressHelpers.getNameById("wards", xaId);
+            xaName = addressHelpers.getNameById('wards', xaId);
 
             // Nếu cache không có tên (trả về ID), tìm trong wardData
             if (xaName === String(xaId)) {
               const matchingWard = wardDataTemp.find((w) => w.id === xaId);
               if (matchingWard) {
                 xaName = matchingWard.name;
-                addressHelpers.cacheAddressInfo("wards", xaId, xaName);
+                addressHelpers.cacheAddressInfo('wards', xaId, xaName);
               } else {
                 xaName = `Xã/Phường: ${xaId}`;
               }
@@ -1001,7 +897,7 @@ const GiaoHang = React.forwardRef(
 
           // 6. Tạo địa chỉ đầy đủ đảm bảo giữ nguyên địa chỉ chi tiết
           const fullAddress = `${
-            tempAddress.diaChiCuThe ? tempAddress.diaChiCuThe + ", " : ""
+            tempAddress.diaChiCuThe ? tempAddress.diaChiCuThe + ', ' : ''
           }${xaName}, ${huyenName}, ${tinhName}`;
 
           // 7. Cập nhật đối tượng địa chỉ với cả ID và tên
@@ -1013,7 +909,7 @@ const GiaoHang = React.forwardRef(
             fullAddress: fullAddress,
           };
 
-          console.log("Địa chỉ đã được làm giàu:", enrichedAddress);
+          console.log('Địa chỉ đã được làm giàu:', enrichedAddress);
 
           // 8. Lưu địa chỉ và cập nhật UI
           setSelectedAddress(enrichedAddress);
@@ -1033,7 +929,7 @@ const GiaoHang = React.forwardRef(
           setIsNewAddressMode(true);
         }
       } catch (error) {
-        console.error("Lỗi khi lấy địa chỉ từ hóa đơn cho khách lẻ:", error);
+        console.error('Lỗi khi lấy địa chỉ từ hóa đơn cho khách lẻ:', error);
         // Mở form nhập địa chỉ mới nếu có lỗi
         setSelectedAddress(null);
         setIsNewAddressMode(true);
@@ -1048,7 +944,7 @@ const GiaoHang = React.forwardRef(
       if (hoaDonId) {
         // Reset form completely when changing tabs
         setSelectedAddress(null);
-        setManualAddress("");
+        setManualAddress('');
         setProvince(null);
         setDistrict(null);
         setWard(null);
@@ -1056,15 +952,15 @@ const GiaoHang = React.forwardRef(
         setWardData([]);
         setAddressDataLoaded(false);
         setIsManuallyEditing(false);
-        
-        const isNewOrder = sessionStorage.getItem(`new_order_${hoaDonId}`) === "true";
-    
+
+        const isNewOrder = sessionStorage.getItem(`new_order_${hoaDonId}`) === 'true';
+
         // If it's a newly created order or when switching tabs
         if (isNewOrder) {
           setSelectedAddress(null);
           setAddressDataLoaded(false);
           setIsNewAddressMode(true);
-    
+
           // If there's no customer ID, show the address input form
           if (!customerId) {
             setIsNewAddressMode(true);
@@ -1081,64 +977,54 @@ const GiaoHang = React.forwardRef(
       }
     }, [hoaDonId]);
 
-
     const clearNewOrderFlag = () => {
       if (hoaDonId) {
         sessionStorage.removeItem(`new_order_${hoaDonId}`);
       }
     };
-// Update the useEffect that handles address selection and form population
-useEffect(() => {
-  if (selectedAddress && provinceData.length > 0) {
-    // CRITICAL: Skip address field population when in new address mode
-    if (isNewAddressMode === true) {
-      console.log("Đang ở chế độ nhập địa chỉ mới - bỏ qua cập nhật trường form");
-      return;
-    }
-    
-    // Log for debugging
-    console.log("Populating form with selected address:", selectedAddress);
-    
-    // Set basic values
-    setManualAddress(selectedAddress.diaChiCuThe || "");
+    // Update the useEffect that handles address selection and form population
+    useEffect(() => {
+      if (selectedAddress && provinceData.length > 0) {
+        // CRITICAL: Skip address field population when in new address mode
+        if (isNewAddressMode === true) {
+          console.log('Đang ở chế độ nhập địa chỉ mới - bỏ qua cập nhật trường form');
+          return;
+        }
 
-    // Find the matching province
-    const matchingProvince = findClosestMatch(
-      selectedAddress.tinh,
-      provinceData
-    );
+        // Log for debugging
+        console.log('Populating form with selected address:', selectedAddress);
 
-    if (matchingProvince) {
-      setProvince(matchingProvince.name);
-      setDistrictData(matchingProvince.data2);
+        // Set basic values
+        setManualAddress(selectedAddress.diaChiCuThe || '');
 
-      // Find the matching district
-      const matchingDistrict = findClosestMatch(
-        selectedAddress.huyen,
-        matchingProvince.data2
-      );
+        // Find the matching province
+        const matchingProvince = findClosestMatch(selectedAddress.tinh, provinceData);
 
-      if (matchingDistrict) {
-        setDistrict(matchingDistrict.name);
-        setWardData(matchingDistrict.data3);
+        if (matchingProvince) {
+          setProvince(matchingProvince.name);
+          setDistrictData(matchingProvince.data2);
 
-        // Find the matching ward
-        const matchingWard = findClosestMatch(
-          selectedAddress.xa,
-          matchingDistrict.data3
-        );
+          // Find the matching district
+          const matchingDistrict = findClosestMatch(selectedAddress.huyen, matchingProvince.data2);
 
-        if (matchingWard) {
-          setWard(matchingWard.name);
+          if (matchingDistrict) {
+            setDistrict(matchingDistrict.name);
+            setWardData(matchingDistrict.data3);
+
+            // Find the matching ward
+            const matchingWard = findClosestMatch(selectedAddress.xa, matchingDistrict.data3);
+
+            if (matchingWard) {
+              setWard(matchingWard.name);
+            }
+          }
         }
       }
-    }
-  }
-}, [selectedAddress, provinceData, isNewAddressMode]); // isNewAddressMode is a critical dependency // Add isNewAddressMode to dependencies
+    }, [selectedAddress, provinceData, isNewAddressMode]); // isNewAddressMode is a critical dependency // Add isNewAddressMode to dependencies
     // Tách hàm lấy địa chỉ để có thể gọi lại khi cần
     const fetchCustomerAddresses = async (id) => {
       if (!id) return;
-    
+
       setLoading(true);
       try {
         // Get the customer's address list
@@ -1146,12 +1032,12 @@ useEffect(() => {
           `http://localhost:8080/api/admin/khach_hang/diaChi/${id}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-          }
+          },
         );
-        console.log("API trả về danh sách địa chỉ:", response.data);
-    
+        console.log('API trả về danh sách địa chỉ:', response.data);
+
         if (Array.isArray(response.data) && response.data.length > 0) {
           // Normalize address data
           const normalizedAddresses = response.data.map((addr) => ({
@@ -1161,9 +1047,9 @@ useEffect(() => {
             xa: addr.xa?.trim(),
             diaChiCuThe: addr.diaChiCuThe?.trim(),
           }));
-    
+
           setAddresses(normalizedAddresses);
-    
+
           // Check if the invoice already has a stored address
           if (hoaDonId) {
             try {
@@ -1172,23 +1058,28 @@ useEffect(() => {
                 `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
                 {
                   headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
                   },
-                }
+                },
               );
-    
+
               const addressDetails = addressDetailsResponse.data;
-              console.log("Thông tin địa chỉ từ hóa đơn:", addressDetails);
-    
+              console.log('Thông tin địa chỉ từ hóa đơn:', addressDetails);
+
               // If the address is stored in the invoice, try to find a matching one
-              if (addressDetails && addressDetails.tinh && addressDetails.huyen && addressDetails.xa) {
+              if (
+                addressDetails &&
+                addressDetails.tinh &&
+                addressDetails.huyen &&
+                addressDetails.xa
+              ) {
                 const matchedAddress = findMatchingAddress(normalizedAddresses, addressDetails);
-    
+
                 if (matchedAddress) {
-                  console.log("Đã tìm thấy địa chỉ khớp:", matchedAddress);
+                  console.log('Đã tìm thấy địa chỉ khớp:', matchedAddress);
                   setSelectedAddress(matchedAddress);
                   setIsNewAddressMode(false);
-    
+
                   // Send the address up to BanHang.js for display
                   const addressToDisplay = {
                     id: matchedAddress.id,
@@ -1196,18 +1087,20 @@ useEffect(() => {
                     xa: matchedAddress.xa,
                     huyen: matchedAddress.huyen,
                     tinh: matchedAddress.tinh,
-                    fullAddress: `${matchedAddress.diaChiCuThe ? matchedAddress.diaChiCuThe + ", " : ""}${matchedAddress.xa}, ${matchedAddress.huyen}, ${matchedAddress.tinh}`,
+                    fullAddress: `${
+                      matchedAddress.diaChiCuThe ? matchedAddress.diaChiCuThe + ', ' : ''
+                    }${matchedAddress.xa}, ${matchedAddress.huyen}, ${matchedAddress.tinh}`,
                   };
-    
+
                   onAddressSelect(addressToDisplay);
                   return;
                 }
               }
             } catch (error) {
-              console.error("Lỗi khi kiểm tra địa chỉ trong hóa đơn:", error);
+              console.error('Lỗi khi kiểm tra địa chỉ trong hóa đơn:', error);
             }
           }
-    
+
           // If we reach here, either there's no address in the invoice or we couldn't find a match
           // Just select the first address
           selectFirstAddress();
@@ -1216,8 +1109,8 @@ useEffect(() => {
           setIsNewAddressMode(true);
         }
       } catch (error) {
-        console.error("Lỗi khi lấy địa chỉ khách hàng:", error);
-        message.error("Lỗi khi lấy địa chỉ khách hàng.");
+        console.error('Lỗi khi lấy địa chỉ khách hàng:', error);
+        message.error('Lỗi khi lấy địa chỉ khách hàng.');
         setIsNewAddressMode(true);
       } finally {
         setLoading(false);
@@ -1234,15 +1127,13 @@ useEffect(() => {
           address.tinh === addressDetails.tinh &&
           address.huyen === addressDetails.huyen &&
           address.xa === addressDetails.xa &&
-          (addressDetails.diaChiCuThe
-            ? address.diaChiCuThe === addressDetails.diaChiCuThe
-            : true)
+          (addressDetails.diaChiCuThe ? address.diaChiCuThe === addressDetails.diaChiCuThe : true),
       );
     };
     // Cập nhật hàm selectFirstAddress
     const selectFirstAddress = async () => {
       if (addresses.length === 0) {
-        console.log("Không có địa chỉ nào để chọn");
+        console.log('Không có địa chỉ nào để chọn');
         return;
       }
 
@@ -1254,13 +1145,13 @@ useEffect(() => {
             `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
             {
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
               },
-            }
+            },
           );
 
           const addressDetails = addressDetailsResponse.data;
-          console.log("Thông tin địa chỉ từ hóa đơn:", addressDetails);
+          console.log('Thông tin địa chỉ từ hóa đơn:', addressDetails);
 
           // Nếu có thông tin địa chỉ
           if (
@@ -1271,13 +1162,10 @@ useEffect(() => {
             addressDetails.xa
           ) {
             // Tìm địa chỉ tương ứng trong danh sách
-            const matchedAddress = findMatchingAddress(
-              addresses,
-              addressDetails
-            );
+            const matchedAddress = findMatchingAddress(addresses, addressDetails);
 
             if (matchedAddress) {
-              console.log("Đã tìm thấy địa chỉ khớp:", matchedAddress);
+              console.log('Đã tìm thấy địa chỉ khớp:', matchedAddress);
               // Đặt địa chỉ đã lưu làm địa chỉ được chọn
               setSelectedAddress(matchedAddress);
 
@@ -1289,20 +1177,13 @@ useEffect(() => {
                 huyen: matchedAddress.huyen,
                 tinh: matchedAddress.tinh,
                 fullAddress: `${
-                  matchedAddress.diaChiCuThe
-                    ? matchedAddress.diaChiCuThe + ", "
-                    : ""
-                }${matchedAddress.xa}, ${matchedAddress.huyen}, ${
-                  matchedAddress.tinh
-                }`,
+                  matchedAddress.diaChiCuThe ? matchedAddress.diaChiCuThe + ', ' : ''
+                }${matchedAddress.xa}, ${matchedAddress.huyen}, ${matchedAddress.tinh}`,
               };
 
               // Gửi địa chỉ lên BanHang.js để hiển thị
               onAddressSelect(addressToDisplay);
-              console.log(
-                "Đã chọn địa chỉ đã lưu trong hóa đơn:",
-                addressToDisplay
-              );
+              console.log('Đã chọn địa chỉ đã lưu trong hóa đơn:', addressToDisplay);
               return;
             }
           }
@@ -1318,9 +1199,9 @@ useEffect(() => {
             xa: firstAddress.xa,
             huyen: firstAddress.huyen,
             tinh: firstAddress.tinh,
-            fullAddress: `${
-              firstAddress.diaChiCuThe ? firstAddress.diaChiCuThe + ", " : ""
-            }${firstAddress.xa}, ${firstAddress.huyen}, ${firstAddress.tinh}`,
+            fullAddress: `${firstAddress.diaChiCuThe ? firstAddress.diaChiCuThe + ', ' : ''}${
+              firstAddress.xa
+            }, ${firstAddress.huyen}, ${firstAddress.tinh}`,
           };
 
           // Gửi địa chỉ lên BanHang.js để hiển thị
@@ -1329,9 +1210,9 @@ useEffect(() => {
           // Cập nhật địa chỉ vào hóa đơn
           await submitAddressToInvoice(addressToDisplay);
 
-          console.log("Đã tự động chọn địa chỉ đầu tiên:", addressToDisplay);
+          console.log('Đã tự động chọn địa chỉ đầu tiên:', addressToDisplay);
         } catch (error) {
-          console.error("Lỗi khi kiểm tra thông tin hóa đơn:", error);
+          console.error('Lỗi khi kiểm tra thông tin hóa đơn:', error);
 
           // Trong trường hợp lỗi, vẫn cố gắng chọn địa chỉ đầu tiên
           selectFirstAddressDirectly();
@@ -1356,9 +1237,9 @@ useEffect(() => {
         xa: firstAddress.xa,
         huyen: firstAddress.huyen,
         tinh: firstAddress.tinh,
-        fullAddress: `${
-          firstAddress.diaChiCuThe ? firstAddress.diaChiCuThe + ", " : ""
-        }${firstAddress.xa}, ${firstAddress.huyen}, ${firstAddress.tinh}`,
+        fullAddress: `${firstAddress.diaChiCuThe ? firstAddress.diaChiCuThe + ', ' : ''}${
+          firstAddress.xa
+        }, ${firstAddress.huyen}, ${firstAddress.tinh}`,
       };
 
       // Gửi địa chỉ lên BanHang.js để hiển thị
@@ -1369,17 +1250,17 @@ useEffect(() => {
         try {
           await submitAddressToInvoice(addressToDisplay);
         } catch (error) {
-          console.error("Lỗi khi cập nhật địa chỉ vào hóa đơn:", error);
+          console.error('Lỗi khi cập nhật địa chỉ vào hóa đơn:', error);
         }
       }
 
-      console.log("Đã chọn địa chỉ đầu tiên trực tiếp:", addressToDisplay);
+      console.log('Đã chọn địa chỉ đầu tiên trực tiếp:', addressToDisplay);
     };
     // Thêm hàm applyAddressToInvoice (đã được tham chiếu trong useImperativeHandle)
     const applyAddressToInvoice = async () => {
       // Nếu không có địa chỉ được chọn hoặc không có hoaDonId, không thể áp dụng
       if (!selectedAddress || !hoaDonId) {
-        console.log("Không thể áp dụng: Thiếu địa chỉ hoặc hoaDonId");
+        console.log('Không thể áp dụng: Thiếu địa chỉ hoặc hoaDonId');
         return;
       }
 
@@ -1396,29 +1277,26 @@ useEffect(() => {
         // Gửi địa chỉ lên API để cập nhật hóa đơn
         const result = await submitAddressToInvoice(addressData);
 
-        console.log("Đã áp dụng địa chỉ vào hóa đơn:", result);
+        console.log('Đã áp dụng địa chỉ vào hóa đơn:', result);
         return result;
       } catch (error) {
-        console.error("Lỗi khi áp dụng địa chỉ vào hóa đơn:", error);
+        console.error('Lỗi khi áp dụng địa chỉ vào hóa đơn:', error);
         throw error;
       }
     };
     // Thêm hàm submitAddressToInvoice ngay sau các hàm xử lý địa chỉ
     const submitAddressToInvoice = async (addressData) => {
       if (!hoaDonId) {
-        console.log("Không có hoaDonId để cập nhật địa chỉ");
+        console.log('Không có hoaDonId để cập nhật địa chỉ');
         return;
       }
       if (!addressData.tinh || !addressData.huyen || !addressData.xa || !addressData.diaChiCuThe) {
-        message.error("Thông tin địa chỉ không đầy đủ, vui lòng nhập lại");
+        message.error('Thông tin địa chỉ không đầy đủ, vui lòng nhập lại');
         return null;
       }
-    
+
       try {
-        console.log(
-          `Đang cập nhật địa chỉ cho hóa đơn ${hoaDonId}:`,
-          addressData
-        );
+        console.log(`Đang cập nhật địa chỉ cho hóa đơn ${hoaDonId}:`, addressData);
 
         const payload = {
           diaChiId: addressData.id,
@@ -1428,27 +1306,27 @@ useEffect(() => {
           tinh: addressData.tinh,
         };
 
-        console.log("Gửi request cập nhật địa chỉ:", payload);
+        console.log('Gửi request cập nhật địa chỉ:', payload);
 
         const response = await axios.put(
           `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/update-address`,
           payload,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json',
             },
-          }
+          },
         );
 
-        console.log("Phản hồi từ server:", response.data);
-        message.success("Cập nhật địa chỉ giao hàng thành công.");
+        console.log('Phản hồi từ server:', response.data);
+        message.success('Cập nhật địa chỉ giao hàng thành công.');
         return response.data;
       } catch (error) {
-        console.error("Lỗi khi cập nhật địa chỉ giao hàng:", error);
+        console.error('Lỗi khi cập nhật địa chỉ giao hàng:', error);
 
         if (error.response) {
-          console.error("Chi tiết lỗi từ server:", error.response.data);
+          console.error('Chi tiết lỗi từ server:', error.response.data);
           // message.error(`Lỗi cập nhật: ${error.response.data.message || "Lỗi không xác định"}`);
         } else {
           // message.error("Không thể kết nối đến server.");
@@ -1462,22 +1340,15 @@ useEffect(() => {
       const fetchProvinces = async () => {
         setLoading(true);
         try {
-          const response = await axios.get(
-            "http://localhost:8080/api/admin/hoa-don/dia-chi/tinh",
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          );
+          const response = await axios.get('http://localhost:8080/api/admin/hoa-don/dia-chi/tinh', {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          });
 
           // Lưu vào cache và format dữ liệu
           const formattedProvinces = response.data.map((province) => {
-            addressHelpers.cacheAddressInfo(
-              "provinces",
-              province.id,
-              province.name
-            );
+            addressHelpers.cacheAddressInfo('provinces', province.id, province.name);
             return {
               id: province.id,
               name: province.name,
@@ -1488,8 +1359,8 @@ useEffect(() => {
 
           setProvinceData(formattedProvinces);
         } catch (error) {
-          console.error("Lỗi khi lấy dữ liệu tỉnh/thành phố:", error);
-          message.error("Không thể tải danh sách tỉnh/thành phố");
+          console.error('Lỗi khi lấy dữ liệu tỉnh/thành phố:', error);
+          message.error('Không thể tải danh sách tỉnh/thành phố');
         } finally {
           setLoading(false);
         }
@@ -1504,7 +1375,7 @@ useEffect(() => {
       // value là tên tỉnh, cần lấy ID của tỉnh đó
       const provinceObj = provinceData.find((p) => p.name === value);
       if (!provinceObj) {
-        console.error("Không tìm thấy tỉnh/thành phố:", value);
+        console.error('Không tìm thấy tỉnh/thành phố:', value);
         return;
       }
 
@@ -1515,7 +1386,7 @@ useEffect(() => {
       setProvince(provinceId);
 
       // Lưu vào cache để sử dụng sau này
-      addressHelpers.cacheAddressInfo("provinces", provinceId, value);
+      addressHelpers.cacheAddressInfo('provinces', provinceId, value);
 
       // Reset district và ward khi thay đổi province
       setDistrict(null);
@@ -1525,27 +1396,21 @@ useEffect(() => {
       try {
         setLoading(true);
 
-        console.log(
-          `Đang tải quận/huyện cho tỉnh ID: ${provinceId} (${value})`
-        );
+        console.log(`Đang tải quận/huyện cho tỉnh ID: ${provinceId} (${value})`);
 
         const response = await axios.get(
           `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${provinceId}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-          }
+          },
         );
 
         const formattedDistricts = response.data.map((district) => {
           // Đảm bảo lưu vào cache với ID là số nguyên
           const districtId = parseInt(district.id, 10);
-          addressHelpers.cacheAddressInfo(
-            "districts",
-            districtId,
-            district.name
-          );
+          addressHelpers.cacheAddressInfo('districts', districtId, district.name);
           return {
             id: districtId,
             name: district.name,
@@ -1555,7 +1420,7 @@ useEffect(() => {
         });
 
         setDistrictData(formattedDistricts);
-        console.log("Đã chọn tỉnh:", value, "- ID:", provinceId);
+        console.log('Đã chọn tỉnh:', value, '- ID:', provinceId);
       } catch (error) {
         console.error(`Lỗi khi lấy quận/huyện:`, error);
         message.error(`Không thể tải danh sách quận/huyện`);
@@ -1572,7 +1437,7 @@ useEffect(() => {
       // Tìm district đã chọn - value là tên quận/huyện
       const selectedDistrict = districtData.find((d) => d.name === value);
       if (!selectedDistrict) {
-        console.error("Không tìm thấy quận/huyện:", value);
+        console.error('Không tìm thấy quận/huyện:', value);
         return;
       }
 
@@ -1581,7 +1446,7 @@ useEffect(() => {
       setDistrict(districtId);
 
       // Lưu vào cache để sử dụng sau này
-      addressHelpers.cacheAddressInfo("districts", districtId, value);
+      addressHelpers.cacheAddressInfo('districts', districtId, value);
 
       // Reset xã/phường khi thay đổi quận/huyện
       setWard(null);
@@ -1589,21 +1454,19 @@ useEffect(() => {
       try {
         setLoading(true); // Hiển thị trạng thái loading
 
-        console.log(
-          `Đang tải xã/phường cho huyện ID: ${districtId} (${value})`
-        );
+        console.log(`Đang tải xã/phường cho huyện ID: ${districtId} (${value})`);
 
         // Gọi API để lấy danh sách xã/phường theo ID quận/huyện
         const wardsResponse = await axios.get(
           `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${districtId}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-          }
+          },
         );
 
-        console.log("API ward response:", wardsResponse.data);
+        console.log('API ward response:', wardsResponse.data);
 
         // Chuyển đổi dữ liệu từ API sang định dạng phù hợp
         const formattedWards = wardsResponse.data.map((ward) => {
@@ -1611,7 +1474,7 @@ useEffect(() => {
           const wardId = parseInt(ward.id, 10);
 
           // Cache thông tin xã/phường để dùng sau
-          addressHelpers.cacheAddressInfo("wards", wardId, ward.name);
+          addressHelpers.cacheAddressInfo('wards', wardId, ward.name);
 
           return {
             id: wardId,
@@ -1621,13 +1484,13 @@ useEffect(() => {
         });
 
         // Debug xem danh sách xã/phường có đúng định dạng không
-        console.log("Formatted wards:", formattedWards);
+        console.log('Formatted wards:', formattedWards);
 
         // Cập nhật dữ liệu xã/phường
         setWardData(formattedWards);
 
         console.log(
-          `Đã tải ${formattedWards.length} xã/phường cho quận/huyện: ${value} (ID: ${districtId})`
+          `Đã tải ${formattedWards.length} xã/phường cho quận/huyện: ${value} (ID: ${districtId})`,
         );
       } catch (error) {
         console.error(`Lỗi khi lấy xã/phường cho quận/huyện ${value}:`, error);
@@ -1640,33 +1503,33 @@ useEffect(() => {
     // Xử lý chọn xã/phường
     const handleWardChange = (value) => {
       setIsManuallyEditing(true); // Đánh dấu đang ở chế độ nhập thủ công
-    
+
       // Tìm ward đã chọn - value là tên xã/phường
       const selectedWard = wardData.find((w) => w.name === value);
       if (selectedWard) {
         // Lưu ID của xã/phường, KHÔNG phải tên
         const wardId = parseInt(selectedWard.id, 10);
         setWard(wardId);
-    
+
         // Lưu vào cache để sử dụng sau này
-        addressHelpers.cacheAddressInfo("wards", wardId, value);
-    
-        console.log("Đã chọn xã/phường:", value, "- ID:", wardId);
+        addressHelpers.cacheAddressInfo('wards', wardId, value);
+
+        console.log('Đã chọn xã/phường:', value, '- ID:', wardId);
       } else {
-        console.error("Không tìm thấy xã/phường với tên:", value);
+        console.error('Không tìm thấy xã/phường với tên:', value);
       }
     };
     // Thêm hàm để hiển thị địa chỉ đầy đủ với tên thay vì ID
     const displayFullAddress = (address) => {
-      if (!address) return "";
+      if (!address) return '';
       // Nếu đã có fullAddress, ưu tiên sử dụng
       if (address.fullAddress) return address.fullAddress;
       try {
-        let wardName = "";
+        let wardName = '';
         if (address.xa) {
           // Tìm trong wardData
           const matchingWard = wardData.find(
-            (w) => w.id && w.id.toString() === address.xa.toString()
+            (w) => w.id && w.id.toString() === address.xa.toString(),
           );
           if (matchingWard) {
             wardName = matchingWard.name;
@@ -1675,9 +1538,7 @@ useEffect(() => {
             wardName = addressCache.wards.get(address.xa.toString());
           } else {
             // Thông báo và tải thông tin nhưng đừng đợi
-            console.log(
-              `Không tìm thấy tên xã/phường cho ID: ${address.xa}, sẽ tải thông tin`
-            );
+            console.log(`Không tìm thấy tên xã/phường cho ID: ${address.xa}, sẽ tải thông tin`);
             wardName = `${address.xa}`;
             // Gọi hàm fetch không đồng bộ
             fetchWardInfo(address.huyen, address.xa).then((name) => {
@@ -1690,11 +1551,11 @@ useEffect(() => {
         }
 
         // Lấy tên quận/huyện từ ID
-        let districtName = "";
+        let districtName = '';
         if (address.huyen) {
           // Tìm trong districtData
           const matchingDistrict = districtData.find(
-            (d) => d.id && d.id.toString() === address.huyen.toString()
+            (d) => d.id && d.id.toString() === address.huyen.toString(),
           );
           if (matchingDistrict) {
             districtName = matchingDistrict.name;
@@ -1703,9 +1564,7 @@ useEffect(() => {
             districtName = addressCache.districts.get(address.huyen.toString());
           } else {
             // Thông báo và tải thông tin nhưng đừng đợi
-            console.log(
-              `Không tìm thấy tên quận/huyện cho ID: ${address.huyen}, sẽ tải thông tin`
-            );
+            console.log(`Không tìm thấy tên quận/huyện cho ID: ${address.huyen}, sẽ tải thông tin`);
             districtName = `${address.huyen}`;
             // Gọi hàm fetch không đồng bộ
             fetchDistrictInfo(address.tinh, address.huyen).then((name) => {
@@ -1718,11 +1577,11 @@ useEffect(() => {
         }
 
         // Lấy tên tỉnh/thành phố từ ID
-        let provinceName = "";
+        let provinceName = '';
         if (address.tinh) {
           // Tìm trong provinceData
           const matchingProvince = provinceData.find(
-            (p) => p.id && p.id.toString() === address.tinh.toString()
+            (p) => p.id && p.id.toString() === address.tinh.toString(),
           );
           if (matchingProvince) {
             provinceName = matchingProvince.name;
@@ -1731,9 +1590,7 @@ useEffect(() => {
             provinceName = addressCache.provinces.get(address.tinh.toString());
           } else {
             // Không cần gọi API vì provinceData nên đã có sẵn
-            console.log(
-              `Không tìm thấy tên tỉnh/thành phố cho ID: ${address.tinh}`
-            );
+            console.log(`Không tìm thấy tên tỉnh/thành phố cho ID: ${address.tinh}`);
             provinceName = `${address.tinh}`;
           }
         }
@@ -1741,7 +1598,7 @@ useEffect(() => {
         // Ghép thành địa chỉ đầy đủ
         const addressParts = [];
 
-        if (address.diaChiCuThe && address.diaChiCuThe.trim() !== "") {
+        if (address.diaChiCuThe && address.diaChiCuThe.trim() !== '') {
           addressParts.push(address.diaChiCuThe.trim());
         }
 
@@ -1757,13 +1614,13 @@ useEffect(() => {
           addressParts.push(provinceName);
         }
 
-        return addressParts.join(", ");
+        return addressParts.join(', ');
       } catch (error) {
-        console.error("Lỗi khi hiển thị địa chỉ:", error);
+        console.error('Lỗi khi hiển thị địa chỉ:', error);
         // Hiển thị thông tin địa chỉ cơ bản trong trường hợp lỗi
-        return `${address.diaChiCuThe || ""}, ${address.xa || ""}, ${
-          address.huyen || ""
-        }, ${address.tinh || ""}`;
+        return `${address.diaChiCuThe || ''}, ${address.xa || ''}, ${address.huyen || ''}, ${
+          address.tinh || ''
+        }`;
       }
     };
     // Hàm lấy thông tin quận/huyện từ API
@@ -1773,23 +1630,17 @@ useEffect(() => {
       try {
         // Đảm bảo provinceId là số nguyên
         let provinceIdNumber;
-        if (typeof provinceId === "number") {
+        if (typeof provinceId === 'number') {
           provinceIdNumber = provinceId;
         } else if (!isNaN(parseInt(provinceId, 10))) {
           provinceIdNumber = parseInt(provinceId, 10);
         } else {
           // Nếu provinceId là tên, thử lấy ID từ cache
-          const idFromCache = addressHelpers.getIdByName(
-            "provinces",
-            provinceId
-          );
+          const idFromCache = addressHelpers.getIdByName('provinces', provinceId);
           if (idFromCache) {
             provinceIdNumber = idFromCache;
           } else {
-            console.error(
-              "Không thể chuyển đổi provinceId thành số:",
-              provinceId
-            );
+            console.error('Không thể chuyển đổi provinceId thành số:', provinceId);
             return null;
           }
         }
@@ -1801,9 +1652,9 @@ useEffect(() => {
           `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${provinceIdNumber}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-          }
+          },
         );
 
         if (Array.isArray(response.data)) {
@@ -1811,14 +1662,9 @@ useEffect(() => {
           let district;
 
           // Đảm bảo districtId là số hoặc chuỗi số
-          if (
-            typeof districtId === "number" ||
-            !isNaN(parseInt(districtId, 10))
-          ) {
+          if (typeof districtId === 'number' || !isNaN(parseInt(districtId, 10))) {
             const districtIdNumber = parseInt(districtId, 10);
-            district = response.data.find(
-              (d) => parseInt(d.id, 10) === districtIdNumber
-            );
+            district = response.data.find((d) => parseInt(d.id, 10) === districtIdNumber);
           } else {
             // Nếu districtId là tên, tìm trong dữ liệu API theo tên
             district = response.data.find((d) => d.name === districtId);
@@ -1828,11 +1674,7 @@ useEffect(() => {
             const districtIdNumber = parseInt(district.id, 10);
 
             // Lưu vào cache
-            addressHelpers.cacheAddressInfo(
-              "districts",
-              districtIdNumber,
-              district.name
-            );
+            addressHelpers.cacheAddressInfo('districts', districtIdNumber, district.name);
 
             // Cập nhật danh sách huyện
             setDistrictData(
@@ -1841,7 +1683,7 @@ useEffect(() => {
                 name: d.name,
                 code: parseInt(d.id, 10),
                 data3: [],
-              }))
+              })),
             );
 
             return district.name;
@@ -1860,23 +1702,17 @@ useEffect(() => {
       try {
         // Đảm bảo districtId là số nguyên
         let districtIdNumber;
-        if (typeof districtId === "number") {
+        if (typeof districtId === 'number') {
           districtIdNumber = districtId;
         } else if (!isNaN(parseInt(districtId, 10))) {
           districtIdNumber = parseInt(districtId, 10);
         } else {
           // Nếu districtId là tên, thử lấy ID từ cache
-          const idFromCache = addressHelpers.getIdByName(
-            "districts",
-            districtId
-          );
+          const idFromCache = addressHelpers.getIdByName('districts', districtId);
           if (idFromCache) {
             districtIdNumber = idFromCache;
           } else {
-            console.error(
-              "Không thể chuyển đổi districtId thành số:",
-              districtId
-            );
+            console.error('Không thể chuyển đổi districtId thành số:', districtId);
             return null;
           }
         }
@@ -1888,9 +1724,9 @@ useEffect(() => {
           `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${districtIdNumber}`,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
             },
-          }
+          },
         );
 
         if (Array.isArray(response.data)) {
@@ -1898,11 +1734,9 @@ useEffect(() => {
           let ward;
 
           // Đảm bảo wardId là số hoặc chuỗi số
-          if (typeof wardId === "number" || !isNaN(parseInt(wardId, 10))) {
+          if (typeof wardId === 'number' || !isNaN(parseInt(wardId, 10))) {
             const wardIdNumber = parseInt(wardId, 10);
-            ward = response.data.find(
-              (w) => parseInt(w.id, 10) === wardIdNumber
-            );
+            ward = response.data.find((w) => parseInt(w.id, 10) === wardIdNumber);
           } else {
             // Nếu wardId là tên, tìm trong dữ liệu API theo tên
             ward = response.data.find((w) => w.name === wardId);
@@ -1912,20 +1746,17 @@ useEffect(() => {
             const wardIdNumber = parseInt(ward.id, 10);
 
             // Lưu vào cache
-            addressHelpers.cacheAddressInfo("wards", wardIdNumber, ward.name);
+            addressHelpers.cacheAddressInfo('wards', wardIdNumber, ward.name);
 
             // Cập nhật danh sách xã nếu đúng huyện hiện tại
             const currentDistrict = district;
-            if (
-              currentDistrict &&
-              parseInt(currentDistrict, 10) === districtIdNumber
-            ) {
+            if (currentDistrict && parseInt(currentDistrict, 10) === districtIdNumber) {
               setWardData(
                 response.data.map((w) => ({
                   id: parseInt(w.id, 10),
                   name: w.name,
                   code: parseInt(w.id, 10),
-                }))
+                })),
               );
             }
 
@@ -1940,25 +1771,25 @@ useEffect(() => {
     // Xử lý chọn địa chỉ từ danh sách có sẵn
     const handleAddressSelect = async () => {
       if (!selectedAddress || !selectedAddress.id) {
-        message.error("Vui lòng chọn một địa chỉ hợp lệ.");
+        message.error('Vui lòng chọn một địa chỉ hợp lệ.');
         return;
       }
 
       if (!hoaDonId) {
-        message.warning("Không tìm thấy hóa đơn để cập nhật địa chỉ.");
+        message.warning('Không tìm thấy hóa đơn để cập nhật địa chỉ.');
         return;
       }
 
       // Tạo payload với cấu trúc đúng
       const payload = {
         diaChiId: selectedAddress.id,
-        diaChiCuThe: selectedAddress.diaChiCuThe || "",
+        diaChiCuThe: selectedAddress.diaChiCuThe || '',
         xa: selectedAddress.xa,
         huyen: selectedAddress.huyen,
         tinh: selectedAddress.tinh,
       };
 
-      console.log("Gửi request cập nhật địa chỉ:", payload);
+      console.log('Gửi request cập nhật địa chỉ:', payload);
 
       try {
         const response = await axios.put(
@@ -1966,14 +1797,14 @@ useEffect(() => {
           payload,
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json',
             },
-          }
+          },
         );
 
-        console.log("Phản hồi từ server:", response.data);
-        message.success("Cập nhật địa chỉ giao hàng thành công.");
+        console.log('Phản hồi từ server:', response.data);
+        message.success('Cập nhật địa chỉ giao hàng thành công.');
 
         // Cập nhật UI với địa chỉ đầy đủ đã được hiển thị
         const fullAddress = displayFullAddress(selectedAddress);
@@ -1989,30 +1820,21 @@ useEffect(() => {
           selectedAddress.huyen &&
           selectedAddress.xa
         ) {
-          console.log("Tính phí vận chuyển cho địa chỉ đã chọn");
+          console.log('Tính phí vận chuyển cho địa chỉ đã chọn');
           await calculateShippingFee(selectedAddress);
         } else {
-          console.warn(
-            "Địa chỉ thiếu thông tin để tính phí vận chuyển",
-            selectedAddress
-          );
-          message.warning(
-            "Không thể tính phí vận chuyển do thiếu thông tin địa chỉ"
-          );
+          console.warn('Địa chỉ thiếu thông tin để tính phí vận chuyển', selectedAddress);
+          message.warning('Không thể tính phí vận chuyển do thiếu thông tin địa chỉ');
         }
 
         // Đóng modal
         setIsModalVisible(false);
       } catch (error) {
-        console.error("Lỗi khi cập nhật địa chỉ vào hóa đơn:", error);
+        console.error('Lỗi khi cập nhật địa chỉ vào hóa đơn:', error);
         if (error.response) {
-          message.error(
-            `Lỗi: ${
-              error.response.data.message || "Không thể cập nhật địa chỉ"
-            }`
-          );
+          message.error(`Lỗi: ${error.response.data.message || 'Không thể cập nhật địa chỉ'}`);
         } else {
-          message.error("Không thể kết nối đến server để cập nhật địa chỉ");
+          message.error('Không thể kết nối đến server để cập nhật địa chỉ');
         }
       }
     };
@@ -2022,24 +1844,24 @@ useEffect(() => {
 
       setAddressSubmitAttempted(true);
       if (!province || !district || !ward) {
-        message.error("Vui lòng chọn đầy đủ thông tin địa chỉ");
+        message.error('Vui lòng chọn đầy đủ thông tin địa chỉ');
         return;
       }
-    
-      const normalizedManualAddress = manualAddress ? manualAddress.trim() : "";
+
+      const normalizedManualAddress = manualAddress ? manualAddress.trim() : '';
       if (!normalizedManualAddress) {
-        message.error("Vui lòng nhập địa chỉ cụ thể");
+        message.error('Vui lòng nhập địa chỉ cụ thể');
         return;
       }
-      
+
       setLoading(true);
-    
+
       try {
         // Get province/district/ward names from cache or current state
-        const tinhName = addressHelpers.getNameById("provinces", province);
-        const huyenName = addressHelpers.getNameById("districts", district);
-        const xaName = addressHelpers.getNameById("wards", ward);
-        
+        const tinhName = addressHelpers.getNameById('provinces', province);
+        const huyenName = addressHelpers.getNameById('districts', district);
+        const xaName = addressHelpers.getNameById('wards', ward);
+
         // Create new address object with both IDs and names
         const newAddress = {
           diaChiCuThe: normalizedManualAddress,
@@ -2047,9 +1869,9 @@ useEffect(() => {
           huyen: district,
           xa: ward,
         };
-    
-        console.log("Đang lưu địa chỉ mới:", newAddress);
-        
+
+        console.log('Đang lưu địa chỉ mới:', newAddress);
+
         let savedAddress;
         if (customerId) {
           // For registered customers, save address to database
@@ -2062,18 +1884,18 @@ useEffect(() => {
                 tinh: province,
                 huyen: district,
                 xa: ward,
-              }
+              },
             },
             {
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
               },
-            }
+            },
           );
-    
-          console.log("Phản hồi từ server sau khi lưu địa chỉ:", response.data);
+
+          console.log('Phản hồi từ server sau khi lưu địa chỉ:', response.data);
           savedAddress = response.data;
-          
+
           // Refresh address list to update UI
           await fetchCustomerAddresses(customerId);
         } else {
@@ -2083,22 +1905,22 @@ useEffect(() => {
             id: `temp-${Math.random().toString(36).substring(2, 11)}`,
           };
         }
-    
+
         // Prepare full address for display
         const fullAddress = `${normalizedManualAddress}, ${xaName}, ${huyenName}, ${tinhName}`;
-        
+
         const addressWithFullDetails = {
           ...savedAddress,
           tinhName: tinhName,
           huyenName: huyenName,
           xaName: xaName,
-          fullAddress: fullAddress
+          fullAddress: fullAddress,
         };
-    
+
         // Update UI and call callbacks
         setSelectedAddress(addressWithFullDetails);
         onAddressSelect(addressWithFullDetails);
-    
+
         if (hoaDonId) {
           // Update invoice with the new address
           await submitAddressToInvoice({
@@ -2106,25 +1928,24 @@ useEffect(() => {
             diaChiCuThe: normalizedManualAddress,
             tinh: province,
             huyen: district,
-            xa: ward
+            xa: ward,
           });
-          
+
           // Calculate shipping fee for the new address
           await calculateShippingFee(addressWithFullDetails);
-          
+
           // Clear new order flag
           clearNewOrderFlag();
         }
-    
+
         setIsNewAddressMode(false);
-        message.success("Đã lưu địa chỉ thành công");
+        message.success('Đã lưu địa chỉ thành công');
       } catch (error) {
-        console.error("Lỗi khi lưu địa chỉ:", error);
-        console.error("Chi tiết lỗi:", error.response?.data);
-        
+        console.error('Lỗi khi lưu địa chỉ:', error);
+        console.error('Chi tiết lỗi:', error.response?.data);
+
         message.error(
-          "Không thể lưu địa chỉ mới: " + 
-          (error.response?.data?.message || error.message)
+          'Không thể lưu địa chỉ mới: ' + (error.response?.data?.message || error.message),
         );
       } finally {
         setLoading(false);
@@ -2135,7 +1956,7 @@ useEffect(() => {
     const switchToNewAddressMode = () => {
       setIsNewAddressMode(true);
       setSelectedAddress(null);
-      setManualAddress("");
+      setManualAddress('');
       setProvince(null);
       setDistrict(null);
       setWard(null);
@@ -2144,32 +1965,24 @@ useEffect(() => {
       setAddressDataLoaded(false);
       setIsManuallyEditing(false);
     };
-    
 
     const mapAddressToGHNFormat = async (address) => {
       if (!address) {
-        console.error("Không có địa chỉ để chuyển đổi");
+        console.error('Không có địa chỉ để chuyển đổi');
         return null;
       }
 
-      console.log("Đang chuyển đổi địa chỉ sang định dạng GHN:", address);
+      console.log('Đang chuyển đổi địa chỉ sang định dạng GHN:', address);
 
       // Kiểm tra các trường thông tin địa chỉ bắt buộc
-      if (
-        !address.huyen ||
-        !address.xa ||
-        !address.tinh ||
-        !address.diaChiCuThe
-      ) {
-        console.error("Địa chỉ thiếu thông tin cần thiết:", {
+      if (!address.huyen || !address.xa || !address.tinh || !address.diaChiCuThe) {
+        console.error('Địa chỉ thiếu thông tin cần thiết:', {
           huyen: address.huyen,
           xa: address.xa,
           tinh: address.tinh,
           diaChiCuThe: address.diaChiCuThe,
         });
-        message.error(
-          "Địa chỉ thiếu thông tin quận/huyện, xã/phường hoặc tỉnh/thành phố"
-        );
+        message.error('Địa chỉ thiếu thông tin quận/huyện, xã/phường hoặc tỉnh/thành phố');
         return null;
       }
 
@@ -2180,32 +1993,29 @@ useEffect(() => {
         if (provinceData && provinceData.length > 0) {
           // Sử dụng dữ liệu tỉnh đã có sẵn
           provinces = provinceData;
-          console.log("Sử dụng dữ liệu tỉnh có sẵn:", provinces.length);
+          console.log('Sử dụng dữ liệu tỉnh có sẵn:', provinces.length);
         } else {
           // Gọi API chỉ khi cần thiết
           const provincesResponse = await axios.get(
-            "http://localhost:8080/api/admin/hoa-don/dia-chi/tinh",
+            'http://localhost:8080/api/admin/hoa-don/dia-chi/tinh',
             {
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
               },
-            }
+            },
           );
           provinces = provincesResponse.data;
         }
 
         // Tìm tỉnh/thành phố phù hợp bằng ID nếu tỉnh là một số
         let matchingProvince;
-        if (
-          typeof address.tinh === "number" ||
-          !isNaN(parseInt(address.tinh, 10))
-        ) {
+        if (typeof address.tinh === 'number' || !isNaN(parseInt(address.tinh, 10))) {
           // Nếu address.tinh là ID (số), tìm theo ID
           const provinceId = parseInt(address.tinh, 10);
           matchingProvince = provinces.find((p) => p.id === provinceId);
           console.log(
             `Tìm tỉnh theo ID ${provinceId}:`,
-            matchingProvince ? "Đã tìm thấy" : "Không tìm thấy"
+            matchingProvince ? 'Đã tìm thấy' : 'Không tìm thấy',
           );
         } else {
           // Nếu là tên, tìm theo tên
@@ -2213,16 +2023,16 @@ useEffect(() => {
             (p) =>
               normalizeString(p.name) === normalizeString(address.tinh) ||
               normalizeString(p.name).includes(normalizeString(address.tinh)) ||
-              normalizeString(address.tinh).includes(normalizeString(p.name))
+              normalizeString(address.tinh).includes(normalizeString(p.name)),
           );
         }
 
         if (!matchingProvince) {
-          console.error("Không tìm thấy tỉnh/thành phố phù hợp:", address.tinh);
+          console.error('Không tìm thấy tỉnh/thành phố phù hợp:', address.tinh);
           return null;
         }
 
-        console.log("Đã tìm thấy tỉnh/thành phố:", matchingProvince.name);
+        console.log('Đã tìm thấy tỉnh/thành phố:', matchingProvince.name);
 
         // Bước 2: Lấy danh sách quận/huyện theo ID tỉnh đã tìm thấy
         if (!matchingProvince.id) {
@@ -2231,11 +2041,7 @@ useEffect(() => {
 
         let districts;
         // Kiểm tra xem đã có sẵn danh sách huyện cho tỉnh này chưa
-        if (
-          districtData &&
-          districtData.length > 0 &&
-          province === matchingProvince.id
-        ) {
+        if (districtData && districtData.length > 0 && province === matchingProvince.id) {
           // Sử dụng dữ liệu quận/huyện đã có sẵn
           districts = districtData;
         } else {
@@ -2244,19 +2050,16 @@ useEffect(() => {
             `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${matchingProvince.id}`,
             {
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
               },
-            }
+            },
           );
           districts = districtsResponse.data;
         }
 
         // Tìm quận/huyện phù hợp bằng ID nếu huyện là một số
         let matchingDistrict;
-        if (
-          typeof address.huyen === "number" ||
-          !isNaN(parseInt(address.huyen, 10))
-        ) {
+        if (typeof address.huyen === 'number' || !isNaN(parseInt(address.huyen, 10))) {
           // Nếu address.huyen là ID (số), tìm theo ID
           const districtId = parseInt(address.huyen, 10);
           matchingDistrict = districts.find((d) => d.id === districtId);
@@ -2265,10 +2068,8 @@ useEffect(() => {
           matchingDistrict = districts.find(
             (d) =>
               normalizeString(d.name) === normalizeString(address.huyen) ||
-              normalizeString(d.name).includes(
-                normalizeString(address.huyen)
-              ) ||
-              normalizeString(address.huyen).includes(normalizeString(d.name))
+              normalizeString(d.name).includes(normalizeString(address.huyen)) ||
+              normalizeString(address.huyen).includes(normalizeString(d.name)),
           );
         }
 
@@ -2278,20 +2079,13 @@ useEffect(() => {
 
         // Bước 3: Lấy danh sách xã/phường theo ID quận/huyện đã tìm thấy
         if (!matchingDistrict.id) {
-          console.error(
-            "Quận/huyện tìm thấy không có ID hợp lệ:",
-            matchingDistrict
-          );
+          console.error('Quận/huyện tìm thấy không có ID hợp lệ:', matchingDistrict);
           return null;
         }
 
         let wards;
         // Kiểm tra xem đã có sẵn danh sách xã/phường cho huyện này chưa
-        if (
-          wardData &&
-          wardData.length > 0 &&
-          district === matchingDistrict.id
-        ) {
+        if (wardData && wardData.length > 0 && district === matchingDistrict.id) {
           // Sử dụng dữ liệu xã/phường đã có sẵn
           wards = wardData;
         } else {
@@ -2300,23 +2094,20 @@ useEffect(() => {
             `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${matchingDistrict.id}`,
             {
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
               },
-            }
+            },
           );
           wards = wardsResponse.data;
         }
 
         // Tìm xã/phường phù hợp bằng ID nếu xã là một số
         let matchingWard;
-        if (
-          typeof address.xa === "number" ||
-          !isNaN(parseInt(address.xa, 10))
-        ) {
+        if (typeof address.xa === 'number' || !isNaN(parseInt(address.xa, 10))) {
           // Nếu address.xa là ID (số), tìm theo ID
           const wardId = parseInt(address.xa, 10);
           matchingWard = wards.find(
-            (w) => w.id === wardId || w.id.toString() === address.xa.toString()
+            (w) => w.id === wardId || w.id.toString() === address.xa.toString(),
           );
         } else {
           // Nếu là tên, tìm theo tên
@@ -2324,7 +2115,7 @@ useEffect(() => {
             (w) =>
               normalizeString(w.name) === normalizeString(address.xa) ||
               normalizeString(w.name).includes(normalizeString(address.xa)) ||
-              normalizeString(address.xa).includes(normalizeString(w.name))
+              normalizeString(address.xa).includes(normalizeString(w.name)),
           );
         }
 
@@ -2333,21 +2124,9 @@ useEffect(() => {
         }
 
         // Lưu vào cache để sử dụng sau này
-        addressHelpers.cacheAddressInfo(
-          "provinces",
-          matchingProvince.id,
-          matchingProvince.name
-        );
-        addressHelpers.cacheAddressInfo(
-          "districts",
-          matchingDistrict.id,
-          matchingDistrict.name
-        );
-        addressHelpers.cacheAddressInfo(
-          "wards",
-          matchingWard.id,
-          matchingWard.name
-        );
+        addressHelpers.cacheAddressInfo('provinces', matchingProvince.id, matchingProvince.name);
+        addressHelpers.cacheAddressInfo('districts', matchingDistrict.id, matchingDistrict.name);
+        addressHelpers.cacheAddressInfo('wards', matchingWard.id, matchingWard.name);
 
         return {
           to_district_id: parseInt(matchingDistrict.id, 10),
@@ -2357,10 +2136,10 @@ useEffect(() => {
           isApproximate: false,
         };
       } catch (error) {
-        console.error("Lỗi khi chuyển đổi địa chỉ sang định dạng GHN:", error);
+        console.error('Lỗi khi chuyển đổi địa chỉ sang định dạng GHN:', error);
 
         if (error.response) {
-          console.error("Chi tiết lỗi từ server:", error.response.data);
+          console.error('Chi tiết lỗi từ server:', error.response.data);
         }
 
         return null;
@@ -2396,7 +2175,7 @@ useEffect(() => {
     return (
       <div>
         {loading ? (
-          <div style={{ textAlign: "center", padding: "20px" }}>
+          <div style={{ textAlign: 'center', padding: '20px' }}>
             <Spin size="default" />
             <div style={{ marginTop: 10 }}>Đang tải dữ liệu địa chỉ...</div>
           </div>
@@ -2410,11 +2189,7 @@ useEffect(() => {
                 type="info"
                 showIcon
                 action={
-                  <Button
-                    type="primary"
-                    size="small"
-                    onClick={switchToNewAddressMode}
-                  >
+                  <Button type="primary" size="small" onClick={switchToNewAddressMode}>
                     Nhập địa chỉ
                   </Button>
                 }
@@ -2428,23 +2203,22 @@ useEffect(() => {
                 style={{
                   marginTop: 10,
                   padding: 12,
-                  border: "1px solid #e8e8e8",
+                  border: '1px solid #e8e8e8',
                   borderRadius: 8,
-                  background: "#f9f9f9",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  background: '#f9f9f9',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                 }}
               >
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                     marginBottom: 8,
                   }}
                 >
-                  <div style={{ fontWeight: "bold", fontSize: "14px" }}>
-                    <HomeOutlined style={{ marginRight: 6 }} /> Địa chỉ giao
-                    hàng:
+                  <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                    <HomeOutlined style={{ marginRight: 6 }} /> Địa chỉ giao hàng:
                   </div>
                   {calculatingFee && (
                     <Tag color="processing" icon={<SyncOutlined spin />}>
@@ -2455,22 +2229,21 @@ useEffect(() => {
 
                 <div
                   style={{
-                    padding: "8px 10px",
-                    background: "#fff",
-                    border: "1px solid #f0f0f0",
-                    borderRadius: "6px",
-                    fontSize: "13px",
-                    lineHeight: "1.5",
+                    padding: '8px 10px',
+                    background: '#fff',
+                    border: '1px solid #f0f0f0',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    lineHeight: '1.5',
                   }}
                 >
-                  {selectedAddress.fullAddress ||
-                    displayFullAddress(selectedAddress)}
+                  {selectedAddress.fullAddress || displayFullAddress(selectedAddress)}
                 </div>
 
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
+                    display: 'flex',
+                    justifyContent: 'flex-end',
                     marginTop: 10,
                     gap: 8,
                   }}
@@ -2490,21 +2263,18 @@ useEffect(() => {
                     onClick={switchToNewAddressMode}
                     icon={<EditOutlined />}
                   >
-                    {customerId ? "Thêm địa chỉ mới" : "Thay đổi địa chỉ"}
+                    {customerId ? 'Thêm địa chỉ mới' : 'Thay đổi địa chỉ'}
                   </Button>
                 </div>
               </div>
             )}
 
             {/* Nếu khách hàng có nhiều địa chỉ, hiển thị nút chọn địa chỉ */}
-            {customerId &&
-              addresses.length > 0 &&
-              !selectedAddress &&
-              !isNewAddressMode && (
-                <Button type="primary" onClick={() => setIsModalVisible(true)}>
-                  <EnvironmentOutlined /> Chọn địa chỉ giao hàng
-                </Button>
-              )}
+            {customerId && addresses.length > 0 && !selectedAddress && !isNewAddressMode && (
+              <Button type="primary" onClick={() => setIsModalVisible(true)}>
+                <EnvironmentOutlined /> Chọn địa chỉ giao hàng
+              </Button>
+            )}
 
             {/* Modal chọn địa chỉ */}
             <Modal
@@ -2516,43 +2286,31 @@ useEffect(() => {
               open={isModalVisible}
               onCancel={() => setIsModalVisible(false)}
               footer={[
-                <Button
-                  key="new"
-                  onClick={switchToNewAddressMode}
-                  icon={<PlusOutlined />}
-                >
+                <Button key="new" onClick={switchToNewAddressMode} icon={<PlusOutlined />}>
                   Thêm địa chỉ mới
                 </Button>,
                 <Button key="cancel" onClick={() => setIsModalVisible(false)}>
                   Hủy
                 </Button>,
-                <Button
-                  key="confirm"
-                  type="primary"
-                  onClick={handleAddressSelect}
-                >
+                <Button key="confirm" type="primary" onClick={handleAddressSelect}>
                   Xác nhận
                 </Button>,
               ]}
             >
               <Select
-                style={{ width: "100%" }}
+                style={{ width: '100%' }}
                 value={selectedAddress ? selectedAddress.id : undefined}
                 onChange={(value) =>
-                  setSelectedAddress(
-                    addresses.find((addr) => addr.id === value)
-                  )
+                  setSelectedAddress(addresses.find((addr) => addr.id === value))
                 }
                 placeholder="Chọn một địa chỉ"
                 showSearch
                 filterOption={(input, option) =>
-                  option.children.toLowerCase().indexOf(input.toLowerCase()) >=
-                  0
+                  option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }
               >
                 {addresses.map((address) => {
-                  const displayAddress =
-                    address.fullAddress || displayFullAddress(address);
+                  const displayAddress = address.fullAddress || displayFullAddress(address);
                   return (
                     <Select.Option key={address.id} value={address.id}>
                       {displayAddress}
@@ -2568,22 +2326,22 @@ useEffect(() => {
                 style={{
                   marginTop: 10,
                   padding: 16,
-                  border: "1px solid #e8e8e8",
+                  border: '1px solid #e8e8e8',
                   borderRadius: 8,
-                  background: "#fff",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  background: '#fff',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                 }}
               >
                 <div
                   style={{
-                    fontWeight: "bold",
+                    fontWeight: 'bold',
                     marginBottom: 10,
-                    display: "flex",
-                    alignItems: "center",
+                    display: 'flex',
+                    alignItems: 'center',
                   }}
                 >
                   <EditOutlined style={{ marginRight: 8 }} />
-                  {customerId ? "Nhập địa chỉ mới:" : "Nhập địa chỉ giao hàng:"}
+                  {customerId ? 'Nhập địa chỉ mới:' : 'Nhập địa chỉ giao hàng:'}
                   {!customerId && (
                     <Tag color="orange" style={{ marginLeft: 8 }}>
                       Khách lẻ
@@ -2599,25 +2357,19 @@ useEffect(() => {
                     style={{ marginBottom: 10 }}
                   />
                 )}
-                <Space
-                  direction="vertical"
-                  style={{ width: "100%" }}
-                  size="middle"
-                >
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
                   <div>
-                    <label style={{ display: "block", marginBottom: "5px" }}>
-                      Tỉnh/Thành phố <span style={{ color: "red" }}>*</span>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>
+                      Tỉnh/Thành phố <span style={{ color: 'red' }}>*</span>
                     </label>
                     <Select
                       placeholder="Chọn tỉnh/thành phố"
                       onChange={handleProvinceChange}
                       value={
-                        province
-                          ? addressHelpers.getNameById("provinces", province)
-                          : undefined
+                        province ? addressHelpers.getNameById('provinces', province) : undefined
                       }
-                      style={{ width: "100%" }}
-                      status={!province && addressSubmitAttempted ? "error" : ""}
+                      style={{ width: '100%' }}
+                      status={!province && addressSubmitAttempted ? 'error' : ''}
                     >
                       {provinceData.map((p) => (
                         <Select.Option key={p.id} value={p.name}>
@@ -2627,27 +2379,23 @@ useEffect(() => {
                     </Select>
                   </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "5px" }}>
-                      Quận/Huyện <span style={{ color: "red" }}>*</span>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>
+                      Quận/Huyện <span style={{ color: 'red' }}>*</span>
                     </label>
                     <Select
                       placeholder="Chọn quận/huyện"
                       onChange={handleDistrictChange}
                       value={
-                        district
-                          ? addressHelpers.getNameById("districts", district)
-                          : undefined
+                        district ? addressHelpers.getNameById('districts', district) : undefined
                       }
-                      style={{ width: "100%" }}
+                      style={{ width: '100%' }}
                       disabled={!province}
                       showSearch
                       filterOption={(input, option) =>
-                        option.children
-                          .toLowerCase()
-                          .indexOf(input.toLowerCase()) >= 0
+                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                       }
                       loading={loading}
-                      status={!district && addressSubmitAttempted ? "error" : ""}
+                      status={!district && addressSubmitAttempted ? 'error' : ''}
                     >
                       {districtData.map((d) => (
                         <Select.Option key={d.id} value={d.name}>
@@ -2657,34 +2405,22 @@ useEffect(() => {
                     </Select>
                   </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "5px" }}>
-                      Xã/Phường <span style={{ color: "red" }}>*</span>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>
+                      Xã/Phường <span style={{ color: 'red' }}>*</span>
                     </label>
                     <Select
                       placeholder="Chọn xã/phường"
                       onChange={handleWardChange}
-                      value={
-                        ward
-                          ? addressHelpers.getNameById("wards", ward)
-                          : undefined
-                      }
-                      style={{ width: "100%" }}
+                      value={ward ? addressHelpers.getNameById('wards', ward) : undefined}
+                      style={{ width: '100%' }}
                       disabled={!district}
                       showSearch
                       filterOption={(input, option) =>
-                        option.children
-                          .toLowerCase()
-                          .indexOf(input.toLowerCase()) >= 0
+                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                       }
                       loading={loading}
-                      notFoundContent={
-                        loading ? (
-                          <Spin size="small" />
-                        ) : (
-                          "Không tìm thấy xã/phường"
-                        )
-                      }
-                      status={!ward && addressSubmitAttempted ? "error" : ""}
+                      notFoundContent={loading ? <Spin size="small" /> : 'Không tìm thấy xã/phường'}
+                      status={!ward && addressSubmitAttempted ? 'error' : ''}
                     >
                       {wardData && wardData.length > 0 ? (
                         wardData.map((w) => (
@@ -2698,33 +2434,31 @@ useEffect(() => {
                     </Select>
                   </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "5px" }}>
-                      Số nhà, tên đường <span style={{ color: "red" }}>*</span>
+                    <label style={{ display: 'block', marginBottom: '5px' }}>
+                      Số nhà, tên đường <span style={{ color: 'red' }}>*</span>
                     </label>
                     <Input
                       placeholder="Nhập số nhà, tên đường cụ thể"
                       value={manualAddress}
                       onChange={(e) => setManualAddress(e.target.value)}
-                      status={!manualAddress && addressSubmitAttempted ? "error" : ""}
+                      status={!manualAddress && addressSubmitAttempted ? 'error' : ''}
                     />
                   </div>
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "flex-end",
+                      display: 'flex',
+                      justifyContent: 'flex-end',
                       gap: 8,
                     }}
                   >
-                    <Button onClick={() => {
-                      setIsNewAddressMode(false);
-                    }}>
+                    <Button
+                      onClick={() => {
+                        setIsNewAddressMode(false);
+                      }}
+                    >
                       Hủy
                     </Button>
-                    <Button
-                      type="primary"
-                      onClick={handleAddressSubmit}
-                      loading={loading}
-                    >
+                    <Button type="primary" onClick={handleAddressSubmit} loading={loading}>
                       Xác nhận địa chỉ
                     </Button>
                   </div>
@@ -2735,7 +2469,7 @@ useEffect(() => {
         )}
       </div>
     );
-  }
+  },
 );
 
 export default GiaoHang;

@@ -12,11 +12,13 @@ import com.example.server.repository.HoaDon.*;
 import com.example.server.repository.NhanVien_KhachHang.KhachHangRepository;
 import com.example.server.repository.PhieuGiamGia.PhieuGiamGiaRepository;
 import com.example.server.repository.SanPham.SanPhamChiTietRepository;
+import com.example.server.service.GiaoHang.GHNService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,7 +41,8 @@ public class HoaDonClientService {
     private PhuongThucThanhToanRepository phuongThucThanhToanRepository;
     @Autowired
     private PhieuGiamGiaRepository phieuGiamGiaRepository;
-
+@Autowired
+private GHNService ghnService;
     public HoaDon createHoaDonClient(ThongTinGiaoHangClientRequest thongTinGiaoHangClientRequest, BigDecimal tongTienHang, BigDecimal phiVanChuyen, PhieuGiamGia phieuGiamGia) {
         HoaDon hoaDon = new HoaDon();
         hoaDon.setId(UUID.randomUUID().toString());
@@ -78,28 +81,73 @@ public class HoaDonClientService {
 
     public HoaDon updateDiaChiHoaDonChoXacNhan(OrderUpdateRequest request) {
         HoaDon hoaDon = hoaDonRepository.findById(request.getId()).orElseThrow();
+
+        // So sánh địa chỉ nếu có thay đổi
         if (!hoaDon.getDiaChi().equals(request.getDiaChi())) {
             if (hoaDon.getTrangThai() == 1 && hoaDon.getLoaiHoaDon() == 1) {
+                String diaChiCuDayDu = formatDiaChiDayDu(hoaDon.getDiaChi());
+                String diaChiMoiDayDu = formatDiaChiDayDu(request.getDiaChi());
+
+                String moTa = "Thay đổi địa chỉ: '" + diaChiCuDayDu + "' -> '" + diaChiMoiDayDu + "'. ";
+
+                if (request.getPhiVanChuyen().compareTo(hoaDon.getPhiVanChuyen()) != 0) {
+                    moTa += "Phí giao hàng thay đổi: " +
+                            formatCurrency(hoaDon.getPhiVanChuyen()) + " -> " +
+                            formatCurrency(request.getPhiVanChuyen()) + ".";
+                } else {
+                    moTa += "Phí giao hàng không thay đổi.";
+                }
+
+
+                // Cập nhật hóa đơn
                 hoaDon.setDiaChi(request.getDiaChi());
                 hoaDon.setNgaySua(LocalDateTime.now());
-                LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
-                lichSuHoaDon.setId(UUID.randomUUID().toString());
-                lichSuHoaDon.setHoaDon(hoaDonRepository.findById(request.getId()).orElse(null));
-                lichSuHoaDon.setKhachHang(khachHangRepository.findById(request.getIdKhachHang()).orElse(null));
-                lichSuHoaDon.setMoTa("Phí giao hàng thay đổi" + hoaDon.getPhiVanChuyen() + "->" + request.getPhiVanChuyen());
-                if (request.getPhiVanChuyen().compareTo(hoaDon.getPhiVanChuyen()) == 0) {
-                    lichSuHoaDon.setMoTa("Phí giao hàng không thay đổi");
-                }
-                lichSuHoaDon.setHanhDong("Cập nhật thông tin khách hàng");
-                lichSuHoaDon.setNgayTao(LocalDateTime.now());
-                lichSuHoaDonRepository.save(lichSuHoaDon);
                 hoaDon.setPhiVanChuyen(request.getPhiVanChuyen());
+
+                // Lưu lịch sử
+                LichSuHoaDon lichSu = new LichSuHoaDon();
+                lichSu.setId(UUID.randomUUID().toString());
+                lichSu.setHoaDon(hoaDon);
+                lichSu.setKhachHang(khachHangRepository.findById(request.getIdKhachHang()).orElse(null));
+                lichSu.setMoTa(moTa);
+                lichSu.setHanhDong("Khách hàng cập nhật thông tin giao hàng");
+                lichSu.setNgayTao(LocalDateTime.now());
+                lichSuHoaDonRepository.save(lichSu);
+
                 return hoaDonRepository.save(hoaDon);
             }
             return hoaDonRepository.save(hoaDon);
         }
         return null;
     }
+
+    // Hàm định dạng tiền tệ
+    private String formatCurrency(BigDecimal amount) {
+        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+        return formatter.format(amount);
+    }
+    private String formatDiaChiDayDu(String diaChi) {
+        try {
+            // Ví dụ diaChi = "Nhà số 9, 150111, 1602, 229"
+            String[] parts = diaChi.split(",");
+            if (parts.length != 4) return diaChi;
+
+            String chiTiet = parts[0].trim();
+            String wardCode = parts[1].trim();
+            Long districtId = Long.parseLong(parts[2].trim());
+            Long provinceId = Long.parseLong(parts[3].trim());
+
+            String wardName = ghnService.getWardName(districtId, wardCode);
+            String districtName = ghnService.getDistrictName(provinceId, districtId);
+            String provinceName = ghnService.getProvinceName(provinceId);
+
+            return chiTiet + ", " + wardName + ", " + districtName + ", " + provinceName;
+        } catch (Exception e) {
+            // Trả về địa chỉ gốc nếu lỗi
+            return diaChi;
+        }
+    }
+
 
     public void updateHoaDonChiTiet(OrderUpdateRequest request) {
         List<ProductUpdateRequest> updatedProducts = request.getProducts();
@@ -140,7 +188,7 @@ public class HoaDonClientService {
                     hoaDonChiTiet.setNgaySua(LocalDateTime.now());
                     hoaDonChiTiet.setTrangThai(1);
                     hoaDonChiTietRepository.save(hoaDonChiTiet);
-                    saveLichSuHoaDon(request, "Cập nhật sản phẩm", moTa.toString());
+                    saveLichSuHoaDon(request, "Khách hàng cập nhật sản phẩm", moTa.toString());
                 }
             }
         }
@@ -157,7 +205,7 @@ public class HoaDonClientService {
                 newDetail.setNgayTao(LocalDateTime.now());
                 newDetail.setTrangThai(1);
                 hoaDonChiTietRepository.save(newDetail);
-                saveLichSuHoaDon(request, "Thêm sản phẩm mới", "Thêm mới sản phẩm " + p.getMaSanPhamChiTiet());
+                saveLichSuHoaDon(request, "Khách hàng thêm sản phẩm mới", "Thêm mới sản phẩm " + p.getMaSanPhamChiTiet());
             }
         }
 
@@ -165,7 +213,7 @@ public class HoaDonClientService {
         for (HoaDonChiTiet detail : existingDetails) {
             if (!requestDetailIds.contains(detail.getId())) {
                 hoaDonChiTietRepository.delete(detail);
-                saveLichSuHoaDon(request, "Xoá sản phẩm", "Xoá sản phẩm " + detail.getSanPhamChiTiet().getMaSanPhamChiTiet());
+                saveLichSuHoaDon(request, "Khách hàng xoá sản phẩm", "Xoá sản phẩm " + detail.getSanPhamChiTiet().getMaSanPhamChiTiet());
             }
         }
         HoaDon hoaDon = hoaDonRepository.findById(request.getId()).orElseThrow();
@@ -252,9 +300,9 @@ public class HoaDonClientService {
         lichSu.setNgayTao(LocalDateTime.now());
 
         lichSu.setHanhDong("Khách hàng thanh toán thêm phụ phí");
-        lichSu.setMoTa("Tổng thanh toán thay đổi từ " + tongDaThanhToan
-                + " → " + request.getTongThanhToan()
-                + ". Tạo thanh toán COD mới: +" + soTienThem);
+        lichSu.setMoTa("Tổng thanh toán thay đổi từ " + formatCurrency(tongDaThanhToan)
+                + " → " + formatCurrency(request.getTongThanhToan())
+                + ". Tạo thanh toán COD mới: +" + formatCurrency(soTienThem));
         lichSu.setTrangThai(1);
         lichSuHoaDonRepository.save(lichSu);
     }
@@ -296,8 +344,8 @@ public class HoaDonClientService {
             lichSuHoaDon2.setTrangThai(1);
             lichSuHoaDon2.setKhachHang(khachHangRepository.findById(thongTinGiaoHangClientRequest.getIdKhachHang()).orElse(null));
             lichSuHoaDon2.setNgayTao(LocalDateTime.now());
-            lichSuHoaDon2.setHanhDong("Thêm sản phẩm");
-            lichSuHoaDon2.setMoTa("Khách hàng thêm sản phẩm: " + h.getSanPhamChiTiet().getMaSanPhamChiTiet() + " - Số lượng:" + h.getSoLuong());
+            lichSuHoaDon2.setHanhDong("Khách hàng thêm sản phẩm");
+            lichSuHoaDon2.setMoTa("Thêm sản phẩm: " + h.getSanPhamChiTiet().getMaSanPhamChiTiet() + " - Số lượng:" + h.getSoLuong());
             lichSuHoaDonRepository.save(lichSuHoaDon2);
         }
         return hoaDon1;

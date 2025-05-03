@@ -13,6 +13,7 @@ import {
   Select,
   Col,
   Row,
+  Slider,
   Carousel,
 } from "antd";
 import { formatCurrency } from "../../utils/format";
@@ -52,7 +53,8 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
   const [productList, setProductList] = useState(products);
   const [selectedProducts, setSelectedProducts] = useState([]); // Thêm state cho việc chọn nhiều sản phẩm
   const token = localStorage.getItem("token");
-  
+      const [priceRange, setPriceRange] = useState([0, 10000000]);
+  const [maxPrice, setMaxPrice] = useState(10000000);
   const [productQuantities, setProductQuantities] = useState({});
   //xử lý phân trang, thay đổi STT dòng bắt đầu khi chuyển trang
   const handleTableChange = (pagination) => {
@@ -71,8 +73,35 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     setSelectedColor(""); // Reset selected items
     setSelectedSize(""); // Reset selected items
     setSelectedKieuTayAo(""); // Reset selected items
+    setPriceRange([0, maxPrice]);
+    setSelectedProducts([]);
     onClose(); // Đóng modal
   };
+  useEffect(() => {
+    if (open) {
+      // Reset bộ lọc
+      setSelectedChatLieu("");
+      setSelectedKieuDang("");
+      setSelectedThuongHieu("");
+      setSelectedKieuCuc("");
+      setSelectedKieuCoAo("");
+      setSelectedKieuCoTayAo("");
+      setSelectedKieuTayAo("");
+      setSelectedKieuTuiAo("");
+      setSelectedDanhMuc("");
+      setSelectedHoaTiet("");
+      setSelectedColor("");
+      setSelectedSize("");
+      setSearchText("");
+      // Reset giá trị khác
+      setPriceRange([0, maxPrice]);
+      setSelectedProducts([]);
+      setProductQuantities({});
+      setPagination({ current: 1, pageSize: 5 });
+      // Cập nhật danh sách sản phẩm từ props
+      setProductList(products);
+    }
+  }, [open, products, maxPrice]);
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -304,7 +333,10 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
   }, []);
   // Lọc danh sách sản phẩm theo các bộ lọc
   const filteredProducts = productList.filter((item) => {
+    if (!item) return false;
     const searchLower = searchText.toLowerCase();
+
+    const matchesPrice = item.gia >= priceRange[0] && item.gia <= priceRange[1];
 
     const matchesSearch =
       item.maSanPham.toLowerCase().includes(searchLower) ||
@@ -349,6 +381,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
 
     return (
       matchesSearch &&
+      matchesPrice &&
       matchesChatLieu &&
       matchesKieuDang &&
       matchesThuongHieu &&
@@ -368,6 +401,13 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const newQuantity = Math.max(1, parseInt(value) || 1);
     setProductQuantities((prev) => ({ ...prev, [productDetailId]: newQuantity }));
   };
+    useEffect(() => {
+    if (products && products.length > 0) {
+      const highestPrice = Math.max(...products.map(product => product.gia || 0));
+      setMaxPrice(highestPrice);
+      setPriceRange([0, highestPrice]);
+    }
+  }, [products]);
   useEffect(() => {
     setProductList(products);
   }, [products]);
@@ -628,7 +668,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
             borderRadius: "8px",
             padding: "20px",
             backgroundColor: "white",
-            height: "240px",
+            height: "280px", 
             marginBottom: "20px",
           }}
         >
@@ -636,10 +676,31 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
           <Row gutter={16} style={{ marginBottom: "26px" }}>
             <Col span={10}>
               <Input
-                placeholder="Tìm kiếm mã sản phẩm..."
+                placeholder="Tìm kiếm mã hoặc tên sản phẩm..."
                 prefix={<SearchOutlined />}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
+              />
+            </Col>
+            <Col 
+              span={14} 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                paddingLeft: '100px' 
+              }}
+            >
+              <Text style={{ marginRight: '10px', whiteSpace: 'nowrap' }}>
+                Khoảng giá:
+              </Text>
+              <Slider
+                range
+                min={0}
+                max={maxPrice}
+                value={priceRange}
+                onChange={(value) => setPriceRange(value)}
+                tipFormatter={(value) => formatCurrency(value)}
+                style={{ width: '100%' }}
               />
             </Col>
           </Row>

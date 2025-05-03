@@ -29,10 +29,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -123,7 +124,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
             hoaDon.setDiaChi(request.getDiaChi().trim());
         }
 
-        // Nếu là khách hàng lẻ (không có ID khách hàng), cập nhật thông tin trong hoaDon
+        // Nếu là khách hàng lẻ (không có ID khách hàng), cập nhật thông tin trong
+        // hoaDon
         if (hoaDon.getKhachHang() == null) {
             log.info("Updating anonymous customer information in invoice");
         }
@@ -160,7 +162,6 @@ public class HoaDonServiceImpl implements IHoaDonService {
         return hoaDonMapper.entityToResponse(hoaDon);
     }
 
-
     @Override
     @Transactional
     public HoaDonResponse getHoaDonById(String id) {
@@ -174,7 +175,6 @@ public class HoaDonServiceImpl implements IHoaDonService {
         return hoaDonMapper.entityToResponse(hoaDon);
     }
 
-
     private HoaDon findHoaDonById(String id) {
         return hoaDonRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại với id: " + id));
@@ -186,9 +186,11 @@ public class HoaDonServiceImpl implements IHoaDonService {
                 .map(hoaDonMapper::entityToResponse);
     }
 
-    //Update địa chỉ
+    // Update địa chỉ
     @Override
-    public HoaDonResponse updateHoaDonAddress(String id, String diaChi, String tinh, String huyen, String xa, String diaChiCuThe) {
+    public HoaDonResponse updateHoaDonAddress(String id, String diaChi, String tinh, String huyen, String xa,
+                                              String diaChiCuThe,
+                                              String tenNguoiNhan, String soDienThoai) {
         HoaDon hoaDon = hoaDonRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại với id: " + id));
 
@@ -198,18 +200,50 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
         // Format địa chỉ đúng cách
         StringBuilder fullAddress = new StringBuilder();
-        if (diaChiCuThe != null && !diaChiCuThe.isEmpty()) fullAddress.append(diaChiCuThe).append(", ");
+        if (diaChiCuThe != null && !diaChiCuThe.isEmpty())
+            fullAddress.append(diaChiCuThe).append(", ");
         fullAddress.append(xa).append(", ")
                 .append(huyen).append(", ")
                 .append(tinh);
 
         hoaDon.setDiaChi(fullAddress.toString().trim()); // Cập nhật địa chỉ
-        hoaDonRepository.save(hoaDon);
+
+        // Update recipient name and phone number if provided
+        if (tenNguoiNhan != null && !tenNguoiNhan.isEmpty()) {
+            hoaDon.setTenNguoiNhan(tenNguoiNhan.trim());
+        }
+
+        if (soDienThoai != null && !soDienThoai.isEmpty()) {
+            hoaDon.setSoDienThoai(soDienThoai.trim());
+        }
+
+        // Save changes
+        hoaDon = hoaDonRepository.save(hoaDon);
+
+        // Create history record for the update
+        LichSuHoaDon lichSuHoaDon = new LichSuHoaDon();
+        lichSuHoaDon.setId("LS" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
+        lichSuHoaDon.setHoaDon(hoaDon);
+        lichSuHoaDon.setHanhDong("Cập nhật thông tin giao hàng");
+
+        StringBuilder moTa = new StringBuilder("Đã cập nhật địa chỉ: " + fullAddress.toString().trim());
+        if (tenNguoiNhan != null && !tenNguoiNhan.isEmpty()) {
+            moTa.append("; Người nhận: " + tenNguoiNhan.trim());
+        }
+        if (soDienThoai != null && !soDienThoai.isEmpty()) {
+            moTa.append("; SĐT: " + soDienThoai.trim());
+        }
+
+        lichSuHoaDon.setMoTa(moTa.toString());
+        lichSuHoaDon.setTrangThai(hoaDon.getTrangThai());
+        lichSuHoaDon.setNgayTao(LocalDateTime.now());
+        lichSuHoaDon.setNhanVien(currentUserService.getCurrentNhanVien());
+        lichSuHoaDonRepository.save(lichSuHoaDon);
 
         return hoaDonMapper.entityToResponse(hoaDon);
     }
 
-    //    Tính lưu phí vận chuyển vào hóa đơn
+    // Tính lưu phí vận chuyển vào hóa đơn
     public HoaDon capNhatPhiVanChuyen(String hoaDonId, BigDecimal phiVanChuyen) {
         HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn với ID: " + hoaDonId));
@@ -260,17 +294,19 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
         return hoaDonRepository.save(hoaDon);
     }
+
     private BigDecimal calculateSubtotal(HoaDon hoaDon) {
         return hoaDon.getHoaDonChiTiets().stream()
                 .filter(ct -> ct.getTrangThai() == 1) // Chỉ tính các sản phẩm active
                 .map(ct -> {
                     // Sử dụng giá tại thời điểm thêm nếu có
-                    BigDecimal gia = ct.getGiaTaiThoiDiemThem() != null ?
-                            ct.getGiaTaiThoiDiemThem() : ct.getSanPhamChiTiet().getGia();
+                    BigDecimal gia = ct.getGiaTaiThoiDiemThem() != null ? ct.getGiaTaiThoiDiemThem()
+                            : ct.getSanPhamChiTiet().getGia();
                     return gia.multiply(BigDecimal.valueOf(ct.getSoLuong()));
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+
     @Transactional
     public HoaDonResponse refundExcessPaymentToPending(String hoaDonId, BigDecimal soTien) {
         log.info("Điều chỉnh tiền thừa vào thanh toán chờ/trả sau: hoaDonId={}, soTien={}",
@@ -308,8 +344,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             throw new ValidationException(String.format(
                     "Số tiền điều chỉnh (%s) không được vượt quá số tiền thừa còn lại (%s)",
                     formatCurrency(soTien),
-                    formatCurrency(remainingExcess)
-            ));
+                    formatCurrency(remainingExcess)));
         }
 
         // Lấy các khoản thanh toán chờ xác nhận hoặc trả sau
@@ -338,7 +373,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
             }
 
             BigDecimal originalAmount = payment.getSoTien();
-            BigDecimal amountToAdjust = originalAmount.min(remainingAmountToAdjust); // Điều chỉnh không quá số tiền thanh toán
+            BigDecimal amountToAdjust = originalAmount.min(remainingAmountToAdjust); // Điều chỉnh không quá số tiền
+            // thanh toán
             BigDecimal newAmount = originalAmount.subtract(amountToAdjust);
 
             // Nếu số tiền sau điều chỉnh = 0, xóa thanh toán này
@@ -351,7 +387,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
                         payment.getId(), formatCurrency(originalAmount));
 
                 // Thêm chi tiết điều chỉnh
-                String paymentType = payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD ? "trả sau" : "chờ xác nhận";
+                String paymentType = payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD ? "trả sau"
+                        : "chờ xác nhận";
                 adjustmentDetails.add(String.format("Xóa thanh toán %s %s với số tiền %s",
                         paymentType, payment.getId(), formatCurrency(originalAmount)));
             } else {
@@ -361,7 +398,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
                 adjustedPayments.add(payment);
 
                 // Thêm chi tiết điều chỉnh
-                String paymentType = payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD ? "trả sau" : "chờ xác nhận";
+                String paymentType = payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD ? "trả sau"
+                        : "chờ xác nhận";
                 adjustmentDetails.add(String.format("Điều chỉnh giảm %s trong thanh toán %s %s",
                         formatCurrency(amountToAdjust), paymentType, payment.getId()));
             }
@@ -393,7 +431,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
         // Tạo bản ghi "hoàn tiền" để theo dõi số tiền đã xử lý
         BigDecimal actualAdjustedAmount = soTien.subtract(remainingAmountToAdjust);
         if (actualAdjustedAmount.compareTo(BigDecimal.ZERO) > 0) {
-            // Chọn phương thức thanh toán từ khoản điều chỉnh đầu tiên hoặc mặc định là CASH
+            // Chọn phương thức thanh toán từ khoản điều chỉnh đầu tiên hoặc mặc định là
+            // CASH
             PhuongThucThanhToan phuongThucDieuChinh = null;
             if (!adjustedPayments.isEmpty()) {
                 phuongThucDieuChinh = adjustedPayments.get(0).getPhuongThucThanhToan();
@@ -421,13 +460,15 @@ public class HoaDonServiceImpl implements IHoaDonService {
             }
         }
 
-        log.info("Đã điều chỉnh tổng cộng {} trong các thanh toán trả sau/chờ xác nhận, còn lại {} tiền thừa chưa xử lý",
+        log.info(
+                "Đã điều chỉnh tổng cộng {} trong các thanh toán trả sau/chờ xác nhận, còn lại {} tiền thừa chưa xử lý",
                 formatCurrency(actualAdjustedAmount),
                 formatCurrency(remainingExcess.subtract(actualAdjustedAmount)));
 
         return hoaDonMapper.entityToResponse(hoaDon);
     }
-    //delete Hóa đơn
+
+    // delete Hóa đơn
     @Override
     @Transactional
     public HoaDonResponse deleteHoaDon(String hoaDonId, String lyDo) {
@@ -469,7 +510,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             phieuGiamGiaRepository.save(voucher);
             log.info("Hoàn lại mã giảm giá {}: số lượng mới {}", voucher.getId(), voucher.getSoLuong());
 
-//            hoaDon.setPhieuGiamGia(null); // Xóa voucher khỏi hóa đơn
+            // hoaDon.setPhieuGiamGia(null); // Xóa voucher khỏi hóa đơn
         }
 
         // THÊM MỚI: Xử lý hoàn tiền cho khách hàng nếu đã thanh toán
@@ -579,35 +620,80 @@ public class HoaDonServiceImpl implements IHoaDonService {
         // 2. Kiểm tra tính hợp lệ của trạng thái
         hoaDonValidator.validateUpdateTrangThai(trangThai, hoaDon);
         boolean isOnlineOrder = hoaDon.getLoaiHoaDon() == HoaDonConstant.ONLINE;
-        if (trangThai.equals(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN) &&
-                isOnlineOrder &&
-                trangThaiCu.equals(HoaDonConstant.TRANG_THAI_CHO_XAC_NHAN)) {
+        if (isOnlineOrder) {
+            // Trường hợp chuyển từ "Chờ xác nhận" sang "Đã xác nhận"
+            if (trangThai.equals(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN) &&
+                    trangThaiCu.equals(HoaDonConstant.TRANG_THAI_CHO_XAC_NHAN)) {
 
-            log.info("Đơn hàng online chuyển sang trạng thái xác nhận, bắt đầu trừ tồn kho");
+                log.info("Đơn hàng online {} chuyển từ Chờ xác nhận sang Đã xác nhận", hoaDon.getMaHoaDon());
 
-            for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
-                if (chiTiet.getTrangThai() == 1) {
-                    SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
-
-                    // Kiểm tra tồn kho trước khi trừ
-                    if (sanPhamChiTiet.getSoLuong() < chiTiet.getSoLuong()) {
-                        throw new ValidationException(String.format(
-                                "Không đủ số lượng tồn kho cho sản phẩm %s (còn %d, cần %d)",
-                                sanPhamChiTiet.getMaSanPhamChiTiet(),
-                                sanPhamChiTiet.getSoLuong(),
-                                chiTiet.getSoLuong()
-                        ));
+                // Kiểm tra số lượng voucher trước khi xác nhận
+                if (hoaDon.getPhieuGiamGia() != null) {
+                    PhieuGiamGia voucher = hoaDon.getPhieuGiamGia();
+                    if (voucher.getSoLuong() <= 0) {
+                        throw new ValidationException("Voucher đã hết lượt sử dụng!");
                     }
 
-                    // Trừ số lượng tồn kho
-                    sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - chiTiet.getSoLuong());
-                    sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
+                }
 
-                    log.info("Đã trừ số lượng tồn kho cho sản phẩm {}: còn lại {}",
-                            sanPhamChiTiet.getMaSanPhamChiTiet(), sanPhamChiTiet.getSoLuong());
+                // Trừ số lượng trong kho cho đơn hàng online
+                for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
+                    if (chiTiet.getTrangThai() == 1) {
+                        SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
+
+                        if (sanPhamChiTiet.getSoLuong() < chiTiet.getSoLuong()) {
+                            throw new ValidationException(String.format(
+                                    "Không đủ số lượng tồn kho cho sản phẩm %s (còn %d, cần %d)",
+                                    sanPhamChiTiet.getMaSanPhamChiTiet(),
+                                    sanPhamChiTiet.getSoLuong(),
+                                    chiTiet.getSoLuong()));
+                        }
+
+                        sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() - chiTiet.getSoLuong());
+                        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
+
+                        log.info("Đã trừ số lượng tồn kho cho sản phẩm {}: còn lại {}",
+                                sanPhamChiTiet.getMaSanPhamChiTiet(), sanPhamChiTiet.getSoLuong());
+                    }
+                }
+
+                // Trừ lượt sử dụng của voucher
+                if (hoaDon.getPhieuGiamGia() != null) {
+                    PhieuGiamGia voucher = hoaDon.getPhieuGiamGia();
+                    voucher.setSoLuong(voucher.getSoLuong() - 1);
+                    phieuGiamGiaRepository.save(voucher);
+                    log.info("Đã trừ 1 voucher {} sau khi xác nhận đơn hàng online", voucher.getMaPhieuGiamGia());
+                }
+            }
+            // Trường hợp chuyển từ "Đã xác nhận" sang "Chờ xác nhận" (hoàn sản phẩm vào kho)
+            else if (trangThai.equals(HoaDonConstant.TRANG_THAI_CHO_XAC_NHAN) &&
+                    trangThaiCu.equals(HoaDonConstant.TRANG_THAI_DA_XAC_NHAN)) {
+
+                log.info("Đơn hàng online {} chuyển từ Đã xác nhận về Chờ xác nhận, hoàn sản phẩm vào kho",
+                        hoaDon.getMaHoaDon());
+
+                for (HoaDonChiTiet chiTiet : hoaDon.getHoaDonChiTiets()) {
+                    if (chiTiet.getTrangThai() == 1) {
+                        SanPhamChiTiet sanPhamChiTiet = chiTiet.getSanPhamChiTiet();
+                        sanPhamChiTiet.setSoLuong(sanPhamChiTiet.getSoLuong() + chiTiet.getSoLuong());
+                        sanPhamChiTietHoaDonRepository.save(sanPhamChiTiet);
+
+                        log.info("Đã hoàn lại số lượng vào kho cho sản phẩm {}: còn lại {}",
+                                sanPhamChiTiet.getMaSanPhamChiTiet(), sanPhamChiTiet.getSoLuong());
+                    }
+                }
+
+                // Hoàn lại lượt sử dụng voucher
+                if (hoaDon.getPhieuGiamGia() != null) {
+                    PhieuGiamGia voucher = hoaDon.getPhieuGiamGia();
+                    voucher.setSoLuong(voucher.getSoLuong() + 1);
+                    phieuGiamGiaRepository.save(voucher);
+                    log.info("Đã hoàn lại 1 voucher {} khi chuyển từ Đã xác nhận về Chờ xác nhận",
+                            voucher.getMaPhieuGiamGia());
                 }
             }
         }
+
 
         // Khi chuyển sang trạng thái hủy đơn từ trạng thái đã xác nhận trở đi
         if (trangThai.equals(HoaDonConstant.TRANG_THAI_DA_HUY) &&
@@ -635,12 +721,15 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
             // Nếu chưa có thanh toán và không truyền thông tin thanh toán mới
             if (existingPayments.isEmpty() && (thanhToans == null || thanhToans.isEmpty())) {
-                throw new ValidationException("Cần cung cấp phương thức thanh toán khi chuyển sang trạng thái xác nhận");
+                throw new ValidationException(
+                        "Cần cung cấp phương thức thanh toán khi chuyển sang trạng thái xác nhận");
             }
 
-            // Nếu đã có thanh toán trước đó, kiểm tra xem có phụ phí cần thanh toán thêm không
+            // Nếu đã có thanh toán trước đó, kiểm tra xem có phụ phí cần thanh toán thêm
+            // không
             if (!existingPayments.isEmpty() && thanhToans != null && !thanhToans.isEmpty()) {
-                // Tính tổng tiền đã thanh toán, QUAN TRỌNG: bao gồm cả thanh toán đã hoàn thành, chờ xác nhận và trả sau
+                // Tính tổng tiền đã thanh toán, QUAN TRỌNG: bao gồm cả thanh toán đã hoàn
+                // thành, chờ xác nhận và trả sau
                 BigDecimal tongTienDaThanhToan = existingPayments.stream()
                         .filter(payment -> payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID
                                 || payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID
@@ -660,8 +749,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
                 if (tongTienDaThanhToan.add(tongTienThanhToanMoi).compareTo(tongTienCanThanhToan) < 0) {
                     throw new ValidationException(String.format(
                             "Số tiền thanh toán không đủ. Cần thanh toán thêm %s",
-                            formatCurrency(tongTienCanThanhToan.subtract(tongTienDaThanhToan).subtract(tongTienThanhToanMoi))
-                    ));
+                            formatCurrency(tongTienCanThanhToan.subtract(tongTienDaThanhToan)
+                                    .subtract(tongTienThanhToanMoi))));
                 }
 
                 // Ghi log về việc cần thanh toán thêm
@@ -675,8 +764,10 @@ public class HoaDonServiceImpl implements IHoaDonService {
                     // Nếu là thanh toán "Chưa thanh toán" (không phải COD)
                     if (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID) {
                         // Chỉ tự động xác nhận thanh toán cho phương thức không phải COD
-                        if (!PaymentConstant.PAYMENT_METHOD_COD.equals(payment.getPhuongThucThanhToan().getMaPhuongThucThanhToan())) {
-                            thanhToanHoaDonService.updatePaymentStatus(payment.getId(), PaymentConstant.PAYMENT_STATUS_PAID);
+                        if (!PaymentConstant.PAYMENT_METHOD_COD
+                                .equals(payment.getPhuongThucThanhToan().getMaPhuongThucThanhToan())) {
+                            thanhToanHoaDonService.updatePaymentStatus(payment.getId(),
+                                    PaymentConstant.PAYMENT_STATUS_PAID);
                             log.info("Tự động xác nhận thanh toán {} khi chuyển trạng thái hóa đơn thành 'Đã xác nhận'",
                                     payment.getId());
 
@@ -722,7 +813,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
         } else if (trangThai.equals(HoaDonConstant.TRANG_THAI_HOAN_THANH)) {
             hoaDon.setThoiGianNhanHang(LocalDateTime.now());
 
-            // 6. Khi hóa đơn "Hoàn thành", cập nhật thanh toán từ "Chưa thanh toán" / "Trả sau" thành "Đã thanh toán"
+            // 6. Khi hóa đơn "Hoàn thành", cập nhật thanh toán từ "Chưa thanh toán" / "Trả
+            // sau" thành "Đã thanh toán"
             // LƯU Ý: Tiến hành điều chỉnh có kiểm soát để tránh tạo ra thanh toán thừa
             List<ThanhToanHoaDon> thanhToanList = thanhToanHoaDonRepository.findByHoaDonId(id);
 
@@ -753,7 +845,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
             log.info("Tổng tiền cần thanh toán: {}, Đã thanh toán thực tế: {}, Còn thiếu: {}",
                     tongTienCanThanhToan, tongTienThucTe, soTienConThieu);
 
-            // 6.6. Lọc các khoản thanh toán cần chuyển trạng thái (trả sau và chờ thanh toán)
+            // 6.6. Lọc các khoản thanh toán cần chuyển trạng thái (trả sau và chờ thanh
+            // toán)
             List<ThanhToanHoaDon> pendingPayments = thanhToanList.stream()
                     .filter(payment -> (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_UNPAID
                             || payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_COD) &&
@@ -768,10 +861,10 @@ public class HoaDonServiceImpl implements IHoaDonService {
             BigDecimal tongTienDuKien = tongTienThucTe.add(
                     pendingPayments.stream()
                             .map(ThanhToanHoaDon::getSoTien)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add)
-            );
+                            .reduce(BigDecimal.ZERO, BigDecimal::add));
 
-            // 6.8. Kiểm tra xem nếu chuyển tất cả khoản chờ/trả sau thành đã thanh toán thì có thừa tiền không
+            // 6.8. Kiểm tra xem nếu chuyển tất cả khoản chờ/trả sau thành đã thanh toán thì
+            // có thừa tiền không
             BigDecimal soTienDuThua = tongTienDuKien.subtract(tongTienCanThanhToan);
             log.info("Tổng tiền dự kiến sau khi chuyển trạng thái: {}, Thừa/thiếu: {}",
                     tongTienDuKien, soTienDuThua);
@@ -815,7 +908,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
                                 " để tránh thanh toán thừa";
                     } else {
                         moTaDieuChinh = "Điều chỉnh thanh toán sau khi hoàn thành đơn hàng: " +
-                                "giảm từ " + formatCurrency(originalAmount) + " xuống " + formatCurrency(adjustedAmount);
+                                "giảm từ " + formatCurrency(originalAmount) + " xuống "
+                                + formatCurrency(adjustedAmount);
                     }
 
                     lichSuDieuChinh.setMoTa(moTaDieuChinh);
@@ -892,6 +986,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
     public HoaDonResponse updateTrangThai(String id, Integer trangThai) {
         return updateTrangThai(id, trangThai, null);
     }
+
     @Transactional(rollbackFor = Exception.class)
     public HoaDonResponse thanhToanPhuPhi(String hoaDonId, BigDecimal soTien, ThanhToanRequest thanhToanRequest) {
         log.info("Xử lý thanh toán thêm cho hóa đơn: hoaDonId={}, soTien={}", hoaDonId, soTien);
@@ -920,12 +1015,14 @@ public class HoaDonServiceImpl implements IHoaDonService {
         // 3. Tính số tiền thực tế đã thanh toán (sau khi trừ hoàn tiền)
         BigDecimal tongTienThucTe = tongTienDaThanhToan.subtract(tongTienHoanTra);
 
-        // 4. Tính số tiền còn thiếu - QUAN TRỌNG: Sử dụng tổng tiền từ hóa đơn đã bao gồm phí vận chuyển
+        // 4. Tính số tiền còn thiếu - QUAN TRỌNG: Sử dụng tổng tiền từ hóa đơn đã bao
+        // gồm phí vận chuyển
         BigDecimal tongTienHoaDon = hoaDon.getTongTien() != null ? hoaDon.getTongTien() : BigDecimal.ZERO;
         BigDecimal phiVanChuyen = hoaDon.getPhiVanChuyen() != null ? hoaDon.getPhiVanChuyen() : BigDecimal.ZERO;
         BigDecimal soTienConThieu = tongTienHoaDon.subtract(tongTienThucTe).add(phiVanChuyen);
 
-        log.info("Hóa đơn {}: Tổng tiền = {}, Đã thanh toán = {}, Đã hoàn = {}, Thực thanh toán = {}, Còn thiếu = {}, Sẽ thanh toán thêm = {}",
+        log.info(
+                "Hóa đơn {}: Tổng tiền = {}, Đã thanh toán = {}, Đã hoàn = {}, Thực thanh toán = {}, Còn thiếu = {}, Sẽ thanh toán thêm = {}",
                 hoaDon.getMaHoaDon(),
                 formatCurrency(tongTienHoaDon),
                 formatCurrency(tongTienDaThanhToan),
@@ -941,8 +1038,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             throw new ValidationException(String.format(
                     "Số tiền thanh toán thêm (%s) phải lớn hơn 0 và không vượt quá số tiền còn thiếu (%s) quá nhiều",
                     formatCurrency(soTien),
-                    formatCurrency(soTienConThieu)
-            ));
+                    formatCurrency(soTienConThieu)));
         }
 
         // 6. Lấy phương thức thanh toán
@@ -988,7 +1084,6 @@ public class HoaDonServiceImpl implements IHoaDonService {
         return hoaDonMapper.entityToResponse(savedHoaDon);
     }
 
-
     @Transactional
     public HoaDonResponse cancelAndRefundOrder(String hoaDonId, String lyDo,
                                                BigDecimal amountToRefund, String refundMethod) {
@@ -1023,7 +1118,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             PhieuGiamGia voucher = hoaDon.getPhieuGiamGia();
             voucher.setSoLuong(voucher.getSoLuong() + 1);
             phieuGiamGiaRepository.save(voucher);
-//            hoaDon.setPhieuGiamGia(null);
+            // hoaDon.setPhieuGiamGia(null);
         }
 
         // 3. Hoàn tiền nếu cần
@@ -1070,6 +1165,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
         hoaDon = hoaDonRepository.save(hoaDon);
         return hoaDonMapper.entityToResponse(hoaDon);
     }
+
     // search
     @Override
     public Page<HoaDonResponse> searchHoaDon(HoaDonSearchCriteria criteria, Pageable pageable) {
@@ -1249,8 +1345,9 @@ public class HoaDonServiceImpl implements IHoaDonService {
         lichSu.setHanhDong("Xác nhận thanh toán VNPAY");
         lichSu.setMoTa("Thanh toán qua VNPAY thành công số tiền: " +
                 formatCurrency(thanhToanVNPay.getSoTien()) +
-                (tongTienDaThanhToan.compareTo(BigDecimal.ZERO) > 0 ?
-                        " (Đã thanh toán trước đó: " + formatCurrency(tongTienDaThanhToan) + ")" : ""));
+                (tongTienDaThanhToan.compareTo(BigDecimal.ZERO) > 0
+                        ? " (Đã thanh toán trước đó: " + formatCurrency(tongTienDaThanhToan) + ")"
+                        : ""));
         lichSu.setTrangThai(hoaDon.getTrangThai());
         lichSu.setNgayTao(LocalDateTime.now());
         lichSu.setNhanVien(currentUserService.getCurrentNhanVien());
@@ -1279,6 +1376,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             throw new RuntimeException("Lỗi khi tạo PDF: " + e.getMessage());
         }
     }
+
     @Override
     public byte[] generateDeliveryInvoicePDF(String id) {
         try {
@@ -1364,8 +1462,7 @@ public class HoaDonServiceImpl implements IHoaDonService {
             throw new ValidationException(String.format(
                     "Số tiền hoàn (%s) không được vượt quá số tiền thừa (%s)",
                     formatCurrency(soTien),
-                    formatCurrency(excessAmount)
-            ));
+                    formatCurrency(excessAmount)));
         }
 
         // Lấy phương thức thanh toán
@@ -1412,7 +1509,8 @@ public class HoaDonServiceImpl implements IHoaDonService {
     public BigDecimal calculateExcessPayment(String hoaDonId) {
         HoaDon hoaDon = validateAndGet(hoaDonId);
 
-        // Tính tổng tiền đã thanh toán (chỉ tính các khoản thực sự thanh toán - trạng thái 1)
+        // Tính tổng tiền đã thanh toán (chỉ tính các khoản thực sự thanh toán - trạng
+        // thái 1)
         BigDecimal tongTienDaThanhToan = BigDecimal.ZERO;
         BigDecimal tongTienHoanTraLai = BigDecimal.ZERO;
 
@@ -1438,15 +1536,18 @@ public class HoaDonServiceImpl implements IHoaDonService {
         // Tính số tiền thực tế đã thanh toán (đã trừ các khoản hoàn)
         BigDecimal soTienThucTeThanhToan = tongTienDaThanhToan.subtract(tongTienHoanTraLai);
 
-        // Tổng tiền cần thanh toán = Tổng tiền hóa đơn (đã bao gồm giảm giá) + Phí vận chuyển
+        // Tổng tiền cần thanh toán = Tổng tiền hóa đơn (đã bao gồm giảm giá) + Phí vận
+        // chuyển
         BigDecimal tongTienCanThanhToan = hoaDon.getTongTien();
 
-//        // Cộng phí vận chuyển nếu có
-//        if (hoaDon.getPhiVanChuyen() != null && hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
-//            tongTienCanThanhToan = tongTienCanThanhToan.add(hoaDon.getPhiVanChuyen());
-//        }
+        // // Cộng phí vận chuyển nếu có
+        // if (hoaDon.getPhiVanChuyen() != null &&
+        // hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
+        // tongTienCanThanhToan = tongTienCanThanhToan.add(hoaDon.getPhiVanChuyen());
+        // }
 
-        log.info("Hóa đơn {}: Tổng đã thanh toán = {}, Đã hoàn trả = {}, Thực thanh toán = {}, Tổng cần thanh toán (gồm phí ship) = {}",
+        log.info(
+                "Hóa đơn {}: Tổng đã thanh toán = {}, Đã hoàn trả = {}, Thực thanh toán = {}, Tổng cần thanh toán (gồm phí ship) = {}",
                 hoaDonId,
                 formatCurrency(tongTienDaThanhToan),
                 formatCurrency(tongTienHoanTraLai),
@@ -1462,8 +1563,10 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
         return BigDecimal.ZERO;
     }
+
     private String formatCurrency(BigDecimal amount) {
-        if (amount == null) return "0 ₫";
+        if (amount == null)
+            return "0 ₫";
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
         return formatter.format(amount);
     }

@@ -20,7 +20,9 @@ public interface IHoaDonService {
 
     HoaDonResponse getHoaDonById(String id);
 
-    HoaDonResponse updateHoaDonAddress(String id, String diaChi, String tinh, String huyen, String xa, String moTa);
+    HoaDonResponse updateHoaDonAddress(String id, String diaChi, String tinh, String huyen, String xa,
+                                       String diaChiCuThe,
+                                       String tenNguoiNhan, String soDienThoai);
 
     Optional<HoaDon> findById(String id);
 

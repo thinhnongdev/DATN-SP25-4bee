@@ -1388,7 +1388,7 @@ const OrderDetailPage = () => {
     });
   };
 
-  const isEditable = ![3, 4, 5, 6, 7].includes(updateOrder.trangThai); // 3: Đang giao, 4: Hoàn thành, 5:hoàn thành, 6: Đã hủy,7: đã hoàn thành
+  const isEditable = ![2,3, 4, 5, 6, 7].includes(updateOrder.trangThai); // 3: Đang giao, 4: Hoàn thành, 5:hoàn thành, 6: Đã hủy,7: đã hoàn thành
 
   return (
     <Layout

@@ -162,9 +162,10 @@ public class HoaDonController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Hủy hóa đơn và hoàn lại sản phẩm")
-    public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id, @RequestParam(required = false) String lyDo) {
-//        HoaDonResponse response = hoaDonService.deleteHoaDon(id);
-//        return ResponseEntity.ok(response);
+    public ResponseEntity<HoaDonResponse> cancelHoaDon(@PathVariable String id,
+                                                       @RequestParam(required = false) String lyDo) {
+        // HoaDonResponse response = hoaDonService.deleteHoaDon(id);
+        // return ResponseEntity.ok(response);
         return ResponseEntity.ok(hoaDonService.deleteHoaDon(id, lyDo));
     }
 
@@ -218,7 +219,8 @@ public class HoaDonController {
             // Tính tổng sau giảm giá
             BigDecimal subtotalAfterDiscount = subtotal.subtract(discount);
 
-            // Cập nhật phí vào hóa đơn - phương thức này đã xử lý đúng việc thay thế phí vận chuyển
+            // Cập nhật phí vào hóa đơn - phương thức này đã xử lý đúng việc thay thế phí
+            // vận chuyển
             HoaDon updatedHoaDon = hoaDonService.capNhatPhiVanChuyen(id, BigDecimal.valueOf(phiVanChuyen));
 
             // Trả về response
@@ -236,8 +238,8 @@ public class HoaDonController {
                 .filter(ct -> ct.getTrangThai() == 1) // Chỉ tính các sản phẩm active
                 .map(ct -> {
                     // Sử dụng giá tại thời điểm thêm nếu có
-                    BigDecimal gia = ct.getGiaTaiThoiDiemThem() != null ?
-                            ct.getGiaTaiThoiDiemThem() : ct.getSanPhamChiTiet().getGia();
+                    BigDecimal gia = ct.getGiaTaiThoiDiemThem() != null ? ct.getGiaTaiThoiDiemThem()
+                            : ct.getSanPhamChiTiet().getGia();
                     return gia.multiply(BigDecimal.valueOf(ct.getSoLuong()));
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -305,12 +307,17 @@ public class HoaDonController {
         String huyen = request.getOrDefault("huyen", "");
         String xa = request.getOrDefault("xa", "");
         String diaChiCuThe = request.getOrDefault("diaChiCuThe", "");
+        // Add new fields for contact information
+        String tenNguoiNhan = request.getOrDefault("tenNguoiNhan", "");
+        String soDienThoai = request.getOrDefault("soDienThoai", "");
 
         if (tinh.isEmpty() || huyen.isEmpty() || xa.isEmpty()) {
             return ResponseEntity.badRequest().body(null);
         }
 
-        return ResponseEntity.ok(hoaDonService.updateHoaDonAddress(id, diaChi, tinh, huyen, xa, diaChiCuThe));
+        // Pass the additional contact info to the service method
+        return ResponseEntity.ok(
+                hoaDonService.updateHoaDonAddress(id, diaChi, tinh, huyen, xa, diaChiCuThe, tenNguoiNhan, soDienThoai));
     }
 
     @GetMapping("/search")
@@ -322,7 +329,7 @@ public class HoaDonController {
         return ResponseEntity.ok(hoaDonService.searchHoaDon(criteria, pageable));
     }
 
-    //    Lấy số lượng
+    // Lấy số lượng
     @GetMapping("/counts")
     @Operation(summary = "Lấy số lượng hóa đơn theo trạng thái")
     public ResponseEntity<Map<String, Long>> getInvoiceCounts(
@@ -450,8 +457,7 @@ public class HoaDonController {
                 String paymentUrl = banHangServiceImpl.createVnpayPaymentUrl(
                         remainingAmount.longValue(),
                         hoaDon.getMaHoaDon(),
-                        returnUrl + "?hoaDonId=" + id
-                );
+                        returnUrl + "?hoaDonId=" + id);
 
                 return ResponseEntity.ok(paymentUrl);
             }
@@ -466,8 +472,7 @@ public class HoaDonController {
             String paymentUrl = banHangServiceImpl.createVnpayPaymentUrl(
                     vnpayPayment.getSoTien().longValue(),
                     hoaDon.getMaHoaDon(),
-                    returnUrl + "?hoaDonId=" + id
-            );
+                    returnUrl + "?hoaDonId=" + id);
 
             return ResponseEntity.ok(paymentUrl);
         } catch (Exception e) {

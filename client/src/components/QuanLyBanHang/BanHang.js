@@ -179,9 +179,9 @@ const BanHang = () => {
   const [priceChangeAmount, setPriceChangeAmount] = useState(0);
   const [updateAllPrices, setUpdateAllPrices] = useState(false);
   const [checkingPrice, setCheckingPrice] = useState(false);
-  // Thêm state để quản lý interval
+
   const [pollingInterval, setPollingInterval] = useState(null);
-  // Thêm vào khai báo state ở đầu component BanHang
+
   const [processingVnpay, setProcessingVnpay] = useState(false);
   const PAYMENT_RULES = {
     VNPAY_EXCLUSIVE:
@@ -193,6 +193,128 @@ const BanHang = () => {
     COD_EXCLUSIVE:
       "COD phải được thanh toán độc lập, không kết hợp với các phương thức khác",
   };
+  // Tạo một component con riêng để hiển thị gợi ý voucher
+  const VoucherSuggestionPanel = React.memo(({ voucherSuggestions, order, handleApplySuggestedVoucher }) => {
+    if (!voucherSuggestions.show || !voucherSuggestions.betterVouchers?.length) {
+      return null;
+    }
+    
+    return (
+      <div
+        className="voucher-suggestions"
+        style={{
+          margin: "16px 0",
+          padding: "16px",
+          background: "#f6ffed",
+          border: "1px solid #b7eb8f",
+          borderRadius: "8px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          maxHeight: "500px",
+          overflowY: "auto",
+        }}
+      >
+        <Space direction="vertical" size="small" style={{ width: "100%" }}>
+          <Text strong style={{ fontSize: "16px", color: "#52c41a" }}>
+            <InfoCircleOutlined style={{ marginRight: 8 }} />
+            {order.phieuGiamGia
+              ? `${voucherSuggestions.betterVouchers.length} voucher tốt hơn voucher hiện tại`
+              : `${voucherSuggestions.betterVouchers.length} voucher có thể áp dụng cho đơn hàng`}
+          </Text>
+          
+          {voucherSuggestions.betterVouchers.map((voucher) => (
+            <Card
+              key={voucher.id}
+              size="small"
+              bordered={true}
+              style={{
+                background: "#fff",
+                marginBottom: "12px",
+                borderLeft: "4px solid #52c41a"
+              }}
+              title={
+                <Space>
+                  <TagOutlined style={{ color: "#1890ff" }} />
+                  <Text strong style={{ fontSize: "14px" }}>
+                    {voucher.maPhieuGiamGia}
+                  </Text>
+                  <Tag color="green">Tốt hơn hiện tại</Tag>
+                </Space>
+              }
+              extra={
+                <Button
+                  type="primary"
+                  size="middle"
+                  onClick={() => handleApplySuggestedVoucher(order.id, voucher.id)}
+                  disabled={!voucher.canApply}
+                >
+                  {voucher.canApply ? "Áp dụng" : "Chưa đủ"}
+                </Button>
+              }
+            >
+              <div style={{ padding: "0 4px" }}>
+                <Row gutter={[0, 8]}>
+                  <Col span={24}>
+                    <div style={{ fontSize: "14px" }}>
+                      <strong>{voucher.tenPhieuGiamGia}</strong>
+                    </div>
+                  </Col>
+                  <Col span={24}>
+                    <div>
+                      {Number(voucher.loaiPhieuGiamGia) === 1 ? (
+                        <Tag color="blue">
+                          Giảm {voucher.giaTriGiam}%
+                          {voucher.soTienGiamToiDa > 0 && 
+                           ` (tối đa ${formatCurrency(voucher.soTienGiamToiDa)})`}
+                        </Tag>
+                      ) : (
+                        <Tag color="blue">
+                          Giảm {formatCurrency(voucher.giaTriGiam)}
+                        </Tag>
+                      )}
+                      <Tag color="orange">
+                        Đơn tối thiểu: {formatCurrency(voucher.giaTriToiThieu)}
+                      </Tag>
+                    </div>
+                  </Col>
+                  
+                  <Col span={24}>
+                    <div style={{ 
+                      display: "flex", 
+                      justifyContent: "space-between",
+                      fontSize: "13px",
+                      color: "#52c41a"
+                    }}>
+                      <Text type="success">
+                        Tiết kiệm: {formatCurrency(voucher.discountAmount || 0)}
+                      </Text>
+                      {voucher.additionalSavings > 0 && (
+                        <Text type="success" strong>
+                          <ArrowUpOutlined /> Thêm {formatCurrency(voucher.additionalSavings)}
+                        </Text>
+                      )}
+                    </div>
+                  </Col>
+                  
+                  {voucher.amountNeeded > 0 && (
+                    <Col span={24}>
+                      <Alert
+                        message={`Mua thêm ${formatCurrency(voucher.amountNeeded)} để đủ điều kiện áp dụng`}
+                        type="info"
+                        showIcon
+                        style={{ padding: "4px 8px", fontSize: "12px" }}
+                      />
+                    </Col>
+                  )}
+                </Row>
+              </div>
+            </Card>
+          ))}
+        </Space>
+      </div>
+    );
+  });
+  
+
   const showErrorMessage = (error) => {
     if (error.response && error.response.data) {
       // Nếu có thông báo cụ thể từ server
@@ -1681,24 +1803,24 @@ const BanHang = () => {
     ) : (
       <AppstoreOutlined style={{ fontSize: 28, color: "#bfbfbf" }} />
     );
-  };
+  };  
   const handleAddProductToOrder = async (product, quantity = 1) => {
     if (!activeKey) {
       message.warning("Vui lòng tạo hoặc chọn hóa đơn trước!");
       return;
     }
-
+  
     try {
       const addToastId = message.loading("Đang thêm sản phẩm...");
-
+  
       // Sử dụng quantity được truyền vào thay vì mặc định là 1
       const request = {
         sanPhamChiTietId: product.id,
         soLuong: quantity,
       };
-
+  
       const response = await axios.post(
-        `http://localhost:8080/api/admin/ban-hang/${activeKey}/add-product`,
+        `http://localhost:8080/api/admin/ban-hang/${activeKey}/add-product?delayApplyVoucher=false`, // Tham số mới, không trì hoãn áp dụng voucher
         request,
         {
           headers: {
@@ -1706,29 +1828,24 @@ const BanHang = () => {
           },
         }
       );
-
+  
       if (response.data) {
         // Cập nhật tồn kho trong cache
         updateProductInventoryInCache(product.id, quantity);
-
+  
         // Lấy lại danh sách sản phẩm sau khi thêm
         const updatedProducts = await fetchInvoiceProducts(activeKey);
-
-        // THÊM DÒNG NÀY: Kiểm tra trực tiếp xem sản phẩm đã được thêm thành công chưa
-        if (!updatedProducts || updatedProducts.length === 0) {
-          message.error("Không thể thêm sản phẩm vào đơn hàng");
-          return;
-        }
-
+  
         message.destroy(addToastId);
         message.success(
           `Đã thêm ${quantity} sản phẩm ${product.tenSanPham} vào đơn hàng`
         );
-
-        // Đảm bảo sản phẩm đã được thêm thành công trước khi áp dụng voucher
-        setTimeout(() => {
-          autoApplyBestVoucher(activeKey);
-        }, 500); // Tăng thời gian chờ để đảm bảo state đã được cập nhật
+  
+        // Tải lại thông tin đơn hàng từ server
+        await fetchInvoiceById(activeKey);
+        
+        // Cập nhật giao diện hiển thị gợi ý voucher
+        await findBestVoucherAndSuggest(activeKey);
       }
     } catch (error) {
       console.error("Error adding product:", error);
@@ -1875,196 +1992,165 @@ const BanHang = () => {
       await fetchInvoiceProducts(hoaDonId);
     }
   };
-
-  // 5. Remove product
+  
+  // 5. Remove product    
   const handleRemoveProduct = async (hoaDonId, hoaDonChiTietId) => {
     try {
-      // Lấy thông tin sản phẩm trước khi xóa để biết số lượng và ID sản phẩm
-      const productToRemove = orderProducts[hoaDonId]?.find(
-        (p) => p.id === hoaDonChiTietId
-      );
-
-      if (!productToRemove) {
-        message.error("Không tìm thấy thông tin sản phẩm cần xóa");
-        return;
-      }
-
-      const productId = productToRemove.sanPhamChiTietId || productToRemove.id;
-      const quantity = productToRemove.soLuong || 0;
-
-      // Cập nhật UI trước để tạo trải nghiệm người dùng mượt mà
-      const updatedProducts = orderProducts[hoaDonId].filter(
-        (product) => product.id !== hoaDonChiTietId
-      );
-
-      // Kiểm tra xem đây có phải là sản phẩm cuối cùng trong đơn hàng không
-      const isLastProduct = updatedProducts.length === 0;
-
-      setOrderProducts((prev) => ({ ...prev, [hoaDonId]: updatedProducts }));
-
-      // Gọi API để xóa sản phẩm khỏi hóa đơn
-      await api.delete(
-        `/api/admin/ban-hang/${hoaDonId}/chi-tiet/${hoaDonChiTietId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Thêm token vào header
-          },
-        }
-      );
-
-      // Cập nhật tồn kho trong cache (cộng lại số lượng đã xóa)
-      if (productId && quantity > 0) {
-        updateProductInventoryInCache(productId, quantity);
-      }
-
-      // Lấy thông tin hóa đơn hiện tại
-      const currentOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
-
-      // Nếu đã xóa hết sản phẩm, tự động xóa voucher khỏi đơn hàng
-      if (isLastProduct && currentOrder?.phieuGiamGia) {
-        await handleRemoveVoucher(hoaDonId, false); // false = không hiển thị thông báo
-
-        // Cập nhật UI ngay lập tức khi xóa voucher
-        setTabs((prev) =>
-          prev.map((tab) => {
-            if (tab.key === hoaDonId) {
-              const updatedOrder = { ...tab.order };
-              delete updatedOrder.phieuGiamGia;
-              updatedOrder.giamGia = 0;
-              return { ...tab, order: updatedOrder };
-            }
-            return tab;
-          })
+      setLoading(true);
+      
+      // Lấy danh sách sản phẩm hiện tại trước khi xóa
+      const currentProducts = [...(orderProducts[hoaDonId] || [])];
+      const productToRemove = currentProducts.find(p => p.id === hoaDonChiTietId);
+      const order = tabs.find((tab) => tab.key === hoaDonId)?.order;
+      
+      await api.delete(`/api/admin/ban-hang/${hoaDonId}/chi-tiet/${hoaDonChiTietId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
+      // Update local state immediately
+      const updatedProducts = currentProducts.filter((p) => p.id !== hoaDonChiTietId);
+      setOrderProducts((prev) => ({
+        ...prev,
+        [hoaDonId]: updatedProducts,
+      }));
+  
+      // Calculate new subtotal after product removal
+      const subtotal = calculateTotalBeforeDiscount(updatedProducts);
+      
+      // Check if current voucher is still applicable
+      if (order?.phieuGiamGia && subtotal < order.phieuGiamGia.giaTriToiThieu) {
+        message.warning(
+          `Sau khi xóa sản phẩm, giá trị đơn hàng (${formatCurrency(subtotal)}) không đủ áp dụng voucher ${
+            order.phieuGiamGia.maPhieuGiamGia
+          } (tối thiểu ${formatCurrency(order.phieuGiamGia.giaTriToiThieu)})`,
+          3
         );
-
-        message.info("Đã xóa voucher do đơn hàng không còn sản phẩm");
-      } else {
-        // Tính lại tổng tiền trước khi áp dụng voucher
-        const newTotalBeforeVoucher =
-          calculateTotalBeforeDiscount(updatedProducts) +
-          (currentOrder?.phiVanChuyen || 0);
-
-        // Kiểm tra nếu voucher hiện tại không còn hợp lệ (dưới mức tối thiểu)
-        if (
-          currentOrder?.phieuGiamGia &&
-          newTotalBeforeVoucher < currentOrder.phieuGiamGia.giaTriToiThieu
-        ) {
-          await handleRemoveVoucher(hoaDonId);
-          message.info("Mã giảm giá cũ không còn hợp lệ và đã bị xóa.");
-        }
+        
+        // Remove the voucher
+        await handleRemoveVoucher(hoaDonId, false);
+        
+        // Update UI
+        setTabs((prev) =>
+          prev.map((tab) =>
+            tab.key === hoaDonId
+              ? {
+                  ...tab,
+                  order: {
+                    ...tab.order,
+                    phieuGiamGia: null,
+                    giamGia: 0,
+                  },
+                }
+              : tab
+          )
+        );
       }
-
-      // Cập nhật tổng tiền sau khi xóa sản phẩm
-      const newTotals = calculateOrderTotals(hoaDonId, updatedProducts);
+      // If no voucher is applied, check if a new one can be applied
+      else if (!order?.phieuGiamGia && subtotal > 0) {
+        // Automatically find and apply the best voucher
+        setTimeout(async () => {
+          try {
+            // Get available vouchers
+            const customerId = order?.khachHang?.id || "";
+            const vouchersResponse = await api.get(
+              `/api/admin/phieu-giam-gia/available?orderTotal=${subtotal}&customerId=${customerId}`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+            
+            const availableVouchers = vouchersResponse.data || [];
+            const eligibleVouchers = availableVouchers.filter(
+              v => subtotal >= v.giaTriToiThieu
+            );
+            
+            // If there are eligible vouchers, apply the best one
+            if (eligibleVouchers.length > 0) {
+              await autoApplyBestVoucher(hoaDonId);
+            }
+          } catch (error) {
+            console.error("Lỗi khi tìm voucher tự động sau khi xóa sản phẩm:", error);
+          }
+        }, 500);
+      }
+  
+      // Update totals
+      const updatedOrder = tabs.find((tab) => tab.key === hoaDonId)?.order;
+      const newTotals = calculateOrderTotals(hoaDonId, updatedProducts, updatedOrder);
       setTotals((prev) => ({
         ...prev,
-        [hoaDonId]: newTotals,
+        [hoaDonId]: newTotals
       }));
-
-      // Cập nhật UI hiển thị nếu đang ở tab này
-      if (hoaDonId === activeKey) {
-        setTotalBeforeDiscount(newTotals.subtotal);
-        setTotalAmount(newTotals.finalTotal);
-      }
-
-      // Nếu vẫn còn sản phẩm, tự động áp dụng mã giảm giá tốt nhất
-      if (!isLastProduct) {
-        await autoApplyBestVoucher(hoaDonId);
-      }
-
-      // Tải lại danh sách sản phẩm và gợi ý voucher
-      await fetchInvoiceProducts(hoaDonId);
-
-      // Không tìm voucher nếu đã xóa hết sản phẩm
-      if (!isLastProduct) {
-        await findBestVoucherAndSuggest(hoaDonId);
-      } else {
-        // Nếu không còn sản phẩm, reset gợi ý voucher
-        setVoucherSuggestions({
-          show: false,
-          betterVouchers: [],
-        });
-      }
-
-      message.success("Đã xóa sản phẩm khỏi đơn hàng");
-
-      // Fetch dữ liệu mới sau khi xóa
-      await fetchLatestData();
+  
+      // Hiện thị gợi ý voucher nếu có
+      setTimeout(() => {
+        findBestVoucherAndSuggest(hoaDonId);
+      }, 300);
+  
+      message.success("Xóa sản phẩm thành công");
     } catch (error) {
       console.error("Lỗi khi xóa sản phẩm:", error);
-
-      // Hiển thị thông báo lỗi chi tiết nếu có
-      let errorMessage = "Lỗi khi xóa sản phẩm";
-      if (error.response && error.response.data) {
-        errorMessage = error.response.data.message || errorMessage;
-      }
-
-      message.error(errorMessage);
-
-      // Tải lại dữ liệu từ server để đảm bảo tính nhất quán
-      await fetchInvoiceProducts(hoaDonId);
+      message.error("Lỗi khi xóa sản phẩm");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 6. Apply voucher
+  // 6. Apply voucher  
   const handleVoucherSelected = async (hoaDonId, voucherId) => {
     try {
-      console.log(" Áp dụng voucher:", { hoaDonId, voucherId });
-
-      if (!hoaDonId || !voucherId) {
-        message.error("Không thể áp dụng voucher");
+      setLoading(true);
+      
+      // Calculate current subtotal before applying voucher
+      const currentProducts = orderProducts[hoaDonId] || [];
+      const currentSubtotal = calculateTotalBeforeDiscount(currentProducts);
+      
+      // Get voucher details to check minimum requirement
+      const selectedVoucher = vouchers.find(v => v.id === voucherId);
+      
+      if (selectedVoucher && currentSubtotal < selectedVoucher.giaTriToiThieu) {
+        message.error(
+          `Giá trị đơn hàng (${formatCurrency(currentSubtotal)}) không đủ áp dụng voucher này (tối thiểu ${formatCurrency(selectedVoucher.giaTriToiThieu)})`
+        );
         return;
       }
-
+      
       const response = await api.post(
-        `/api/admin/hoa-don/${hoaDonId}/voucher`,
+        `/api/admin/ban-hang/${hoaDonId}/voucher`,
         { voucherId },
         {
           headers: {
-            Authorization: `Bearer ${token}`, // Thêm token vào header
+            Authorization: `Bearer ${token}`,
           },
         }
       );
-
-      if (!response.data) {
-        throw new Error(" Dữ liệu trả về từ API không hợp lệ.");
+  
+      if (response.data) {
+        // Update local state with new data
+        const updatedOrder = response.data;
+        
+        setTabs((prev) =>
+          prev.map((tab) =>
+            tab.key === hoaDonId
+              ? { ...tab, order: updatedOrder }
+              : tab
+          )
+        );
+  
+        setSelectedVoucher(null);
+        message.success("Áp dụng mã giảm giá thành công");
+        
+        // Recalculate totals with the applied voucher
+        updateAllTotals(orderProducts[hoaDonId], updatedOrder);
       }
-
-      const updatedOrder = response.data;
-      // Tải lại danh sách sản phẩm để có thông tin chính xác
-      const updatedProducts = await fetchInvoiceProducts(hoaDonId, true);
-
-      // Tính toán tổng tiền chính xác sau khi áp dụng voucher
-      const newTotals = calculateOrderTotals(
-        hoaDonId,
-        updatedProducts,
-        updatedOrder
-      );
-
-      console.log("📌 Debug - Tổng tiền sau khi áp dụng voucher:", newTotals);
-
-      //  Cập nhật state theo đúng trình tự
-      setTabs((prev) =>
-        prev.map((tab) =>
-          tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
-        )
-      );
-
-      setTotals((prev) => ({
-        ...prev,
-        [hoaDonId]: newTotals,
-      }));
-
-      if (hoaDonId === activeKey) {
-        setTotalBeforeDiscount(newTotals.subtotal);
-        setTotalAmount(newTotals.finalTotal);
-      }
-
-      setOpenVoucherDialog(false);
-      message.success("🎉 Áp dụng voucher thành công!");
     } catch (error) {
-      console.error(" Lỗi khi áp dụng voucher:", error);
-      message.error("Lỗi khi áp dụng voucher, vui lòng thử lại.");
+      console.error("Error applying voucher:", error);
+      const errorMsg = error.response?.data?.message || "Lỗi khi áp dụng mã giảm giá";
+      message.error(errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -3082,143 +3168,11 @@ const BanHang = () => {
               </div>
             </div>
             {/* Phần hiển thị gợi ý voucher - Di chuyển lên dưới phần voucher */}
-            {voucherSuggestions.show &&
-              voucherSuggestions.betterVouchers?.length > 0 && (
-                <div
-                  className="voucher-suggestions"
-                  style={{
-                    margin: "16px 0",
-                    padding: "16px",
-                    background: "#f6ffed",
-                    border: "1px solid #b7eb8f",
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                    maxHeight: "500px",
-                    overflowY: "auto",
-                  }}
-                >
-                  <Space
-                    direction="vertical"
-                    size="small"
-                    style={{ width: "100%" }}
-                  >
-                    <Text strong style={{ fontSize: "16px", color: "#52c41a" }}>
-                      <InfoCircleOutlined style={{ marginRight: 8 }} />
-                      {order.phieuGiamGia
-                        ? `${voucherSuggestions.betterVouchers.length} voucher tốt hơn voucher hiện tại`
-                        : `${voucherSuggestions.betterVouchers.length} voucher có thể áp dụng cho đơn hàng`}
-                    </Text>
-                    
-                    {voucherSuggestions.betterVouchers.map((voucher, index) => {
-                      return (
-                        <Card
-                          key={voucher.id}
-                          size="small"
-                          bordered={true}
-                          style={{
-                            background: "#fff",
-                            marginBottom: "12px",
-                            borderLeft: "4px solid #52c41a"
-                          }}
-                          title={
-                            <Space>
-                              <TagOutlined style={{ color: "#1890ff" }} />
-                              <Text strong style={{ fontSize: "14px" }}>
-                                {voucher.maPhieuGiamGia}
-                              </Text>
-                              <Tag color="green">Tốt hơn hiện tại</Tag>
-                            </Space>
-                          }
-                          extra={
-                            <Button
-                              type="primary"
-                              size="middle"
-                              onClick={() => handleApplySuggestedVoucher(order.id, voucher.id)}
-                              disabled={!voucher.canApply}
-                            >
-                              {voucher.canApply ? "Áp dụng" : "Chưa đủ"}
-                            </Button>
-                          }
-                        >
-                          <Space direction="vertical" style={{ width: "100%" }} size="middle">
-                            <div>
-                              <Text style={{ fontSize: "14px" }}>
-                                {voucher.loaiPhieuGiamGia === 1
-                                  ? `Giảm ${
-                                      voucher.giaTriGiam
-                                    }% (tối đa ${formatCurrency(
-                                      voucher.soTienGiamToiDa
-                                    )})`
-                                  : `Giảm ${formatCurrency(voucher.giaTriGiam)}`}
-                              </Text>
-                              <br />
-                              <Text type="secondary" style={{ fontSize: "13px" }}>
-                                Đơn tối thiểu: {formatCurrency(voucher.giaTriToiThieu)}
-                              </Text>
-                              <br />
-                              <Text type="secondary" style={{ fontSize: "13px" }}>
-                                Giá trị giảm: {formatCurrency(voucher.discountAmount)}
-                              </Text>
-                              
-                              {/* Hiển thị số tiền tiết kiệm thêm */}
-                              {voucher.additionalSavings > 0 && (
-                                <div style={{ marginTop: 5 }}>
-                                  <Text type="success">
-                                    <ArrowUpOutlined /> Tiết kiệm thêm {formatCurrency(voucher.additionalSavings)}
-                                  </Text>
-                                </div>
-                              )}
-                            </div>
-            
-                            {/* Hiển thị thông tin số tiền cần mua thêm */}
-                            {voucher.amountNeeded > 0 && (
-                              <Alert
-                                type="warning"
-                                message={
-                                  <Space>
-                                    <InfoCircleOutlined />
-                                    <Text style={{ fontSize: "13px" }}>
-                                      Cần mua thêm{" "}
-                                      <Text strong style={{ color: "#ff4d4f" }}>
-                                        {formatCurrency(voucher.amountNeeded)}
-                                      </Text>{" "}
-                                      để áp dụng mã
-                                    </Text>
-                                  </Space>
-                                }
-                                style={{
-                                  marginBottom: 8,
-                                  fontSize: "13px",
-                                  padding: "8px 12px",
-                                }}
-                              />
-                            )}
-            
-                            {voucher.amountNeeded === 0 && (
-                              <Alert
-                                type="success"
-                                message={
-                                  <Space>
-                                    <CheckCircleOutlined />
-                                    <Text style={{ fontSize: "13px" }}>
-                                      Đã đủ điều kiện áp dụng
-                                    </Text>
-                                  </Space>
-                                }
-                                style={{
-                                  marginBottom: 8,
-                                  fontSize: "13px",
-                                  padding: "8px 12px",
-                                }}
-                              />
-                            )}
-                          </Space>
-                        </Card>
-                      );
-                    })}
-                  </Space>
-                </div>
-              )}
+            <VoucherSuggestionPanel 
+  voucherSuggestions={voucherSuggestions}
+  order={order}
+  handleApplySuggestedVoucher={handleApplySuggestedVoucher}
+/>
 
             <Text strong>Thông tin thanh toán</Text>
             <div
@@ -4437,14 +4391,78 @@ const BanHang = () => {
       message.error("Lỗi khi tải danh sách khách hàng");
     }
   };
-
-  // // Update useEffect for totalBeforeDiscount calculation
+  
   useEffect(() => {
     if (activeKey && orderProducts[activeKey]) {
-      const total = calculateTotalBeforeDiscount(orderProducts[activeKey]);
-      if (total !== totalBeforeDiscount) {
-        setTotalBeforeDiscount(total);
-      }
+      // Dùng timeout để debounce
+      const timeoutId = setTimeout(async () => {
+        const order = tabs.find((tab) => tab.key === activeKey)?.order;
+        
+        if (order && order.phieuGiamGia) {
+          // Calculate current subtotal
+          const subtotal = calculateTotalBeforeDiscount(orderProducts[activeKey]);
+          
+          // Check if the current order total meets voucher minimum requirement
+          if (subtotal < order.phieuGiamGia.giaTriToiThieu) {
+            // Show warning notification
+            message.warning(
+              `Giá trị đơn hàng (${formatCurrency(subtotal)}) không đủ áp dụng voucher ${
+                order.phieuGiamGia.maPhieuGiamGia
+              } (tối thiểu ${formatCurrency(order.phieuGiamGia.giaTriToiThieu)})`,
+              3
+            );
+            
+            try {
+              // Remove the voucher since it's no longer applicable
+              await handleRemoveVoucher(activeKey, false);
+              
+              // Update the order in tabs immediately after API call
+              setTabs((prev) =>
+                prev.map((tab) =>
+                  tab.key === activeKey
+                    ? {
+                        ...tab,
+                        order: {
+                          ...tab.order,
+                          phieuGiamGia: null,
+                          giamGia: 0,
+                        },
+                      }
+                    : tab
+                )
+              );
+              
+              // Fetch the latest order data to make sure UI is updated correctly
+              await fetchInvoiceById(activeKey);
+              
+              // Calculate new totals without voucher
+              const products = orderProducts[activeKey] || [];
+              const newTotals = calculateOrderTotals(activeKey, products, {
+                ...order,
+                phieuGiamGia: null,
+                giamGia: 0
+              });
+              
+              // Update totals state
+              setTotals((prev) => ({
+                ...prev,
+                [activeKey]: newTotals
+              }));
+              
+              // Update UI display values
+              setTotalBeforeDiscount(newTotals.subtotal);
+              setTotalAmount(newTotals.finalTotal);
+              
+            } catch (error) {
+              console.error("Error removing invalid voucher:", error);
+              message.error("Không thể xóa voucher không hợp lệ");
+            }
+          }
+        }
+      }, 500);
+      
+      // Cleanup để tránh gọi nhiều lần
+      return () => clearTimeout(timeoutId);
     }
   }, [activeKey, orderProducts]);
   // Tự động tính lại tổng tiền khi danh sách sản phẩm thay đổi
@@ -4583,7 +4601,7 @@ const BanHang = () => {
   useEffect(() => {
     fetchProducts();
   }, []);
-
+  
   const fetchInvoiceProducts = async (hoaDonId, skipUIUpdate = false) => {
     try {
       // Clear existing timer
@@ -4866,7 +4884,7 @@ const BanHang = () => {
       })
     );
   };
-
+  
   const autoApplyBestVoucher = async (hoaDonId) => {
     try {
       // Hiển thị thông báo đang xử lý - SỬ DỤNG CÙNG KEY cho tất cả messages
@@ -4876,7 +4894,7 @@ const BanHang = () => {
         key: messageKey,
         duration: 0,
       });
-
+  
       const order = tabs.find((tab) => tab.key === hoaDonId)?.order;
       if (!order) {
         message.error({
@@ -4885,11 +4903,10 @@ const BanHang = () => {
         });
         return;
       }
-
-      // THAY ĐỔI: Tải lại danh sách sản phẩm từ server để đảm bảo có dữ liệu mới nhất
+  
+      // Tải lại danh sách sản phẩm từ server để đảm bảo có dữ liệu mới nhất
       let currentProducts = [];
       try {
-        // Tải sản phẩm mới nhất từ server thay vì sử dụng state
         const productsResponse = await api.get(
           `/api/admin/hoa-don/${hoaDonId}/san-pham`,
           {
@@ -4901,7 +4918,7 @@ const BanHang = () => {
         // Nếu không thể tải từ server, sử dụng state hiện tại
         currentProducts = orderProducts[hoaDonId] || [];
       }
-
+  
       // Kiểm tra một lần nữa với dữ liệu mới nhất
       if (currentProducts.length === 0) {
         message.info({
@@ -4910,208 +4927,83 @@ const BanHang = () => {
         });
         return;
       }
-
+  
       const subtotal = calculateTotalBeforeDiscount(currentProducts);
       const shippingFee = order.phiVanChuyen || 0;
-      const totalForVoucher = subtotal;
-      const totalBeforeVoucher = subtotal + shippingFee;
-
-      if (totalBeforeVoucher <= 0) {
+      const totalForVoucher = subtotal; // Chỉ sử dụng tổng tiền hàng cho voucher, không tính phí ship
+  
+      if (totalForVoucher <= 0) {
         message.info({
           content: "Tổng tiền đơn hàng không hợp lệ để áp dụng mã giảm giá",
           key: messageKey,
         });
         return;
       }
-
-      console.log("Tìm voucher tốt nhất cho đơn hàng:", {
-        hoaDonId,
-        subtotal,
-        shippingFee,
-        totalBeforeVoucher,
-        productCount: currentProducts.length,
-      });
-
+  
       // Get customer ID from order
       const customerId = order.khachHang?.id || "";
-
-      // Lấy danh sách tất cả voucher có thể áp dụng
-      const response = await api.get(
-        `/api/admin/phieu-giam-gia/available?orderTotal=${totalBeforeVoucher}&customerId=${customerId}`,
+  
+      // Trực tiếp gọi API apply-best-voucher của server để sử dụng logic của server
+      const response = await api.post(
+        `/api/admin/ban-hang/${hoaDonId}/apply-best-voucher?customerId=${customerId}`,
+        {},
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      const availableVouchers = response.data || [];
-
-      console.log(
-        `Tìm thấy ${availableVouchers.length} voucher khả dụng:`,
-        availableVouchers
-      );
-
-      if (!availableVouchers.length) {
-        // Nếu đã có voucher, kiểm tra xem còn hợp lệ không
-        if (order.phieuGiamGia) {
-          if (totalBeforeVoucher < order.phieuGiamGia.giaTriToiThieu) {
-            await handleRemoveVoucher(hoaDonId);
-            message.info({
-              content: "Đã xóa voucher do không đủ điều kiện áp dụng.",
-              key: messageKey,
-            });
-          } else {
-            message.info({
-              content: "Đã giữ voucher hiện tại do vẫn còn hợp lệ.",
-              key: messageKey,
-            });
-          }
-          return;
-        } else {
-          message.info({
-            content: "Không có mã giảm giá phù hợp với đơn hàng này.",
-            key: messageKey,
-          });
-          return;
-        }
-      }
-
-      // Lọc voucher đạt điều kiện áp dụng (đủ điều kiện tối thiểu)
-      const eligibleVouchers = availableVouchers.filter(
-        (voucher) => totalBeforeVoucher >= voucher.giaTriToiThieu
-      );
-
-      if (!eligibleVouchers.length) {
-        // Nếu đã có voucher cũ, kiểm tra xem còn hợp lệ không
-        if (
-          order.phieuGiamGia &&
-          totalBeforeVoucher < order.phieuGiamGia.giaTriToiThieu
-        ) {
-          await handleRemoveVoucher(hoaDonId);
-          message.info({
-            content: "Đã xóa voucher do không đủ điều kiện áp dụng.",
-            key: messageKey,
-          });
-        } else {
-          message.info({
-            content: "Không có mã giảm giá đủ điều kiện áp dụng.",
-            key: messageKey,
-          });
-        }
-        return;
-      }
-
-      // Tìm voucher giảm giá cao nhất
-      const bestVoucher = eligibleVouchers.reduce((best, current) => {
-        const currentDiscount = calculateDiscountAmount(
-          current,
-          totalBeforeVoucher
-        );
-        const bestDiscount = best
-          ? calculateDiscountAmount(best, totalBeforeVoucher)
-          : 0;
-
-        return currentDiscount > bestDiscount ? current : best;
-      }, null);
-
-      if (!bestVoucher) {
+  
+      if (!response.data) {
         message.info({
-          content: "Không tìm thấy voucher tốt nhất.",
+          content: "Không tìm thấy voucher phù hợp cho đơn hàng này.",
           key: messageKey,
         });
         return;
       }
-
-      // Tính toán số tiền giảm giá cho voucher tốt nhất
-      const bestDiscount = calculateDiscountAmount(
-        bestVoucher,
-        totalBeforeVoucher
-      );
-
-      // So sánh với voucher hiện tại (nếu có)
-      const currentDiscount = order.phieuGiamGia
-        ? calculateDiscountAmount(order.phieuGiamGia, totalBeforeVoucher)
-        : 0;
-
-      // Nếu voucher mới không tốt hơn voucher hiện tại, giữ nguyên
-      if (order.phieuGiamGia && bestDiscount <= currentDiscount) {
-        message.info({
-          content: "Voucher hiện tại đã là tốt nhất.",
-          key: messageKey,
-        });
-        return;
-      }
-
-      // Nếu có voucher cũ, xóa trước khi áp dụng voucher mới
-      if (order.phieuGiamGia) {
-        await handleRemoveVoucher(hoaDonId, false); // false = không hiện thông báo
-      }
-
-      // Gọi API để áp dụng voucher mới
-      const applyResponse = await api.post(
-        `/api/admin/ban-hang/${hoaDonId}/voucher`,
-        {
-          voucherId: bestVoucher.id,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!applyResponse.data) {
-        message.error({
-          content: "Không thể áp dụng mã giảm giá.",
-          key: messageKey,
-        });
-        return;
-      }
-
-      // Cập nhật UI và state ngay sau khi API thành công
-      const updatedOrder = applyResponse.data;
-
-      // Cập nhật state đồng bộ ngay lập tức
+  
+      const updatedOrder = response.data;
+      
+      // Cập nhật UI với thông tin đơn hàng mới
       setTabs((prev) =>
         prev.map((tab) =>
           tab.key === hoaDonId ? { ...tab, order: updatedOrder } : tab
         )
       );
-
-      // Cập nhật totals
-      const newTotals = {
-        ...totals[hoaDonId],
-        discountAmount: bestDiscount,
-        finalTotal: totalBeforeVoucher - bestDiscount,
-      };
-
+      
+      // Tính toán lại totals
+      const newTotals = calculateOrderTotals(hoaDonId, currentProducts, updatedOrder);
       setTotals((prev) => ({
         ...prev,
         [hoaDonId]: newTotals,
       }));
-      const actualDiscount = Math.min(bestDiscount, subtotal);
-      // QUAN TRỌNG: Hiển thị thông báo thành công ngay lập tức với cùng key
-      message.success({
-        content: `Đã áp dụng mã giảm giá tốt nhất: ${
-          bestVoucher.maPhieuGiamGia
-        } - Giảm ${formatCurrency(actualDiscount)}`,
-        key: messageKey,
-        duration: 3,
-      });
-
-      // Các thao tác async khác đưa vào setTimeout để không làm delay thông báo
+  
+      const discountAmount = updatedOrder.giamGia || newTotals.discountAmount || 0;
+  
+      // Hiển thị thông báo thành công với thông tin voucher
+      if (updatedOrder.phieuGiamGia) {
+        message.success({
+          content: `Đã áp dụng mã giảm giá tốt nhất: ${updatedOrder.phieuGiamGia.maPhieuGiamGia} - Giảm ${formatCurrency(discountAmount)}`,
+          key: messageKey,
+          duration: 3,
+        });
+      } else {
+        message.info({
+          content: "Không có voucher nào tốt hơn để áp dụng",
+          key: messageKey,
+        });
+      }
+  
+      // Cập nhật giao diện hiển thị gợi ý voucher
       setTimeout(() => {
-        // Tìm và hiển thị voucher tốt hơn (nếu có)
         findBestVoucherAndSuggest(hoaDonId);
-
-        // Cập nhật lại toàn bộ thông tin đơn hàng từ server
-        fetchInvoiceById(hoaDonId);
-      }, 100);
+      }, 300);
+  
+      return updatedOrder;
     } catch (error) {
       console.error("Lỗi khi tự động áp dụng voucher:", error);
       message.error({
-        content:
-          "Không thể áp dụng mã giảm giá tự động: " +
+        content: "Không thể áp dụng mã giảm giá tự động: " + 
           (error.response?.data?.message || error.message),
         key: "applying-best-voucher",
       });

@@ -361,7 +361,7 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
                   { required: true, message: "Vui lòng chọn ngày sinh!" },
                 ]}
               >
-                <DatePicker
+                 <DatePicker
                   format="YYYY-MM-DD"
                   style={{ width: "100%" }}
                   placeholder="Nhập ngày sinh"

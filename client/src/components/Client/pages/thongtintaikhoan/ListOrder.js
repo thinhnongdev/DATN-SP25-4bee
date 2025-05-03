@@ -279,7 +279,7 @@ const OrderPage = () => {
                     Chi tiết đơn hàng
                   </Button>
 
-                  {![3, 4, 5, 6].includes(order.trangThai) && (
+                  {![2,3, 4, 5, 6].includes(order.trangThai) && (
                     <Button
                       type="default"
                       danger

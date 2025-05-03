@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Input, Card, Badge, Button, Tag, Row, Col, Layout, Spin, message } from 'antd';
+import { Input, Card, Badge, Button, Tag, Row, Col, Layout, Spin, message, Tooltip } from 'antd';
 import { InfoCircleOutlined, SearchOutlined, WalletOutlined } from '@ant-design/icons';
 import Sidebar from './SidebarProfile';
 import { jwtDecode } from 'jwt-decode';
@@ -27,6 +27,15 @@ const getButtonStyle = (status) => {
   }
 };
 const VoucherCard = ({ data }) => {
+  const content = (
+    <div>
+      <p><strong>Mã Phiếu Giảm Giá:</strong> {data.maPhieuGiamGia}</p>
+      <p><strong>Đơn Tối Thiểu:</strong> {data.minOrder}</p>
+      <p><strong>Giảm giá:</strong> {data.discountText}</p>
+      <p><strong>Ngày Hiệu Lực:</strong> {data.effectiveDate}</p>
+      <p><strong>Ngày Hết Hạn:</strong> {data.expiryDate}</p>
+    </div>
+  );
   return (
     <div
       style={{
@@ -74,9 +83,11 @@ const VoucherCard = ({ data }) => {
         <div style={{ color: 'red', fontWeight: 'bold' }}>{data.discountText}</div>
         <div style={{ color: 'gray', fontSize: 12, marginTop: 8 }}>
           Có hiệu lực từ: {data.effectiveDate} - {data.expiryDate} &nbsp;|&nbsp;
-          <a href="#">
-            Điều Kiện <InfoCircleOutlined />
-          </a>
+          <Tooltip title={content}>
+            <a href="#" style={{ textDecoration: 'none' }}>
+              Điều Kiện <InfoCircleOutlined />
+            </a>
+          </Tooltip>
         </div>
         {data.isPersonal && <Tag color="blue">Của Tôi</Tag>}
       </div>

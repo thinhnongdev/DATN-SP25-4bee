@@ -5923,42 +5923,42 @@ function InvoiceDetail() {
                 >
                   {Array.isArray(hinhAnh) && hinhAnh.length > 0 ? (
                     <Carousel
-                      autoplay
-                      dots={false}
-                      effect="fade"
-                      style={{ width: "100%" }}
-                    >
-                      {hinhAnh.map((url, index) => (
-                        <div
-                          key={index}
+                    autoplay
+                    dots={false}
+                    effect="fade"
+                    style={{ width: "100%" }}
+                  >
+                    {hinhAnh.map((url, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          height: "100%",
+                        }}
+                      >
+                        <img
+                          src={url}
+                          alt={`${record.tenSanPham || "Sản phẩm"} ${
+                            index + 1
+                          }`}
                           style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
+                            width: "100%",
                             height: "100%",
+                            objectFit: "cover",
+                            borderRadius: 5,
+                            display: "block",
                           }}
-                        >
-                          <img
-                            src={url}
-                            alt={`${record.tenSanPham || "Sản phẩm"} ${
-                              index + 1
-                            }`}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                              borderRadius: 5,
-                              display: "block",
-                            }}
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src =
-                                "https://via.placeholder.com/150x120?text=No+Image";
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </Carousel>
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src =
+                              "https://via.placeholder.com/150x120?text=No+Image";
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </Carousel>
                   ) : (
                     <img
                       src="https://via.placeholder.com/150x120?text=No+Image"
