@@ -25,8 +25,9 @@ import {
   Slider,
   InputNumber,
   Timeline,
+  Alert,
 } from 'antd';
-import { CheckCircleOutlined, ClockCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CheckCircleTwoTone, ClockCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import Sidebar from './SidebarProfile';
 import { Option } from 'antd/es/mentions';
 import { isEqual } from 'lodash'; // Cài bằng: npm install lodash
@@ -1058,7 +1059,7 @@ const OrderDetailPage = () => {
           message.warning('Phải có ít nhất 1 sản phẩm trong hóa đơn.');
           return;
         }
-  
+
         Modal.confirm({
           title: 'Xác nhận xóa sản phẩm',
           content: 'Bạn có chắc chắn muốn xóa sản phẩm này khỏi hóa đơn?',
@@ -1067,16 +1068,17 @@ const OrderDetailPage = () => {
           okType: 'danger',
           onOk: async () => {
             const filteredProducts = updateOrder.products.filter(
-              (item) => !(item.id === productDetailId && item.giaTaiThoiDiemThem === giaTaiThoiDiemThem),
+              (item) =>
+                !(item.id === productDetailId && item.giaTaiThoiDiemThem === giaTaiThoiDiemThem),
             );
             const newTotal = filteredProducts.reduce(
               (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
               0,
             );
-  
+
             const discount = getDiscountValue(updateOrder.voucher, newTotal);
             const phiVanChuyen = await fetchShippingFee(newTotal - discount);
-  
+
             setUpdateOrder((prev) => ({
               ...prev,
               products: filteredProducts,
@@ -1084,33 +1086,33 @@ const OrderDetailPage = () => {
               phiVanChuyen: phiVanChuyen,
               tongThanhToan: newTotal + phiVanChuyen - discount,
             }));
-  
+
             message.success('Đã xóa sản phẩm khỏi đơn hàng!');
           },
         });
-  
+
         return;
       }
-  
+
       // Cập nhật số lượng chỉ sản phẩm có id và giá tương ứng
       const updatedProducts = updateOrder.products.map((item) =>
         item.id === productDetailId && item.giaTaiThoiDiemThem === giaTaiThoiDiemThem
           ? { ...item, soLuongMua: newQuantity }
           : item,
       );
-  
+
       const newTotal = updatedProducts.reduce(
         (total, item) => total + item.giaTaiThoiDiemThem * item.soLuongMua,
         0,
       );
-  
+
       const discount = getDiscountValue(updateOrder.voucher, newTotal);
       let phiVanChuyen = await fetchShippingFee(newTotal - discount);
       if (newTotal > 2000000) {
         message.success('Đơn hàng trên 2 triệu được miễn phí vận chuyển');
         phiVanChuyen = 0;
       }
-  
+
       setUpdateOrder((prev) => ({
         ...prev,
         products: updatedProducts,
@@ -1118,14 +1120,13 @@ const OrderDetailPage = () => {
         phiVanChuyen: phiVanChuyen,
         tongThanhToan: newTotal + phiVanChuyen - discount,
       }));
-  
+
       message.success('Đã cập nhật số lượng sản phẩm!');
     } catch (error) {
       console.error('Lỗi khi cập nhật số lượng:', error);
       message.error('Không thể cập nhật số lượng. Vui lòng thử lại.');
     }
   };
-  
 
   const handleEditAddress = () => {
     setIsAddressList(true);
@@ -1343,29 +1344,28 @@ const OrderDetailPage = () => {
 
   const handleConfirmUpdateOrder = () => {
     const totalPrice = calculateTotalPrice();
-    const maxTotalPayment = 15000000;// 15 triệu đồng
-  
+    const maxTotalPayment = 15000000; // 15 triệu đồng
+
     const newOrder = { ...updateOrder };
-  
+
     let voucherWarning = '';
     if (newOrder.voucher && totalPrice < newOrder.voucher?.giaTriToiThieu) {
       newOrder.idPhieuGiamGia = null;
-  
+
       // So sánh với đơn hàng gốc xem ban đầu có voucher hay không
       if (order.voucher) {
         voucherWarning = `Phiếu giảm giá "${order.voucher.maPhieuGiamGia}" sẽ bị huỷ vì đơn hàng không còn đủ điều kiện.\n\n`;
       }
     }
-  
+
     if (totalPayMent > maxTotalPayment) {
       message.warning('Tổng giá trị đơn hàng không được vượt quá 15 triệu đồng!');
       return;
     }
-  
+
     Modal.confirm({
       title: 'Xác nhận cập nhật đơn hàng',
-      content:
-        `${voucherWarning}Bạn có chắc chắn muốn cập nhật đơn hàng này không?`,
+      content: `${voucherWarning}Bạn có chắc chắn muốn cập nhật đơn hàng này không?`,
       okText: 'Xác nhận',
       cancelText: 'Hủy',
       onOk: async () => {
@@ -1387,7 +1387,6 @@ const OrderDetailPage = () => {
       },
     });
   };
-  
 
   const isEditable = ![3, 4, 5, 6, 7].includes(updateOrder.trangThai); // 3: Đang giao, 4: Hoàn thành, 5:hoàn thành, 6: Đã hủy,7: đã hoàn thành
 
@@ -1579,7 +1578,13 @@ const OrderDetailPage = () => {
                         <Col>
                           <Button
                             size="small"
-                            onClick={() => handleQuantityChange(item.id, item.giaTaiThoiDiemThem, item.soLuongMua - 1)}
+                            onClick={() =>
+                              handleQuantityChange(
+                                item.id,
+                                item.giaTaiThoiDiemThem,
+                                item.soLuongMua - 1,
+                              )
+                            }
                             disabled={updateOrder.products.length === 1 && item.soLuongMua === 1}
                           >
                             -
@@ -1591,7 +1596,13 @@ const OrderDetailPage = () => {
                         <Col>
                           <Button
                             size="small"
-                            onClick={() => handleQuantityChange(item.id, item.giaTaiThoiDiemThem, item.soLuongMua + 1)}
+                            onClick={() =>
+                              handleQuantityChange(
+                                item.id,
+                                item.giaTaiThoiDiemThem,
+                                item.soLuongMua + 1,
+                              )
+                            }
                             disabled={
                               currentPrices[item.id] > item.giaTaiThoiDiemThem ||
                               updateOrder.products
@@ -1750,65 +1761,171 @@ const OrderDetailPage = () => {
         )}
 
         {/* Hiện tổng thanh toán & chênh lệch nếu KHÔNG phải tất cả đều là COD */}
-        {!allCOD && chenhLech !== 0 && (
-          <Card
-            style={{
-              marginTop: 16,
-              borderRadius: 8,
-              backgroundColor: '#fff7e6',
-              border: '1px solid #ffe58f',
-            }}
-          >
-            <Row justify="space-between">
-              <Col>
-                <Text strong>Tổng tiền đã thanh toán</Text>
-              </Col>
-              <Col>
-                <Text strong style={{ color: '#1677ff' }}>
-                  {totalPaid.toLocaleString('vi-VN')}₫
-                </Text>
-              </Col>
-            </Row>
+        <>
+  {/* Hiển thị tổng tiền đơn hàng khi trạng thái là hoàn thành */}
+  {order.trangThai === 5 && (
+    <Card
+      style={{
+        marginTop: 16,
+        borderRadius: 8,
+        backgroundColor: '#f6ffed',
+        border: '1px solid #b7eb8f',
+      }}
+    >
+      <Row justify="space-between" align="middle">
+      <Col>
+        <Space direction="vertical">
+          <Text strong style={{ fontSize: 16 }}>
+            <CheckCircleTwoTone twoToneColor="#52c41a" style={{ marginRight: 6 }} />
+            Đơn hàng đã hoàn thành
+          </Text>
+          <Text>Tổng tiền đã thanh toán đơn hàng</Text>
+        </Space>
+      </Col>
+      <Col>
+      <br/>
+        <Text strong style={{ color: '#52c41a', fontSize: 16 }}>
+          {totalPayMent.toLocaleString('vi-VN')}₫
+        </Text>
+      </Col>
+    </Row>
 
-            <Row justify="space-between" style={{ marginTop: 12 }}>
-              <Col>
-                <Text strong>Số tiền chêng lệch</Text>
-              </Col>
-              <Col>
-                {chenhLech > 0 ? (
-                  <Text strong style={{ color: 'red' }}>
-                    Thiếu {chenhLech.toLocaleString('vi-VN')}₫
-                  </Text>
-                ) : (
-                  <Text strong style={{ color: 'green' }}>
-                    Thừa {Math.abs(chenhLech).toLocaleString('vi-VN')}₫
-                  </Text>
-                )}
-              </Col>
-            </Row>
+      {/* Nếu có chênh lệch, chỉ thông báo đã thanh toán */}
+      {!allCOD && chenhLech !== 0 && (
+        <>
+          <Divider />
+          <Row justify="space-between">
+            <Col>
+              <Text strong>Số tiền trả sau</Text>
+            </Col>
+            <Col>
+              <Text strong style={{ color: '#1677ff' }}>
+                {Math.abs(chenhLech).toLocaleString('vi-VN')}₫
+              </Text>
+            </Col>
+          </Row>
+          <Row style={{ marginTop: 8 }}>
+            <Col span={24}>
+              <Text type="secondary" italic>
+                Đã thanh toán đầy đủ, bao gồm khoản tiền trả khi nhận hàng này.
+              </Text>
+            </Col>
+          </Row>
+        </>
+      )}
+    </Card>
+  )}
 
-            {/* Dòng mô tả */}
-            <Row style={{ marginTop: 8 }}>
-              <Col span={24}>
-                <Text type="secondary" italic>
-                  {chenhLech > 0
-                    ? 'Khách hàng cần thanh toán số tiền còn thiếu khi nhận hàng.'
-                    : 'Cửa hàng sẽ liên hệ hoàn tiền cho quý khách trong vòng 2-3 ngày làm việc.'}
+  {/* Hiển thị cảnh báo nếu đơn hàng bị huỷ */}
+  {order.trangThai === 6 && (
+    <Card
+      style={{
+        marginTop: 16,
+        borderRadius: 8,
+        backgroundColor: '#fff1f0',
+        border: '1px solid #ffa39e',
+      }}
+    >
+      <Row>
+        <Col span={24}>
+          <Text strong style={{ color: '#cf1322' }}>Đơn hàng đã bị huỷ</Text>
+        </Col>
+      </Row>
+      <Row style={{ marginTop: 8 }}>
+        <Col span={24}>
+          <Text>
+            Mọi thanh toán liên quan sẽ không được xử lý. Nếu bạn đã thanh toán và chưa nhận được
+            tiền hoàn trả, vui lòng liên hệ cửa hàng để được hoàn tiền.
+          </Text>
+        </Col>
+      </Row>
+
+      {/* Gộp thông tin chênh lệch nếu có */}
+      {/* {!allCOD && chenhLech !== 0 && (
+        <>
+          <Divider />
+          <Row justify="space-between">
+            <Col>
+              <Text strong>Số tiền chênh lệch</Text>
+            </Col>
+            <Col>
+              {chenhLech > 0 ? (
+                <Text strong style={{ color: 'red' }}>
+                  Thiếu {chenhLech.toLocaleString('vi-VN')}₫
                 </Text>
-              </Col>
-            </Row>
-          </Card>
-          
-        )}
-        
-        {hasChanges && (
-          <div style={{ marginTop: 16, textAlign: 'right' }}>
-            <Button type="primary" size="large" onClick={handleConfirmUpdateOrder}>
-              Xác nhận cập nhật đơn hàng
-            </Button>
-          </div>
-        )}
-      </div>
+              ) : (
+                <Text strong style={{ color: 'green' }}>
+                  Thừa {Math.abs(chenhLech).toLocaleString('vi-VN')}₫
+                </Text>
+              )}
+            </Col>
+          </Row>
+        </>
+      )} */}
+    </Card>
+  )}
+
+  {/* Card chênh lệch riêng khi đơn hàng chưa hoàn thành hoặc bị huỷ */}
+  {!allCOD && chenhLech !== 0 && order.trangThai !== 5 && order.trangThai !== 6 && (
+    <Card
+      style={{
+        marginTop: 16,
+        borderRadius: 8,
+        backgroundColor: '#fff7e6',
+        border: '1px solid #ffe58f',
+      }}
+    >
+      <Row justify="space-between">
+        <Col>
+          <Text strong>Tổng tiền đã thanh toán</Text>
+        </Col>
+        <Col>
+          <Text strong style={{ color: '#1677ff' }}>
+            {totalPaid.toLocaleString('vi-VN')}₫
+          </Text>
+        </Col>
+      </Row>
+
+      <Row justify="space-between" style={{ marginTop: 12 }}>
+        <Col>
+          <Text strong>Số tiền chênh lệch</Text>
+        </Col>
+        <Col>
+          {chenhLech > 0 ? (
+            <Text strong style={{ color: 'red' }}>
+              Thiếu {chenhLech.toLocaleString('vi-VN')}₫
+            </Text>
+          ) : (
+            <Text strong style={{ color: 'green' }}>
+              Thừa {Math.abs(chenhLech).toLocaleString('vi-VN')}₫
+            </Text>
+          )}
+        </Col>
+      </Row>
+
+      <Row style={{ marginTop: 8 }}>
+        <Col span={24}>
+          <Text type="secondary" italic>
+            {chenhLech > 0
+              ? 'Khách hàng cần thanh toán số tiền còn thiếu khi nhận hàng.'
+              : 'Cửa hàng sẽ liên hệ hoàn tiền cho quý khách trong vòng 2-3 ngày làm việc.'}
+          </Text>
+        </Col>
+      </Row>
+    </Card>
+  )}
+
+  {/* Nút xác nhận cập nhật */}
+  {hasChanges && (
+    <div style={{ marginTop: 16, textAlign: 'right' }}>
+      <Button type="primary" size="large" onClick={handleConfirmUpdateOrder}>
+        Xác nhận cập nhật đơn hàng
+      </Button>
+    </div>
+  )}
+</>
+
+</div>
 
       <Modal
         title="Chọn địa chỉ giao hàng"
