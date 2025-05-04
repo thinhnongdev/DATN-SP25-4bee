@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Phiếu Giảm Giá Cá Nhân từ 4bee</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #e9ecef;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            padding: 20px;
+            text-align: center;
+        }
+        .header img {
+            max-height: 50px;
+            width: auto;
+        }
+        .banner {
+            background-color: #3b82f6;
+            color: #ffffff;
+            text-align: center;
+            padding: 25px 20px;
+        }
+        .banner h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .banner p {
+            font-size: 15px;
+            opacity: 0.9;
+        }
+        .coupon {
+            padding: 25px 20px;
+            background-color: #f9fafb;
+            text-align: center;
+        }
+        .coupon-box {
+            background: linear-gradient(135deg, #ffffff, #eff6ff);
+            border: 2px dashed #3b82f6;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .coupon-box::before,
+        .coupon-box::after {
+            content: '';
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background-color: #e9ecef;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .coupon-box::before {
+            left: -12px;
+        }
+        .coupon-box::after {
+            right: -12px;
+        }
+        .coupon-title h2 {
+            color: #1e3a8a;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .coupon-title p {
+            color: #3b82f6;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        /* Modified coupon value section - removed circle */
+        .coupon-value {
+            text-align: center;
+            margin: 18px auto;
+        }
+        .discount-amount {
+            font-size: 40px;
+            font-weight: 700;
+            color: #3b82f6;
+            margin-bottom: 2px;
+        }
+        .currency {
+            font-size: 30px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+        .max-discount {
+            font-size: 14px;
+            margin-top: 8px;
+            color: #1e3a8a;
+        }
+        .coupon-code {
+            background-color: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 18px;
+        }
+        .coupon-code p {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        .coupon-code h3 {
+            font-size: 18px;
+            color: #1e3a8a;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .coupon-dates {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 18px;
+            padding: 0 10px;
+            gap: 30px;
+        }
+        .coupon-dates div {
+            text-align: center;
+        }
+        .coupon-dates p {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        .coupon-dates span {
+            font-size: 13px;
+            color: #1e3a8a;
+            font-weight: 600;
+        }
+        .terms {
+            text-align: left;
+            padding: 0 10px;
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+        .terms ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .terms li {
+            margin-bottom: 6px;
+            position: relative;
+            padding-left: 18px;
+        }
+        .terms li::before {
+            content: '✔';
+            position: absolute;
+            left: 0;
+            color: #3b82f6;
+        }
+        .cta {
+            text-align: center;
+            margin: 18px 0;
+        }
+        .cta a {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        .cta a:hover {
+            background-color: #1e40af;
+        }
+        .note {
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.5;
+            padding: 0 20px;
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        .note a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .footer {
+            background-color: #1e3a8a;
+            color: #ffffff;
+            padding: 16px;
+            text-align: center;
+        }
+        .footer p {
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .social-links a {
+            margin: 0 8px;
+            display: inline-block;
+        }
+        .social-links img {
+            width: 22px;
+            height: 22px;
+            filter: brightness(0) invert(1);
+        }
+        .footer small {
+            display: block;
+            font-size: 11px;
+            color: #bfdbfe;
+            margin-top: 5px;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                max-width: 100%;
+            }
+            .banner h1 {
+                font-size: 18px;
+            }
+            .discount-amount {
+                font-size: 32px;
+            }
+            .currency {
+                font-size: 24px;
+            }
+            .coupon-dates {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <img src="/images/4bee-logo2.png" alt="4bee Logo">
+    </div>
+
+    <!-- Banner -->
+    <div class="banner">
+        <h1>Chào {{tenKhachHang}},</h1>
+        <p>Bạn vừa nhận được một phiếu giảm giá độc quyền!</p>
+    </div>
+
+    <!-- Coupon Section -->
+    <div class="coupon">
+        <div class="coupon-box">
+            <!-- Coupon Title -->
+            <div class="coupon-title">
+                <h2>PHIẾU GIẢM GIÁ</h2>
+                <p>{{tenPhieuGiamGia}}</p>
+            </div>
+
+            <!-- Coupon Value - Modified to remove circle and make text blue -->
+            <div class="coupon-value">
+                <span class="discount-amount">{{giaTriGiam}}</span>
+                <span class="currency"></span>
+                <p class="max-discount">Giảm tối đa {{giaTriToiDa}}</p>
+            </div>
+
+            <!-- Coupon Code -->
+            <div class="coupon-code">
+                <p>MÃ PHIẾU GIẢM GIÁ</p>
+                <h3>{{maPhieuGiamGia}}</h3>
+            </div>
+
+            <!-- Validity Dates -->
+            <div class="coupon-dates">
+                <div>
+                    <p>NGÀY BẮT ĐẦU :  <span>{{ngayBatDau}}</span></p>  <br>
+                    <p>NGÀY KẾT THÚC : <span>{{ngayKetThuc}}</span></p>
+                </div>
+
+            </div>
+
+            <!-- Terms and Conditions -->
+            <div class="terms">
+                <ul>
+                    <li>Áp dụng cho đơn hàng từ {{giaTriToiThieu}} trở lên</li>
+                    <li>Mỗi khách hàng chỉ sử dụng được một lần</li>
+                    <li>Không áp dụng đồng thời với khuyến mãi khác</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="cta">
+            <a href="https://4bee.com/shop">MUA SẮM NGAY</a>
+        </div>
+
+        <!-- Note -->
+        <div class="note">
+            Vui lòng sử dụng phiếu giảm giá trước <strong>{{ngayKetThuc}}</strong> để tận hưởng ưu đãi. Nếu có thắc mắc, hãy liên hệ với chúng tôi qua <a href="mailto:support@4bee.com">support@4bee.com</a>.
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Trân trọng,<br>Đội ngũ 4bee</p>
+        <div class="social-links">
+            <a href="https://facebook.com/4bee"><img src="https://via.placeholder.com/24?text=FB" alt="Facebook"></a>
+            <a href="https://instagram.com/4bee"><img src="https://via.placeholder.com/24?text=IG" alt="Instagram"></a>
+            <a href="https://twitter.com/4bee"><img src="https://via.placeholder.com/24?text=TW" alt="Twitter"></a>
+        </div>
+        <small>© 2025 4bee. Tất cả các quyền được bảo lưu.</small>
+    </div>
+</div>
+</body>
+</html>

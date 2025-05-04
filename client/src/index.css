@@ -1,0 +1,57 @@
+@import 'antd/dist/reset.css';
+
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Layout styles */
+.site-layout {
+  min-height: 100vh;
+}
+
+.site-layout-background {
+  background: #fff;
+}
+
+/* Invoice styles */
+.invoice-container {
+  padding: 24px;
+  background: #fff;
+}
+
+.invoice-header {
+  margin-bottom: 24px;
+}
+
+.invoice-table {
+  margin-top: 24px;
+}
+
+.invoice-footer {
+  margin-top: 24px;
+  text-align: right;
+}
+
+/* Status badge styles */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .invoice-container {
+    padding: 12px;
+  }
+}
