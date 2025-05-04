@@ -338,7 +338,7 @@ public class BanHangTaiQuay {
             hoaDon.setDiaChi(null);
             hoaDon.setTenNguoiNhan(null);
             hoaDon.setSoDienThoai(null);
-
+            hoaDon.setPhiVanChuyen(null);
             // Save the updated invoice
             hoaDonRepository.save(hoaDon);
 

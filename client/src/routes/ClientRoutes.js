@@ -12,6 +12,7 @@ import ContactClient from '../components/Client/pages/Contact';
 import Checkout from '../components/Client/pages/Checkout';
 import OrderSuccessPage from '../components/Client/pages/OrderSuccess';
 import PaymentSuccessByVnPay from '../components/Client/pages/PaymentSuccessByVnPay';
+import AboutUsPage from '../components/Client/pages/AboutUsPage';
 const ClientRoutes = () => {
   {
     return (
@@ -29,6 +30,7 @@ const ClientRoutes = () => {
         <Route path="/orders/:orderId" element={<OrderDetail />} />
         <Route path="/myprofile" element={<TaiKhoanCuaToi />} />
         <Route path="/danhsachvoucher" element={<DanhSachVoucher />} />
+        <Route path="/about" element={<AboutUsPage />} />
       </>
     );
   }

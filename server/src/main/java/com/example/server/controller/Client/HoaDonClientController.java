@@ -176,10 +176,13 @@ public class HoaDonClientController {
             return ResponseEntity.badRequest().body("Id hóa đơn không được để trống");
         }
         try {
+            if (hoaDonClientService.findHoaDonClientById(idHoaDon).getTrangThai()==1){//kiểm tra trạng thái của đơn hàng trước khi update phải là chờ xac nhan
             hoaDonClientService.updateDiaChiHoaDonChoXacNhan(request);
             hoaDonClientService.updateHoaDonChiTiet(request);
             hoaDonClientService.handleChenhLechThanhToan(request);
             return ResponseEntity.ok("Cập nhật hóa đơn thành công");
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Đơn hàng không được phép sửa");
         }catch (RuntimeException e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi cập nhật hóa đơn" + e.getMessage());
         }

@@ -42,7 +42,7 @@ const Products = () => {
     color: [],
     size: [],
     fabric: [],
-    priceRange: [0, 200],
+    priceRange: [0, 2000],
   });
 
 
@@ -51,7 +51,7 @@ const Products = () => {
       color: [],
       size: [],
       fabric: [],
-      priceRange: [0, 200],
+      priceRange: [0, 2000],
     });
     setSearchKeyword("");
   };
@@ -152,7 +152,7 @@ const filteredProducts = products.filter((product) => {
                 <Slider
                   range
                   min={0}
-                  max={200}
+                  max={2000}
                   value={filters.priceRange}
                   onChange={(value) => handleFilterChange("priceRange", value)}
                   tipFormatter={(val) => `${val}k`}

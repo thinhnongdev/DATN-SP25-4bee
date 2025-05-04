@@ -292,9 +292,9 @@ const ProductDetail = () => {
               {displayPrice}
             </Title>
 
-            <Text style={{ fontSize: '16px', display: 'block', marginBottom: '24px' }}>
+            {/* <Text style={{ fontSize: '16px', display: 'block', marginBottom: '24px' }}>
               {sanPhamGopNhom?.moTa}
-            </Text>
+            </Text> */}
 
             {/* Màu sắc */}
             <div style={{ marginBottom: '24px' }}>

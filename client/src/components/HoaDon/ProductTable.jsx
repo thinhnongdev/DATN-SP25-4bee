@@ -53,7 +53,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
   const [productList, setProductList] = useState(products);
   const [selectedProducts, setSelectedProducts] = useState([]); // Thêm state cho việc chọn nhiều sản phẩm
   const token = localStorage.getItem("token");
-      const [priceRange, setPriceRange] = useState([0, 10000000]);
+  const [priceRange, setPriceRange] = useState([0, 10000000]);
   const [maxPrice, setMaxPrice] = useState(10000000);
   const [productQuantities, setProductQuantities] = useState({});
   //xử lý phân trang, thay đổi STT dòng bắt đầu khi chuyển trang
@@ -100,6 +100,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
       setPagination({ current: 1, pageSize: 5 });
       // Cập nhật danh sách sản phẩm từ props
       setProductList(products);
+      console.log(products);
     }
   }, [open, products, maxPrice]);
   useEffect(() => {

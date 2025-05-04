@@ -8,30 +8,29 @@ const { Title, Text } = Typography;
 
 const Footer = () => {
   return (
-    <AntFooter>
+    <AntFooter style={{ background: '#001529' }}>
       <div className="container">
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={12} md={8}>
             <Title level={4} style={{ color: 'white' }}>4BEE</Title>
             <Text style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
-              Premium long-sleeve dress shirts for the modern gentleman.
+              Áo sơ mi tay dài cao cấp dành cho quý ông hiện đại.
             </Text>
           </Col>
           
           <Col xs={24} sm={12} md={8}>
-            <Title level={4} style={{ color: 'white' }}>Quick Links</Title>
+            <Title level={4} style={{ color: 'white' }}>Liên kết nhanh</Title>
             <Space direction="vertical">
-              <Link to="/products" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Shop</Link>
-              <Link to="/contact" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Contact</Link>
-              <Link to="/login" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Account</Link>
+              <Link to="/products" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Sản phẩm</Link>
+              <Link to="/contact" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Liên hệ</Link>
             </Space>
           </Col>
           
           <Col xs={24} sm={12} md={8}>
-            <Title level={4} style={{ color: 'white' }}>Contact</Title>
+            <Title level={4} style={{ color: 'white' }}>Thông tin liên hệ</Title>
             <Space direction="vertical" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
-              <Text style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Email: info@4bee.com</Text>
-              <Text style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Phone: +1 (123) 456-7890</Text>
+              <Text style={{color:'white'}}>Email: hotro@4bee.com</Text>
+              <Text style={{color:'white'}}>Điện thoại: 0356 245 557</Text>
               <Space size="large">
                 <InstagramOutlined style={{ fontSize: '24px', color: 'white' }} />
                 <FacebookOutlined style={{ fontSize: '24px', color: 'white' }} />

@@ -2,23 +2,30 @@ import React from "react";
 import { Layout, Space, Avatar, Dropdown, Menu, Typography } from "antd";
 import { UserOutlined, LogoutOutlined, SettingOutlined } from "@ant-design/icons";
 import NotificationBell from "./NotificationBell";
+import { jwtDecode } from "jwt-decode";
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
 
+
 const Header = ({ title, userInfo, onLogout }) => {
+    const token = localStorage.getItem('token');
+    const getRoleFromToken = (token) => {
+      try {
+        return jwtDecode(token)?.scope || null;
+      } catch (error) {
+        console.error('Lỗi giải mã token:', error);
+        return null;
+      }
+    };
+    const role = token ? getRoleFromToken(token) : null;
   const userMenu = (
     <Menu
       items={[
         {
           key: "profile",
           icon: <UserOutlined />,
-          label: "Thông tin tài khoản"
-        },
-        {
-          key: "settings",
-          icon: <SettingOutlined />,
-          label: "Cài đặt"
+          label: role === "ADMIN" ? "Admin" : "Nhân viên",
         },
         {
           type: "divider",

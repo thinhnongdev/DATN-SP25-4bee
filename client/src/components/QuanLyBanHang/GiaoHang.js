@@ -362,6 +362,27 @@ const GiaoHang = React.forwardRef(
         console.error("Thiếu hoaDonId để tính phí vận chuyển");
         return 0;
       }
+// Kiểm tra loại hóa đơn trước khi tính phí
+  try {
+    const invoiceResponse = await axios.get(
+      `http://localhost:8080/api/admin/hoa-don/${hoaDonId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      }
+    );
+    
+    const invoiceData = invoiceResponse.data;
+    
+    // Nếu không phải loại giao hàng (loaiHoaDon !== 3), trả về phí 0
+    if (invoiceData && invoiceData.loaiHoaDon !== 3) {
+      console.log("Không tính phí vận chuyển cho đơn hàng tại quầy");
+      return 0;
+    }
+  } catch (error) {
+    console.warn("Không thể kiểm tra loại hóa đơn, vẫn tiếp tục tính phí:", error);
+  }
 
       setCalculatingFee(true);
       try {
@@ -457,7 +478,7 @@ const GiaoHang = React.forwardRef(
         // Sử dụng phí vận chuyển mặc định khi có lỗi
         const defaultFee = 30000;
         await updateShippingFeeToInvoice(defaultFee);
-
+        return 30000; // Giá mặc định
         return defaultFee;
       } finally {
         setCalculatingFee(false);
@@ -489,14 +510,6 @@ const GiaoHang = React.forwardRef(
 
         // Cập nhật state local để hiển thị
         setShippingFee(fee);
-
-        // Thông báo thành công
-        message.success(
-          `Đã cập nhật phí vận chuyển: ${new Intl.NumberFormat("vi-VN", {
-            style: "currency",
-            currency: "VND",
-          }).format(fee)}`
-        );
 
         // Cập nhật state của component cha nếu có callback
         if (typeof onShippingFeeUpdate === "function") {
@@ -764,79 +777,6 @@ const GiaoHang = React.forwardRef(
       console.log(`Không tìm thấy kết quả gần đúng nào cho "${name}"`);
       return null;
     };
-    // Cập nhật hàm fetchAnonymousInvoiceAddress để xử lý địa chỉ ID và chuyển thành tên
-const fetchAnonymousInvoiceAddress = async () => {
-  if (!hoaDonId) return false;
-
-  setLoading(true);
-  try {
-    const isNewOrder = sessionStorage.getItem(`new_order_${hoaDonId}`) === "true";
-
-    // For new anonymous customer orders, always go to new address entry mode
-    if (!customerId && isNewOrder) {
-      console.log("Đơn hàng mới cho khách lẻ, mở form nhập địa chỉ mới");
-      setSelectedAddress(null);
-      setIsNewAddressMode(true);
-      setLoading(false);
-      return false;
-    }
-
-    // Lấy thông tin địa chỉ từ API
-    const addressDetailsResponse = await axios.get(
-      `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      }
-    );
-
-    const addressDetails = addressDetailsResponse.data;
-    console.log("Thông tin địa chỉ từ hóa đơn (khách lẻ):", addressDetails);
-    
-    // Nếu không có địa chỉ hoặc địa chỉ không đầy đủ
-    if (!addressDetails || !addressDetails.tinh || !addressDetails.huyen || !addressDetails.xa) {
-      console.log("Không có địa chỉ hoặc địa chỉ không đầy đủ, mở form nhập địa chỉ mới");
-      setSelectedAddress(null);
-      setIsNewAddressMode(true);
-      return false;
-    }
-
-    // Nếu có thông tin địa chỉ đầy đủ, hiển thị địa chỉ đó
-    if (addressDetails && Object.keys(addressDetails).length > 0 && 
-        addressDetails.tinh && addressDetails.huyen && addressDetails.xa) {
-      
-      // Create a complete address object for anonymous customer
-      const anonymousAddress = {
-        id: "temp_" + Date.now(),  // Generate temporary ID for UI
-        diaChiCuThe: addressDetails.diaChiCuThe || "",
-        xa: addressDetails.xa,
-        huyen: addressDetails.huyen,
-        tinh: addressDetails.tinh,
-        tenNguoiNhan: addressDetails.tenNguoiNhan || "",
-        soDienThoai: addressDetails.soDienThoai || "",
-      };
-      
-      console.log("Đã tìm thấy địa chỉ cho khách lẻ:", anonymousAddress);
-      setSelectedAddress(anonymousAddress);
-      setIsNewAddressMode(false);
-      return true;
-    } else {
-      console.log("Không có thông tin địa chỉ cho khách lẻ, mở form nhập địa chỉ mới");
-      setSelectedAddress(null);
-      setIsNewAddressMode(true);
-      return false;
-    }
-  } catch (error) {
-    console.error("Lỗi khi lấy địa chỉ từ hóa đơn cho khách lẻ:", error);
-    // Mở form nhập địa chỉ mới nếu có lỗi
-    setSelectedAddress(null);
-    setIsNewAddressMode(true);
-    return false;
-  } finally {
-    setLoading(false);
-  }
-};
     // Improve the resetAddressState method to be more thorough
     const resetAddressState = (forceAnonymous = null, contactInfo = null) => {
       // Use explicit parameter if provided, otherwise use customerId
@@ -901,7 +841,6 @@ const fetchAnonymousInvoiceAddress = async () => {
         }, 200);
       }
     };
-    // Update loadAddressFromInvoice to be more strict about customer type
     const loadAddressFromInvoice = async (invoiceId, isAnonymous = false, recipientName = "", phoneNumber = "") => {
       if (!invoiceId) return false;
       
@@ -912,13 +851,14 @@ const fetchAnonymousInvoiceAddress = async () => {
         
         // Đối với khách lẻ được chuyển sang giao hàng, hiển thị form nhập mới ngay lập tức
         if (isAnonymous) {
-          console.log("[GiaoHang] Anonymous customer in delivery mode - showing new address form");
-          setSelectedAddress(null);
           setIsNewAddressMode(true);
-          setRecipientName(recipientName || "");
-          setPhoneNumber(phoneNumber || "");
-          setLoading(false);
-          return false;
+          setSelectedAddress(null);
+          
+          // Pre-populate recipient info if provided
+          if (recipientName) setRecipientName(recipientName);
+          if (phoneNumber) setPhoneNumber(phoneNumber);
+          
+          return true;
         }
         
         // Always reset address state first when loading a new address
@@ -932,37 +872,21 @@ const fetchAnonymousInvoiceAddress = async () => {
         // If we have cached data and it's valid, use it
         if (storedAddressJson) {
           try {
-            const addressData = JSON.parse(storedAddressJson);
-            if (addressData && addressData.tinh) {
-              console.log(`[GiaoHang] Using cached address from key: ${cacheKey}`, addressData);
+            const cachedAddress = JSON.parse(storedAddressJson);
+            if (cachedAddress && cachedAddress.tinh && cachedAddress.huyen && cachedAddress.xa) {
+              console.log("[GiaoHang] Using cached address data", cachedAddress);
               
-              // Make sure we have formatted names for the address components
-              addressData.tinhName = addressHelpers.getNameById("provinces", addressData.tinh);
-              addressData.huyenName = addressHelpers.getNameById("districts", addressData.huyen);
-              addressData.xaName = addressHelpers.getNameById("wards", addressData.xa);
-              
-              // Build a formatted full address string
-              addressData.fullAddress = [
-                addressData.diaChiCuThe,
-                addressData.xaName || addressData.xa,
-                addressData.huyenName || addressData.huyen,
-                addressData.tinhName || addressData.tinh
-              ].filter(Boolean).join(", ");
-              
-              setSelectedAddress(addressData);
-              setIsNewAddressMode(false);
-              
-              // Set recipient info for anonymous customers
-              if (isAnonymous) {
-                setRecipientName(addressData.tenNguoiNhan || "");
-                setPhoneNumber(addressData.soDienThoai || "");
+              // Make sure the formatted address is included
+              if (!cachedAddress.fullAddress) {
+                cachedAddress.fullAddress = addressHelpers.formatAddress(cachedAddress);
               }
               
+              setSelectedAddress(cachedAddress);
+              onAddressSelect(cachedAddress);
               return true;
             }
           } catch (e) {
-            console.error("[GiaoHang] Error parsing stored address", e);
-            localStorage.removeItem(cacheKey);
+            console.error("[GiaoHang] Error parsing cached address:", e);
           }
         }
         
@@ -982,57 +906,36 @@ const fetchAnonymousInvoiceAddress = async () => {
         
         // If API returns valid address data
         if (addressDetails && addressDetails.tinh) {
-          try {
-            // Attempt to get names for each address component
-            const tinhName = addressHelpers.getNameById("provinces", addressDetails.tinh);
-            const huyenName = addressHelpers.getNameById("districts", addressDetails.huyen);
-            const xaName = addressHelpers.getNameById("wards", addressDetails.xa);
-            
-            // Create address object with both IDs and names
-            const address = {
-              id: `temp_${Date.now()}`,
-              diaChiCuThe: addressDetails.diaChiCuThe || "",
-              xa: addressDetails.xa,
-              xaName: xaName || addressDetails.xa,
-              huyen: addressDetails.huyen,
-              huyenName: huyenName || addressDetails.huyen,
-              tinh: addressDetails.tinh,
-              tinhName: tinhName || addressDetails.tinh,
-              tenNguoiNhan: addressDetails.tenNguoiNhan || "",
-              soDienThoai: addressDetails.soDienThoai || "",
-              fullAddress: [
-                addressDetails.diaChiCuThe, 
-                xaName || addressDetails.xa,
-                huyenName || addressDetails.huyen,
-                tinhName || addressDetails.tinh
-              ].filter(Boolean).join(", ")
-            };
-            
-            console.log("[GiaoHang] Formatted address with names:", address);
-            
-            // Only save to storage if customer type matches
-            if ((isAnonymous && !customerId) || (!isAnonymous && customerId)) {
-              localStorage.setItem(cacheKey, JSON.stringify(address));
-            }
-            
-            setSelectedAddress(address);
-            setIsNewAddressMode(false);
-            
-            // Set recipient fields for anonymous customers
-            if (isAnonymous) {
-              setRecipientName(address.tenNguoiNhan || "");
-              setPhoneNumber(address.soDienThoai || "");
-            }
-            
-            return true;
-          } catch (error) {
-            console.error("[GiaoHang] Error processing address details:", error);
-          }
+          // Create full address object
+          const fullAddress = {
+            id: null, // May be null for anonymous customers
+            diaChiCuThe: addressDetails.diaChiCuThe || "",
+            xa: addressDetails.xa,
+            huyen: addressDetails.huyen,
+            tinh: addressDetails.tinh,
+            tenNguoiNhan: addressDetails.tenNguoiNhan || recipientName || "",
+            soDienThoai: addressDetails.soDienThoai || phoneNumber || "",
+            fullAddress: `${addressDetails.diaChiCuThe ? addressDetails.diaChiCuThe + ", " : ""}${addressDetails.xa}, ${addressDetails.huyen}, ${addressDetails.tinh}`
+          };
+          
+          console.log("[GiaoHang] Created full address object:", fullAddress);
+          
+          // Cache this address for future reference
+          localStorage.setItem(cacheKey, JSON.stringify(fullAddress));
+          
+          // Update state and notify parent
+          setSelectedAddress(fullAddress);
+          setIsNewAddressMode(false);
+          onAddressSelect(fullAddress);
+          
+          return true;
         } else {
-          console.log("[GiaoHang] No valid address found in invoice");
-          setSelectedAddress(null);
-          setIsNewAddressMode(!customerId);
-          return false;
+          console.log("[GiaoHang] No valid address data found, switching to new address mode");
+          setIsNewAddressMode(true);
+          
+          // Set recipient info if provided
+          if (recipientName) setRecipientName(recipientName);
+          if (phoneNumber) setPhoneNumber(phoneNumber);
         }
       } catch (error) {
         console.error("[GiaoHang] Error loading invoice address:", error);

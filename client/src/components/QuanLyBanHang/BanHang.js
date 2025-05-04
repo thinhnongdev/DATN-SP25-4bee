@@ -650,114 +650,116 @@ const BanHang = () => {
       checkPriceChanges(false);
     }
   }, [activeKey]);
+const calculateOrderTotals = (hoaDonId, productsOverride, orderOverride) => {
+  // Sử dụng dữ liệu override nếu được cung cấp, nếu không thì lấy từ state
+  const products = productsOverride || orderProducts[hoaDonId] || [];
+  const order =
+    orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
 
-  const calculateOrderTotals = (hoaDonId, productsOverride, orderOverride) => {
-    // Sử dụng dữ liệu override nếu được cung cấp, nếu không thì lấy từ state
-    const products = productsOverride || orderProducts[hoaDonId] || [];
-    const order =
-      orderOverride || tabs.find((tab) => tab.key === hoaDonId)?.order;
-
-    if (!order) {
-      console.warn("No order found for totals calculation");
-      return {
-        subtotal: 0,
-        shippingFee: 0,
-        totalBeforeVoucher: 0,
-        discountAmount: 0,
-        finalTotal: 0,
-        voucherType: null,
-        voucherValue: null,
-      };
-    }
-
-    // Tính tổng tiền hàng
-    const subtotal = calculateTotalBeforeDiscount(products);
-
-    // Lấy phí vận chuyển
-    let shippingFee = order.phiVanChuyen || 0;
-
-    // Sử dụng giá trị giảm giá trực tiếp từ server (giamGia)
-    let discountAmount = order.giamGia || 0;
-
-    // Nếu không có giamGia từ server, tính toán dựa trên voucher
-    if (!order.giamGia && order.phieuGiamGia) {
-      const voucherType = Number(order.phieuGiamGia.loaiPhieuGiamGia);
-
-      // Chỉ tính giảm giá dựa trên tổng tiền hàng, KHÔNG bao gồm phí vận chuyển
-      discountAmount = calculateDiscountAmount(
-        {
-          ...order.phieuGiamGia,
-          loaiPhieuGiamGia: voucherType,
-        },
-        subtotal
-      );
-    }
-
-    // Giới hạn giảm giá không vượt quá tổng tiền hàng
-    discountAmount = Math.min(discountAmount, subtotal);
-
-    // Tính tổng tiền sau khi giảm giá
-    const subtotalAfterDiscount = subtotal - discountAmount;
-
-    // Đánh dấu nếu đơn được giảm 100% tiền hàng
-    const isFullyDiscounted = subtotal > 0 && subtotal === discountAmount;
-
-    // THAY ĐỔI: Chỉ miễn phí vận chuyển cho đơn ≥ 2 triệu sau giảm giá
-    // KHÔNG miễn phí vận chuyển cho đơn giảm giá 100% trừ khi giá trị ban đầu ≥ 2 triệu
-    if (subtotalAfterDiscount >= 2000000 && order.loaiHoaDon === 3) {
-      shippingFee = 0;
-
-      // Cập nhật phí vận chuyển trong API nếu cần
-      if (order.phiVanChuyen > 0) {
-        setTimeout(async () => {
-          try {
-            await axios.post(
-              `http://localhost:8080/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
-              { fee: 0 },
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-            console.log(
-              "Đã áp dụng miễn phí vận chuyển (đơn sau giảm giá > 2 triệu)"
-            );
-
-            // Cập nhật order trong tabs với miễn phí vận chuyển
-            setTabs((prev) =>
-              prev.map((tab) =>
-                tab.key === hoaDonId
-                  ? { ...tab, order: { ...tab.order, phiVanChuyen: 0 } }
-                  : tab
-              )
-            );
-          } catch (error) {
-            console.error("Lỗi khi cập nhật phí vận chuyển miễn phí:", error);
-          }
-        }, 0);
-      }
-    }
-
-    // THAY ĐỔI: Đơn giao hàng được giảm 100% vẫn tính phí ship bình thường
-    // nếu không đạt điều kiện miễn phí vận chuyển (≥ 2 triệu sau giảm giá)
-    const finalTotal = Math.max(0, subtotal - discountAmount + shippingFee);
-
+  if (!order) {
+    console.warn("No order found for totals calculation");
     return {
-      subtotal,
-      shippingFee,
-      totalBeforeVoucher: subtotal, // Không cộng phí vận chuyển ở đây
-      discountAmount,
-      finalTotal,
-      subtotalAfterDiscount,
-      voucherType: order.phieuGiamGia
-        ? Number(order.phieuGiamGia.loaiPhieuGiamGia)
-        : null,
-      voucherValue: order.phieuGiamGia ? order.phieuGiamGia.giaTriGiam : null,
-      freeShipping: subtotalAfterDiscount >= 2000000 && order.loaiHoaDon === 3,
-      isFullyDiscounted, // Đánh dấu đơn hàng được giảm 100%
+      subtotal: 0,
+      shippingFee: 0,
+      totalBeforeVoucher: 0,
+      discountAmount: 0,
+      finalTotal: 0,
+      voucherType: null,
+      voucherValue: null,
     };
+  }
+
+  // Tính tổng tiền hàng
+  const subtotal = calculateTotalBeforeDiscount(products);
+
+  // Lấy phí vận chuyển - CHỈ ÁP DỤNG cho đơn GIAO HÀNG
+  let shippingFee = order.loaiHoaDon === 3 ? (order.phiVanChuyen || 0) : 0;
+
+  // Sử dụng giá trị giảm giá trực tiếp từ server (giamGia)
+  let discountAmount = order.giamGia || 0;
+
+  // Nếu không có giamGia từ server, tính toán dựa trên voucher
+  if (!order.giamGia && order.phieuGiamGia) {
+    const voucherType = Number(order.phieuGiamGia.loaiPhieuGiamGia);
+
+    // Chỉ tính giảm giá dựa trên tổng tiền hàng, KHÔNG bao gồm phí vận chuyển
+    discountAmount = calculateDiscountAmount(
+      {
+        ...order.phieuGiamGia,
+        loaiPhieuGiamGia: voucherType,
+      },
+      subtotal
+    );
+  }
+
+  // Giới hạn giảm giá không vượt quá tổng tiền hàng
+  discountAmount = Math.min(discountAmount, subtotal);
+
+  // Tính tổng tiền sau khi giảm giá
+  const subtotalAfterDiscount = subtotal - discountAmount;
+
+  // Đánh dấu nếu đơn được giảm 100% tiền hàng
+  const isFullyDiscounted = subtotal > 0 && subtotal === discountAmount;
+
+  // QUAN TRỌNG: Chỉ miễn phí vận chuyển cho đơn ≥ 2 triệu sau giảm giá VÀ là đơn giao hàng
+  if (subtotalAfterDiscount >= 2000000 && order.loaiHoaDon === 3) {
+    shippingFee = 0;
+
+    // Cập nhật phí vận chuyển trong API nếu cần
+    if (order.phiVanChuyen > 0) {
+      setTimeout(async () => {
+        try {
+          await axios.post(
+            `http://localhost:8080/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
+            { fee: 0 },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+          console.log(
+            "Đã áp dụng miễn phí vận chuyển (đơn sau giảm giá > 2 triệu)"
+          );
+
+          // Cập nhật order trong tabs với miễn phí vận chuyển
+          setTabs((prev) =>
+            prev.map((tab) =>
+              tab.key === hoaDonId
+                ? { ...tab, order: { ...tab.order, phiVanChuyen: 0 } }
+                : tab
+            )
+          );
+        } catch (error) {
+          console.error("Lỗi khi cập nhật phí vận chuyển miễn phí:", error);
+        }
+      }, 0);
+    }
+  }
+
+  // QUAN TRỌNG: Nếu là đơn tại quầy, đảm bảo phí vận chuyển = 0
+  if (order.loaiHoaDon !== 3) {
+    shippingFee = 0;
+  }
+
+  // Tính tổng cuối cùng - Cho đơn giao hàng hoặc tại quầy
+  const finalTotal = Math.max(0, subtotal - discountAmount + shippingFee);
+
+  return {
+    subtotal,
+    shippingFee, // Đã kiểm tra loại hóa đơn khi lấy phí vận chuyển
+    totalBeforeVoucher: subtotal, // Không cộng phí vận chuyển ở đây
+    discountAmount,
+    finalTotal,
+    subtotalAfterDiscount,
+    voucherType: order.phieuGiamGia
+      ? Number(order.phieuGiamGia.loaiPhieuGiamGia)
+      : null,
+    voucherValue: order.phieuGiamGia ? order.phieuGiamGia.giaTriGiam : null,
+    freeShipping: subtotalAfterDiscount >= 2000000 && order.loaiHoaDon === 3,
+    isFullyDiscounted, // Đánh dấu đơn hàng được giảm 100%
   };
+};
 
   // Update calculateTotalBeforeDiscount to handle undefined/null cases
   const calculateTotalBeforeDiscount = (products) => {
@@ -895,28 +897,23 @@ const BanHang = () => {
   };
   // Địa chỉ
   const handleAddressSelect = async (address) => {
-    if (!address || !address.id) {
-      message.error("Vui lòng chọn một địa chỉ hợp lệ.");
-      return;
-    }
-  
     if (!activeKey) {
       message.warning("Không tìm thấy hóa đơn để cập nhật địa chỉ.");
       return;
     }
-  
+
     // Get current tab data
     const currentTab = tabs.find((tab) => tab.key === activeKey);
     if (!currentTab) return;
-  
+
     // Check if this is an anonymous customer - handle differently
     const isAnonymousCustomer = !currentTab.order.khachHang;
-  
+
     // Create a customer-type specific key for this invoice
-    const customerTypeSuffix = isAnonymousCustomer ? '_anon' : '_reg';
+    const customerTypeSuffix = isAnonymousCustomer ? "_anon" : "_reg";
     const addressKey = `selected_address_${activeKey}${customerTypeSuffix}`;
     const previousAddressJson = localStorage.getItem(addressKey);
-    
+
     // Generate a clean representation of the address for comparison
     const currentAddressJson = JSON.stringify({
       id: address.id,
@@ -926,24 +923,24 @@ const BanHang = () => {
       tinh: address.tinh,
       tenNguoiNhan: address.tenNguoiNhan,
       soDienThoai: address.soDienThoai,
-      customerType: isAnonymousCustomer ? 'anonymous' : 'registered'
+      customerType: isAnonymousCustomer ? "anonymous" : "registered",
     });
-  
+
     // If address hasn't changed, don't update
     if (previousAddressJson === currentAddressJson) {
       console.log("Địa chỉ không thay đổi, bỏ qua cập nhật");
       return;
     }
-  
+
     // Store the selected address for this invoice with customer type
     localStorage.setItem(addressKey, currentAddressJson);
-  
+
     // Update local state for display
     setSelectedAddress(address);
-  
+
     try {
       setLoading(true);
-  
+
       // Create payload with appropriate recipient information
       const payload = {
         diaChiId: address.id || null,
@@ -954,11 +951,14 @@ const BanHang = () => {
         tenNguoiNhan: address.tenNguoiNhan || "",
         soDienThoai: address.soDienThoai || "",
         isAnonymous: isAnonymousCustomer, // Include customer type in payload
-        customerId: currentTab.order.khachHang?.id || null // Include customerId in payload
+        customerId: currentTab.order.khachHang?.id || null, // Include customerId in payload
       };
-  
-      console.log(`[BanHang] Sending address update for invoice ${activeKey}:`, payload);
-  
+
+      console.log(
+        `[BanHang] Sending address update for invoice ${activeKey}:`,
+        payload
+      );
+
       const response = await axios.put(
         `http://localhost:8080/api/admin/ban-hang/${activeKey}/update-address`,
         payload,
@@ -971,17 +971,23 @@ const BanHang = () => {
       );
       if (giaoHangRef.current && giaoHangRef.current.calculateShippingFee) {
         try {
-          console.log("Tự động tính lại phí vận chuyển cho địa chỉ mới:", address);
+          console.log(
+            "Tự động tính lại phí vận chuyển cho địa chỉ mới:",
+            address
+          );
           const fee = await giaoHangRef.current.calculateShippingFee(address);
           console.log("Phí vận chuyển mới tính được:", fee);
-          
-          if (typeof fee === 'number' && !isNaN(fee)) {
+
+          if (typeof fee === "number" && !isNaN(fee)) {
             // Kiểm tra áp dụng miễn phí ship cho đơn >= 2 triệu
             const currentTotals = totals[activeKey] || {};
-            const subtotalAfterDiscount = currentTotals.subtotalAfterDiscount || 0;
-            
+            const subtotalAfterDiscount =
+              currentTotals.subtotalAfterDiscount || 0;
+
             if (subtotalAfterDiscount >= 2000000) {
-              console.log("Đơn hàng đạt điều kiện miễn phí vận chuyển (>= 2 triệu)");
+              console.log(
+                "Đơn hàng đạt điều kiện miễn phí vận chuyển (>= 2 triệu)"
+              );
               handleShippingFeeUpdate(0);
             } else {
               handleShippingFeeUpdate(fee);
@@ -996,14 +1002,19 @@ const BanHang = () => {
       // Refresh invoice data
       await fetchInvoiceById(activeKey);
     } catch (error) {
-      console.error(`[BanHang] Error updating address for invoice ${activeKey}:`, error);
-      
+      console.error(
+        `[BanHang] Error updating address for invoice ${activeKey}:`,
+        error
+      );
+
       if (error.response && error.response.data) {
-        message.error(error.response.data.message || "Lỗi khi cập nhật địa chỉ");
+        message.error(
+          error.response.data.message || "Lỗi khi cập nhật địa chỉ"
+        );
       } else {
         message.error("Không thể kết nối đến server để cập nhật địa chỉ");
       }
-      
+
       // Reset selectedAddress on error
       setSelectedAddress(null);
       // Remove stored address on error
@@ -1012,144 +1023,435 @@ const BanHang = () => {
       setLoading(false);
     }
   };
-  // Improve cleanupTabData function
   const cleanupTabData = (oldTabKey) => {
     if (!oldTabKey) return;
     
-    console.log(`[BanHang] Cleaning up data for tab ${oldTabKey} before switching`);
+    console.log(`[BanHang] Cleaning up data for tab: ${oldTabKey}`);
     
-    // Clear any reference to the address in BanHang component state
-    setSelectedAddress(null);
-    
-    // Make sure to clean both anonymous and registered customer data with all possible key patterns
-    const prefixes = [
-      'selected_address_', 
-      'last_applied_address_', 
-      'submitted_address_',
-      'invoice_address_', 
-      'first_address_', 
-      'new_order_',
-      'address_cache_'  // Add this new prefix to catch any custom cache entries
+    // Xóa cache địa chỉ và phí vận chuyển cho tab cũ
+    const addressKeysToRemove = [
+      `invoice_address_${oldTabKey}_anon`,
+      `invoice_address_${oldTabKey}_reg`,
+      `selected_address_${oldTabKey}`,
+      `selected_address_${oldTabKey}_anon`,
+      `selected_address_${oldTabKey}_reg`,
+      `submitted_address_${oldTabKey}_anon`,
+      `submitted_address_${oldTabKey}_reg`,
+      `last_applied_address_${oldTabKey}`,
+      `shipping_fee_${oldTabKey}`,
     ];
     
-    const suffixes = ['', '_anon', '_reg', '_temp'];
+    // Xóa tất cả các key liên quan
+    addressKeysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    });
     
-    // Generate all possible key combinations and remove them
-    for (const prefix of prefixes) {
-      for (const suffix of suffixes) {
-        const key = `${prefix}${oldTabKey}${suffix}`;
-        if (localStorage.getItem(key)) {
-          console.log(`[BanHang] Removing localStorage key: ${key}`);
-          localStorage.removeItem(key);
-        }
-        if (sessionStorage.getItem(key)) {
-          console.log(`[BanHang] Removing sessionStorage key: ${key}`);
-          sessionStorage.removeItem(key);
-        }
-      }
-    }
-    
-    // Also find any other keys that might contain this tab ID
+    // Xóa các key khác có chứa oldTabKey trong localStorage
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.includes(oldTabKey)) {
-        console.log(`[BanHang] Removing additional localStorage key: ${key}`);
+        console.log(`[BanHang] Removing localStorage key: ${key}`);
         localStorage.removeItem(key);
       }
     }
-    
+  
+    // Xóa các key khác có chứa oldTabKey trong sessionStorage
     for (let i = 0; i < sessionStorage.length; i++) {
       const key = sessionStorage.key(i);
       if (key && key.includes(oldTabKey)) {
-        console.log(`[BanHang] Removing additional sessionStorage key: ${key}`);
+        console.log(`[BanHang] Removing sessionStorage key: ${key}`);
         sessionStorage.removeItem(key);
       }
     }
-  }
-  
-  // Improve resetGiaoHangComponent function to properly reset based on customer type
-  const resetGiaoHangComponent = (currentTab) => {
-    if (!giaoHangRef.current || !currentTab) return;
     
-    // Get customer information from the current tab
-    const customerInfo = currentTab.order?.khachHang;
-    
-    // Ensure recipient information is always available
-    const recipientName = currentTab.order?.tenNguoiNhan || 
-      (customerInfo ? customerInfo.tenKhachHang : "");
-    const phoneNumber = currentTab.order?.soDienThoai || 
-      (customerInfo ? customerInfo.soDienThoai : "");
-    
-    console.log(`[BanHang] Reset GiaoHang với thông tin:`, {
-      customer: customerInfo,
-      recipientName: recipientName,
-      phone: phoneNumber
+    // Reset phí vận chuyển trong state
+    setTabs((prev) => {
+      return prev.map(tab => {
+        if (tab.key === oldTabKey) {
+          const isAnonymous = !tab.order?.khachHang || tab.order?.khachHang === "Khách hàng lẻ";
+          
+          // Nếu là khách hàng lẻ, reset phí vận chuyển về 0
+          if (isAnonymous) {
+            return {
+              ...tab,
+              order: {
+                ...tab.order,
+                phiVanChuyen: 0 // Reset phí vận chuyển
+              }
+            };
+          }
+        }
+        return tab;
+      });
     });
     
-    // Reset selected address
-    setSelectedAddress(null);
-    
-    // Update selectedCustomer state if customer exists
-    if (customerInfo) {
-      setSelectedCustomer(customerInfo);
-    }
-    
-    // Pass complete information to GiaoHang component
-    if (giaoHangRef.current.resetAddressState) {
-      giaoHangRef.current.resetAddressState(
-        !customerInfo, // isAnonymous
-        {
-          customerInfo,
-          recipientName,
-          phoneNumber
-        }
-      );
-    }
-    
-    // Load address data for delivery orders
-    if (currentTab.order?.loaiHoaDon === 3) {
-      setTimeout(() => {
-        if (giaoHangRef.current.loadAddressFromInvoice) {
-          giaoHangRef.current.loadAddressFromInvoice(
-            currentTab.key,
-            !customerInfo, // isAnonymous
-            recipientName,
-            phoneNumber
-          );
-        }
-      }, 300);
+    // Reset GiaoHang component nếu có
+    if (giaoHangRef.current && giaoHangRef.current.resetAddressState) {
+      const currentTab = tabs.find(tab => tab.key === oldTabKey);
+      if (currentTab) {
+        const isAnonymous = !currentTab.khachHang || currentTab.khachHang === "Khách hàng lẻ";
+        giaoHangRef.current.resetAddressState(isAnonymous);
+      }
     }
   };
+const resetAddressAndShippingFee = async (hoaDonId) => {
+  if (!hoaDonId) {
+    console.error("resetAddressAndShippingFee: Thiếu hoaDonId");
+    return false;
+  }
   
-  // Improve handleTabChange to ensure proper cleanup and reset
-  const handleTabChange = (newActiveKey) => {
-    if (activeKey === newActiveKey) return;
+  try {
+    console.log(`Đang reset địa chỉ và phí vận chuyển cho hóa đơn ${hoaDonId}`);
     
-    console.log(`[BanHang] Tab changed from ${activeKey} to ${newActiveKey}`);
+    // Gọi API reset địa chỉ
+    await axios.put(`http://localhost:8080/api/admin/ban-hang/${hoaDonId}/reset-address`, {}, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
     
-    // Clean up previous tab's data BEFORE switching tabs
-    cleanupTabData(activeKey);
+    // Reset phí vận chuyển trên UI
+    const updatedTotals = { ...totals };
+    if (updatedTotals[hoaDonId]) {
+      updatedTotals[hoaDonId].shippingFee = 0;
+      updatedTotals[hoaDonId].finalTotal = updatedTotals[hoaDonId].subtotalAfterDiscount || 0;
+      setTotals(updatedTotals);
+    }
     
-    // Set the new active tab immediately
-    setActiveKey(newActiveKey);
-    setSelectedAddress(null);
-    
-    // Use a timeout to ensure UI has updated before loading new tab's data
-    setTimeout(() => {
-      // Get new tab data
-      const newTab = tabs.find(tab => tab.key === newActiveKey);
-      if (newTab) {
-        // IMPORTANT: Call resetGiaoHangComponent with the current tab data
-        resetGiaoHangComponent(newTab);
-        
-        // Also make sure to fetch latest invoice data
-        fetchInvoiceById(newActiveKey).then(() => {
-          fetchInvoiceProducts(newActiveKey);
-        });
+    // Cập nhật state tabs
+    const updatedTabs = tabs.map(tab => {
+      if (tab.key === hoaDonId) {
+        return {
+          ...tab,
+          order: {
+            ...tab.order,
+            phiVanChuyen: 0
+          }
+        };
       }
-    }, 200);
+      return tab;
+    });
+    setTabs(updatedTabs);
+    
+    // Reset component GiaoHang nếu có
+    if (giaoHangRef.current && giaoHangRef.current.resetAddressState) {
+      const currentTab = tabs.find(tab => tab.key === hoaDonId);
+      const isAnonymous = currentTab && (!currentTab.khachHang || currentTab.khachHang === "Khách hàng lẻ");
+      giaoHangRef.current.resetAddressState(isAnonymous);
+    }
+    
+    console.log(`Đã reset thành công địa chỉ và phí vận chuyển cho hóa đơn ${hoaDonId}`);
+    return true;
+  } catch (error) {
+    console.error(`Lỗi khi reset địa chỉ và phí vận chuyển cho hóa đơn ${hoaDonId}:`, error);
+    return false;
+  }
+};
+  const resetGiaoHangComponent = (currentTab) => {
+    if (!currentTab || !currentTab.id) {
+      console.log("Không thể reset component GiaoHang: thiếu thông tin tab");
+      return;
+    }
+    
+    // Kiểm tra giaoHangRef đã được khởi tạo chưa
+    if (!giaoHangRef.current || !giaoHangRef.current.resetAddressState) {
+      console.log("Không thể reset component GiaoHang: ref không tồn tại");
+      return;
+    }
+    
+    // Lấy thông tin khách hàng
+    const isAnonymous = !currentTab.khachHang || currentTab.khachHang === "Khách hàng lẻ";
+    
+    // Kiểm tra loại hóa đơn
+    if (currentTab.loaiHoaDon !== 3) {
+      // Nếu là đơn tại quầy, reset toàn bộ thông tin
+      giaoHangRef.current.resetAddressState(isAnonymous);
+      
+      // Reset địa chỉ và phí vận chuyển
+      if (currentTab.id) {
+        try {
+          // Reset địa chỉ ở server
+          axios.put(`http://localhost:8080/api/admin/ban-hang/${currentTab.id}/reset-address`, {}, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          });
+          
+          // Reset phí vận chuyển về 0
+          axios.post(
+            `http://localhost:8080/api/admin/hoa-don/${currentTab.id}/cap-nhat-phi-van-chuyen`,
+            { fee: 0 },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+          
+          // Cập nhật state tabs
+          setTabs((prev) =>
+            prev.map((tab) =>
+              tab.key === currentTab.id
+                ? { ...tab, order: { ...tab.order, phiVanChuyen: 0 } }
+                : tab
+            )
+          );
+          
+          // Cập nhật totals 
+          setTotals((prev) => {
+            if (!prev[currentTab.id]) return prev;
+            
+            const currentTotal = prev[currentTab.id];
+            return {
+              ...prev,
+              [currentTab.id]: {
+                ...currentTotal,
+                shippingFee: 0,
+                finalTotal: currentTotal.subtotalAfterDiscount || 0
+              }
+            };
+          });
+          
+          console.log(`Đã reset địa chỉ và phí vận chuyển trên server cho hóa đơn ${currentTab.id}`);
+        } catch (error) {
+          console.error("Lỗi khi reset thông tin giao hàng:", error);
+        }
+      }
+    } else {
+      // Nếu là đơn giao hàng, reset theo loại khách hàng
+      const contactInfo = {
+        recipientName: currentTab.tenNguoiNhan || "",
+        phoneNumber: currentTab.soDienThoai || "",
+      };
+      
+      // QUAN TRỌNG: Nếu khách hàng lẻ, reset phí vận chuyển
+      if (isAnonymous) {
+        console.log("Reset phí vận chuyển cho khách hàng lẻ");
+        try {
+          // Reset phí vận chuyển về 0
+          axios.post(
+            `http://localhost:8080/api/admin/hoa-don/${currentTab.id}/cap-nhat-phi-van-chuyen`,
+            { fee: 0 },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+          
+          // Cập nhật state tabs
+          setTabs((prev) =>
+            prev.map((tab) =>
+              tab.key === currentTab.id
+                ? { ...tab, order: { ...tab.order, phiVanChuyen: 0 } }
+                : tab
+            )
+          );
+          
+          // Cập nhật totals
+          setTotals((prev) => {
+            if (!prev[currentTab.id]) return prev;
+            
+            const currentTotal = prev[currentTab.id];
+            return {
+              ...prev,
+              [currentTab.id]: {
+                ...currentTotal,
+                shippingFee: 0,
+                finalTotal: currentTotal.subtotalAfterDiscount || 0
+              }
+            };
+          });
+        } catch (error) {
+          console.error("Lỗi khi reset phí vận chuyển:", error);
+        }
+      }
+      
+      // Reset với thông tin tương ứng
+      giaoHangRef.current.resetAddressState(isAnonymous, contactInfo);
+      
+      // Sau đó tải thông tin địa chỉ từ hóa đơn nếu có
+      if (currentTab.id) {
+        giaoHangRef.current.loadAddressFromInvoice(
+          currentTab.id, 
+          isAnonymous,
+          contactInfo.recipientName,
+          contactInfo.phoneNumber
+        );
+      }
+    }
+    
+    setSelectedAddress(null);
+    console.log(`Đã reset component GiaoHang cho ${isAnonymous ? 'khách lẻ' : 'khách hàng có tài khoản'}`);
   };
 
+  const handleTabChange = async (newActiveKey) => {
+    try {
+      // Đánh dấu đang chuyển tab để ngăn các hoạt động khác
+      setLoading(true);
+      
+      console.log(`Đang chuyển từ tab ${activeKey} sang tab ${newActiveKey}`);
+      
+      // Lưu tab cũ để cleanup và kiểm tra loại hóa đơn
+      const oldTabKey = activeKey;
+      const oldTab = tabs.find(tab => tab.key === oldTabKey);
+      
+      // Lấy thông tin về tab mới sắp chuyển đến
+      const newTab = tabs.find(tab => tab.key === newActiveKey);
+      
+      // Tắt các cờ tính toán phí vận chuyển
+      setCalculatingShippingFee(false);
+      
+      // 1. QUAN TRỌNG: Reset hoàn toàn data cũ trước khi chuyển tab
+      if (oldTabKey) {
+        try {
+          // Dừng mọi tính toán phí vận chuyển đang chạy
+          if (giaoHangRef.current) {
+            console.log(`Resetting shipping fee for tab ${oldTabKey}`);
+            
+            // QUAN TRỌNG: Chỉ reset phí vận chuyển về 0 cho khách hàng lẻ
+            const oldTabIsAnonymousDelivery = oldTab && oldTab.order && 
+              oldTab.order.loaiHoaDon === 3 && 
+              (!oldTab.order.khachHang || oldTab.order.khachHang === "Khách hàng lẻ");
+            
+            if (oldTabIsAnonymousDelivery) {
+              // Reset hoàn toàn địa chỉ và phí vận chuyển trên server CHỈ cho khách lẻ
+              await axios.put(`http://localhost:8080/api/admin/ban-hang/${oldTabKey}/reset-address`, {}, {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              });
+              
+              // Reset phí vận chuyển về 0 CHỈ cho khách lẻ
+              await axios.post(
+                `http://localhost:8080/api/admin/hoa-don/${oldTabKey}/cap-nhat-phi-van-chuyen`,
+                { fee: 0 },
+                {
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  },
+                }
+              );
+            }
+          }
+        } catch (resetError) {
+          console.error("Lỗi khi reset dữ liệu tab cũ:", resetError);
+        }
+      }
+      
+      // 2. Cleanup cache và storage cho tab cũ
+      cleanupTabData(oldTabKey);
+      
+      // 3. Cập nhật active tab mới
+      setActiveKey(newActiveKey);
+      setHoaDonId(newActiveKey);
+      
+      // 4. QUAN TRỌNG: Xóa các trạng thái của tab cũ
+      setSelectedAddress(null);
+      setSelectedCustomer(null);
+      setCustomerPayment({});
+      
+      // 5. Tải dữ liệu cơ bản của tab mới (sản phẩm, thông tin hóa đơn)
+      await fetchInvoiceProducts(newActiveKey);
+      const invoiceData = await fetchInvoiceById(newActiveKey);
+      
+      // 6. QUAN TRỌNG: Luôn sử dụng loại hóa đơn từ server, không tự thay đổi
+      if (invoiceData) {
+        // Luôn dùng loại hóa đơn từ server
+        setSelectedLoaiHoaDon(invoiceData.loaiHoaDon || 2); // Nếu không có thì mặc định là "Tại quầy" (2)
+      } else if (newTab && newTab.order) {
+        setSelectedLoaiHoaDon(newTab.order.loaiHoaDon || 2);
+      } else {
+        // Nếu không lấy được từ đâu, mặc định là "Tại quầy"
+        setSelectedLoaiHoaDon(2);
+      }
+      
+      // 7. QUAN TRỌNG: Chỉ tải thông tin địa chỉ nếu đúng là đơn giao hàng
+      if (invoiceData && invoiceData.loaiHoaDon === 3) {
+        // Đánh dấu để không tự động tính phí vận chuyển ngay
+        const isAnonymous = !invoiceData.khachHang || invoiceData.khachHang === "Khách hàng lẻ";
+        
+        console.log(`[BanHang] Đơn giao hàng: Đang tải địa chỉ cho hóa đơn ${newActiveKey}, khách hàng: ${isAnonymous ? 'khách lẻ' : 'đã đăng ký'}`,
+          "tenNguoiNhan:", invoiceData.tenNguoiNhan,
+          "soDienThoai:", invoiceData.soDienThoai);
+        
+        // Tải thông tin địa chỉ giao hàng từ server
+        setTimeout(() => {
+          if (giaoHangRef.current) {
+            giaoHangRef.current.loadAddressFromInvoice(
+              newActiveKey,
+              isAnonymous,
+              invoiceData.tenNguoiNhan || "",
+              invoiceData.soDienThoai || "",
+              true // force refresh
+            );
+          }
+        }, 800);
+      } else {
+        // Quan trọng: nếu là đơn tại quầy, đảm bảo reset component GiaoHang
+        if (giaoHangRef.current) {
+          console.log(`[BanHang] Đơn tại quầy: Reset component GiaoHang`);
+          giaoHangRef.current.resetAddressState();
+        }
+      }
+      
+      console.log(`Đã chuyển sang tab hóa đơn mới: ${newActiveKey}, loại: ${selectedLoaiHoaDon === 3 ? 'Giao hàng' : 'Tại quầy'}`);
+    } catch (error) {
+      console.error("Lỗi khi chuyển tab:", error);
+      message.error("Có lỗi xảy ra khi chuyển tab");
+    } finally {
+      // Luôn tắt trạng thái loading
+      setLoading(false);
+    }
+  };
+  useEffect(() => { 
+    return () => {
+      // Cleanup function khi component unmount
+      console.log("BanHang component unmounting - cleaning up");
+      
+      // Xóa tất cả các key liên quan đến phí vận chuyển và địa chỉ
+      const tabsToCleanup = tabs.map(tab => tab.key);
+      
+      tabsToCleanup.forEach(tabKey => {
+        // Xóa cache địa chỉ và phí vận chuyển cho tab
+        const addressKeysToRemove = [
+          `invoice_address_${tabKey}_anon`,
+          `invoice_address_${tabKey}_reg`,
+          `selected_address_${tabKey}`,
+          `selected_address_${tabKey}_anon`,
+          `selected_address_${tabKey}_reg`,
+          `submitted_address_${tabKey}_anon`,
+          `submitted_address_${tabKey}_reg`,
+          `last_applied_address_${tabKey}`,
+          `shipping_fee_${tabKey}`,
+        ];
+        
+        addressKeysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        });
+        
+        // Reset phí vận chuyển trên server nếu là khách hàng lẻ
+        const currentTab = tabs.find(tab => tab.key === tabKey);
+        if (currentTab && (!currentTab.khachHang || currentTab.khachHang === "Khách hàng lẻ")) {
+          try {
+            axios.post(
+              `http://localhost:8080/api/admin/hoa-don/${tabKey}/cap-nhat-phi-van-chuyen`,
+              { fee: 0 },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+          } catch (error) {
+            console.error(`Lỗi khi reset phí vận chuyển cho tab ${tabKey}:`, error);
+          }
+        }
+      });
+    };
+  }, [tabs]);
   // Cấu hình cột cho bảng
   const columns = [
     {
@@ -1472,57 +1774,59 @@ const BanHang = () => {
     if (activeKey) {
       // Store the previous hoaDonId to clean up
       const previousHoaDonId = hoaDonId;
-      
+
       // Clean up any lingering data from previous tab
       cleanupTabData(previousHoaDonId);
-      
+
       // Set current hoaDonId
       setHoaDonId(activeKey);
-      
+
       // Fetch the current tab's data
       fetchInvoiceById(activeKey).then((invoiceData) => {
         // After loading invoice data, load products
         fetchInvoiceProducts(activeKey);
-        
+
         // Get current tab data to reset GiaoHang component
         const currentTab = tabs.find((tab) => tab.key === activeKey);
-        
+
         // Update selected customer if available
         if (invoiceData?.khachHang) {
           setSelectedCustomer(invoiceData.khachHang);
         }
-        
+
         if (currentTab) {
           resetGiaoHangComponent(currentTab);
         }
       });
     }
   }, [activeKey]);
-    // Update or add this function at the appropriate place
+  // Update or add this function at the appropriate place
   const loadAddressDataForActiveTab = async () => {
     if (!activeKey) return;
-  
+
     // Get the current tab's order details
-    const currentTab = tabs.find(tab => tab.key === activeKey);
+    const currentTab = tabs.find((tab) => tab.key === activeKey);
     if (!currentTab) return;
-  
+
     const order = currentTab.order;
-    
+
     // Only load address for delivery orders
     if (order.loaiHoaDon !== 3) {
       setSelectedAddress(null);
       return;
     }
-  
+
     // Try to load address from GiaoHang component
     try {
       if (giaoHangRef.current) {
         // Set a loading indicator if needed
         setCalculatingShippingFee(true);
-        
+
         // Try to load address from invoice
-        const success = await giaoHangRef.current.loadAddressFromInvoice(activeKey);
-        
+        const success = await giaoHangRef.current.loadAddressFromInvoice(
+          activeKey
+        );
+
         // If address was loaded successfully, try to calculate shipping fee
         if (success && order.loaiHoaDon === 3) {
           // Calculate shipping fee if needed
@@ -1535,24 +1839,24 @@ const BanHang = () => {
       setCalculatingShippingFee(false);
     }
   };
-  
+
   // Update the existing useEffect for activeKey
   useEffect(() => {
     if (activeKey) {
       // Store the previous hoaDonId to clean up
       const previousHoaDonId = hoaDonId;
-      
+
       // Clean up any lingering data from previous tab
       cleanupTabData(previousHoaDonId);
-      
+
       // Set current hoaDonId
       setHoaDonId(activeKey);
-      
+
       // Fetch the current tab's data
       fetchInvoiceById(activeKey).then(() => {
         // After loading invoice data, load products
         fetchInvoiceProducts(activeKey);
-        
+
         // Load address data if this is a delivery order
         loadAddressDataForActiveTab();
       });
@@ -3842,135 +4146,136 @@ const BanHang = () => {
   };
 
   const handleDeliveryMethodChange = async (hoaDonId, method) => {
-      try {
-        setLoading(true);
-        
-        // Get current order info
-        const currentTab = tabs.find((tab) => tab.key === hoaDonId);
-        if (!currentTab) {
-          message.error("Không tìm thấy hóa đơn");
-          return;
-        }
-        
-        // Lấy thông tin khách hàng hiện tại
-        const currentCustomer = currentTab.order.khachHang;
-        const isAnonymousCustomer = !currentCustomer;
-        
-        // Set new delivery type: 2 = in-store, 3 = delivery
-        const loaiHoaDon = method === "giaoHang" ? 3 : 2;
-  
-        // Update UI immediately to prevent flickering
-        setTabs((prevTabs) =>
-          prevTabs.map((tab) =>
-            tab.key === hoaDonId
-              ? {
-                  ...tab,
-                  order: {
-                    ...tab.order,
-                    loaiHoaDon,
-                    // Chỉ giữ thông tin khách hàng và thông tin liên hệ khi khách hàng có tài khoản
-                    // Đối với khách lẻ, reset thông tin người nhận khi chuyển sang giao hàng
-                    khachHang: currentCustomer,
-                    tenNguoiNhan: isAnonymousCustomer && loaiHoaDon === 3 ? "" : 
-                      (currentTab.order.tenNguoiNhan || (currentCustomer ? currentCustomer.tenKhachHang : "")),
-                    soDienThoai: isAnonymousCustomer && loaiHoaDon === 3 ? "" : 
-                      (currentTab.order.soDienThoai || (currentCustomer ? currentCustomer.soDienThoai : ""))
-                  },
-                }
-              : tab
-          )
-        );
-  
-        setSelectedLoaiHoaDon(loaiHoaDon);
-        
-        // Call API to update order type
-        // Đối với khách lẻ, reset thông tin người nhận nếu chuyển sang giao hàng
-        await axios.put(
-          `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/update-loai-hoa-don`,
-          { 
-            loaiHoaDon,
-            tenNguoiNhan: isAnonymousCustomer && loaiHoaDon === 3 ? null : 
-              (currentTab.order.tenNguoiNhan || (currentCustomer ? currentCustomer.tenKhachHang : "")),
-            soDienThoai: isAnonymousCustomer && loaiHoaDon === 3 ? null : 
-              (currentTab.order.soDienThoai || (currentCustomer ? currentCustomer.soDienThoai : ""))
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        
-        // Reset địa chỉ trong database nếu đơn hàng khách lẻ chuyển sang giao hàng
-        if (isAnonymousCustomer && loaiHoaDon === 3) {
-          try {
-            // Reset địa chỉ trong database
-            await axios.put(
-              `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/reset-address`,
-              {},
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-            
-            // Reset selected address state
-            setSelectedAddress(null);
-            
-            // Clear stored addresses for this invoice
-            const addressKeys = [
-              `selected_address_${hoaDonId}_anon`,
-              `last_applied_address_${hoaDonId}`,
-              `submitted_address_${hoaDonId}_anon`,
-              `invoice_address_${hoaDonId}_anon`
-            ];
-            
-            addressKeys.forEach(key => {
-              localStorage.removeItem(key);
-              sessionStorage.removeItem(key);
-            });
-          } catch (resetError) {
-            console.error("Lỗi khi reset địa chỉ:", resetError);
-          }
-        }
-        
-        // If switching to delivery mode, reset GiaoHang component
-        if (loaiHoaDon === 3) {
-          const updatedTab = tabs.find(tab => tab.key === hoaDonId);
-          if (updatedTab && giaoHangRef.current) {
-            // Force reset for anonymous customer
-            if (isAnonymousCustomer) {
-              giaoHangRef.current.resetAddressState(true, {
-                customerInfo: null,
-                recipientName: "",
-                phoneNumber: ""
-              });
-            } else {
-              resetGiaoHangComponent(updatedTab);
-            }
-          }
-        }
-        
-        // Recalculate totals with updated order and current products
-        const orderProds = orderProducts[hoaDonId] || [];
-        const updatedTab = tabs.find(tab => tab.key === hoaDonId);
-        updateAllTotals(orderProds, updatedTab.order);
-  
-        message.success(
-          `Đã chuyển sang hình thức ${
-            loaiHoaDon === 3 ? "giao hàng" : "mua tại quầy"
-          }`
-        );
-        
-      } catch (error) {
-        console.error("Lỗi khi cập nhật hình thức mua hàng:", error);
-        message.error("Không thể cập nhật hình thức mua hàng");
-      } finally {
-        setLoading(false);
+    try {
+      setLoading(true);
+      
+      // Xác định loại hóa đơn mới (2: tại quầy, 3: giao hàng)
+      const newOrderType = method === "giaoHang" ? 3 : 2;
+      
+      // Cập nhật state local trước để UI phản hồi ngay lập tức
+      setSelectedLoaiHoaDon(newOrderType);
+      
+      // Tìm tab hiện tại để kiểm tra khách hàng
+      const currentTab = tabs.find((tab) => tab.key === hoaDonId);
+      const oldOrderType = currentTab?.order?.loaiHoaDon;
+      
+      // Nếu chuyển từ Giao hàng -> Tại quầy, reset địa chỉ và phí vận chuyển
+      if (method === "taiQuay" && oldOrderType === 3) {
+        await resetAddressAndShippingFee(hoaDonId);
       }
+      
+      // Gửi API request để cập nhật loại hóa đơn
+      const response = await axios.put(
+        `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/update-loai-hoa-don`,
+        { loaiHoaDon: newOrderType },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+  
+      if (response.status === 200) {
+        console.log("Đã cập nhật hình thức mua hàng thành công");
+        
+        // Fetch lại toàn bộ thông tin hóa đơn để đảm bảo dữ liệu đồng bộ
+        await fetchLatestData();
+        
+        // Cập nhật tabs
+        const updatedTabs = tabs.map((tab) => {
+          if (tab.key === hoaDonId) {
+            return {
+              ...tab,
+              order: {
+                ...tab.order,
+                loaiHoaDon: newOrderType,
+                // Reset phí vận chuyển khi chuyển sang tại quầy
+                phiVanChuyen: newOrderType === 2 ? 0 : tab.order.phiVanChuyen,
+              },
+            };
+          }
+          return tab;
+        });
+        setTabs(updatedTabs);
+        
+        // Nếu chuyển từ tại quầy sang giao hàng, hiển thị form nhập địa chỉ
+        if (newOrderType === 3) {
+          // Chuyển sang chế độ nhập địa chỉ mới
+          if (giaoHangRef.current && giaoHangRef.current.resetAddressState) {
+            const isAnonymous = !currentTab?.order?.khachHang || currentTab?.order?.khachHang === "Khách hàng lẻ";
+            giaoHangRef.current.resetAddressState(isAnonymous, {
+              recipientName: currentTab?.order?.tenNguoiNhan || "",
+              phoneNumber: currentTab?.order?.soDienThoai || ""
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi cập nhật hình thức mua hàng:", error);
+      message.error("Không thể cập nhật hình thức mua hàng");
+    } finally {
+      setLoading(false);
+    }
   };
-
+    // Thêm hàm mới để reset phí vận chuyển
+  const resetShippingFee = async (hoaDonId) => {
+    if (!hoaDonId) {
+      console.error("Không có ID hóa đơn để reset phí vận chuyển");
+      return false;
+    }
+    
+    try {
+      console.log(`Reset phí vận chuyển cho hóa đơn ${hoaDonId}`);
+      
+      // Reset trên server trước để đồng bộ
+      await axios.post(
+        `http://localhost:8080/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
+        { fee: 0 },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      
+      // Cập nhật state tabs để UI phản hồi ngay lập tức
+      setTabs((prev) =>
+        prev.map((tab) => {
+          if (tab.key === hoaDonId) {
+            return {
+              ...tab, 
+              order: {
+                ...tab.order,
+                phiVanChuyen: 0
+              }
+            };
+          }
+          return tab;
+        })
+      );
+      
+      // Cập nhật state totals để tính lại tổng tiền
+      setTotals((prev) => {
+        if (!prev[hoaDonId]) return prev;
+        
+        const currentTotal = prev[hoaDonId];
+        return {
+          ...prev,
+          [hoaDonId]: {
+            ...currentTotal,
+            shippingFee: 0,
+            finalTotal: currentTotal.subtotalAfterDiscount || 0
+          }
+        };
+      });
+      
+      console.log(`Đã reset phí vận chuyển thành công cho hóa đơn ${hoaDonId}`);
+      return true;
+    } catch (error) {
+      console.error("Lỗi khi reset phí vận chuyển:", error);
+      return false;
+    }
+  };
   const handlePaymentMethodChange = (hoaDonId, selectedMethods) => {
     const orderTotals = totals[hoaDonId] || {};
     const isFullyDiscounted = orderTotals.isFullyDiscounted || false;
@@ -4260,30 +4565,35 @@ const BanHang = () => {
 
   const handleCustomerSelected = async (hoaDonId, customerId) => {
     try {
-      console.log("Chọn khách hàng với ID:", customerId, "cho hóa đơn:", hoaDonId);
-  
+      console.log(
+        "Chọn khách hàng với ID:",
+        customerId,
+        "cho hóa đơn:",
+        hoaDonId
+      );
+
       if (customerId === "Khách hàng lẻ") {
         message.error(
           "Không thể chọn 'Khách hàng lẻ'. Vui lòng chọn khách hàng khác."
         );
         return;
       }
-  
+
       // Find the selected customer first to ensure we have the data
       const selectedCustomer = customers.find((c) => c.id === customerId);
       if (!selectedCustomer) {
         message.error("Không tìm thấy thông tin khách hàng.");
         return;
       }
-  
+
       // Update the local customer state immediately
       setSelectedCustomer(selectedCustomer);
-      
+
       // Get the current tab and prepare recipient information
       const currentTab = tabs.find((tab) => tab.key === hoaDonId);
       const tenNguoiNhan = selectedCustomer.tenKhachHang;
       const soDienThoai = selectedCustomer.soDienThoai;
-  
+
       // Update UI immediately with customer info to avoid flicker
       setTabs((prev) =>
         prev.map((tab) =>
@@ -4294,23 +4604,23 @@ const BanHang = () => {
                   ...tab.order,
                   khachHang: selectedCustomer,
                   tenNguoiNhan: tenNguoiNhan,
-                  soDienThoai: soDienThoai
+                  soDienThoai: soDienThoai,
                 },
               }
             : tab
         )
       );
-  
+
       // Close the dialog immediately for better UX
       setOpenCustomerDialog(false);
-      
+
       // Send update to server with complete customer information
       const response = await axios.put(
         `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/customer`,
-        { 
+        {
           customerId: customerId,
-          tenNguoiNhan: tenNguoiNhan, 
-          soDienThoai: soDienThoai 
+          tenNguoiNhan: tenNguoiNhan,
+          soDienThoai: soDienThoai,
         },
         {
           headers: {
@@ -4318,15 +4628,14 @@ const BanHang = () => {
           },
         }
       );
-  
+
       console.log("Server response after customer selection:", response.data);
       message.success(`Đã chọn khách hàng: ${selectedCustomer.tenKhachHang}`);
-  
+
       // Handle delivery-specific functionality if needed
       if (currentTab && currentTab.order?.loaiHoaDon === 3) {
         resetGiaoHangComponent(currentTab);
       }
-      
     } catch (error) {
       console.error("Lỗi khi chọn khách hàng:", error);
       message.error("Lỗi khi chọn khách hàng. Vui lòng thử lại.");
@@ -4800,44 +5109,60 @@ const BanHang = () => {
 
   // Add function to calculate and update all totals
   const updateAllTotals = (products, order) => {
-    // Calculate total before discount
-    const subtotal = calculateTotalBeforeDiscount(products);
+    if (!order || !order.id) return;
 
-    // Calculate shipping fee
-    const shippingFee = order.phiVanChuyen || 0;
-
-    // Calculate total before applying voucher
-    const totalBeforeVoucher = subtotal + shippingFee;
-
-    // Calculate discount amount if voucher exists
-    const discountAmount = order.phieuGiamGia
-      ? calculateDiscountAmount(order.phieuGiamGia, totalBeforeVoucher)
+    // Bước 1: Tính tổng tiền hàng
+    const subtotal = Array.isArray(products)
+      ? products.reduce(
+          (sum, product) => sum + product.gia * product.soLuong,
+          0
+        )
       : 0;
 
-    // Calculate final total
-    const finalTotal = totalBeforeVoucher - discountAmount;
+    // Bước 2: Tính tiền giảm giá
+    let discountAmount = 0;
+    if (order.phieuGiamGia) {
+      discountAmount = calculateDiscountAmount(order.phieuGiamGia, subtotal);
+    }
 
-    // Update all state values
-    setTotalBeforeDiscount(subtotal);
-    setTotalAmount(totalBeforeVoucher);
+    // Bước 3: Tính tổng sau giảm giá
+    const subtotalAfterDiscount = subtotal - discountAmount;
 
-    // Update the order in tabs with new totals
-    setTabs((prev) =>
-      prev.map((tab) => {
-        if (tab.key === order.id) {
-          return {
-            ...tab,
-            order: {
-              ...tab.order,
-              tongTien: totalBeforeVoucher,
-              giamGia: discountAmount,
-              tongThanhToan: finalTotal,
-            },
-          };
-        }
-        return tab;
-      })
-    );
+    // Bước 4: Tính phí vận chuyển - CHỈ KHI LÀ ĐƠN GIAO HÀNG
+    let shippingFee = 0;
+    if (order.loaiHoaDon === 3) {
+      // CHỈ tính phí vận chuyển nếu là đơn giao hàng
+      // Áp dụng miễn phí vận chuyển nếu đơn từ 2 triệu sau giảm giá
+      if (subtotalAfterDiscount >= 2000000) {
+        shippingFee = 0; // Miễn phí vận chuyển
+      } else {
+        shippingFee = order.phiVanChuyen || 0;
+      }
+    } else {
+      shippingFee = 0; // Đơn tại quầy không có phí vận chuyển
+    }
+
+    // Bước 5: Tính tổng cuối cùng
+    const finalTotal = subtotalAfterDiscount + shippingFee;
+
+    // Bước 6: Kiểm tra xem đơn có được miễn phí hoàn toàn không
+    const isFullyDiscounted = subtotalAfterDiscount <= 0;
+
+    // Cập nhật state totals
+    const updatedTotals = {
+      ...totals,
+      [order.id]: {
+        subtotal,
+        discountAmount,
+        subtotalAfterDiscount,
+        shippingFee,
+        finalTotal,
+        isFullyDiscounted,
+      },
+    };
+
+    setTotals(updatedTotals);
+    return updatedTotals[order.id];
   };
 
   const autoApplyBestVoucher = async (hoaDonId) => {
@@ -5261,22 +5586,22 @@ const BanHang = () => {
   // Thêm hàm fetchInvoiceById để tải lại thông tin hóa đơn từ server
   const fetchInvoiceById = async (hoaDonId) => {
     if (!hoaDonId) return null;
-    
+
     try {
       setLoading(true);
-      
+
       // Store current data from UI before fetching
-      const currentTab = tabs.find(tab => tab.key === hoaDonId);
+      const currentTab = tabs.find((tab) => tab.key === hoaDonId);
       const currentCustomerInfo = currentTab?.order?.khachHang;
       const currentRecipientName = currentTab?.order?.tenNguoiNhan;
       const currentPhone = currentTab?.order?.soDienThoai;
-      
-      console.log('[DEBUG] Thông tin trước fetchInvoice:', {
+
+      console.log("[DEBUG] Thông tin trước fetchInvoice:", {
         customer: currentCustomerInfo,
         recipientName: currentRecipientName,
-        phone: currentPhone
+        phone: currentPhone,
       });
-      
+
       // Fetch invoice data from server
       const response = await axios.get(
         `http://localhost:8080/api/admin/hoa-don/${hoaDonId}`,
@@ -5286,13 +5611,13 @@ const BanHang = () => {
           },
         }
       );
-      
+
       const invoiceData = response.data;
-      
+
       // Prioritize server data but fallback to current data if missing
       // IMPORTANT: Use consistent conditional logic to handle null/empty values
       const updatedCustomer = invoiceData.khachHang || currentCustomerInfo;
-      
+
       // For recipient name, check if server data exists AND is not empty
       let updatedRecipientName = currentRecipientName; // Default to current value
       if (invoiceData.tenNguoiNhan && invoiceData.tenNguoiNhan.trim() !== "") {
@@ -5301,7 +5626,7 @@ const BanHang = () => {
         // If no server value and we have a customer, use customer name
         updatedRecipientName = updatedCustomer.tenKhachHang;
       }
-      
+
       // For phone number, check if server data exists AND is not empty
       let updatedPhone = currentPhone; // Default to current value
       if (invoiceData.soDienThoai && invoiceData.soDienThoai.trim() !== "") {
@@ -5310,16 +5635,16 @@ const BanHang = () => {
         // If no server value and we have a customer, use customer phone
         updatedPhone = updatedCustomer.soDienThoai;
       }
-      
-      console.log('[DEBUG] Thông tin sau khi nhận từ API:', {
+
+      console.log("[DEBUG] Thông tin sau khi nhận từ API:", {
         serverCustomer: invoiceData.khachHang,
         serverRecipient: invoiceData.tenNguoiNhan,
         serverPhone: invoiceData.soDienThoai,
         finalCustomer: updatedCustomer,
         finalRecipient: updatedRecipientName,
-        finalPhone: updatedPhone
+        finalPhone: updatedPhone,
       });
-      
+
       // Update UI with merged data
       setTabs((prev) =>
         prev.map((tab) => {
@@ -5330,25 +5655,25 @@ const BanHang = () => {
                 ...invoiceData,
                 khachHang: updatedCustomer,
                 tenNguoiNhan: updatedRecipientName || "",
-                soDienThoai: updatedPhone || ""
+                soDienThoai: updatedPhone || "",
               },
             };
           }
           return tab;
         })
       );
-      
+
       // Update selectedCustomer state if customer exists
       if (updatedCustomer) {
         setSelectedCustomer(updatedCustomer);
       }
-      
+
       // Return updated data
       return {
         ...invoiceData,
         khachHang: updatedCustomer,
         tenNguoiNhan: updatedRecipientName || "",
-        soDienThoai: updatedPhone || ""
+        soDienThoai: updatedPhone || "",
       };
     } catch (error) {
       console.error(`Error fetching invoice ${hoaDonId}:`, error);
@@ -5582,13 +5907,13 @@ const BanHang = () => {
         ) : (
           <div style={{ height: "calc(100% - 60px)", overflowY: "auto" }}>
             <Tabs
-  hideAdd
-  type="editable-card"
-  onChange={handleTabChange}
-  activeKey={activeKey}
-  onEdit={handleEditTab}
-  items={items}
-/>
+              hideAdd
+              type="editable-card"
+              onChange={handleTabChange}
+              activeKey={activeKey}
+              onEdit={handleEditTab}
+              items={items}
+            />
           </div>
         )}
       </Sider>
