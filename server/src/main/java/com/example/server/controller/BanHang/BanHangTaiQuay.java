@@ -5,11 +5,13 @@ import com.example.server.dto.HoaDon.response.DiaChiResponse;
 import com.example.server.dto.HoaDon.response.HoaDonResponse;
 import com.example.server.dto.HoaDon.response.SanPhamChiTietHoaDonResponse;
 import com.example.server.entity.HoaDon;
+import com.example.server.entity.LichSuHoaDon;
 import com.example.server.entity.SanPhamChiTiet;
 import com.example.server.exception.ResourceNotFoundException;
 import com.example.server.exception.ValidationException;
 import com.example.server.mapper.impl.HoaDonMapper;
 import com.example.server.mapper.impl.SanPhamMapper;
+import com.example.server.repository.HoaDon.HoaDonRepository;
 import com.example.server.repository.HoaDon.SanPhamChiTietHoaDonRepository;
 import com.example.server.service.BanHang.BanHangService;
 import com.example.server.service.BanHang.impl.BanHangServiceImpl;
@@ -25,8 +27,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -40,13 +44,17 @@ public class BanHangTaiQuay {
     private final IHoaDonSanPhamService hoaDonSanPhamService;
     private final SanPhamChiTietHoaDonRepository sanPhamChiTietHoaDonRepository;
     private final SanPhamMapper sanPhamMapper;
+    private final HoaDonRepository hoaDonRepository;
     @Autowired
     private WebSocketService webSocketService;
 
     @Value("${sepay.api.key}") // Lấy giá trị từ application.properties
     private String API_KEY;
 
-    public BanHangTaiQuay(BanHangService banHangService, BanHangServiceImpl banHangServiceImpl, IHoaDonService hoaDonService, HoaDonMapper hoaDonMapper, IHoaDonSanPhamService hoaDonSanPhamService, SanPhamChiTietHoaDonRepository sanPhamChiTietHoaDonRepository, SanPhamMapper sanPhamMapper) {
+    public BanHangTaiQuay(HoaDonRepository hoaDonRepository, BanHangService banHangService,
+                          BanHangServiceImpl banHangServiceImpl, IHoaDonService hoaDonService, HoaDonMapper hoaDonMapper,
+                          IHoaDonSanPhamService hoaDonSanPhamService, SanPhamChiTietHoaDonRepository sanPhamChiTietHoaDonRepository,
+                          SanPhamMapper sanPhamMapper) {
         this.banHangService = banHangService;
         this.banHangServiceImpl = banHangServiceImpl;
         this.hoaDonService = hoaDonService;
@@ -54,6 +62,7 @@ public class BanHangTaiQuay {
         this.hoaDonSanPhamService = hoaDonSanPhamService;
         this.sanPhamChiTietHoaDonRepository = sanPhamChiTietHoaDonRepository;
         this.sanPhamMapper = sanPhamMapper;
+        this.hoaDonRepository = hoaDonRepository;
     }
 
     @PostMapping("/create")
@@ -70,18 +79,18 @@ public class BanHangTaiQuay {
     public ResponseEntity<?> addProductToHoaDon(
             @PathVariable String hoaDonId,
             @RequestBody(required = false) AddProductRequest request,
-            @RequestParam(defaultValue = "true") boolean delayApplyVoucher
-    ) {
+            @RequestParam(defaultValue = "true") boolean delayApplyVoucher) {
         if (request == null) {
             return ResponseEntity.badRequest().body("Dữ liệu sản phẩm không được để trống.");
         }
 
         HoaDonResponse response = banHangService.addProduct(hoaDonId, request);
 
-        // Nếu không trì hoãn áp dụng voucher, gọi applyBestVoucher nhưng không có customerId
-//        if (!delayApplyVoucher) {
-//            response = banHangService.applyBestVoucher(hoaDonId);
-//        }
+        // Nếu không trì hoãn áp dụng voucher, gọi applyBestVoucher nhưng không có
+        // customerId
+        // if (!delayApplyVoucher) {
+        // response = banHangService.applyBestVoucher(hoaDonId);
+        // }
 
         webSocketService.sendInvoiceUpdate(hoaDonId);
         return ResponseEntity.ok(response);
@@ -102,16 +111,15 @@ public class BanHangTaiQuay {
 
         HoaDonResponse response = hoaDonSanPhamService.updateProductQuantity(hoaDonId, hoaDonChiTietId, request);
 
-//        // Tự động áp dụng mã giảm giá tốt nhất sau khi cập nhật số lượng
-//        response = banHangServiceImpl.applyBestVoucher(hoaDonId);
+        // // Tự động áp dụng mã giảm giá tốt nhất sau khi cập nhật số lượng
+        // response = banHangServiceImpl.applyBestVoucher(hoaDonId);
 
         return ResponseEntity.ok(response);
     }
 
-
-
     @DeleteMapping("/{hoaDonId}/chi-tiet/{hoaDonChiTietId}")
-    public ResponseEntity<HoaDonResponse> removeProduct(@PathVariable String hoaDonId, @PathVariable String hoaDonChiTietId) {
+    public ResponseEntity<HoaDonResponse> removeProduct(@PathVariable String hoaDonId,
+                                                        @PathVariable String hoaDonChiTietId) {
 
         log.info("Nhận yêu cầu xóa sản phẩm: HoaDonID={}, ChiTietID={}", hoaDonId, hoaDonChiTietId);
 
@@ -125,7 +133,8 @@ public class BanHangTaiQuay {
     @GetMapping("/sepay/transactions")
     public ResponseEntity<Object> getTransactions(@RequestParam String account_number, @RequestParam int limit) {
 
-        String url = "https://my.sepay.vn/userapi/transactions/list?account_number=" + account_number + "&limit=" + limit;
+        String url = "https://my.sepay.vn/userapi/transactions/list?account_number=" + account_number + "&limit="
+                + limit;
 
         RestTemplate restTemplate = new RestTemplate();
 
@@ -154,17 +163,28 @@ public class BanHangTaiQuay {
     }
 
     @GetMapping("/sanpham/filter")
-    public ResponseEntity<List<SanPhamChiTietHoaDonResponse>> filterProducts(@RequestParam(required = false) String searchTerm, @RequestParam(required = false) String chatLieu, @RequestParam(required = false) String kieuDang, @RequestParam(required = false) String thuongHieu, @RequestParam(required = false) String kieuCuc, @RequestParam(required = false) String kieuCoAo, @RequestParam(required = false) String kieuCoTayAo, @RequestParam(required = false) String kieuTayAo, @RequestParam(required = false) String kieuTuiAo, @RequestParam(required = false) String danhMuc, @RequestParam(required = false) String hoaTiet, @RequestParam(required = false) String mauSac, @RequestParam(required = false) String kichThuoc) {
+    public ResponseEntity<List<SanPhamChiTietHoaDonResponse>> filterProducts(
+            @RequestParam(required = false) String searchTerm, @RequestParam(required = false) String chatLieu,
+            @RequestParam(required = false) String kieuDang, @RequestParam(required = false) String thuongHieu,
+            @RequestParam(required = false) String kieuCuc, @RequestParam(required = false) String kieuCoAo,
+            @RequestParam(required = false) String kieuCoTayAo, @RequestParam(required = false) String kieuTayAo,
+            @RequestParam(required = false) String kieuTuiAo, @RequestParam(required = false) String danhMuc,
+            @RequestParam(required = false) String hoaTiet, @RequestParam(required = false) String mauSac,
+            @RequestParam(required = false) String kichThuoc) {
 
-        List<SanPhamChiTiet> filteredProducts = sanPhamChiTietHoaDonRepository.filterProducts(searchTerm, chatLieu, kieuDang, thuongHieu, kieuCuc, kieuCoAo, kieuCoTayAo, kieuTayAo, kieuTuiAo, danhMuc, hoaTiet, mauSac, kichThuoc);
+        List<SanPhamChiTiet> filteredProducts = sanPhamChiTietHoaDonRepository.filterProducts(searchTerm, chatLieu,
+                kieuDang, thuongHieu, kieuCuc, kieuCoAo, kieuCoTayAo, kieuTayAo, kieuTuiAo, danhMuc, hoaTiet, mauSac,
+                kichThuoc);
 
-        List<SanPhamChiTietHoaDonResponse> response = filteredProducts.stream().map(sanPhamMapper::toResponse).collect(Collectors.toList());
+        List<SanPhamChiTietHoaDonResponse> response = filteredProducts.stream().map(sanPhamMapper::toResponse)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/voucher")
-    public ResponseEntity<HoaDonResponse> applyVoucher(@PathVariable("id") String hoaDonId, @RequestBody PhieuGiamGiaRequest request) {
+    public ResponseEntity<HoaDonResponse> applyVoucher(@PathVariable("id") String hoaDonId,
+                                                       @RequestBody PhieuGiamGiaRequest request) {
         log.info("Applying voucher. HoaDonId: {}, VoucherId: {}", hoaDonId, request.getVoucherId());
 
         if (hoaDonId == null || request.getVoucherId() == null) {
@@ -175,7 +195,8 @@ public class BanHangTaiQuay {
     }
 
     @PostMapping("/{hoaDonId}/complete")
-    public ResponseEntity<HoaDonResponse> completeOrder(@PathVariable String hoaDonId, @RequestBody HoaDonRequest request) {
+    public ResponseEntity<HoaDonResponse> completeOrder(@PathVariable String hoaDonId,
+                                                        @RequestBody HoaDonRequest request) {
         if (request.getThanhToans() == null || request.getThanhToans().isEmpty()) {
             return ResponseEntity.badRequest().body(null);
         }
@@ -191,36 +212,50 @@ public class BanHangTaiQuay {
         return ResponseEntity.ok(response);
     }
 
-
     @GetMapping("/hoadontaiquay")
     public ResponseEntity<?> getAllPendingOrders() {
         try {
             List<HoaDon> pendingOrders = banHangService.getHoaDonTaiQuay();
-            List<HoaDonResponse> response = pendingOrders.stream().map(hoaDonMapper::entityToResponse).collect(Collectors.toList());
+            List<HoaDonResponse> response = pendingOrders.stream().map(hoaDonMapper::entityToResponse)
+                    .collect(Collectors.toList());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error fetching pending orders", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi lấy danh sách hóa đơn chờ: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi lấy danh sách hóa đơn chờ: " + e.getMessage());
         }
     }
 
-
     @PutMapping("/{hoaDonId}/customer")
-    public ResponseEntity<HoaDonResponse> selectCustomer(@PathVariable String hoaDonId, @RequestBody Map<String, String> request) {
+    public ResponseEntity<HoaDonResponse> selectCustomer(@PathVariable String hoaDonId,
+                                                         @RequestBody Map<String, String> request) {
 
         String customerId = request.get("customerId");
-        String diaChiId = request.get("diaChiId"); // Lấy ID địa chỉ từ request
+        String diaChiId = request.get("diaChiId");
+
+        // Thêm các trường thông tin người nhận
+        String tenNguoiNhan = request.get("tenNguoiNhan");
+        String soDienThoai = request.get("soDienThoai");
 
         if (customerId == null) {
             customerId = "Khách hàng lẻ";
         }
 
-        return ResponseEntity.ok(banHangServiceImpl.selectCustomer(hoaDonId, customerId, diaChiId));
+        // Thêm tham số tenNguoiNhan và soDienThoai
+        return ResponseEntity.ok(banHangServiceImpl.selectCustomer(hoaDonId, customerId, diaChiId, tenNguoiNhan, soDienThoai));
     }
 
     @GetMapping("/{hoaDonId}/dia-chi-chi-tiet")
     public ResponseEntity<Map<String, String>> getAddressDetails(@PathVariable String hoaDonId) {
         Map<String, String> addressParts = banHangServiceImpl.getDiaChiGiaoHang(hoaDonId);
+
+        // Thêm thông tin người nhận và số điện thoại vào response
+        HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+
+        addressParts.put("tenNguoiNhan", hoaDon.getTenNguoiNhan());
+        addressParts.put("soDienThoai", hoaDon.getSoDienThoai());
+
         return ResponseEntity.ok(addressParts);
     }
 
@@ -229,35 +264,96 @@ public class BanHangTaiQuay {
             @PathVariable String hoaDonId,
             @RequestBody UpdateDiaChiRequest addressRequest) {
 
-        if (hoaDonId == null || addressRequest == null || addressRequest.getDiaChiId() == null) {
-            log.error("Dữ liệu không hợp lệ: thiếu hoaDonId hoặc diaChiId.");
+        if (hoaDonId == null || addressRequest == null) {
+            log.error("Dữ liệu không hợp lệ: thiếu hoaDonId hoặc addressRequest.");
             return ResponseEntity.badRequest().body(null);
         }
 
+        // Thêm kiểm tra và log
+        log.info("Đang xử lý yêu cầu cập nhật địa chỉ. HoaDonID: {}, Địa chỉ: {}, Người nhận: {}, SĐT: {}",
+                hoaDonId,
+                addressRequest.getDiaChiCuThe(),
+                addressRequest.getTenNguoiNhan(),
+                addressRequest.getSoDienThoai());
+
         try {
-            HoaDonResponse response = banHangServiceImpl.updateDiaChiGiaoHang(hoaDonId, addressRequest);
-            log.info("Cập nhật địa chỉ giao hàng thành công cho hóa đơn: {}", hoaDonId);
-            return ResponseEntity.ok(response);
+            // Thêm synchronized để tránh xung đột
+            synchronized (this) {
+                HoaDonResponse response = banHangServiceImpl.updateDiaChiGiaoHang(hoaDonId, addressRequest);
+                log.info("Cập nhật địa chỉ giao hàng thành công cho hóa đơn: {}", hoaDonId);
+                return ResponseEntity.ok(response);
+            }
         } catch (Exception e) {
-            log.error("Lỗi server khi cập nhật địa chỉ: {}", e.getMessage());
+            log.error("Lỗi server khi cập nhật địa chỉ: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-
-
     @PutMapping("/{hoaDonId}/update-loai-hoa-don")
-    public ResponseEntity<?> updateLoaiHoaDon(@PathVariable String hoaDonId, @RequestBody Map<String, Integer> request) {
-        Integer loaiHoaDon = request.get("loaiHoaDon");
+    public ResponseEntity<?> updateLoaiHoaDon(@PathVariable String hoaDonId,
+                                              @RequestBody Map<String, Object> request) {
+        Integer loaiHoaDon = (Integer) request.get("loaiHoaDon");
 
         if (loaiHoaDon == null) {
             return ResponseEntity.badRequest().body("Loại hóa đơn không được để trống.");
         }
 
+        // Extract additional recipient information if provided
+        String tenNguoiNhan = (String) request.get("tenNguoiNhan");
+        String soDienThoai = (String) request.get("soDienThoai");
+
+        log.info("Cập nhật loại hóa đơn: ID={}, loại={}, người nhận={}, SĐT={}",
+                hoaDonId, loaiHoaDon, tenNguoiNhan, soDienThoai);
+
+        // Get the order
+        HoaDon hoaDon = hoaDonService.validateAndGet(hoaDonId);
+
+        // Update recipient information if provided
+        if (tenNguoiNhan != null && !tenNguoiNhan.isEmpty()) {
+            hoaDon.setTenNguoiNhan(tenNguoiNhan);
+        }
+
+        if (soDienThoai != null && !soDienThoai.isEmpty()) {
+            hoaDon.setSoDienThoai(soDienThoai);
+        }
+
+        // Save recipient information if provided
+        hoaDonRepository.save(hoaDon);
+
+        // Now update the order type
         banHangService.updateLoaiHoaDon(hoaDonId, loaiHoaDon);
+
         return ResponseEntity.ok("Cập nhật hình thức mua hàng thành công.");
     }
+    @PutMapping("/{hoaDonId}/reset-address")
+    public ResponseEntity<?> resetAddress(@PathVariable String hoaDonId) {
+        log.info("Resetting address information for invoice ID: {}", hoaDonId);
 
+        try {
+            // Get current invoice
+            HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại: " + hoaDonId));
+
+            // Reset address related fields
+            hoaDon.setDiaChi(null);
+            hoaDon.setTenNguoiNhan(null);
+            hoaDon.setSoDienThoai(null);
+
+            // Save the updated invoice
+            hoaDonRepository.save(hoaDon);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Đã reset thông tin địa chỉ"
+            ));
+        } catch (Exception e) {
+            log.error("Error resetting address for invoice {}: {}", hoaDonId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "success", false,
+                    "message", "Lỗi khi reset thông tin địa chỉ: " + e.getMessage()
+            ));
+        }
+    }
     @GetMapping("/{hoaDonId}/san-pham")
     @Operation(summary = "Lấy danh sách sản phẩm trong hóa đơn")
     public ResponseEntity<List<SanPhamChiTietHoaDonResponse>> getProductsInInvoice(@PathVariable String hoaDonId) {
@@ -278,14 +374,14 @@ public class BanHangTaiQuay {
         return ResponseEntity.ok(banHangServiceImpl.applyBestVoucher(hoaDonId, customerId));
     }
 
-
     @GetMapping("/{id}/print")
     public ResponseEntity<?> printHoaDon(@PathVariable String id) {
         try {
             log.info("Starting PDF generation for invoice ID: {}", id);
 
             // Tìm hóa đơn
-            HoaDon hoaDon = hoaDonService.findById(id).orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại với id: " + id));
+            HoaDon hoaDon = hoaDonService.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại với id: " + id));
 
             // Validate required data
             if (hoaDon.getTongTien() == null) {

@@ -1509,43 +1509,31 @@ public class HoaDonServiceImpl implements IHoaDonService {
     public BigDecimal calculateExcessPayment(String hoaDonId) {
         HoaDon hoaDon = validateAndGet(hoaDonId);
 
-        // Tính tổng tiền đã thanh toán (chỉ tính các khoản thực sự thanh toán - trạng
-        // thái 1)
+        // Tính tổng tiền đã thanh toán và hoàn tiền
         BigDecimal tongTienDaThanhToan = BigDecimal.ZERO;
         BigDecimal tongTienHoanTraLai = BigDecimal.ZERO;
 
         for (ThanhToanHoaDon payment : hoaDon.getThanhToanHoaDons()) {
-            // Chỉ tính các thanh toán có trạng thái = PAYMENT_STATUS_PAID
             if (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_PAID) {
                 tongTienDaThanhToan = tongTienDaThanhToan.add(payment.getSoTien());
-                log.debug("Tính khoản thanh toán: {}, phương thức: {}, số tiền: {}",
-                        payment.getId(),
-                        payment.getPhuongThucThanhToan().getTenPhuongThucThanhToan(),
-                        payment.getSoTien());
-            }
-            // Chỉ tính các hoàn tiền có trạng thái = PAYMENT_STATUS_REFUND
-            else if (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_REFUND) {
+            } else if (payment.getTrangThai() == PaymentConstant.PAYMENT_STATUS_REFUND) {
                 tongTienHoanTraLai = tongTienHoanTraLai.add(payment.getSoTien());
-                log.debug("Tính khoản hoàn tiền: {}, phương thức: {}, số tiền: {}",
-                        payment.getId(),
-                        payment.getPhuongThucThanhToan().getTenPhuongThucThanhToan(),
-                        payment.getSoTien());
             }
         }
 
-        // Tính số tiền thực tế đã thanh toán (đã trừ các khoản hoàn)
+        // Số tiền thực tế đã thanh toán (đã trừ các khoản hoàn)
         BigDecimal soTienThucTeThanhToan = tongTienDaThanhToan.subtract(tongTienHoanTraLai);
 
-        // Tổng tiền cần thanh toán = Tổng tiền hóa đơn (đã bao gồm giảm giá) + Phí vận
-        // chuyển
+        // Tổng tiền cần thanh toán = Tổng tiền hóa đơn + Phí vận chuyển
         BigDecimal tongTienCanThanhToan = hoaDon.getTongTien();
 
-        // // Cộng phí vận chuyển nếu có
-        // if (hoaDon.getPhiVanChuyen() != null &&
-        // hoaDon.getPhiVanChuyen().compareTo(BigDecimal.ZERO) > 0) {
-        // tongTienCanThanhToan = tongTienCanThanhToan.add(hoaDon.getPhiVanChuyen());
-        // }
+        // Xử lý đặc biệt với đơn hàng đã hủy
+        if (hoaDon.getTrangThai() == HoaDonConstant.TRANG_THAI_DA_HUY) {
+            // Khi đơn hàng đã hủy, cần hoàn toàn bộ số tiền đã thanh toán
+            return soTienThucTeThanhToan;
+        }
 
+        // Xử lý đơn hàng thông thường (không bị hủy)
         log.info(
                 "Hóa đơn {}: Tổng đã thanh toán = {}, Đã hoàn trả = {}, Thực thanh toán = {}, Tổng cần thanh toán (gồm phí ship) = {}",
                 hoaDonId,

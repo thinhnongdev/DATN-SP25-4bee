@@ -32,7 +32,7 @@ public interface BanHangService {
 
     HoaDonResponse applyBestVoucher(String hoaDonId);
 
-    HoaDonResponse selectCustomer(String hoaDonId, String customerName, String diaChiId);
+    HoaDonResponse selectCustomer(String hoaDonId, String customerId, String diaChiId, String tenNguoiNhan, String soDienThoai);
 
     void updateLoaiHoaDon(String hoaDonId, Integer loaiHoaDon);
 

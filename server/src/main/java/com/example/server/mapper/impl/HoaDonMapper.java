@@ -287,7 +287,7 @@ public class HoaDonMapper implements IHoaDonMapper {
                 .tenNguoiNhan(hoaDon.getTenNguoiNhan())
                 .tenNhanVien(hoaDon.getNguoiTao())
                 .loaiHoaDon(hoaDon.getLoaiHoaDon())
-                .soDienThoai(hoaDon.getKhachHang() != null ? hoaDon.getKhachHang().getSoDienThoai() : hoaDon.getSoDienThoai())
+                .soDienThoai(hoaDon.getSoDienThoai() != null ? hoaDon.getSoDienThoai() : (hoaDon.getKhachHang() != null ? hoaDon.getKhachHang().getSoDienThoai() : null))
                 .emailNguoiNhan(hoaDon.getEmailNguoiNhan())
                 .diaChi(Stream.of(diaChiCuThe, xa, huyen, tinh)
                         .filter(s -> s != null && !s.isEmpty()) // Loại bỏ phần rỗng

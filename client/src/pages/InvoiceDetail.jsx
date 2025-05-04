@@ -773,55 +773,65 @@ function InvoiceDetail() {
 
   const calculateExcessAmount = () => {
     if (!paymentHistory || !invoice) return 0;
-
-    console.log("Tính lại số tiền thừa:");
-
+  
+    console.log("Tính lại số tiền thừa hoặc hoàn tiền cho đơn hàng hủy:");
+  
     // Tính tổng thực tế khách hàng cần thanh toán
     const productTotal = totalBeforeDiscount || 0;
     const shippingFee = invoice.phiVanChuyen || 0;
     const discountAmount = getDiscountAmount();
-
+  
     // Tổng cuối cùng cần thanh toán (không âm)
-    const actualTotalDue = Math.max(
-      0,
-      productTotal + shippingFee - discountAmount
-    );
-    console.log("Tổng thực tế cần thanh toán:", actualTotalDue);
-
+    const actualTotalDue = Math.max(0, productTotal + shippingFee - discountAmount);
+    
+    // Nếu đơn hàng bị hủy, coi như tổng cần thanh toán là 0 (hoàn toàn bộ)
+    const finalTotalDue = invoice.trangThai === 6 ? 0 : actualTotalDue;
+    
+    console.log("Tổng thực tế cần thanh toán:", finalTotalDue);
+  
     // Tính số tiền khách đã thanh toán (trạng thái = 1 - đã thanh toán)
     const totalPaid = paymentHistory.reduce((sum, p) => {
       if (p.trangThai === 1) {
-        console.log(
-          `Thanh toán đã tính: ${p.tongTien}, phương thức: ${p.tenPhuongThucThanhToan}`
-        );
+        console.log(`Thanh toán đã tính: ${p.tongTien}, phương thức: ${p.tenPhuongThucThanhToan}`);
         return sum + (p.tongTien || 0);
       }
       return sum;
     }, 0);
-
+  
     // Tính số tiền đã hoàn lại (trạng thái = 4 - hoàn tiền)
     const totalRefunded = paymentHistory.reduce((sum, p) => {
       if (p.trangThai === 4) {
-        console.log(
-          `Hoàn tiền đã tính: ${p.tongTien}, phương thức: ${p.tenPhuongThucThanhToan}`
-        );
+        console.log(`Hoàn tiền đã tính: ${p.tongTien}, phương thức: ${p.tenPhuongThucThanhToan}`);
         return sum + (p.tongTien || 0);
       }
       return sum;
     }, 0);
-
+  
     // Số tiền thực tế khách đã trả
     const actualPaid = totalPaid - totalRefunded;
     console.log("Số tiền thực tế đã trả:", actualPaid);
-    console.log("Số tiền thực tế cần trả:", actualTotalDue);
-
+    console.log("Số tiền thực tế cần trả:", finalTotalDue);
+  
     // Số tiền thừa (nếu có)
-    const excess = Math.max(0, actualPaid - actualTotalDue);
-    console.log("Số tiền thừa tính được:", excess);
-
+    const excess = Math.max(0, actualPaid - finalTotalDue);
+    console.log("Số tiền thừa/cần hoàn tính được:", excess);
+  
     return Math.round(excess);
   };
-
+    // Thêm hàm để kiểm tra đơn hàng đã bị hủy có cần hoàn phí không
+  const checkCanceledOrderRefund = () => {
+    // Chỉ áp dụng cho đơn hàng đã hủy
+    if (invoice?.trangThai !== 6) return { needsRefund: false };
+    
+    // Sử dụng lại hàm tính tiền thừa
+    const excessAmount = calculateExcessAmount();
+    
+    return {
+      needsRefund: excessAmount > 0,
+      remainingAmount: excessAmount,
+      hasPayments: paymentHistory && paymentHistory.some(p => p.trangThai === 1)
+    };
+  };
   const [excessNotificationShown, setExcessNotificationShown] = useState(false);
   const checkAndShowExcessPaymentNotification = () => {
     if (
@@ -882,16 +892,20 @@ function InvoiceDetail() {
     }
   }, [paymentHistory, invoice?.tongTien]);
 
+  // Cập nhật hàm handleShowRefundDialog để xử lý cả đơn hàng bị hủy
   const handleShowRefundDialog = (amount) => {
-    // Đóng tất cả thông báo hiện tại
+    // Đóng tất cả thông báo hiện tại nếu có
     notification.destroy("excess_payment_notification");
-
+    notification.destroy("refund_canceled_order");
+    
     // Reset trạng thái thông báo
     setExcessNotificationShown(false);
-
-    // Tính toán lại số tiền thừa để đảm bảo chính xác
-    const calculatedExcess = calculateExcessAmount();
-    setExcessPaymentAmount(calculatedExcess);
+    
+    // Sử dụng số tiền được truyền vào hoặc tính toán lại
+    const refundAmount = amount || calculateExcessAmount();
+    console.log("Số tiền sẽ hoàn:", refundAmount);
+    
+    setExcessPaymentAmount(refundAmount);
     setSelectedPaymentMethod(null);
     loadPaymentMethods();
     setShowExcessPaymentRefundDialog(true);
@@ -1144,68 +1158,126 @@ function InvoiceDetail() {
         message.error("Vui lòng chọn phương thức hoàn tiền");
         return;
       }
-
+      
       setProcessingRefund(true);
-
-      // Phát hiện lý do hoàn tiền
-      const isFromOrderCompletion = detectExcessFromOrderCompletion();
-      const refundReason = determineRefundReason(
-        isFromOrderCompletion,
-        orderHistory
-      );
-
+      
+      // Tính số tiền cần hoàn - sử dụng cùng một hàm cho cả đơn hủy và hoàn tiền thừa
+      const refundAmount = calculateExcessAmount();
+      
+      // Kiểm tra số tiền hoàn
+      if (excessPaymentAmount > refundAmount) {
+        message.error(`Số tiền hoàn không được vượt quá ${formatCurrency(refundAmount)}`);
+        setExcessPaymentAmount(refundAmount);
+        setProcessingRefund(false);
+        return;
+      }
+      
+      // Xác định lý do hoàn tiền
+      const isCanceledOrder = invoice?.trangThai === 6;
+      const refundReason = isCanceledOrder 
+        ? `Hoàn tiền do đơn hàng đã hủy: ${getCancelReason()}`
+        : "Hoàn tiền thừa cho khách hàng";
+      
       // Hiển thị trạng thái đang xử lý
-      const loadingToast = message.loading(
-        `Đang ${isFromOrderCompletion ? "điều chỉnh" : "hoàn"} tiền...`
-      );
-
+      const loadingToast = message.loading("Đang xử lý hoàn tiền...");
+      
       try {
-        let success;
-
-        // Sử dụng logic xử lý hoàn tiền dựa trên loại hóa đơn
-        success = await processRefundByInvoiceType(
-          excessPaymentAmount,
-          selectedPaymentMethod,
-          refundReason
+        // Gọi API hoàn tiền - sử dụng cùng một API cho cả hai trường hợp
+        const response = await api.post(
+          `/api/admin/hoa-don/${id}/refund`,
+          {
+            soTien: excessPaymentAmount,
+            maPhuongThucThanhToan: selectedPaymentMethod,
+            moTa: refundReason
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-
-        if (success) {
+      
+        if (response.status === 200) {
           // Cập nhật UI
           await Promise.all([refreshInvoice(), refreshPaymentHistory()]);
-
+      
           // Reset thông báo và trạng thái
           setExcessNotificationShown(false);
           setShowExcessPaymentRefundDialog(false);
           setHasExcessPayment(false);
           setExcessPaymentAmount(0);
-
+      
           loadingToast();
-          message.success(
-            `Đã ${
-              isFromOrderCompletion ? "điều chỉnh" : "hoàn"
-            } ${formatCurrency(excessPaymentAmount)} thành công`
-          );
+          message.success(`Đã hoàn ${formatCurrency(excessPaymentAmount)} thành công`);
         } else {
           loadingToast();
           throw new Error("Không thể xử lý hoàn tiền");
         }
       } catch (error) {
         loadingToast();
-        console.error("Lỗi khi hoàn/điều chỉnh tiền:", error);
-        message.error(
-          "Lỗi khi xử lý: " + (error.response?.data?.message || error.message)
-        );
-        throw error;
+        console.error("Lỗi khi hoàn tiền:", error);
+        message.error("Lỗi khi xử lý: " + (error.response?.data?.message || error.message));
       }
     } catch (error) {
-      console.error("Error handling excess payment:", error);
+      console.error("Error handling refund:", error);
     } finally {
       setProcessingRefund(false);
     }
   };
+  
+  // Hàm lấy lý do hủy đơn từ lịch sử
+  const getCancelReason = () => {
+    if (!orderHistory || orderHistory.length === 0) return "Đơn hàng bị hủy";
+    
+    const cancelRecord = orderHistory.find(
+      record => record.trangThai === 6 && record.moTa
+    );
+    
+    if (!cancelRecord) return "Đơn hàng bị hủy";
+    
+    return cancelRecord.moTa.replace(/^Hóa đơn bị hủy:?\s*/, "");
+  };
 
+  useEffect(() => {
+    // Kiểm tra đơn hàng đã hủy cần hoàn tiền khi tải trang
+    if (invoice?.trangThai === 6 && paymentHistory?.length > 0) {
+      const excessAmount = calculateExcessAmount();
+      
+      if (excessAmount > 0) {
+        // Hiển thị thông báo nổi sau khi trang đã tải xong
+        setTimeout(() => {
+          notification.warning({
+            message: "Đơn hàng đã hủy cần hoàn tiền",
+            description: `Đơn hàng #${invoice.maHoaDon} đã bị hủy và cần hoàn ${formatCurrency(excessAmount)} cho khách hàng.`,
+            duration: 0, // Không tự động đóng
+            btn: (
+              <Button 
+                type="primary" 
+                danger
+                onClick={() => {
+                  handleShowRefundDialog(excessAmount);
+                  notification.destroy(); // Đóng thông báo
+                }}
+              >
+                Xử lý hoàn tiền
+              </Button>
+            ),
+            key: "refund_canceled_order"
+          });
+        }, 1000);
+      }
+    }
+  }, [invoice?.trangThai, paymentHistory]);
   // Hàm mới để xác định lý do hoàn tiền một cách nhất quán
   const determineRefundReason = (isFromOrderCompletion, orderHistory) => {
+    if (invoice?.trangThai === 6) {
+      // Tìm lý do hủy đơn từ lịch sử
+      const cancelRecord = orderHistory?.find(
+        record => record.trangThai === 6 && record.moTa
+      );
+      
+      const cancelReason = cancelRecord ? 
+        cancelRecord.moTa.replace(/^Hóa đơn bị hủy:?\s*/, "") : 
+        "Đơn hàng bị hủy";
+        
+      return `Hoàn tiền do hủy đơn hàng: ${cancelReason}`;
+    }
     if (isFromOrderCompletion) {
       return "Điều chỉnh thanh toán sau khi hoàn thành đơn hàng";
     }
@@ -2293,6 +2365,22 @@ function InvoiceDetail() {
       message.error(error.response?.data?.message || "Lỗi khi xóa mã giảm giá");
     }
   };
+  const validatePhoneNumber = (phoneNumber) => {
+    // Kiểm tra chuỗi trống hoặc undefined là hợp lệ (vì số điện thoại không bắt buộc)
+    if (!phoneNumber || phoneNumber.trim() === "") {
+      return { isValid: true, message: "" };
+    }
+    
+    // Kiểm tra số điện thoại chỉ chứa số và có đúng 10 ký tự
+    const regex = /^\d{10}$/;
+    const isValid = regex.test(phoneNumber);
+    
+    return {
+      isValid,
+      message: isValid ? "" : "Số điện thoại phải có đúng 10 chữ số",
+    };
+  };
+  const [phoneNumberError, setPhoneNumberError] = useState(null);
 
   const handleSaveRecipientInfo = async () => {
     try {
@@ -2301,45 +2389,56 @@ function InvoiceDetail() {
         showErrorDialog("Vui lòng nhập tên người nhận");
         return;
       }
-
+      const phoneValidation = validatePhoneNumber(phoneNumber);
+      if (!phoneValidation.isValid) {
+        showErrorDialog(phoneValidation.message);
+        return;
+      }
       if (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1) {
         if (!province) {
           showErrorDialog("Vui lòng chọn tỉnh/thành phố");
           return;
         }
-
+        
         if (!district) {
           showErrorDialog("Vui lòng chọn quận/huyện");
           return;
         }
-
+  
         if (!ward) {
           showErrorDialog("Vui lòng chọn phường/xã");
           return;
         }
       }
-
+  
       setTrackingAddressLoading(true);
-      const hideLoading = message.loading(
-        "Đang cập nhật thông tin người nhận...",
-        0
-      );
-
+      const hideLoading = message.loading("Đang cập nhật thông tin người nhận...", 0);
+  
       // Tạo địa chỉ đầy đủ
       let fullAddress = "";
-
+      let userFriendlyAddress = "";
+  
       if (invoice?.loaiHoaDon === 3 || invoice?.loaiHoaDon === 1) {
-        // Nếu là đơn giao hàng, sử dụng format mới: địa chỉ chi tiết, wardId, districtId, provinceId
-        if (detailAddress) {
-          fullAddress = `${detailAddress}, ${ward}, ${district}, ${province}`;
-        } else {
-          fullAddress = `${ward}, ${district}, ${province}`;
-        }
+        // Lấy tên các địa điểm
+        const provinceName = provinces.find(p => p.value === province)?.label || province;
+        const districtName = districts.find(d => d.value === district)?.label || district;
+        const wardName = wards.find(w => w.value === ward)?.label || ward;
+        
+        // Địa chỉ có ID (để lưu DB): địa chỉ chi tiết, wardId, districtId, provinceId
+        fullAddress = detailAddress ? 
+          `${detailAddress}, ${ward}, ${district}, ${province}` : 
+          `${ward}, ${district}, ${province}`;
+        
+        // Địa chỉ hiển thị thân thiện (để hiển thị UI)
+        userFriendlyAddress = detailAddress ? 
+          `${detailAddress}, ${wardName}, ${districtName}, ${provinceName}` : 
+          `${wardName}, ${districtName}, ${provinceName}`;
       } else {
         // Nếu không phải đơn giao hàng, chỉ lấy địa chỉ chi tiết
         fullAddress = detailAddress;
+        userFriendlyAddress = detailAddress;
       }
-
+  
       // Tạo payload cập nhật
       const updateData = {
         tenNguoiNhan: recipientName,
@@ -2348,19 +2447,15 @@ function InvoiceDetail() {
         diaChi: fullAddress,
         ghiChu: note || "",
       };
-
+  
       // Gọi API cập nhật
-      const response = await api.put(
-        `/api/admin/hoa-don/${invoice.id}`,
-        updateData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
+      const response = await api.put(`/api/admin/hoa-don/${invoice.id}`, updateData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+  
       if (response.status === 200) {
-        // Cập nhật lại state địa phương thay vì gọi API fetchInvoice
-        setInvoice((prev) => ({
+        // Cập nhật lại state
+        setInvoice(prev => ({
           ...prev,
           tenNguoiNhan: recipientName,
           soDienThoai: phoneNumber || "",
@@ -2368,20 +2463,16 @@ function InvoiceDetail() {
           diaChi: fullAddress,
           ghiChu: note || "",
         }));
-
-        // Cập nhật địa chỉ đã định dạng
-        setFormattedAddress(fullAddress);
-
+  
+        // Quan trọng: Cập nhật địa chỉ đã định dạng người dùng
+        setFormattedAddress(userFriendlyAddress);
+  
         hideLoading();
         message.success("Cập nhật thông tin người nhận thành công");
         setOpenEditRecipientDialog(false);
-
-        // Tự động tính lại phí vận chuyển nếu là đơn hàng giao hoặc online
-        if (
-          (invoice.loaiHoaDon === 3 || invoice.loaiHoaDon === 1) &&
-          invoice.trangThai === 1
-        ) {
-          // Sử dụng timeout để đảm bảo state đã được cập nhật
+  
+        // Tự động tính lại phí vận chuyển nếu cần
+        if ((invoice.loaiHoaDon === 3 || invoice.loaiHoaDon === 1) && invoice.trangThai === 1) {
           setTimeout(async () => {
             await calculateAndUpdateShippingFee(false);
           }, 500);
@@ -2389,12 +2480,119 @@ function InvoiceDetail() {
       } else {
         throw new Error("Lỗi khi cập nhật thông tin người nhận");
       }
-
+  
       setTrackingAddressLoading(false);
     } catch (error) {
       console.error("Lỗi khi lưu thông tin người nhận:", error);
       setTrackingAddressLoading(false);
       showErrorDialog("Đã xảy ra lỗi khi cập nhật. Vui lòng thử lại sau.");
+    }
+  };
+    // Thêm useEffect để xử lý hiển thị địa chỉ khi mới load trang
+  
+  useEffect(() => {
+    if (invoice?.diaChi) {
+      try {
+        // Kiểm tra xem địa chỉ có phải định dạng ID không
+        const addressParts = invoice.diaChi.split(/,\s*/);
+        
+        // Nếu có ít nhất 4 phần (1 phần địa chỉ chi tiết + 3 phần ID)
+        if (addressParts.length >= 4) {
+          const specificAddress = addressParts.slice(0, addressParts.length - 3).join(', ');
+          const wardId = addressParts[addressParts.length - 3].trim();
+          const districtId = addressParts[addressParts.length - 2].trim();
+          const provinceId = addressParts[addressParts.length - 1].trim();
+          
+          // Nếu các phần cuối có vẻ là ID (dạng số)
+          if (/^\d+$/.test(wardId) && /^\d+$/.test(districtId) && /^\d+$/.test(provinceId)) {
+            // Lấy tên các địa điểm từ cache window nếu có
+            const cache = window.addressCache || {};
+            const wardName = cache.wards?.[wardId] || `Phường/Xã: ${wardId}`;
+            const districtName = cache.districts?.[districtId] || `Quận/Huyện: ${districtId}`;
+            const provinceName = cache.provinces?.[provinceId] || `Tỉnh/TP: ${provinceId}`;
+            
+            // Tạo địa chỉ hiển thị thân thiện
+            const friendlyAddress = specificAddress ? 
+              `${specificAddress}, ${wardName}, ${districtName}, ${provinceName}` :
+              `${wardName}, ${districtName}, ${provinceName}`;
+              
+            setFormattedAddress(friendlyAddress);
+            
+            // Tải dữ liệu địa chỉ nếu cần
+            if (!cache.provinces?.[provinceId] && provinces.length > 0) {
+              loadAddressInfo();
+            }
+            
+            return;
+          }
+        }
+        
+        // Nếu không phải định dạng ID hoặc không phân tích được, sử dụng địa chỉ gốc
+        setFormattedAddress(invoice.diaChi);
+        
+      } catch (error) {
+        console.error("Lỗi khi xử lý hiển thị địa chỉ:", error);
+        setFormattedAddress(invoice.diaChi); // Sử dụng địa chỉ gốc nếu có lỗi
+      }
+    } else {
+      setFormattedAddress("");
+    }
+  }, [invoice?.diaChi, provinces.length]);
+
+  const loadAddressInfo = async () => {
+    try {
+      // Khởi tạo cache toàn cục nếu chưa có
+      window.addressCache = window.addressCache || {};
+      window.addressCache.provinces = window.addressCache.provinces || {};
+      window.addressCache.districts = window.addressCache.districts || {};
+      window.addressCache.wards = window.addressCache.wards || {};
+      
+      // Phân tích địa chỉ
+      const addressParts = invoice.diaChi.split(/,\s*/);
+      if (addressParts.length < 4) return;
+      
+      const wardId = addressParts[addressParts.length - 3].trim();
+      const districtId = addressParts[addressParts.length - 2].trim();
+      const provinceId = addressParts[addressParts.length - 1].trim();
+      
+      // Lấy tên tỉnh từ danh sách provinces đã tải
+      const provinceItem = provinces.find(p => p.value === provinceId);
+      if (provinceItem) {
+        window.addressCache.provinces[provinceId] = provinceItem.label;
+      }
+      
+      // Tải districts nếu cần
+      if (!window.addressCache.districts[districtId]) {
+        const districtsData = await fetchDistrictsSafe(provinceId);
+        const districtItem = districtsData.find(d => d.id.toString() === districtId);
+        if (districtItem) {
+          window.addressCache.districts[districtId] = districtItem.name;
+        }
+      }
+      
+      // Tải wards nếu cần
+      if (!window.addressCache.wards[wardId]) {
+        const wardsData = await fetchWards(districtId);
+        const wardItem = wardsData.find(w => w.id.toString() === wardId);
+        if (wardItem) {
+          window.addressCache.wards[wardId] = wardItem.name;
+        }
+      }
+      
+      // Cập nhật lại địa chỉ hiển thị sau khi có đầy đủ thông tin
+      const specificAddress = addressParts.slice(0, addressParts.length - 3).join(', ');
+      const wardName = window.addressCache.wards[wardId] || `Phường/Xã: ${wardId}`;
+      const districtName = window.addressCache.districts[districtId] || `Quận/Huyện: ${districtId}`;
+      const provinceName = window.addressCache.provinces[provinceId] || `Tỉnh/TP: ${provinceId}`;
+      
+      const friendlyAddress = specificAddress ? 
+        `${specificAddress}, ${wardName}, ${districtName}, ${provinceName}` :
+        `${wardName}, ${districtName}, ${provinceName}`;
+        
+      setFormattedAddress(friendlyAddress);
+      
+    } catch (error) {
+      console.error("Lỗi khi tải thông tin địa chỉ:", error);
     }
   };
   const calculateAndUpdateShippingFee = async (showToast = true) => {
@@ -3931,7 +4129,7 @@ function InvoiceDetail() {
       showErrorDialog("Không thể thay đổi trạng thái của đơn hàng đã hủy");
       return;
     }
-
+  
     // Kiểm tra nếu đơn hàng không có sản phẩm và đang chuyển từ chờ xác nhận sang xác nhận
     if (
       invoice.trangThai === 1 &&
@@ -3941,7 +4139,59 @@ function InvoiceDetail() {
       showErrorDialog("Không thể xác nhận đơn hàng không có sản phẩm");
       return;
     }
-
+  
+    // Kiểm tra nếu đơn hàng đã bị hủy có thanh toán cần hoàn trước khi hoàn thành đơn hàng
+    if (invoice.trangThai === 6 && checkCanceledOrderRefund().needsRefund) {
+      Modal.confirm({
+        title: "Đơn hàng đã hủy cần hoàn tiền",
+        content: (
+          <div>
+            <p>
+              Đơn hàng này đã bị hủy và có khoản thanh toán chưa được hoàn trả cho khách hàng.
+            </p>
+            <p>Vui lòng xử lý hoàn tiền trước khi tiếp tục.</p>
+            <p>
+              <strong>
+                Số tiền cần hoàn: {formatCurrency(checkCanceledOrderRefund().remainingAmount)}
+              </strong>
+            </p>
+          </div>
+        ),
+        okText: "Xử lý hoàn tiền ngay",
+        cancelText: "Để sau",
+        onOk: () => handleShowRefundDialog(checkCanceledOrderRefund().remainingAmount)
+      });
+      return;
+    }
+    
+    // Kiểm tra xem đơn hàng có thanh toán thừa cần hoàn lại không trước khi chuyển sang Hoàn thành
+    if ((newStatus === 5) && hasExcessPayment && excessPaymentAmount > 0) {
+      Modal.confirm({
+        title: "Phát hiện thanh toán thừa",
+        content: (
+          <div>
+            <p>Khách hàng đã thanh toán thừa {formatCurrency(excessPaymentAmount)}.</p>
+            <p>Bạn nên hoàn trả khoản tiền thừa cho khách hàng trước khi hoàn thành đơn hàng.</p>
+            <p>Bạn có muốn xử lý hoàn tiền trước khi hoàn thành đơn hàng?</p>
+          </div>
+        ),
+        okText: "Xử lý hoàn tiền ngay",
+        cancelText: "Hoàn thành đơn mà không hoàn tiền",
+        onOk: () => handleShowRefundDialog(excessPaymentAmount),
+        onCancel: () => {
+          // Tiếp tục chuyển trạng thái mà không hoàn tiền
+          handleStatusChangeNormal(newStatus);
+        }
+      });
+      return;
+    }
+  
+    // Nếu không có vấn đề gì, tiến hành xử lý chuyển trạng thái bình thường
+    handleStatusChangeNormal(newStatus);
+  };
+  
+  // Tách logic xử lý trạng thái thông thường thành một hàm riêng để tái sử dụng
+  const handleStatusChangeNormal = (newStatus) => {
     // Xác định nextStatus: với đơn tại quầy (loại 2), từ trạng thái 2 (đã xác nhận) chuyển thẳng sang 5 (hoàn thành)
     let nextStatusValue = newStatus;
     if (
@@ -3951,22 +4201,22 @@ function InvoiceDetail() {
     ) {
       nextStatusValue = 5; // Chuyển thẳng sang Hoàn thành cho hóa đơn tại quầy
     }
-
+  
     // Xử lý khi chuyển từ chờ xác nhận sang đã xác nhận và cần thanh toán
     if (invoice.trangThai === 1 && newStatus === 2) {
       const hasPayments = paymentHistory && paymentHistory.length > 0;
       const remainingAmount = calculateRemainingPayment();
-
+  
       if (!hasPayments || remainingAmount > 0) {
         // Mở dialog thanh toán
         setNextStatus(newStatus);
-        await loadPaymentMethods();
+        loadPaymentMethods();
         setPaymentAmount(calculateRemainingPayment());
         setOpenPaymentModal(true);
         return;
       }
     }
-
+  
     // Kiểm tra nếu đang chuyển từ trạng thái chờ xác nhận (1) sang đã xác nhận (2)
     // và chưa xác nhận thay đổi giá
     if (invoice.trangThai === 1 && newStatus === 2 && priceNeedsConfirmation) {
@@ -3980,7 +4230,7 @@ function InvoiceDetail() {
       });
       return;
     }
-
+  
     // Nếu là trạng thái hủy đơn
     if (newStatus === 6) {
       handleOpenCancelDialog();
@@ -5833,14 +6083,14 @@ function InvoiceDetail() {
               : "---"}
           </Col>
 
-          {invoice.trangThai >= 3 && invoice.trangThai <= 5 && (
+          {/* {invoice.trangThai >= 3 && invoice.trangThai <= 5 && (
             <Col span={12}>
               <Text strong>Thời gian giao hàng:</Text>{" "}
               {invoice.thoiGianGiaoHang
                 ? formatDate(invoice.thoiGianGiaoHang)
                 : "Đang cập nhật"}
             </Col>
-          )}
+          )} */}
           <Col span={12}>
             <Text strong>Email:</Text> {invoice.emailNguoiNhan || "---"}
           </Col>
@@ -5848,8 +6098,31 @@ function InvoiceDetail() {
             <Text strong>Ghi chú:</Text> {note || "---"}
           </Col>
         </Row>
-      </Card>
-
+      </Card>          
+          {invoice?.trangThai === 6 && checkCanceledOrderRefund().needsRefund && (
+            <Card style={{ marginBottom: 24, borderLeft: '4px solid #ff4d4f' }}>
+              <Alert
+                message="Đơn hàng đã hủy cần hoàn tiền"
+                description={
+                  <div>
+                    <p>Đơn hàng này đã bị hủy nhưng chưa hoàn tiền đầy đủ cho khách hàng.</p>
+                    <p>Số tiền cần hoàn: <strong>{formatCurrency(checkCanceledOrderRefund().remainingAmount)}</strong></p>
+                    <Button 
+                      type="primary" 
+                      danger
+                      onClick={() => handleShowRefundDialog(checkCanceledOrderRefund().remainingAmount)}
+                      icon={<RollbackOutlined />}
+                      style={{ marginTop: 8 }}
+                    >
+                      Xử lý hoàn tiền ngay
+                    </Button>
+                  </div>
+                }
+                type="error"
+                showIcon
+              />
+            </Card>
+          )}
       {/* Products Table */}
       <Card>
         <div
@@ -5903,77 +6176,63 @@ function InvoiceDetail() {
               align: "center",
               render: (_, __, index) => index + 1,
             },
-            {
+                        {
               title: "Hình ảnh",
               dataIndex: "hinhAnh",
               key: "hinhAnh",
               align: "center",
-              width: 180,
-              render: (hinhAnh, record) => (
-                <div
-                  style={{
-                    width: 150,
-                    height: 120,
+              width: 120, // Giảm chiều rộng cột xuống
+              render: (hinhAnh) => {
+                return (
+                  <div style={{ 
+                    width: 100, 
+                    height: 100, 
                     overflow: "hidden",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
+                    borderRadius: "6px",
                     margin: "0 auto",
-                  }}
-                >
-                  {Array.isArray(hinhAnh) && hinhAnh.length > 0 ? (
-                    <Carousel
-                    autoplay
-                    dots={false}
-                    effect="fade"
-                    style={{ width: "100%" }}
-                  >
-                    {hinhAnh.map((url, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          height: "100%",
-                        }}
+                    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+                    border: "1px solid #f0f0f0"
+                  }}>
+                    {Array.isArray(hinhAnh) && hinhAnh.length > 0 ? (
+                      <Carousel 
+                        autoplay 
+                        dots={false} 
+                        effect="fade"
+                        autoplaySpeed={3000}
                       >
-                        <img
-                          src={url}
-                          alt={`${record.tenSanPham || "Sản phẩm"} ${
-                            index + 1
-                          }`}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            borderRadius: 5,
-                            display: "block",
-                          }}
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src =
-                              "https://via.placeholder.com/150x120?text=No+Image";
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </Carousel>
-                  ) : (
-                    <img
-                      src="https://via.placeholder.com/150x120?text=No+Image"
-                      alt="Không có ảnh"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        borderRadius: 5,
-                        display: "block",
-                      }}
-                    />
-                  )}
-                </div>
-              ),
+                        {hinhAnh.map((url, index) => (
+                          <img
+                            key={index}
+                            src={url}
+                            alt={`Sản phẩm ${index}`}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              display: "block",
+                            }}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "https://via.placeholder.com/100?text=No+Image";
+                            }}
+                          />
+                        ))}
+                      </Carousel>
+                    ) : (
+                      <img
+                        src="https://via.placeholder.com/100?text=No+Image"
+                        alt="Không có ảnh"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          display: "block",
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              },
             },
             {
               title: "Thông tin",
@@ -6413,7 +6672,7 @@ function InvoiceDetail() {
                 </div>
               )}
             {/* Hiển thị thanh toán thừa nếu có */}
-            {hasExcessPayment && excessPaymentAmount > 0 && (
+            {hasExcessPayment && excessPaymentAmount > 0 && invoice?.trangThai !== 6 && (
               <>
                 <Divider style={{ margin: "8px 0" }} />
                 <div
@@ -6441,7 +6700,7 @@ function InvoiceDetail() {
                   type="primary"
                   icon={<RollbackOutlined />}
                   onClick={() => handleShowRefundDialog(excessPaymentAmount)}
-                  style={{ width: "100%" }}
+                  style={{ width: "100%", marginTop: "8px" }}
                   ghost
                 >
                   Xử lý hoàn tiền thừa
@@ -6454,24 +6713,25 @@ function InvoiceDetail() {
       {/* Modal xử lý tiền thừa */}
       {showExcessPaymentRefundDialog && (
         <Modal
-          title={
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <WalletOutlined
-                style={{
-                  fontSize: "24px",
-                  color: detectExcessFromOrderCompletion()
-                    ? "#1890ff"
-                    : "#52c41a",
-                  marginRight: "12px",
-                }}
-              />
-              <span>
-                {detectExcessFromOrderCompletion()
-                  ? "Điều chỉnh tiền thừa"
-                  : "Hoàn tiền thừa"}
-              </span>
-            </div>
-          }
+        title={
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <WalletOutlined
+              style={{
+                fontSize: "24px",
+                color: invoice?.trangThai === 6 ? "#ff4d4f" : 
+                       detectExcessFromOrderCompletion() ? "#1890ff" : "#52c41a",
+                marginRight: "12px",
+              }}
+            />
+            <span>
+              {invoice?.trangThai === 6 
+                ? "Hoàn tiền đơn hàng đã hủy" 
+                : detectExcessFromOrderCompletion()
+                ? "Điều chỉnh tiền thừa"
+                : "Hoàn tiền thừa"}
+            </span>
+          </div>
+        }
           open={showExcessPaymentRefundDialog}
           onCancel={() => setShowExcessPaymentRefundDialog(false)}
           footer={[
@@ -6496,21 +6756,20 @@ function InvoiceDetail() {
           centered
           destroyOnClose
         >
-          <Alert
-            message={
-              detectExcessFromOrderCompletion()
-                ? "Phát hiện tiền thừa sau khi hoàn thành đơn hàng"
-                : "Khách hàng đã thanh toán thừa tiền"
-            }
-            description={
-              detectExcessFromOrderCompletion()
-                ? "Hệ thống phát hiện phát sinh tiền thừa khi hoàn thành đơn hàng do chuyển thanh toán trả sau sang đã thanh toán."
-                : "Hệ thống phát hiện khách hàng đã thanh toán nhiều hơn tổng giá trị đơn hàng. Bạn nên hoàn lại số tiền thừa."
-            }
-            type="warning"
-            showIcon
-            style={{ marginBottom: "20px" }}
-          />
+<Alert
+  message={invoice?.trangThai === 6 ? "Hoàn tiền cho đơn hàng đã hủy" : "Hoàn tiền thừa"}
+  description={
+    invoice?.trangThai === 6 
+      ? <div>
+          <p>Đơn hàng này đã bị hủy nhưng khách hàng đã thanh toán. Bạn cần hoàn tiền cho khách hàng.</p>
+          <p><strong>Lý do hủy:</strong> {getCancelReason()}</p>
+        </div>
+      : "Hệ thống phát hiện khách hàng đã thanh toán nhiều hơn tổng giá trị đơn hàng. Bạn nên hoàn lại số tiền thừa."
+  }
+  type={invoice?.trangThai === 6 ? "error" : "warning"}
+  showIcon
+  style={{ marginBottom: "20px" }}
+/>
 
           <div style={{ marginBottom: "24px" }}>
             <Typography.Text strong style={{ fontSize: "16px" }}>
@@ -6727,11 +6986,30 @@ function InvoiceDetail() {
                 placeholder="Nhập tên người nhận"
               />
             </Form.Item>
-            <Form.Item label="Số điện thoại">
+                        <Form.Item 
+              label="Số điện thoại" 
+              validateStatus={phoneNumberError ? "error" : ""}
+              help={phoneNumberError}
+            >
               <Input
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="Nhập số điện thoại"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Chỉ cho phép nhập số
+                  if (value === "" || /^\d*$/.test(value)) {
+                    setPhoneNumber(value);
+                    
+                    // Validate và cập nhật error state
+                    const validation = validatePhoneNumber(value);
+                    setPhoneNumberError(validation.isValid ? null : validation.message);
+                  }
+                }}
+                placeholder="Nhập số điện thoại (10 chữ số)"
+                maxLength={10}
+                onBlur={() => {
+                  const validation = validatePhoneNumber(phoneNumber);
+                  setPhoneNumberError(validation.isValid ? null : validation.message);
+                }}
               />
             </Form.Item>
             <Form.Item label="Email">
@@ -7135,7 +7413,6 @@ function InvoiceDetail() {
                       </>
                     );
                   })()}
-
                 <Divider style={{ margin: "8px 0" }} />
 
                 <div
@@ -7510,9 +7787,7 @@ function InvoiceDetail() {
                   key: "ngayTaoOrNgaySua",
                   align: "center",
                   render: (text, record) => {
-                    const displayDate = record.ngayTao
-                      ? record.ngayTao
-                      : record.ngaySua;
+                    const displayDate = record.ngayTao;
                     return formatDate(displayDate);
                   },
                   width: 180,

@@ -130,85 +130,71 @@ public class PDFGenerator {
     }
 
     private void addCustomerInfo(Document document, HoaDon hoaDon) {
-        // Kiểm tra nếu người nhận là "Khách hàng lẻ" hoặc hóa đơn không có thông tin khách hàng
-        if (hoaDon.getTenNguoiNhan() == null || hoaDon.getTenNguoiNhan().isEmpty() || hoaDon.getTenNguoiNhan().equals("Khách hàng lẻ")) {
-            hoaDon.setTenNguoiNhan("Khách hàng lẻ");
-            document.add(new Paragraph("THÔNG TIN KHÁCH HÀNG")
-                    .setBold()
-                    .setFontSize(14));
-            Table table = new Table(new float[]{1, 4});
-            table.setWidth(UnitValue.createPercentValue(100));
-            table.addCell(createCell("Tên khách hàng:", true).setBorder(null).setTextAlignment(TextAlignment.LEFT).setPadding(2));
-            table.addCell(createCell(hoaDon.getTenNguoiNhan(), false).setBorder(null).setTextAlignment(TextAlignment.LEFT).setWidth(UnitValue.createPercentValue(75)));
-
-            // Nếu là hóa đơn giao hàng (loaiHoaDon = 3), hiển thị thêm địa chỉ
-            String diaChiFormatted = addressCache.getFormattedDiaChi(hoaDon.getDiaChi());
-            if (hoaDon.getLoaiHoaDon() == 3) {
-                table.addCell(createCell("Địa chỉ giao hàng:", true).setBorder(null));
-                table.addCell(createCell(diaChiFormatted != null && !diaChiFormatted.isEmpty() ? diaChiFormatted : "Chưa cung cấp", false)
-                        .setBorder(null)
-                        .setTextAlignment(TextAlignment.LEFT)
-                        .setWidth(UnitValue.createPercentValue(75))
-                        .setPadding(2));
-            }
-
-
-            document.add(table);
-            document.add(new Paragraph("\n"));
-            return;
-        }
-
         document.add(new Paragraph("THÔNG TIN KHÁCH HÀNG")
                 .setBold()
                 .setFontSize(14));
         Table table = new Table(new float[]{1, 4});
         table.setWidth(UnitValue.createPercentValue(100));
 
-        table.addCell(createCell("Tên khách hàng:", true)
-                .setBorder(null)
-                .setTextAlignment(TextAlignment.LEFT)
-                .setPadding(2));
+        // Xác định tên khách hàng hiển thị
+        String tenHienThi = "Khách hàng lẻ";
+        boolean isUnnamedCustomer = false;
 
-        table.addCell(createCell(hoaDon.getTenNguoiNhan(), false)
-                .setBorder(null)
-                .setTextAlignment(TextAlignment.LEFT)
-                .setWidth(UnitValue.createPercentValue(75)));
-
-        table.addCell(createCell("Số điện thoại:", true).setBorder(null));
-        table.addCell(createCell(hoaDon.getSoDienThoai(), false).setBorder(null));
-
-        // Chuyển đổi địa chỉ từ ID sang tên đầy đủ
-        String diaChiFormatted = addressCache.getFormattedDiaChi(hoaDon.getDiaChi());
-
-// Kiểm tra nếu địa chỉ không được nhận diện
-        if (diaChiFormatted.contains("Không xác định")) {
-            log.error("⚠ Lỗi: Địa chỉ không được nhận diện cho hóa đơn {}", hoaDon.getId());
+        // Nếu khách hàng lẻ đã nhập tên người nhận
+        if (hoaDon.getTenNguoiNhan() != null && !hoaDon.getTenNguoiNhan().trim().isEmpty()
+                && !hoaDon.getTenNguoiNhan().equalsIgnoreCase("Khách hàng lẻ")) {
+            tenHienThi = hoaDon.getTenNguoiNhan().trim();
+            isUnnamedCustomer = false;
+        } else if (hoaDon.getKhachHang() != null && hoaDon.getKhachHang().getTenKhachHang() != null) {
+            // Khách hàng có tài khoản
+            tenHienThi = hoaDon.getKhachHang().getTenKhachHang();
+            isUnnamedCustomer = false;
+        } else {
+            // Trường hợp không có tên người nhận
+            isUnnamedCustomer = true;
         }
 
-        table.addCell(createCell("Địa chỉ:", true).setBorder(null));
-        table.addCell(createCell(diaChiFormatted, false)
-                .setBorder(null)
-                .setTextAlignment(TextAlignment.LEFT)
-                .setWidth(UnitValue.createPercentValue(75))
-                .setPadding(2));
+        table.addCell(createCell("Tên khách hàng:", true).setBorder(null).setTextAlignment(TextAlignment.LEFT).setPadding(2));
+        table.addCell(createCell(tenHienThi, false).setBorder(null).setTextAlignment(TextAlignment.LEFT).setWidth(UnitValue.createPercentValue(75)));
 
+        // Thêm số điện thoại nếu có
+        if (hoaDon.getSoDienThoai() != null && !hoaDon.getSoDienThoai().trim().isEmpty()) {
+            table.addCell(createCell("Số điện thoại:", true).setBorder(null));
+            table.addCell(createCell(hoaDon.getSoDienThoai().trim(), false).setBorder(null));
+        }
 
-        if (hoaDon.getEmailNguoiNhan() != null && !hoaDon.getEmailNguoiNhan().isEmpty()) {
+        // Xử lý hiển thị địa chỉ
+        if (hoaDon.getLoaiHoaDon() == 3) { // Loại hóa đơn giao hàng
+            String diaChiFormatted = "";
+            if (hoaDon.getDiaChi() != null && !hoaDon.getDiaChi().trim().isEmpty()) {
+                diaChiFormatted = addressCache.getFormattedDiaChi(hoaDon.getDiaChi());
+            }
+
+            if (!diaChiFormatted.isEmpty()) {
+                table.addCell(createCell("Địa chỉ giao hàng:", true).setBorder(null));
+                table.addCell(createCell(diaChiFormatted, false)
+                        .setBorder(null)
+                        .setTextAlignment(TextAlignment.LEFT)
+                        .setWidth(UnitValue.createPercentValue(75))
+                        .setPadding(2));
+            }
+        }
+
+        // Thêm email nếu có
+        if (hoaDon.getEmailNguoiNhan() != null && !hoaDon.getEmailNguoiNhan().trim().isEmpty()) {
             table.addCell(createCell("Email:", true).setBorder(null));
-            table.addCell(createCell(hoaDon.getEmailNguoiNhan(), false).setBorder(null));
+            table.addCell(createCell(hoaDon.getEmailNguoiNhan().trim(), false).setBorder(null));
         }
 
-        if (hoaDon.getGhiChu() != null && !hoaDon.getGhiChu().isEmpty()) {
+        // Thêm ghi chú nếu có
+        if (hoaDon.getGhiChu() != null && !hoaDon.getGhiChu().trim().isEmpty()) {
             table.addCell(createCell("Ghi chú:", true).setBorder(null));
-            table.addCell(createCell(hoaDon.getGhiChu(), false).setBorder(null));
+            table.addCell(createCell(hoaDon.getGhiChu().trim(), false).setBorder(null));
         }
 
         document.add(table);
         document.add(new Paragraph("\n"));
     }
-
-
-
     private void addProductsTable(Document document, List<HoaDonChiTiet> chiTiets) {
         Table table = new Table(new float[]{4, 2, 2, 1, 1, 2, 2, 2});
         table.setWidth(UnitValue.createPercentValue(100));
@@ -384,59 +370,59 @@ public class PDFGenerator {
                 .setPadding(2)
                 .setTextAlignment(TextAlignment.LEFT);
     }
-//
-public byte[] generateDeliveryInvoicePDF(HoaDon hoaDon) {
-    validateInvoiceData(hoaDon);
+    //
+    public byte[] generateDeliveryInvoicePDF(HoaDon hoaDon) {
+        validateInvoiceData(hoaDon);
 
-    try {
-        String tempFile = "delivery_invoice_" + hoaDon.getId() + ".pdf";
-        PdfWriter writer = new PdfWriter(tempFile);
-        PdfDocument pdf = new PdfDocument(writer);
-        Document document = new Document(pdf);
-        document.setMargins(5, 5, 5, 5); // Cực kỳ mỏng
+        try {
+            String tempFile = "delivery_invoice_" + hoaDon.getId() + ".pdf";
+            PdfWriter writer = new PdfWriter(tempFile);
+            PdfDocument pdf = new PdfDocument(writer);
+            Document document = new Document(pdf);
+            document.setMargins(5, 5, 5, 5); // Cực kỳ mỏng
 
-        // Set up font
-        InputStream fontStream = getClass().getResourceAsStream("/fonts/NotoSans-VariableFont_wdth,wght.ttf");
-        if (fontStream == null) {
-            throw new RuntimeException("Không tìm thấy font file");
+            // Set up font
+            InputStream fontStream = getClass().getResourceAsStream("/fonts/NotoSans-VariableFont_wdth,wght.ttf");
+            if (fontStream == null) {
+                throw new RuntimeException("Không tìm thấy font file");
+            }
+            PdfFont font = PdfFontFactory.createFont(
+                    IOUtils.toByteArray(fontStream),
+                    PdfEncodings.IDENTITY_H
+            );
+            document.setFont(font);
+
+            // Calculate all amounts first (reuse same logic as invoice)
+            InvoiceAmounts amounts = calculateInvoiceAmounts(hoaDon);
+
+            // Header with logo and barcode
+            addDeliveryHeader(document, hoaDon, pdf);
+
+            // Sender and receiver information
+            addDeliverySenderReceiverInfo(document, hoaDon);
+
+            // Order information
+            addDeliveryOrderInfo(document, hoaDon);
+
+            // Product simplified list - without table
+            addSimplifiedProductList(document, hoaDon);
+
+            // Payment details - truyền thêm hoaDon để xử lý chi tiết thanh toán
+            addDeliveryPaymentSummary(document, hoaDon, amounts);
+
+            // Signature area
+            addDeliverySignatureArea(document);
+
+            document.close();
+            byte[] pdfContent = Files.readAllBytes(Paths.get(tempFile));
+            Files.delete(Paths.get(tempFile));
+            return pdfContent;
+
+        } catch (Exception e) {
+            log.error("Error generating delivery PDF for invoice {}: ", hoaDon.getId(), e);
+            throw new RuntimeException("Lỗi khi tạo PDF phiếu giao hàng", e);
         }
-        PdfFont font = PdfFontFactory.createFont(
-                IOUtils.toByteArray(fontStream),
-                PdfEncodings.IDENTITY_H
-        );
-        document.setFont(font);
-
-        // Calculate all amounts first (reuse same logic as invoice)
-        InvoiceAmounts amounts = calculateInvoiceAmounts(hoaDon);
-
-        // Header with logo and barcode
-        addDeliveryHeader(document, hoaDon, pdf);
-
-        // Sender and receiver information
-        addDeliverySenderReceiverInfo(document, hoaDon);
-
-        // Order information
-        addDeliveryOrderInfo(document, hoaDon);
-
-        // Product simplified list - without table
-        addSimplifiedProductList(document, hoaDon);
-
-        // Payment details - truyền thêm hoaDon để xử lý chi tiết thanh toán
-        addDeliveryPaymentSummary(document, hoaDon, amounts);
-
-        // Signature area
-        addDeliverySignatureArea(document);
-
-        document.close();
-        byte[] pdfContent = Files.readAllBytes(Paths.get(tempFile));
-        Files.delete(Paths.get(tempFile));
-        return pdfContent;
-
-    } catch (Exception e) {
-        log.error("Error generating delivery PDF for invoice {}: ", hoaDon.getId(), e);
-        throw new RuntimeException("Lỗi khi tạo PDF phiếu giao hàng", e);
     }
-}
 
     private void addDeliveryHeader(Document document, HoaDon hoaDon, PdfDocument pdf) {
         Table header = new Table(2);
@@ -517,19 +503,20 @@ public byte[] generateDeliveryInvoicePDF(HoaDon hoaDon) {
         Cell receiverCell = new Cell();
         receiverCell.add(new Paragraph("NGƯỜI NHẬN:").setBold().setFontSize(10));
 
-        // Xử lý trường hợp khách hàng lẻ hoặc tên null
+        // Xử lý thông tin người nhận
         String tenNguoiNhan = "Khách hàng lẻ";
-        if (hoaDon.getTenNguoiNhan() != null && !hoaDon.getTenNguoiNhan().trim().isEmpty()) {
-            tenNguoiNhan = hoaDon.getTenNguoiNhan();
+        if (hoaDon.getTenNguoiNhan() != null && !hoaDon.getTenNguoiNhan().trim().isEmpty()
+                && !hoaDon.getTenNguoiNhan().equalsIgnoreCase("Khách hàng lẻ")) {
+            tenNguoiNhan = hoaDon.getTenNguoiNhan().trim();
         }
         receiverCell.add(new Paragraph(tenNguoiNhan).setFontSize(10));
 
-        // Xử lý số điện thoại null
+        // Xử lý số điện thoại
         if (hoaDon.getSoDienThoai() != null && !hoaDon.getSoDienThoai().trim().isEmpty()) {
-            receiverCell.add(new Paragraph("SĐT: " + hoaDon.getSoDienThoai()).setFontSize(9));
+            receiverCell.add(new Paragraph("SĐT: " + hoaDon.getSoDienThoai().trim()).setFontSize(9));
         }
 
-        // Địa chỉ đầy đủ - chỉ hiển thị nếu có địa chỉ
+        // Địa chỉ đầy đủ
         if (hoaDon.getDiaChi() != null && !hoaDon.getDiaChi().trim().isEmpty()) {
             String diaChiFormatted = addressCache.getFormattedDiaChi(hoaDon.getDiaChi());
             receiverCell.add(new Paragraph(diaChiFormatted).setFontSize(9));

@@ -12,7 +12,8 @@ public interface PhuongThucThanhToanRepository extends JpaRepository<PhuongThucT
     Optional<PhuongThucThanhToan> findByMaPhuongThucThanhToan(String maPhuongThuc);
 
     //lấy tất cả trừ pttt001 cod
-    @Query("SELECT p FROM PhuongThucThanhToan p WHERE p.id IN ('PTTT001','PTTT002', 'PTTT003','PTTT004')")
+    @Query("SELECT p FROM PhuongThucThanhToan p WHERE p.id IN ('PTTT001','PTTT002', 'PTTT003')")
     List<PhuongThucThanhToan> findBankAndCashMethods();
+
 
 }
