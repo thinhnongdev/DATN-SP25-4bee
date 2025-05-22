@@ -4,6 +4,10 @@ FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
 
 COPY server /app
+COPY mvnw /app
+COPY .mvn /app/.mvn
+
+RUN chmod +x ./mvnw
 
 RUN ./mvnw clean package -DskipTests
 
