@@ -11,7 +11,7 @@ public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**") // Cho phép tất cả API & WebSocket
-                .allowedOrigins("http://localhost:3000") // Xác định nguồn cụ thể
+                .allowedOrigins("https://datn-sp-25-4bee-git-master-thinhnongs-projects.vercel.app") // Xác định nguồn cụ thể
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("*")
