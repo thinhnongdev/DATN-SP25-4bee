@@ -1,0 +1,113 @@
+/* styles.css */
+
+/* Điều chỉnh bảng */
+.table {
+
+  border: 1px solid #dee2e6; /* Đường viền bảng */
+}
+
+.table thead th {
+  background-color: white; /* Nền xanh đậm cho tiêu đề */
+  color: black; /* Chữ màu trắng */
+  text-align: center;
+  font-weight: bold;
+}
+
+.table tbody td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.table tbody tr:nth-child(odd) {
+  background-color: #f8f9fa; /* Dòng nền xám nhạt xen kẽ */
+}
+
+.table tbody tr:hover {
+  background-color: #e9ecef; /* Hiệu ứng hover */
+}
+
+/* Nút hành động */
+.btn-warning {
+  color: #fff;
+  background-color: #ffc107;
+  border-color: white;
+}
+
+.btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+
+.btn-danger {
+  color: #fff;
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Badge trạng thái */
+.badge.bg-success {
+  font-size: 0.9rem;
+  padding: 0.5em 1em;
+}
+
+.badge.bg-secondary {
+  font-size: 0.9rem;
+  padding: 0.5em 1em;
+  color: #fff;
+}
+
+/* Tiêu đề */
+h3 {
+  color: #007bff;
+  font-weight: bold;
+}
+
+/* Bộ lọc */
+input.form-control,
+select.form-select {
+  max-width: 250px;
+  margin-right: 10px;
+}
+
+button.btn-primary {
+  background-color: #28a745; /* Xanh lá */
+  border-color: #28a745;
+}
+
+button.btn-primary:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+button.btn-success {
+  background-color: #007bff; /* Xanh lam */
+  border-color: #007bff;
+}
+
+button.btn-success:hover {
+  background-color: #0056b3;
+  border-color: #004085;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.page-item {
+  margin: 0 5px;
+}
+
+.page-item .page-link {
+  color: black;
+}
+
+.page-item.active .page-link {
+  background-color: #007bff;
+  color: white;
+}
