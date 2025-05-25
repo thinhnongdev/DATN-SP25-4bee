@@ -54,7 +54,7 @@ const Register = () => {
       
       // Gửi request đăng ký
       const response = await axios.post(
-        'https://datn-sp-25-4bee.vercel.app/api/auth/khach-hang/register', 
+        'https://datn-sp25-4bee.onrender.com/api/auth/khach-hang/register', 
         registerData
       );
       
