@@ -20,7 +20,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin/phieu-giam-gia")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(origins = "https://datn-sp-25-4bee.vercel.app", allowCredentials = "true")
 public class PhieuGiamGiaHoaDonController {
     private final IPhieuGiamGiaService phieuGiamGiaService;
     // Thêm endpoint mới
