@@ -113,7 +113,7 @@ const AdminLayout = () => {
         if (!token) return;
         try {
           await axios.post(
-            'http://localhost:8080/api/auth/logout',
+            'https://datn-sp25-4bee.onrender.com/api/auth/logout',
             JSON.stringify({ token: token }),
             { headers: { 'Content-Type': 'application/json' } },
           );
@@ -129,7 +129,7 @@ const AdminLayout = () => {
   const fetchUserInfo = async (token) => {
     try {
       const response = await axios.post(
-        'http://localhost:8080/api/auth/getInfoUser',
+        'https://datn-sp25-4bee.onrender.com/api/auth/getInfoUser',
         JSON.stringify({ token: token }), // Đảm bảo gửi đúng JSON string
         {
           headers: {
