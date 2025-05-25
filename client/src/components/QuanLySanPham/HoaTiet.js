@@ -20,7 +20,7 @@ const HoaTiet = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/hoatiet', {
+      const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/hoatiet', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -92,7 +92,7 @@ const HoaTiet = () => {
             if (isEditing) {
               // Cập nhật
               await axios.patch(
-                `http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`,
+                `https://datn-sp25-4bee.onrender.com/api/admin/hoatiet/${editingRecord.id}`,
                 values,
                 {
                   headers: {
@@ -107,7 +107,7 @@ const HoaTiet = () => {
             } else {
               // Thêm mới
               const response = await axios.post(
-                'http://localhost:8080/api/admin/addhoatiet',
+                'https://datn-sp25-4bee.onrender.com/api/admin/addhoatiet',
                 values,
                 {
                   headers: {
