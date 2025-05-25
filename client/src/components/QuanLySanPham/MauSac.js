@@ -22,7 +22,7 @@ const MauSac = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/mausac', {
+      const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/mausac', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -117,7 +117,7 @@ const MauSac = () => {
               // Cập nhật
               try {
                 await axios.patch(
-                  `http://localhost:8080/api/admin/mausac/${editingRecord.id}`,
+                  `https://datn-sp25-4bee.onrender.com/api/admin/mausac/${editingRecord.id}`,
                   dataToSend,
                   {
                     headers: {
@@ -138,7 +138,7 @@ const MauSac = () => {
               // Thêm mới
               try {
                 const response = await axios.post(
-                  'http://localhost:8080/api/admin/addmausac',
+                  'https://datn-sp25-4bee.onrender.com/api/admin/addmausac',
                   dataToSend,
                   {
                     headers: {
