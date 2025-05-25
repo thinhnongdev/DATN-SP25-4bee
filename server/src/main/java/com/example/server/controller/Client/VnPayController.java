@@ -21,7 +21,7 @@ public class VnPayController {
         String vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
         String vnp_ReturnUrl = returnUrl != null && !returnUrl.isEmpty()
                 ? returnUrl
-                : "http://localhost:3000/vnpay/payment-success";
+                : "https://datn-sp-25-4bee.vercel.app/vnpay/payment-success";
 
         Map<String, String> vnp_Params = new HashMap<>();
         vnp_Params.put("vnp_Version", "2.1.0");
