@@ -27,7 +27,7 @@ const Products = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get("http://localhost:8080/api/client/sanpham");
+        const res = await axios.get("https://datn-sp25-4bee.onrender.com/api/client/sanpham");
         setProducts(res.data);
         setLoading(false);
       } catch (err) {
