@@ -1,7 +1,7 @@
 import axios from "axios";
 import jwtDecode from "jwt-decode";
 
-const API_URL = "http://localhost:8080/api/auth/refreshToken";
+const API_URL = "https://datn-sp25-4bee.onrender.com/api/auth/refreshToken";
 
 const getAccessToken = () => localStorage.getItem("token");
 
