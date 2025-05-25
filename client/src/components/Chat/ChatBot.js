@@ -35,7 +35,7 @@ axiosRetry(axios, {
   retryCondition: (error) => error.code === 'ECONNABORTED',
 });
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://datn-sp25-4bee.onrender.com/api';
 
 const getAuthHeaders = (includeToken = true) => {
   const headers = {
