@@ -9,7 +9,7 @@ export const checkPayment = async (hoaDonId, amount) => {
     let maHoaDon;
     try {
       const orderResponse = await axios.get(
-        `http://localhost:8080/api/admin/hoa-don/${hoaDonId}`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/${hoaDonId}`,
         { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }}
       );
       maHoaDon = orderResponse.data?.maHoaDon || hoaDonId;
@@ -20,7 +20,7 @@ export const checkPayment = async (hoaDonId, amount) => {
 
     // 2. Lấy danh sách giao dịch
     const response = await axios.get(
-      `http://localhost:8080/api/admin/ban-hang/sepay/transactions`,
+      `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/sepay/transactions`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
