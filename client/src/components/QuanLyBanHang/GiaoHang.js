@@ -241,7 +241,7 @@ const GiaoHang = React.forwardRef(
         const fetchRecipientInfo = async () => {
           try {
             const response = await axios.get(
-              `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
+              `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
               {
                 headers: {
                   Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -489,7 +489,7 @@ const GiaoHang = React.forwardRef(
 
         // Gọi API tính phí
         const response = await axios.post(
-          `http://localhost:8080/api/admin/hoa-don/phi-van-chuyen`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/phi-van-chuyen`,
           payload,
           {
             headers: {
@@ -538,7 +538,7 @@ const GiaoHang = React.forwardRef(
 
         // Gọi API cập nhật phí vận chuyển
         const response = await axios.post(
-          `http://localhost:8080/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
           { fee: fee },
           {
             headers: {
@@ -837,7 +837,7 @@ const GiaoHang = React.forwardRef(
 
         // Lấy thông tin địa chỉ từ API
         const addressDetailsResponse = await axios.get(
-          `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -873,7 +873,7 @@ const GiaoHang = React.forwardRef(
           if (provinceData.length === 0) {
             // Nếu chưa có dữ liệu tỉnh, tải dữ liệu tỉnh trước
             const provincesResponse = await axios.get(
-              "http://localhost:8080/api/admin/hoa-don/dia-chi/tinh",
+              "https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/tinh",
               {
                 headers: {
                   Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -942,7 +942,7 @@ const GiaoHang = React.forwardRef(
           if (districtData.length === 0) {
             try {
               const districtsResponse = await axios.get(
-                `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${tempAddress.tinh}`,
+                `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/huyen?provinceId=${tempAddress.tinh}`,
                 {
                   headers: {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1005,7 +1005,7 @@ const GiaoHang = React.forwardRef(
           if (wardData.length === 0) {
             try {
               const wardsResponse = await axios.get(
-                `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${tempAddress.huyen}`,
+                `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/xa?districtId=${tempAddress.huyen}`,
                 {
                   headers: {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1159,7 +1159,7 @@ const GiaoHang = React.forwardRef(
       try {
         // Get the customer's address list
         const response = await axios.get(
-          `http://localhost:8080/api/admin/khach_hang/diaChi/${id}`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/khach_hang/diaChi/${id}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1185,7 +1185,7 @@ const GiaoHang = React.forwardRef(
             try {
               // Use the invoice-specific API to get address details
               const addressDetailsResponse = await axios.get(
-                `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
+                `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
                 {
                   headers: {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1281,7 +1281,7 @@ const GiaoHang = React.forwardRef(
         try {
           // Dùng API dia-chi-chi-tiet để lấy thông tin địa chỉ đã lưu
           const addressDetailsResponse = await axios.get(
-            `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
+            `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1476,7 +1476,7 @@ const submitAddressToInvoice = async (addressData) => {
         console.log("Gửi request cập nhật địa chỉ:", payload);
 
         const response = await axios.put(
-          `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/update-address`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/update-address`,
           payload,
           {
             headers: {
@@ -1511,7 +1511,7 @@ const submitAddressToInvoice = async (addressData) => {
         setLoading(true);
         try {
           const response = await axios.get(
-            "http://localhost:8080/api/admin/hoa-don/dia-chi/tinh",
+            "https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/tinh",
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1578,7 +1578,7 @@ const submitAddressToInvoice = async (addressData) => {
         );
 
         const response = await axios.get(
-          `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${provinceId}`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/huyen?provinceId=${provinceId}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1643,7 +1643,7 @@ const submitAddressToInvoice = async (addressData) => {
 
         // Gọi API để lấy danh sách xã/phường theo ID quận/huyện
         const wardsResponse = await axios.get(
-          `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${districtId}`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/xa?districtId=${districtId}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1846,7 +1846,7 @@ const submitAddressToInvoice = async (addressData) => {
 
         // Gọi API để lấy danh sách huyện với provinceId là số
         const response = await axios.get(
-          `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${provinceIdNumber}`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/huyen?provinceId=${provinceIdNumber}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -1933,7 +1933,7 @@ const submitAddressToInvoice = async (addressData) => {
 
         // Gọi API để lấy danh sách xã với districtId là số
         const response = await axios.get(
-          `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${districtIdNumber}`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/xa?districtId=${districtIdNumber}`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -2010,7 +2010,7 @@ const submitAddressToInvoice = async (addressData) => {
 
       try {
         const response = await axios.put(
-          `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/update-address`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/update-address`,
           payload,
           {
             headers: {
@@ -2206,7 +2206,7 @@ const submitAddressToInvoice = async (addressData) => {
         } else {
           // Gọi API chỉ khi cần thiết
           const provincesResponse = await axios.get(
-            "http://localhost:8080/api/admin/hoa-don/dia-chi/tinh",
+            "https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/tinh",
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -2263,7 +2263,7 @@ const submitAddressToInvoice = async (addressData) => {
         } else {
           // Gọi API để lấy danh sách quận/huyện
           const districtsResponse = await axios.get(
-            `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${matchingProvince.id}`,
+            `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/huyen?provinceId=${matchingProvince.id}`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -2319,7 +2319,7 @@ const submitAddressToInvoice = async (addressData) => {
         } else {
           // Gọi API để lấy danh sách xã/phường
           const wardsResponse = await axios.get(
-            `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${matchingDistrict.id}`,
+            `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/xa?districtId=${matchingDistrict.id}`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
