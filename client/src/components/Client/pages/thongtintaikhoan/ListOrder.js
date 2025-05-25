@@ -53,7 +53,7 @@ const OrderPage = () => {
   const fetchProductImage = async (productDetailId) => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
+        `https://datn-sp25-4bee.onrender.com/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
       );
       return response.data;
     } catch (error) {
@@ -71,7 +71,7 @@ const OrderPage = () => {
       onOk: async () => {
         try {
           // Gửi yêu cầu hủy đơn hàng lên server
-          await axios.put(`http://localhost:8080/api/client/order/cancel/${idHoaDon}`);
+          await axios.put(`https://datn-sp25-4bee.onrender.com/api/client/order/cancel/${idHoaDon}`);
 
           message.success('Đơn hàng đã được hủy thành công!');
           // TODO: bạn có thể redirect, reload hoặc update UI tùy theo luồng app
@@ -89,7 +89,7 @@ const OrderPage = () => {
     if (!email) return;
 
     axios
-      .get(`http://localhost:8080/api/client/order/findHoaDon/${email}`)
+      .get(`https://datn-sp25-4bee.onrender.com/api/client/order/findHoaDon/${email}`)
       .then(async (res) => {
         const fetchedOrders = res.data;
 
@@ -98,10 +98,10 @@ const OrderPage = () => {
             try {
               const [paymentRes, productsRes] = await Promise.all([
                 axios.get(
-                  `http://localhost:8080/api/client/thanhtoan/findThanhToanHoaDonByIdHoaDon/${order.id}`,
+                  `https://datn-sp25-4bee.onrender.com/api/client/thanhtoan/findThanhToanHoaDonByIdHoaDon/${order.id}`,
                 ),
                 axios.get(
-                  `http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${order.id}`,
+                  `https://datn-sp25-4bee.onrender.com/api/client/findDanhSachSPCTbyIdHoaDon/${order.id}`,
                 ),
               ]);
 
@@ -117,7 +117,7 @@ const OrderPage = () => {
               if (order.idPhieuGiamGia) {
                 try {
                   const voucherRes = await axios.get(
-                    `http://localhost:8080/api/client/phieugiamgia/findPhieuGiamGia/${order.idPhieuGiamGia}`,
+                    `https://datn-sp25-4bee.onrender.com/api/client/phieugiamgia/findPhieuGiamGia/${order.idPhieuGiamGia}`,
                   );
                   voucher = voucherRes.data;
                 } catch (voucherErr) {
