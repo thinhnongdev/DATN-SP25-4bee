@@ -42,14 +42,14 @@ const ChangePassword = () => {
     setLoading(true);
     try {
       // Xác định endpoint dựa vào nguồn gọi
-      let endpoint = 'http://localhost:8080/api/auth/change-password';
+      let endpoint = 'https://datn-sp25-4bee.onrender.com/api/auth/change-password';
       
       // Nếu đổi mật khẩu từ trang khách hàng
       const isCustomerPasswordChange = location.pathname === '/client/change-password' || 
                                      currentUser?.role === 'KHACH_HANG';
       
       if (isCustomerPasswordChange) {
-        endpoint = 'http://localhost:8080/api/auth/khach-hang/change-password';
+        endpoint = 'https://datn-sp25-4bee.onrender.com/api/auth/khach-hang/change-password';
       }
       
       const response = await axios.post(endpoint, {
