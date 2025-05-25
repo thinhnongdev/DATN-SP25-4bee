@@ -177,7 +177,7 @@ const DemoForm = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/imagesSanPham', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/imagesSanPham', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -194,7 +194,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingSanPham(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/sanpham', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/sanpham', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -215,7 +215,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingChatLieu(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/chatlieu', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/chatlieu', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -241,7 +241,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuDang(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieudang', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieudang', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -266,7 +266,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingThuongHieu(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/thuonghieu', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -291,7 +291,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCuc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucuc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucuc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -316,7 +316,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCoAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucoao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucoao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -341,7 +341,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuCoTayAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucotayao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -366,7 +366,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuTuiAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieutuiao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -391,7 +391,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKieuTayAo(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutayao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieutayao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -416,7 +416,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingDanhMuc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/danhmuc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/danhmuc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -441,7 +441,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingHoaTiet(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/hoatiet', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/hoatiet', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -466,7 +466,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingMauSac(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/mausac', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/mausac', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -486,7 +486,7 @@ const DemoForm = () => {
     const fetchUsers = async () => {
       setLoadingKichThuoc(true);
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kichthuoc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -516,7 +516,7 @@ const DemoForm = () => {
     }));
     try {
       const response = await axios.post(
-        'http://localhost:8080/api/admin/sanpham/addsanphamchitiet',
+        'https://datn-sp25-4bee.onrender.com/api/admin/sanpham/addsanphamchitiet',
         dataToSend,
         {
           headers: {
@@ -675,7 +675,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/sanpham/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/sanpham/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -685,7 +685,7 @@ const DemoForm = () => {
         );
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addsanpham', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addsanpham', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -735,7 +735,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/chatlieu/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -746,7 +746,7 @@ const DemoForm = () => {
         message.success('Sửa chất liệu thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addchatlieu', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addchatlieu', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -797,7 +797,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieudang/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/kieudang/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -808,7 +808,7 @@ const DemoForm = () => {
         message.success('Sửa kiểu dáng thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieudang', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addkieudang', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -860,7 +860,7 @@ const DemoForm = () => {
       if (isEditing) {
         // Cập nhật
         await axios.patch(
-          `http://localhost:8080/api/admin/thuonghieu/${editingRecord.id}`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/thuonghieu/${editingRecord.id}`,
           values,
           {
             headers: {
@@ -874,7 +874,7 @@ const DemoForm = () => {
         message.success('Sửa thương hiệu thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addthuonghieu', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addthuonghieu', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -925,7 +925,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucuc/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/kieucuc/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -936,7 +936,7 @@ const DemoForm = () => {
         message.success('Sửa kiểu cúc thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucuc', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addkieucuc', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -987,7 +987,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieucoao/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/kieucoao/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -998,7 +998,7 @@ const DemoForm = () => {
         message.success('Sửa kiểu cổ áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieucoao', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addkieucoao', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -1049,7 +1049,7 @@ const DemoForm = () => {
       if (isEditing) {
         // Cập nhật
         await axios.patch(
-          `http://localhost:8080/api/admin/kieucotayao/${editingRecord.id}`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/kieucotayao/${editingRecord.id}`,
           values,
           {
             headers: {
@@ -1064,7 +1064,7 @@ const DemoForm = () => {
       } else {
         // Thêm mới
         const response = await axios.post(
-          'http://localhost:8080/api/admin/addkieucotayao',
+          'https://datn-sp25-4bee.onrender.com/api/admin/addkieucotayao',
           values,
           {
             headers: {
@@ -1154,7 +1154,7 @@ const DemoForm = () => {
           // Thêm mới
           try {
             const response = await axios.post(
-              'http://localhost:8080/api/admin/addmausac',
+              'https://datn-sp25-4bee.onrender.com/api/admin/addmausac',
               dataToSend,
               {
                 headers: {
@@ -1213,7 +1213,7 @@ const DemoForm = () => {
           try {
             // Thêm mới
             const response = await axios.post(
-              'http://localhost:8080/api/admin/addkichthuoc',
+              'https://datn-sp25-4bee.onrender.com/api/admin/addkichthuoc',
               values,
               {
                 headers: {
@@ -1259,7 +1259,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieutuiao/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/kieutuiao/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -1270,7 +1270,7 @@ const DemoForm = () => {
         message.success('Sửa kiểu túi áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieutuiao', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addkieutuiao', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -1318,7 +1318,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/kieutayao/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/kieutayao/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -1329,7 +1329,7 @@ const DemoForm = () => {
         message.success('Sửa kiểu tay áo thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addkieutayao', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addkieutayao', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -1378,7 +1378,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/hoatiet/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/hoatiet/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -1389,7 +1389,7 @@ const DemoForm = () => {
         message.success('Sửa họa tiết thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/addhoatiet', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/addhoatiet', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -1437,7 +1437,7 @@ const DemoForm = () => {
 
       if (isEditing) {
         // Cập nhật
-        await axios.patch(`http://localhost:8080/api/admin/danhmuc/${editingRecord.id}`, values, {
+        await axios.patch(`https://datn-sp25-4bee.onrender.com/api/admin/danhmuc/${editingRecord.id}`, values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -1448,7 +1448,7 @@ const DemoForm = () => {
         message.success('Sửa danh mục thành công');
       } else {
         // Thêm mới
-        const response = await axios.post('http://localhost:8080/api/admin/adddanhmuc', values, {
+        const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/admin/adddanhmuc', values, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
