@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 @RestController
 @RequestMapping("/thong-ke")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://datn-sp-25-4bee.vercel.app")
 public class ThongKeConTroller {
 
 
