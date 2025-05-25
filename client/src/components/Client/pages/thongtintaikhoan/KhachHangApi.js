@@ -1,7 +1,7 @@
 import { message } from 'antd';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/client/khach_hang';
+const API_URL = 'https://datn-sp25-4bee.onrender.com/api/client/khach_hang';
 
 // Hàm tạo headers kèm token
 const getAuthHeaders = () => ({
@@ -47,7 +47,7 @@ export const getPutApi = async (id, updateKhachHang) => {
 // API: Yêu cầu đặt lại mật khẩu
 export const forgotPassword = async (email) => {
   try {
-    const response = await axios.post(`http://localhost:8080/api/auth/khach-hang/forgot-password?email=${encodeURIComponent(email)}`);
+    const response = await axios.post(`https://datn-sp25-4bee.onrender.com/api/auth/khach-hang/forgot-password?email=${encodeURIComponent(email)}`);
     return response.data;
   } catch (error) {
     console.error('Lỗi yêu cầu đặt lại mật khẩu:', error);
