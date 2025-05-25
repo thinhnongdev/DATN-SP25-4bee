@@ -107,7 +107,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/chatlieu",
+          "https://datn-sp25-4bee.onrender.com/api/admin/chatlieu",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -125,7 +125,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieudang",
+          "https://datn-sp25-4bee.onrender.com/api/admin/kieudang",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -144,7 +144,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/thuonghieu",
+          "https://datn-sp25-4bee.onrender.com/api/admin/thuonghieu",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -163,7 +163,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieucuc",
+          "https://datn-sp25-4bee.onrender.com/api/admin/kieucuc",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -182,7 +182,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieucoao",
+          "https://datn-sp25-4bee.onrender.com/api/admin/kieucoao",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -201,7 +201,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieucotayao",
+          "https://datn-sp25-4bee.onrender.com/api/admin/kieucotayao",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -220,7 +220,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieutuiao",
+          "https://datn-sp25-4bee.onrender.com/api/admin/kieutuiao",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -239,7 +239,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kieutayao",
+          "https://datn-sp25-4bee.onrender.com/api/admin/kieutayao",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -258,7 +258,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/mausac",
+          "https://datn-sp25-4bee.onrender.com/api/admin/mausac",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -277,7 +277,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/kichthuoc",
+          "https://datn-sp25-4bee.onrender.com/api/admin/kichthuoc",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -297,7 +297,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/hoatiet",
+          "https://datn-sp25-4bee.onrender.com/api/admin/hoatiet",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
@@ -317,7 +317,7 @@ const ProductTable = ({ products, onAddProduct, onAddMultipleProducts , open, on
     const fetchUsers = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/admin/danhmuc",
+          "https://datn-sp25-4bee.onrender.com/api/admin/danhmuc",
           {headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
           }},
