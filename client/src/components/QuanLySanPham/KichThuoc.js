@@ -20,7 +20,7 @@ const KichThuoc = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/kichthuoc', {
+      const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kichthuoc', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -90,7 +90,7 @@ const KichThuoc = () => {
             if (isEditing) {
               // Cập nhật
               await axios.patch(
-                `http://localhost:8080/api/admin/kichthuoc/${editingRecord.id}`,
+                `https://datn-sp25-4bee.onrender.com/api/admin/kichthuoc/${editingRecord.id}`,
                 values,
                 {
                   headers: {
@@ -105,7 +105,7 @@ const KichThuoc = () => {
             } else {
               // Thêm mới
               const response = await axios.post(
-                'http://localhost:8080/api/admin/addkichthuoc',
+                'https://datn-sp25-4bee.onrender.com/api/admin/addkichthuoc',
                 values,
                 {
                   headers: {
