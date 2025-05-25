@@ -18,7 +18,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(origins = "https://datn-sp-25-4bee.vercel.app", allowCredentials = "true")
 public class SanPhamChiTietController {
     @Autowired
     private SanPhamChiTietService sanPhamChiTietService;
