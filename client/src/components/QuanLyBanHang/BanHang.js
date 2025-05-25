@@ -709,7 +709,7 @@ const BanHang = () => {
         setTimeout(async () => {
           try {
             await axios.post(
-              `http://localhost:8080/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
+              `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
               { fee: 0 },
               {
                 headers: {
@@ -938,7 +938,7 @@ const BanHang = () => {
 
     try {
       await axios.put(
-        `http://localhost:8080/api/admin/ban-hang/${activeKey}/update-address`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${activeKey}/update-address`,
         payload,
         {
           headers: {
@@ -1490,7 +1490,7 @@ const BanHang = () => {
       const fetchProductImage = async () => {
         try {
           const response = await axios.get(
-            `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
+            `https://datn-sp25-4bee.onrender.com/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -1552,7 +1552,7 @@ const BanHang = () => {
       };
 
       const response = await axios.post(
-        `http://localhost:8080/api/admin/ban-hang/${activeKey}/add-product`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${activeKey}/add-product`,
         request,
         {
           headers: {
@@ -2150,7 +2150,7 @@ const BanHang = () => {
       if (currentOrder.loaiHoaDon === 3) {
         try {
           const addressDetailsResponse = await axios.get(
-            `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
+            `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/dia-chi-chi-tiet`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -3535,7 +3535,7 @@ const BanHang = () => {
         try {
           // Gọi API để liên kết khách hàng với hóa đơn
           await axios.put(
-            `http://localhost:8080/api/admin/ban-hang/${activeKey}/customer`,
+            `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${activeKey}/customer`,
             { customerId: newCustomerData.id },
             {
               headers: {
@@ -3583,7 +3583,7 @@ const BanHang = () => {
 
       // Nếu không có dữ liệu trực tiếp, tải lại danh sách
       const response = await axios.get(
-        "http://localhost:8080/api/admin/khach_hang",
+        "https://datn-sp25-4bee.onrender.com/api/admin/khach_hang",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -3612,7 +3612,7 @@ const BanHang = () => {
           try {
             setIsLoading(true);
             const response = await axios.get(
-              "http://localhost:8080/api/admin/khach_hang",
+              "https://datn-sp25-4bee.onrender.com/api/admin/khach_hang",
               {
                 headers: {
                   Authorization: `Bearer ${token}`,
@@ -3683,7 +3683,7 @@ const BanHang = () => {
       const messageKey = "updating-delivery-method";
 
       const response = await axios.put(
-        `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/update-loai-hoa-don`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/update-loai-hoa-don`,
         { loaiHoaDon },
         {
           headers: {
@@ -4046,7 +4046,7 @@ const BanHang = () => {
 
       // Gọi API với đường dẫn chính xác
       const response = await axios.post(
-        `http://localhost:8080/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/${hoaDonId}/cap-nhat-phi-van-chuyen`,
         { fee: fee },
         {
           headers: {
@@ -4074,7 +4074,7 @@ const BanHang = () => {
   const loadCustomers = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:8080/api/admin/khach_hang",
+        "https://datn-sp25-4bee.onrender.com/api/admin/khach_hang",
         {
           headers: {
             Authorization: `Bearer ${token}`, // Thêm token vào header
@@ -4106,7 +4106,7 @@ const BanHang = () => {
 
       // Gửi đúng tên tham số là customerId
       const response = await axios.put(
-        `http://localhost:8080/api/admin/ban-hang/${hoaDonId}/customer`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/ban-hang/${hoaDonId}/customer`,
         { customerId: customerId },
         {
           headers: {
@@ -4280,7 +4280,7 @@ const BanHang = () => {
             }
 
             const imgResponse = await axios.get(
-              `http://localhost:8080/api/admin/sanphamchitiet/${product.id}/hinhanh`,
+              `https://datn-sp25-4bee.onrender.com/api/admin/sanphamchitiet/${product.id}/hinhanh`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`,
