@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080/api/admin/phieu-giam-gia";
-const KHACH_HANG_URL = "http://localhost:8080/api/admin/phieu-giam-gia/khach-hang";
+const API_URL = "https://datn-sp25-4bee.onrender.com/api/admin/phieu-giam-gia";
+const KHACH_HANG_URL = "https://datn-sp25-4bee.onrender.com/api/admin/phieu-giam-gia/khach-hang";
 
 // Lấy token từ localStorage
 const token = localStorage.getItem("token");
