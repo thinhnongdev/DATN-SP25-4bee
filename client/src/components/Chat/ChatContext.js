@@ -21,7 +21,7 @@ export const ChatProvider = ({ children }) => {
 
   const refreshToken = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/refresh-token', {
+      const response = await fetch('https://datn-sp25-4bee.onrender.com/api/refresh-token', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -47,7 +47,7 @@ export const ChatProvider = ({ children }) => {
     if (!token) return;
 
     try {
-      const response = await fetch('http://localhost:8080/api/chat/session', {
+      const response = await fetch('https://datn-sp25-4bee.onrender.com/api/chat/session', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -87,7 +87,7 @@ export const ChatProvider = ({ children }) => {
     if (!token) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/api/chat/session/${sessionId}`, {
+      const response = await fetch(`https://datn-sp25-4bee.onrender.com/api/chat/session/${sessionId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
