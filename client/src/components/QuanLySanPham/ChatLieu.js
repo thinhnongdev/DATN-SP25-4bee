@@ -19,7 +19,7 @@ const ChatLieu = () => {
   // Lấy dữ liệu từ backend
   const fetchData = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/admin/chatlieu', {
+      const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/chatlieu', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -89,7 +89,7 @@ const ChatLieu = () => {
           try {
             if (isEditing) {
               await axios.patch(
-                `http://localhost:8080/api/admin/chatlieu/${editingRecord.id}`,
+                `https://datn-sp25-4bee.onrender.com/api/admin/chatlieu/${editingRecord.id}`,
                 values,
                 {
                   headers: {
@@ -103,7 +103,7 @@ const ChatLieu = () => {
               message.success('Sửa chất liệu thành công');
             } else {
               const response = await axios.post(
-                'http://localhost:8080/api/admin/addchatlieu',
+                'https://datn-sp25-4bee.onrender.com/api/admin/addchatlieu',
                 values,
                 {
                   headers: {
