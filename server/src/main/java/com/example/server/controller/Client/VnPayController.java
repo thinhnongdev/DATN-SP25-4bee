@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
 @RestController
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(origins = "https://datn-sp-25-4bee.vercel.app", allowCredentials = "true")
 @RequestMapping("/api/client/vnpay")
 public class VnPayController {
 
