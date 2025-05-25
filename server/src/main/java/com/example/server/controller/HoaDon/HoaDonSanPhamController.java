@@ -27,7 +27,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Quản lý sản phẩm trong hóa đơn")
 @Slf4j
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(origins = "https://datn-sp-25-4bee.vercel.app", allowCredentials = "true")
 public class HoaDonSanPhamController {
     private final IHoaDonSanPhamService hoaDonSanPhamService;
     private final ISanPhamHoaDonService sanPhamService;
