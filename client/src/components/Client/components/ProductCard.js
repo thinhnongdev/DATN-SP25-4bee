@@ -12,7 +12,7 @@ const ProductCard = ({ id, ten, ma, anhUrl, gia }) => {
   useEffect(() => {
     const fetchLuotBan = async () => {
       try {
-        const response = await axios.get(`http://localhost:8080/api/client/sanpham/${id}/luot-ban`);
+        const response = await axios.get(`https://datn-sp25-4bee.onrender.com/api/client/sanpham/${id}/luot-ban`);
         setLuotBan(response.data);
       } catch (err) {
         console.error('Lỗi khi lấy lượt bán:', err);
