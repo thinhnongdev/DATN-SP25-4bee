@@ -89,7 +89,7 @@ useEffect(() => {
           Bộ sưu tập nổi bật
         </Title>
       <Row gutter={[24, 24]}>
-  {Array.isArray(products) && products.length > 0 ? (
+  {products&& products.length > 0 ? (
     products.map((product) => (
       <Col xs={24} sm={12} md={6} key={product.id}>
         <ProductCard {...product} />
