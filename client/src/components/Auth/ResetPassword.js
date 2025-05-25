@@ -32,7 +32,7 @@ const ResetPassword = () => {
   const verifyToken = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/auth/verify-reset-token?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`
+        `https://datn-sp25-4bee.onrender.com/api/auth/verify-reset-token?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`
       );
       
       if (response.data && response.data.valid) {
@@ -53,7 +53,7 @@ const ResetPassword = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8080/api/auth/reset-password', {
+      const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/auth/reset-password', {
         token: token,
         email: email,
         password: values.password
