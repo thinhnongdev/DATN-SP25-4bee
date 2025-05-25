@@ -24,7 +24,7 @@ const Sidebar = () => {
 
       try {
         const response = await axios.post(
-          'http://localhost:8080/api/auth/getInfoUser',
+          'https://datn-sp25-4bee.onrender.com/api/auth/getInfoUser',
           JSON.stringify({ token }),
           {
             headers: {
