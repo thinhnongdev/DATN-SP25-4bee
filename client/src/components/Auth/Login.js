@@ -17,7 +17,7 @@ const LoginForm = () => {
   };
   const onFinish = async (values) => {
     try {
-      const response = await axios.post('https://datn-sp-25-4bee.vercel.app/api/auth/login', values);
+      const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/auth/login', values);
       console.log(response.data.token);
       if (response.data.token) {
         localStorage.setItem('token', response.data.token); // Lưu token vào localStorage
@@ -41,7 +41,7 @@ const LoginForm = () => {
   //gọi api tạo hóa đơn pending nếu khách hàng đăng nhập
   const createPendingOrder = async (email) => {
     try {
-      const response = await axios.post('https://datn-sp-25-4bee.vercel.app/api/client/order/createPending', {
+      const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/client/order/createPending', {
         email,
       });
       const hoaDonId = response.data.id;
@@ -66,7 +66,7 @@ const LoginForm = () => {
   const fetchOrderDetail = async (hoaDonId) => {
     try {
       const response = await axios.get(
-        `https://datn-sp-25-4bee.vercel.app/api/client/order/hoaDonChiTiet/${hoaDonId}`,
+        `https://datn-sp25-4bee.onrender.com/api/client/order/hoaDonChiTiet/${hoaDonId}`,
       );
 
       if (Array.isArray(response.data)) {
