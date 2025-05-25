@@ -182,10 +182,10 @@ const ThongkeList = () => {
     const fetchRevenueData = async () => {
       try {
         const endpoints = [
-          { url: "http://localhost:8080/thong-ke/doanh-thu-ngay", setRevenue: setRevenueDay, setGrowth: setGrowthDay },
-          { url: "http://localhost:8080/thong-ke/doanh-thu-tuan", setRevenue: setRevenueWeek, setGrowth: setGrowthWeek },
-          { url: "http://localhost:8080/thong-ke/doanh-thu-thang", setRevenue: setRevenueMonth, setGrowth: setGrowthMonth },
-          { url: "http://localhost:8080/thong-ke/doanh-thu-nam", setRevenue: setRevenueYear, setGrowth: setGrowthYear },
+          { url: "https://datn-sp25-4bee.onrender.com/thong-ke/doanh-thu-ngay", setRevenue: setRevenueDay, setGrowth: setGrowthDay },
+          { url: "https://datn-sp25-4bee.onrender.com/thong-ke/doanh-thu-tuan", setRevenue: setRevenueWeek, setGrowth: setGrowthWeek },
+          { url: "https://datn-sp25-4bee.onrender.com/thong-ke/doanh-thu-thang", setRevenue: setRevenueMonth, setGrowth: setGrowthMonth },
+          { url: "https://datn-sp25-4bee.onrender.com/thong-ke/doanh-thu-nam", setRevenue: setRevenueYear, setGrowth: setGrowthYear },
         ];
 
         const requests = endpoints.map(({ url, setRevenue, setGrowth }) =>
@@ -218,19 +218,19 @@ const ThongkeList = () => {
 
         if (activeTab === "Số lượng") {
           if (statsView === "Ngày") {
-            url = `http://localhost:8080/thong-ke/so-luong-ban?startDate=${startDateFormatted}&endDate=${endDateFormatted}`;
+            url = `https://datn-sp25-4bee.onrender.com/thong-ke/so-luong-ban?startDate=${startDateFormatted}&endDate=${endDateFormatted}`;
           } else if (statsView === "Tháng") {
-            url = "http://localhost:8080/thong-ke/so-luong-theo-thang";
+            url = "https://datn-sp25-4bee.onrender.com/thong-ke/so-luong-theo-thang";
           } else {
-            url = "http://localhost:8080/thong-ke/so-luong-theo-nam";
+            url = "https://datn-sp25-4bee.onrender.com/thong-ke/so-luong-theo-nam";
           }
         } else {
           if (statsView === "Ngày") {
-            revenueUrl = `http://localhost:8080/thong-ke/doanh-thu?start=${startDateFormatted}&end=${endDateFormatted}`;
+            revenueUrl = `https://datn-sp25-4bee.onrender.com/thong-ke/doanh-thu?start=${startDateFormatted}&end=${endDateFormatted}`;
           } else if (statsView === "Tháng") {
-            revenueUrl = "http://localhost:8080/thong-ke/doanh-thu-thang-cot";
+            revenueUrl = "https://datn-sp25-4bee.onrender.com/thong-ke/doanh-thu-thang-cot";
           } else {
-            revenueUrl = "http://localhost:8080/thong-ke/doanh-thu-cac-thang-trong-nam";
+            revenueUrl = "https://datn-sp25-4bee.onrender.com/thong-ke/doanh-thu-cac-thang-trong-nam";
           }
         }
 
@@ -298,7 +298,7 @@ const ThongkeList = () => {
 
     const fetchStatistics = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/thong-ke/statistics", { headers: getAuthHeaders() });
+        const response = await axios.get("https://datn-sp25-4bee.onrender.com/thong-ke/statistics", { headers: getAuthHeaders() });
         const data = response.data;
 
         const allStatuses = [
@@ -350,7 +350,7 @@ const ThongkeList = () => {
     if (!token) return;
 
     axios
-      .get("http://localhost:8080/thong-ke/don-hang-gan-day", { headers: getAuthHeaders() })
+      .get("https://datn-sp25-4bee.onrender.com/thong-ke/don-hang-gan-day", { headers: getAuthHeaders() })
       .then((response) => {
         const formattedData = response.data.map((item) => ({
           key: item.stt,
@@ -374,7 +374,7 @@ const ThongkeList = () => {
     if (!token) return;
 
     axios
-      .get("http://localhost:8080/thong-ke/top-san-pham", { headers: getAuthHeaders() })
+      .get("https://datn-sp25-4bee.onrender.com/thong-ke/top-san-pham", { headers: getAuthHeaders() })
       .then((response) => {
         const formattedData = response.data.map((item, index) => ({
           key: index + 1,
