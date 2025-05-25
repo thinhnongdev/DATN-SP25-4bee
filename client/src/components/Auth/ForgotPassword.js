@@ -13,7 +13,7 @@ const ForgotPassword = () => {
     setLoading(true);
     try {
       const response = await axios.post(
-        `http://localhost:8080/api/auth/khach-hang/forgot-password?email=${encodeURIComponent(values.email)}`
+        `https://datn-sp25-4bee.onrender.com/api/auth/khach-hang/forgot-password?email=${encodeURIComponent(values.email)}`
       );
       
       if (response.data.success) {
