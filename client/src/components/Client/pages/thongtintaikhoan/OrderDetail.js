@@ -122,7 +122,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/imagesSanPham', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/imagesSanPham', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -139,7 +139,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/chatlieu', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/chatlieu', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -156,7 +156,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieudang', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieudang', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -174,7 +174,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/thuonghieu', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -192,7 +192,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucuc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucuc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -210,7 +210,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucoao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucoao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -228,7 +228,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucotayao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -246,7 +246,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieutuiao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -264,7 +264,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutayao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieutayao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -282,7 +282,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/mausac', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/mausac', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -300,7 +300,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kichthuoc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -319,7 +319,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/hoatiet', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/hoatiet', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -338,7 +338,7 @@ const OrderDetailPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/danhmuc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/danhmuc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -494,7 +494,7 @@ const OrderDetailPage = () => {
   //hàm lấy toàn bộ sản phẩm
   const handleGetAllProduct = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham`, {
+      const response = await fetch(`https://datn-sp25-4bee.onrender.com/api/admin/sanpham/chitietsanpham`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -527,7 +527,7 @@ const OrderDetailPage = () => {
     const fetchProductImagesForModal = async (sanPhamChiTietId) => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -574,7 +574,7 @@ const OrderDetailPage = () => {
   const fetchProductImagesForModal = async (sanPhamChiTietId) => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -728,7 +728,7 @@ const OrderDetailPage = () => {
   const fetchUserInfo = async (token) => {
     try {
       const response = await axios.post(
-        'http://localhost:8080/api/auth/getInfoUser',
+        'https://datn-sp25-4bee.onrender.com/api/auth/getInfoUser',
         { token }, // Không cần stringify thủ công vì axios tự xử lý
         { headers: { 'Content-Type': 'application/json' } },
       );
@@ -811,7 +811,7 @@ const OrderDetailPage = () => {
   };
   const fetchAddresses = async (customerId) => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/client/diaChi/${customerId}`);
+      const response = await axios.get(`https://datn-sp25-4bee.onrender.com/api/client/diaChi/${customerId}`);
       console.log('Fetched Addresses:', response.data);
       const addresses = response.data;
       console.log('Dữ liệu địa chỉ trả về:', response.data);
@@ -854,16 +854,16 @@ const OrderDetailPage = () => {
   const fetchOrder = async () => {
     try {
       const orderRes = await axios.get(
-        `http://localhost:8080/api/client/order/findHoaDonById/${orderId}`,
+        `https://datn-sp25-4bee.onrender.com/api/client/order/findHoaDonById/${orderId}`,
       );
       const paymentRes = await axios.get(
-        `http://localhost:8080/api/client/thanhtoan/findThanhToanHoaDonByIdHoaDon/${orderId}`,
+        `https://datn-sp25-4bee.onrender.com/api/client/thanhtoan/findThanhToanHoaDonByIdHoaDon/${orderId}`,
       );
       const productRes = await axios.get(
-        `http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${orderId}`,
+        `https://datn-sp25-4bee.onrender.com/api/client/findDanhSachSPCTbyIdHoaDon/${orderId}`,
       );
       const voucherRes = await axios.get(
-        `http://localhost:8080/api/client/phieugiamgia/findPhieuGiamGia/${orderRes.data.idPhieuGiamGia}`,
+        `https://datn-sp25-4bee.onrender.com/api/client/phieugiamgia/findPhieuGiamGia/${orderRes.data.idPhieuGiamGia}`,
       );
       const fullOrder = {
         ...orderRes.data,
@@ -888,7 +888,7 @@ const OrderDetailPage = () => {
   const fetchOrderHistory = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8080/api/client/order/findLichSuHoaDon/${order.id}`,
+        `https://datn-sp25-4bee.onrender.com/api/client/order/findLichSuHoaDon/${order.id}`,
       );
 
       const sortedData = (res.data || []).sort(
@@ -921,7 +921,7 @@ const OrderDetailPage = () => {
     }
 
     try {
-      await axios.delete(`http://localhost:8080/api/client/huydonchoxacnhan/${order.id}`, {
+      await axios.delete(`https://datn-sp25-4bee.onrender.com/api/client/huydonchoxacnhan/${order.id}`, {
         data: {
           moTa: selectedReason,
           idKhachHang: order?.idKhachHang,
@@ -959,7 +959,7 @@ const OrderDetailPage = () => {
         updateOrder.products.map(async (product) => {
           try {
             const res = await axios.get(
-              `http://localhost:8080/api/client/chitietsanpham/${product.id}`,
+              `https://datn-sp25-4bee.onrender.com/api/client/chitietsanpham/${product.id}`,
             );
             priceMap[product.id] = res.data.gia;
           } catch (error) {
@@ -1018,7 +1018,7 @@ const OrderDetailPage = () => {
   const fetchProductImage = async (productDetailId) => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
+        `https://datn-sp25-4bee.onrender.com/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
       );
       return response.data;
     } catch (error) {
@@ -1372,7 +1372,7 @@ const OrderDetailPage = () => {
         console.log('Thông tin ok:', newOrder);
         try {
           await axios.put(
-            `http://localhost:8080/api/client/order/updatehoadoncho/${newOrder.id}`,
+            `https://datn-sp25-4bee.onrender.com/api/client/order/updatehoadoncho/${newOrder.id}`,
             newOrder,
           );
           message.success('Cập nhật đơn hàng thành công!');
