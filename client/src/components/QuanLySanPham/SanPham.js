@@ -20,7 +20,7 @@ const SanPham = () => {
   const token = localStorage.getItem('token');
   useEffect(() => {
     axios
-      .get('http://localhost:8080/api/admin/sanpham', {
+      .get('https://datn-sp25-4bee.onrender.com/api/admin/sanpham', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
