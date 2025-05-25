@@ -30,9 +30,9 @@ const PhieuGiamGiaUpdate = () => {
   const { id } = useParams();
   const token = localStorage.getItem("token");
 
-  const API_URL = "http://localhost:8080/api/admin/phieu-giam-gia";
+  const API_URL = "https://datn-sp25-4bee.onrender.com/api/admin/phieu-giam-gia";
   const KHACH_HANG_URL =
-    "http://localhost:8080/api/admin/phieu-giam-gia/khach_hang";
+    "https://datn-sp25-4bee.onrender.com/api/admin/phieu-giam-gia/khach_hang";
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${token}`,
