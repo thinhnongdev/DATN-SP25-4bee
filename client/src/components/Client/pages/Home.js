@@ -38,7 +38,7 @@ const [products, setProducts] = useState([]);
 const [loading, setLoading] = useState(true);
 const fetchData = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/client/sanpham', {
+    const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/client/sanpham', {
     });
     console.log('Data fetched:', response.data);
     setProducts(response.data);
