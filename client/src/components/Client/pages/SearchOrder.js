@@ -101,7 +101,7 @@ function TimKiemHoaDonKhach() {
   const fetchProductImage = async (productDetailId) => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
+        `https://datn-sp25-4bee.onrender.com/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
       );
       return response.data;
     } catch (error) {
@@ -125,7 +125,7 @@ function TimKiemHoaDonKhach() {
     setLoading(true);
     try {
       const res = await axios.get(
-        `http://localhost:8080/api/client/order/findHoaDonByMaHoaDon/${maHoaDon}`,
+        `https://datn-sp25-4bee.onrender.com/api/client/order/findHoaDonByMaHoaDon/${maHoaDon}`,
       );
       const fetchedOrders = res.data;
 
@@ -134,9 +134,9 @@ function TimKiemHoaDonKhach() {
           try {
             const [paymentRes, productsRes] = await Promise.all([
               axios.get(
-                `http://localhost:8080/api/client/thanhtoan/findThanhToanHoaDonByIdHoaDon/${order.id}`,
+                `https://datn-sp25-4bee.onrender.com/api/client/thanhtoan/findThanhToanHoaDonByIdHoaDon/${order.id}`,
               ),
-              axios.get(`http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${order.id}`),
+              axios.get(`https://datn-sp25-4bee.onrender.com/api/client/findDanhSachSPCTbyIdHoaDon/${order.id}`),
             ]);
 
             const productsWithImages = await Promise.all(
@@ -150,7 +150,7 @@ function TimKiemHoaDonKhach() {
             if (order.idPhieuGiamGia) {
               try {
                 const voucherRes = await axios.get(
-                  `http://localhost:8080/api/client/phieugiamgia/findPhieuGiamGia/${order.idPhieuGiamGia}`,
+                  `https://datn-sp25-4bee.onrender.com/api/client/phieugiamgia/findPhieuGiamGia/${order.idPhieuGiamGia}`,
                 );
                 voucher = voucherRes.data;
               } catch (err) {
