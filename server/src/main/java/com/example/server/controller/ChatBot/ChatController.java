@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/chat")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://datn-sp-25-4bee.vercel.app")
 public class ChatController {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
