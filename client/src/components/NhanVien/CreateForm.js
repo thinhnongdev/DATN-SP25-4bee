@@ -127,7 +127,7 @@ function CreateForm({ handleClose, getAllNhanVien }) {
   const checkEmailExists = async (email) => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/admin/nhan_vien/check-email?email=${email}`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/nhan_vien/check-email?email=${email}`,
         {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         },
