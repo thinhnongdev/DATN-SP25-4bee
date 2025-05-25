@@ -142,8 +142,8 @@ const VoucherPage = () => {
         }
 
         const [congKhaiRes, caNhanRes] = await Promise.all([
-          axios.get('http://localhost:8080/api/client/phieugiamgia/congkhai'),
-          axios.get(`http://localhost:8080/api/client/phieugiamgia/canhan/${email}`),
+          axios.get('https://datn-sp25-4bee.onrender.com/api/client/phieugiamgia/congkhai'),
+          axios.get(`https://datn-sp25-4bee.onrender.com/api/client/phieugiamgia/canhan/${email}`),
         ]);
 
         const combinedData = [
