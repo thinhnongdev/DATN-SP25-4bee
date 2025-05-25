@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/admin/khach_hang';
+const API_URL = 'https://datn-sp25-4bee.onrender.com/api/admin/khach_hang';
 
 // Hàm tạo headers kèm token
 const getAuthHeaders = () => ({
