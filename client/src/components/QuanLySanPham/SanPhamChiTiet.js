@@ -149,7 +149,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/imagesSanPham', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/imagesSanPham', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -163,7 +163,7 @@ const SanPhamChiTiet = () => {
   }, []);
   const fetchChiTietSanPham = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham/${id}`, {
+      const response = await fetch(`https://datn-sp25-4bee.onrender.com/api/admin/sanpham/chitietsanpham/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -189,7 +189,7 @@ const SanPhamChiTiet = () => {
   }, [id]);
   const fetchTenSanPham = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/sanpham/${id}`, {
+      const response = await fetch(`https://datn-sp25-4bee.onrender.com/api/admin/sanpham/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -209,7 +209,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/chatlieu', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/chatlieu', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -226,7 +226,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieudang', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieudang', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -244,7 +244,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/thuonghieu', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/thuonghieu', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -262,7 +262,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucuc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucuc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -280,7 +280,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucoao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucoao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -298,7 +298,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieucotayao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieucotayao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -316,7 +316,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutuiao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieutuiao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -334,7 +334,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kieutayao', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kieutayao', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -352,7 +352,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/mausac', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/mausac', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -370,7 +370,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/kichthuoc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/kichthuoc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -389,7 +389,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/hoatiet', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/hoatiet', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -408,7 +408,7 @@ const SanPhamChiTiet = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/admin/danhmuc', {
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/admin/danhmuc', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -483,7 +483,7 @@ const SanPhamChiTiet = () => {
       console.log('Dữ liệu gửi đi:', requestData);
 
       const response = await fetch(
-        `http://localhost:8080/api/admin/sanpham/chitietsanpham/${selectedProduct.id}`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/sanpham/chitietsanpham/${selectedProduct.id}`,
         {
           method: 'PATCH',
           headers: {
@@ -669,7 +669,7 @@ const SanPhamChiTiet = () => {
   //hàm lấy toàn bộ sản phẩm
   const handleGetAllProduct = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/admin/sanpham/chitietsanpham`, {
+      const response = await fetch(`https://datn-sp25-4bee.onrender.com/api/admin/sanpham/chitietsanpham`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -701,7 +701,7 @@ const SanPhamChiTiet = () => {
     const fetchProductImages = async (sanPhamChiTietId) => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
+          `https://datn-sp25-4bee.onrender.com/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -748,7 +748,7 @@ const SanPhamChiTiet = () => {
   const fetchProductImages = async (sanPhamChiTietId) => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/sanphamchitiet/${sanPhamChiTietId}/hinhanh`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
