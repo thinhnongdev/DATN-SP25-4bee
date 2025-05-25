@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:8080/api/auth/introspect"; // Thay thế bằng URL thật
+const API_URL = "https://datn-sp25-4bee.onrender.com/api/auth/introspect"; // Thay thế bằng URL thật
 
 export const checkTokenValidity = async (token) => {
   try {
