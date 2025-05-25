@@ -88,13 +88,20 @@ useEffect(() => {
         <Title level={2} style={{ textAlign: "center", marginBottom: "48px" }}>
           Bộ sưu tập nổi bật
         </Title>
-        <Row gutter={[24, 24]}>
-          {products.map((product) => (
-            <Col xs={24} sm={12} md={6} key={product.id}>
-              <ProductCard {...product} />
-            </Col>
-          ))}
-        </Row>
+      <Row gutter={[24, 24]}>
+  {Array.isArray(products) && products.length > 0 ? (
+    products.map((product) => (
+      <Col xs={24} sm={12} md={6} key={product.id}>
+        <ProductCard {...product} />
+      </Col>
+    ))
+  ) : (
+    <Col span={24} style={{ textAlign: 'center', marginTop: 50 }}>
+      <Empty description="Không có sản phẩm nào" />
+    </Col>
+  )}
+</Row>
+
       </div>
 
       {/* Phần Khuyến mãi */}
