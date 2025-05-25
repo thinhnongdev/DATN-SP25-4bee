@@ -87,7 +87,7 @@ const ProductDetail = () => {
   const fetchProductImage = async (productDetailId) => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
+        `https://datn-sp25-4bee.onrender.com/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
       );
       return response.data;
     } catch (error) {
@@ -101,7 +101,7 @@ const ProductDetail = () => {
     const fetchProduct = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/client/sanpham/chitietsanpham/${id}`,
+          `https://datn-sp25-4bee.onrender.com/api/client/sanpham/chitietsanpham/${id}`,
         );
         console.log('ProductDetails fetched:', response.data);
         const groupedProduct = groupProducts(response.data);
@@ -192,7 +192,7 @@ const ProductDetail = () => {
             email: email,
           };
           axios
-            .post('http://localhost:8080/api/client/order/addSanPhamVaoGio', cartData)
+            .post('https://datn-sp25-4bee.onrender.com/api/client/order/addSanPhamVaoGio', cartData)
             .then((response) => {
               console.log('Sản phẩm đã được lưu vào giỏ:', response.data);
             })
