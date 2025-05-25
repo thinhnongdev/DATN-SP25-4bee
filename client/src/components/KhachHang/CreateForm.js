@@ -60,7 +60,7 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
         setAddressLoading(true);
         // Thay đường dẫn API GHN bằng API của backend
         const response = await axios.get(
-          "http://localhost:8080/api/admin/hoa-don/dia-chi/tinh",
+          "https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/tinh",
           {
             headers: { 
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -94,7 +94,7 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
     
     try {
       setCheckingEmail(true);
-      const response = await axios.get(`http://localhost:8080/api/admin/khach_hang/check-email?email=${encodeURIComponent(value)}`, {
+      const response = await axios.get(`https://datn-sp25-4bee.onrender.com/api/admin/khach_hang/check-email?email=${encodeURIComponent(value)}`, {
         headers: { 
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json" 
@@ -120,7 +120,7 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
     
     try {
       setCheckingPhone(true);
-      const response = await axios.get(`http://localhost:8080/api/admin/khach_hang/check-phone?soDienThoai=${encodeURIComponent(value)}`, {
+      const response = await axios.get(`https://datn-sp25-4bee.onrender.com/api/admin/khach_hang/check-phone?soDienThoai=${encodeURIComponent(value)}`, {
         headers: { 
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json" 
@@ -157,7 +157,7 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
 
       // Gọi API backend để lấy danh sách quận/huyện
       const response = await axios.get(
-        `http://localhost:8080/api/admin/hoa-don/dia-chi/huyen?provinceId=${value}`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/huyen?provinceId=${value}`,
         {
           headers: { 
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -197,7 +197,7 @@ function CreateForm({ getAllKhachHang, handleClose, onCancel }) {
 
       // Gọi API backend để lấy danh sách phường/xã
       const response = await axios.get(
-        `http://localhost:8080/api/admin/hoa-don/dia-chi/xa?districtId=${value}`,
+        `https://datn-sp25-4bee.onrender.com/api/admin/hoa-don/dia-chi/xa?districtId=${value}`,
         {
           headers: { 
             Authorization: `Bearer ${localStorage.getItem("token")}`,
