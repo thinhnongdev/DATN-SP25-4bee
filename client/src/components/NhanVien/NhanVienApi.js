@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/admin/nhan_vien';
+const API_URL = 'https://datn-sp25-4bee.onrender.com/api/admin/nhan_vien';
 
 
 export async function getAllApi() {
