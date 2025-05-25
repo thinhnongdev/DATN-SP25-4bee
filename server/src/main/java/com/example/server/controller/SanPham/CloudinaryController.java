@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/imagesSanPham")
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(origins = "https://datn-sp-25-4bee.vercel.app", allowCredentials = "true")
 public class CloudinaryController {
 
     private final Cloudinary cloudinary;
