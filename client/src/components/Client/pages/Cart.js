@@ -33,7 +33,7 @@ const Cart = () => {
   const fetchProductImage = async (productDetailId) => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
+        `https://datn-sp25-4bee.onrender.com/api/client/sanphamchitiet/${productDetailId}/hinhanh`,
       );
       return response.data;
     } catch (error) {
@@ -54,7 +54,7 @@ const Cart = () => {
           const email = decodedToken?.sub;
 
           const hoaDonResponse = await axios.get(
-            `http://localhost:8080/api/client/order/findHoaDonPending/${email}`,
+            `https://datn-sp25-4bee.onrender.com/api/client/order/findHoaDonPending/${email}`,
           );
           const idHoaDon = hoaDonResponse.data?.id;
           setIdHoaDon(idHoaDon);
@@ -66,7 +66,7 @@ const Cart = () => {
           }
 
           const response = await axios.get(
-            `http://localhost:8080/api/client/findDanhSachSPCTbyIdHoaDon/${idHoaDon}`,
+            `https://datn-sp25-4bee.onrender.com/api/client/findDanhSachSPCTbyIdHoaDon/${idHoaDon}`,
           );
           const productList = response.data;
 
@@ -74,7 +74,7 @@ const Cart = () => {
             productList.map(async (item) => {
               const [images, currentProduct] = await Promise.all([
                 fetchProductImage(item.id),
-                axios.get(`http://localhost:8080/api/client/chitietsanpham/${item.id}`),
+                axios.get(`https://datn-sp25-4bee.onrender.com/api/client/chitietsanpham/${item.id}`),
               ]);
 
               return {
@@ -96,7 +96,7 @@ const Cart = () => {
           }
 
           const productRequests = cartItems.map((item) =>
-            axios.get(`http://localhost:8080/api/client/chitietsanpham/${item.id}`),
+            axios.get(`https://datn-sp25-4bee.onrender.com/api/client/chitietsanpham/${item.id}`),
           );
           const responses = await Promise.all(productRequests);
           const products = responses.map((res) => res.data);
@@ -134,7 +134,7 @@ const Cart = () => {
         const updatedProducts = await Promise.all(
           cartProducts.map(async (product) => {
             const res = await axios.get(
-              `http://localhost:8080/api/client/chitietsanpham/${product.id}`,
+              `https://datn-sp25-4bee.onrender.com/api/client/chitietsanpham/${product.id}`,
             );
             return {
               ...product,
@@ -167,7 +167,7 @@ const Cart = () => {
   useEffect(() => {
     const fetchVoucherCongKhai = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/client/phieugiamgia/congkhai');
+        const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/client/phieugiamgia/congkhai');
         console.log('Voucher công khai:', response.data);
         setVoucherList((prev) => [...prev, ...response.data]);
       } catch (error) {
@@ -178,7 +178,7 @@ const Cart = () => {
     const fetchVoucherCaNhan = async (email) => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/client/phieugiamgia/canhan/${email}`,
+          `https://datn-sp25-4bee.onrender.com/api/client/phieugiamgia/canhan/${email}`,
         );
         console.log('Voucher cá nhân:', response.data);
         setVoucherList((prev) => [...prev, ...response.data]);
@@ -236,7 +236,7 @@ const Cart = () => {
             email: email,
           };
           axios
-            .post('http://localhost:8080/api/client/order/addHoaDonChiTiet', cartData)
+            .post('https://datn-sp25-4bee.onrender.com/api/client/order/addHoaDonChiTiet', cartData)
             .then((response) => {
               console.log('cart update',cartData)
               console.log('Cập nhật số lượng trong database:', response.data);
@@ -283,7 +283,7 @@ const Cart = () => {
               };
 
               axios
-                .post('http://localhost:8080/api/client/order/addHoaDonChiTiet', cartData)
+                .post('https://datn-sp25-4bee.onrender.com/api/client/order/addHoaDonChiTiet', cartData)
                 .then((response) => {
                   console.log('Sản phẩm đã bị xóa khỏi database:', response.data);
                 })
@@ -300,7 +300,7 @@ const Cart = () => {
   const handleCheckout = async () => {
     try {
       if(idHoaDon != null) {
-        await axios.get('http://localhost:8080/api/client/order/updatePriceAtAddTime/' + idHoaDon);
+        await axios.get('https://datn-sp25-4bee.onrender.com/api/client/order/updatePriceAtAddTime/' + idHoaDon);
       }
       console.log('Đang chuyển hướng đến trang checkout...');
       navigate('/checkout', { state: { cartProducts, selectedVoucher } });
