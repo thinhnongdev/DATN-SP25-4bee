@@ -35,7 +35,7 @@ const PaymentSuccess = () => {
             const email = decodedToken.sub;
             if (email) {
                 try {
-                  const response = await axios.post('http://localhost:8080/api/client/order/createPending', { email });
+                  const response = await axios.post('https://datn-sp25-4bee.onrender.com/api/client/order/createPending', { email });
                   console.log("Tạo lại hóa đơn pending thành công", response.data);
                 }
                 catch (error) {
