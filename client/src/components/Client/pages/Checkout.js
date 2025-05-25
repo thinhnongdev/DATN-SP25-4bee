@@ -209,7 +209,7 @@ const CheckoutForm = () => {
   const fetchUserInfo = async (token) => {
     try {
       const response = await axios.post(
-        'http://localhost:8080/api/auth/getInfoUser',
+        'https://datn-sp25-4bee.onrender.com/api/auth/getInfoUser',
         { token }, // Không cần stringify thủ công vì axios tự xử lý
         { headers: { 'Content-Type': 'application/json' } },
       );
@@ -224,7 +224,7 @@ const CheckoutForm = () => {
   //Hàm fetch danh sách địa chỉ dựa vào customerId
   const fetchAddresses = async (customerId) => {
     try {
-      const response = await axios.get(`http://localhost:8080/api/client/diaChi/${customerId}`);
+      const response = await axios.get(`https://datn-sp25-4bee.onrender.com/api/client/diaChi/${customerId}`);
       console.log('Fetched Addresses:', response.data);
       const addresses = response.data;
       console.log('Dữ liệu địa chỉ trả về:', response.data);
@@ -491,7 +491,7 @@ const CheckoutForm = () => {
   const checkPaymentStatus = async (hoaDonId) => {
     try {
       const res = await axios.get(
-        `http://localhost:8080/api/client/thanhtoan/sepay/transactions?account_number=102876619993&limit=5`,
+        `https://datn-sp25-4bee.onrender.com/api/client/thanhtoan/sepay/transactions?account_number=102876619993&limit=5`,
       );
 
       const transactions = res.data?.transactions || [];
@@ -520,7 +520,7 @@ const CheckoutForm = () => {
   const getOrderCodesByEmail = async (email) => {
     try {
       const response = await fetch(
-        `http://localhost:8080/api/client/order/findHoaDonPending/${email}`,
+        `https://datn-sp25-4bee.onrender.com/api/client/order/findHoaDonPending/${email}`,
       );
       if (!response.ok) {
         throw new Error('Failed to fetch order codes');
@@ -535,7 +535,7 @@ const CheckoutForm = () => {
   };
   const createPendingOrder = async (email) => {
     try {
-      await axios.post('http://localhost:8080/api/client/order/createPending', { email });
+      await axios.post('https://datn-sp25-4bee.onrender.com/api/client/order/createPending', { email });
       console.log('✅ Tạo lại hóa đơn pending thành công!');
     } catch (error) {
       console.error('❌ Lỗi khi tạo lại hóa đơn pending:', error);
@@ -574,12 +574,12 @@ const CheckoutForm = () => {
             }
 
             apiUrlThanhToan =
-              'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangDaDangNhap';
+              'https://datn-sp25-4bee.onrender.com/api/client/thanhtoan/thanhToanDonHangDaDangNhap';
           }
         } else {
           uniqueOrderCode = generateUniqueOrderCode();
           apiUrlThanhToan =
-            'http://localhost:8080/api/client/thanhtoan/thanhToanDonHangChuaDangNhap';
+            'https://datn-sp25-4bee.onrender.com/api/client/thanhtoan/thanhToanDonHangChuaDangNhap';
         }
 
         const orderData = {
@@ -600,7 +600,7 @@ const CheckoutForm = () => {
             sessionStorage.setItem('apiUrlThanhToan', apiUrlThanhToan);
 
             const response = await fetch(
-              `http://localhost:8080/api/client/vnpay/create-payment?amount=${orderData.tongTienThanhToan}&orderCode=${uniqueOrderCode}`,
+              `https://datn-sp25-4bee.onrender.com/api/client/vnpay/create-payment?amount=${orderData.tongTienThanhToan}&orderCode=${uniqueOrderCode}`,
             );
             const paymentUrl = await response.text();
             window.location.href = paymentUrl;
