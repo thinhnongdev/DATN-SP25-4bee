@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Typography, Row, Col, Button, Card, Rate, Carousel } from "antd";
+import { Typography, Row, Col, Button, Card, Rate, Carousel, Empty} from "antd";
 import { Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import { RightOutlined } from "@ant-design/icons";
