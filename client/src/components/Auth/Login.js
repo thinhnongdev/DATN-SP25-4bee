@@ -104,7 +104,10 @@ const LoginForm = () => {
               style={{ maxHeight: '180px', maxWidth: '180px' }}
             />
           </Link>
-          <Form name="login" onFinish={onFinish} layout="vertical">
+          <Form name="login" onFinish={onFinish} layout="vertical" initialValues={{
+    email: 'tienthinhkk@gmail.com',
+    password: '123456',
+  }}>
             <Form.Item name="email" rules={[{ required: true, message: 'Vui lòng nhập email!' }]}>
               <Input type="email" prefix={<UserOutlined />} placeholder="Email" />
             </Form.Item>
