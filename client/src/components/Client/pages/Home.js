@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Typography, Row, Col, Button, Card, Rate, Carousel, Empty} from "antd";
+import { Typography, Row, Col, Button, Card, Rate, Carousel, Empty, Spin} from "antd";
 import { Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import { RightOutlined } from "@ant-design/icons";
@@ -37,6 +37,7 @@ const { Title, Text } = Typography;
 const [products, setProducts] = useState([]);
 const [loading, setLoading] = useState(true);
 const fetchData = async () => {
+  setLoading(true);
   try {
     const response = await axios.get('https://datn-sp25-4bee.onrender.com/api/client/sanpham', {
     });
@@ -44,7 +45,9 @@ const fetchData = async () => {
     setProducts(response.data);
   } catch (error) {
     console.error('Error fetching data:', error);
-  }
+  } finally {
+      setLoading(false);
+    }
 };
 
 useEffect(() => {
@@ -89,17 +92,22 @@ useEffect(() => {
           Bộ sưu tập nổi bật
         </Title>
       <Row gutter={[24, 24]}>
-  {products&& products.length > 0 ? (
-    products.map((product) => (
-      <Col xs={24} sm={12} md={6} key={product.id}>
-        <ProductCard {...product} />
-      </Col>
-    ))
-  ) : (
-    <Col span={24} style={{ textAlign: 'center', marginTop: 50 }}>
-      <Empty description="Không có sản phẩm nào" />
+{loading ? (
+  <Col span={24} style={{ textAlign: 'center', marginTop: 50 }}>
+    <Spin size="large" />
+  </Col>
+) : products && products.length > 0 ? (
+  products.map((product) => (
+    <Col xs={24} sm={12} md={6} key={product.id}>
+      <ProductCard {...product} />
     </Col>
-  )}
+  ))
+) : (
+  <Col span={24} style={{ textAlign: 'center', marginTop: 50 }}>
+    <Empty description="Không có sản phẩm nào" />
+  </Col>
+)}
+
 </Row>
 
       </div>
