@@ -11,6 +11,7 @@ import {
   Divider,
   Card,
   Empty,
+  Spin,
 } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import ProductCard from "../components/ProductCard";
@@ -26,14 +27,15 @@ const Products = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const res = await axios.get("https://datn-sp25-4bee.onrender.com/api/client/sanpham");
-        setProducts(res.data);
-        setLoading(false);
+        setProducts(res.data);   
       } catch (err) {
         console.error("Fetch error:", err);
-        setLoading(false);
-      }
+      } finally {
+      setLoading(false);
+    }
     };
     fetchData();
   }, []);
@@ -168,19 +170,24 @@ const filteredProducts = products.filter((product) => {
 
         {/* DANH SÁCH SẢN PHẨM */}
         <Col xs={24} lg={18}>
-          <Row gutter={[16, 16]}>
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => (
-                <Col xs={24} sm={12} md={8} key={product.id}>
-                  <ProductCard {...product} />
-                </Col>
-              ))
-            ) : (
-              <Col span={24} style={{ textAlign: "center", marginTop: 40 }}>
-                <Empty description="Không tìm thấy sản phẩm phù hợp" />
-              </Col>
-            )}
-          </Row>
+        <Row gutter={[16, 16]}>
+  {loading ? (
+    <Col span={24} style={{ textAlign: "center", marginTop: 40 }}>
+      <Spin size="large" />
+    </Col>
+  ) : filteredProducts.length > 0 ? (
+    filteredProducts.map((product) => (
+      <Col xs={24} sm={12} md={8} key={product.id}>
+        <ProductCard {...product} />
+      </Col>
+    ))
+  ) : (
+    <Col span={24} style={{ textAlign: "center", marginTop: 40 }}>
+      <Empty description="Không tìm thấy sản phẩm phù hợp" />
+    </Col>
+  )}
+</Row>
+
         </Col>
       </Row>
     </div>
